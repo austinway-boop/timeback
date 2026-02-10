@@ -25,11 +25,11 @@
         </div>
         <div class="topbar-right">
             {% if view == 'student' %}
-            <a href="{{ url_for('admin_dashboard') }}" class="view-switch-btn" title="Switch to Admin View">
+            <a href="{{ url_for('admin.admin_dashboard') }}" class="view-switch-btn" title="Switch to Admin View">
                 <i class="fa-solid fa-shield-halved"></i>
             </a>
             {% else %}
-            <a href="{{ url_for('student_home') }}" class="view-switch-btn" title="Switch to Student View">
+            <a href="{{ url_for('dashboard.student_home') }}" class="view-switch-btn" title="Switch to Student View">
                 <i class="fa-solid fa-graduation-cap"></i>
             </a>
             {% endif %}

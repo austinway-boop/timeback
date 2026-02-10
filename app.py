@@ -1,11 +1,24 @@
 import os
 import requests
 from dotenv import load_dotenv
-from flask import Flask, render_template, jsonify, request, redirect, url_for
+from flask import Flask, jsonify, request
 
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
+
+# ---------------------------------------------------------------------------
+# Register Blueprints  (each file = one team member's domain)
+# ---------------------------------------------------------------------------
+from routes.auth import auth_bp          # login / logout
+from routes.dashboard import dashboard_bp  # student dashboard
+from routes.admin import admin_bp          # admin dashboard
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(dashboard_bp)
+app.register_blueprint(admin_bp)
+
 
 # ---------------------------------------------------------------------------
 # Timeback / Cognito credentials  (loaded from .env — see .env.example)
@@ -47,85 +60,6 @@ def api_headers() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Demo data for student view
-# ---------------------------------------------------------------------------
-DEMO_USER = {"givenName": "Austin", "familyName": "Way", "email": "austin@alpha.school", "role": "student"}
-
-DEMO_COURSES = [
-    {
-        "id": 1,
-        "name": "Math Academy - SAT Math Fundamentals",
-        "color": "teal",
-        "icon": "fa-calculator",
-        "xp_earned": 0,
-        "xp_total": 60,
-        "lessons_left": 0,
-        "image_style": "math",
-    },
-    {
-        "id": 2,
-        "name": "AP Language and Composition",
-        "color": "purple",
-        "icon": "fa-book-open",
-        "xp_earned": 0,
-        "xp_total": 30,
-        "lessons_left": 1,
-        "image_style": "language",
-    },
-    {
-        "id": 3,
-        "name": "eGumpp",
-        "color": "purple",
-        "icon": "fa-laptop-code",
-        "xp_earned": 0,
-        "xp_total": 15,
-        "lessons_left": 0,
-        "image_style": "tech",
-    },
-    {
-        "id": 4,
-        "name": "Chemistry Honors",
-        "color": "pink",
-        "icon": "fa-atom",
-        "xp_earned": 0,
-        "xp_total": 45,
-        "lessons_left": 2,
-        "image_style": "science",
-    },
-    {
-        "id": 5,
-        "name": "Biology Fundamentals",
-        "color": "pink",
-        "icon": "fa-dna",
-        "xp_earned": 0,
-        "xp_total": 30,
-        "lessons_left": 0,
-        "image_style": "biology",
-    },
-    {
-        "id": 6,
-        "name": "World Geography",
-        "color": "orange",
-        "icon": "fa-globe-americas",
-        "xp_earned": 0,
-        "xp_total": 25,
-        "lessons_left": 1,
-        "image_style": "geography",
-    },
-]
-
-DEMO_TESTS = [
-    {
-        "id": 1,
-        "name": "Reading Mastery Test",
-        "grade": "Grade 11",
-        "xp": 120,
-        "image_style": "reading",
-    },
-]
-
-
-# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 def parse_user(raw: dict) -> dict:
@@ -148,46 +82,17 @@ def parse_user(raw: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Page routes
+# Root redirect
 # ---------------------------------------------------------------------------
+from flask import redirect, url_for
+
 @app.route("/")
 def index():
-    return redirect(url_for("student_home"))
-
-
-@app.route("/student")
-def student_home():
-    return render_template(
-        "student/home.html",
-        user=DEMO_USER,
-        courses=DEMO_COURSES,
-        tests=DEMO_TESTS,
-        view="student",
-    )
-
-
-@app.route("/admin")
-def admin_dashboard():
-    return render_template("admin/dashboard.html", view="admin")
-
-
-@app.route("/admin/students")
-def admin_students():
-    return render_template("admin/students.html", view="admin")
-
-
-@app.route("/admin/courses")
-def admin_courses():
-    return render_template("admin/courses.html", view="admin")
-
-
-@app.route("/admin/settings")
-def admin_settings():
-    return render_template("admin/settings.html", view="admin")
+    return redirect(url_for("auth.login"))
 
 
 # ---------------------------------------------------------------------------
-# API routes
+# API routes  (shared across views — keep here or move to routes/api.py)
 # ---------------------------------------------------------------------------
 @app.route("/api/users")
 def api_users():
