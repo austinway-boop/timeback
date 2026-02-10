@@ -26,3 +26,4 @@ env/
 
 # ---- Separate sub-project (has its own repo) ----
 readventure-course-builder/
+.vercel
