@@ -147,41 +147,51 @@
                 || enrollData.courses
                 || (Array.isArray(enrollData) ? enrollData : []);
 
-            /* 3. Filter to ONLY currently-enrolled, real courses */
+            /* 3. Filter to ONLY currently-enrolled, real courses
+             *
+             * Per EduBridge docs the response is already "active enrollments",
+             * so we only need to:
+             *   - drop expired (endDate in the past)
+             *   - drop obvious non-course rows (Manual XP, Hole-Filling, no-subject admin rows)
+             *   - drop PowerPath assessment courses (title contains "- PP")
+             *   - separate mastery track tests into their own section
+             */
             const now     = new Date();
             const courses = [];
             const tests   = [];
 
             for (const e of raw) {
                 const course   = e.course || {};
-                const cMeta    = course.metadata || {};
                 const goals    = (e.metadata && e.metadata.goals) || {};
-                const title    = course.title || '';
+                const metrics  = (e.metadata && e.metadata.metrics) || {};
+                const title    = (course.title || '').trim();
                 const subjects = course.subjects || [];
                 const endDate  = e.endDate ? new Date(e.endDate) : null;
 
-                // ── Skip expired enrollments (endDate in the past) ──
+                // ── Skip expired enrollments ──
                 if (endDate && endDate < now) continue;
 
-                // ── Skip non-course rows ──
+                // ── Skip junk rows ──
+                if (!title)                         continue;
                 if (title.startsWith('Manual XP'))  continue;
                 if (title.includes('Hole-Filling')) continue;
                 if (title.includes('- PP'))         continue;  // PowerPath assessments
-                if (!subjects.length && !cMeta.primaryApp && !cMeta.courseType) continue;
+                if (!subjects.length && !title)     continue;  // empty admin rows
 
                 const item = {
                     title,
                     subject:  subjects[0] || '',
                     xpEarned: e.xpEarned || 0,
                     xpTotal:  goals.dailyXp || e.xpTotal || 0,
-                    isMasteryTest: cMeta.courseType === 'mastery_test'
-                        || cMeta.courseType === 'mastery-test'
-                        || cMeta.isMasteryTest === true
-                        || (title.toLowerCase().includes('mastery') && title.toLowerCase().includes('test')),
                 };
 
-                // ── Only mastery track tests go in the test section ──
-                if (item.isMasteryTest) {
+                // ── Mastery track tests only (not PP, not regular courses) ──
+                const isMastery = metrics.courseType === 'mastery_test'
+                    || metrics.courseType === 'mastery-test'
+                    || metrics.courseType === 'masteryTest'
+                    || (title.toLowerCase().includes('mastery') && title.toLowerCase().includes('test'));
+
+                if (isMastery) {
                     tests.push(item);
                     continue;
                 }
