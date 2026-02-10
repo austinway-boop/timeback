@@ -81,9 +81,23 @@
             const color    = COURSE_THEMES[i % COURSE_THEMES.length];
             const icon     = guessIcon(c.title || '');
             const name     = c.title || 'Untitled Course';
-            const xpEarned = c.xpEarned || 0;
-            const xpTotal  = c.xpTotal  || 0;
-            const pct      = xpTotal > 0 ? (xpEarned / xpTotal * 100) : 0;
+            const totalXp  = c.totalXp || 0;
+            const dailyGoal = c.dailyXpGoal || 0;
+            const totalLessons = c.totalLessons || 0;
+
+            // XP display: show total earned + daily goal
+            const xpDisplay = totalXp > 0
+                ? `<span class="xp-progress">${totalXp.toLocaleString()} XP</span>`
+                : `<span class="xp-progress" style="opacity:0.5">0 XP</span>`;
+
+            // Progress bar: percentage of daily goal met (capped at 100%)
+            const dailyPct = dailyGoal > 0 ? Math.min((totalXp / dailyGoal) * 100, 100) : 0;
+
+            // Lessons stat
+            const lessonsDisplay = totalLessons > 0
+                ? `<span class="lessons-hint">${totalLessons.toLocaleString()} lessons completed</span>`
+                : '';
+
             return `
                 <div class="course-card">
                     <div class="course-card-image card-theme-${color}">
@@ -95,12 +109,13 @@
                             <span class="course-card-name">${name}</span>
                         </div>
                         <div class="course-card-xp">
-                            <span class="xp-progress">${xpEarned} / ${xpTotal} XP</span>
-                            <span class="xp-period">TODAY</span>
+                            ${xpDisplay}
+                            <span class="xp-period">${dailyGoal} XP / DAY GOAL</span>
                         </div>
                         <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${pct}%"></div>
+                            <div class="progress-fill" style="width: ${dailyPct}%"></div>
                         </div>
+                        ${lessonsDisplay}
                     </div>
                 </div>`;
         }).join('');
@@ -180,9 +195,10 @@
 
                 const item = {
                     title,
-                    subject:  subjects[0] || '',
-                    xpEarned: e.xpEarned || 0,
-                    xpTotal:  goals.dailyXp || e.xpTotal || 0,
+                    subject:      subjects[0] || '',
+                    totalXp:      metrics.totalXp || 0,
+                    totalLessons: metrics.totalLessons || 0,
+                    dailyXpGoal:  goals.dailyXp || 0,
                 };
 
                 // ── Mastery track tests only (not PP, not regular courses) ──
