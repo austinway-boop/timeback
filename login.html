@@ -200,36 +200,35 @@
         }
     }
 
-    /* ---- Google Sign-In -------------------------------------------------- */
-    (async function initGoogleBtn() {
+    /* ---- Auth Config (shared by Google + Email login) ---------------------- */
+    let authConfig = null;
+
+    (async function initAuth() {
         const googleBtn = document.getElementById('google-btn');
         try {
             const resp = await fetch('/api/auth/config');
             if (!resp.ok) throw new Error('Config endpoint unavailable');
-            const config = await resp.json();
-            const clientId = config.client_id;
-            const cognitoDomain = config.cognito_domain;
-            const redirectUri = encodeURIComponent(window.location.origin + '/callback');
+            authConfig = await resp.json();
 
             googleBtn.disabled = false;
             googleBtn.addEventListener('click', function () {
-                const url = cognitoDomain +
+                const redirectUri = encodeURIComponent(window.location.origin + '/callback');
+                const url = authConfig.cognito_domain +
                     '/oauth2/authorize?response_type=code' +
-                    '&client_id=' + encodeURIComponent(clientId) +
+                    '&client_id=' + encodeURIComponent(authConfig.client_id) +
                     '&scope=openid+email+profile' +
                     '&redirect_uri=' + redirectUri +
                     '&identity_provider=Google';
                 window.location.href = url;
             });
         } catch (err) {
-            // Config not available yet (backend may still be deploying)
-            console.warn('[AlphaLearn] Could not load auth config for Google button:', err.message);
+            console.warn('[AlphaLearn] Could not load auth config:', err.message);
             googleBtn.title = 'Google Sign-In is not available right now';
         }
     })();
 
-    /* ---- Email / Password Login ------------------------------------------ */
-    document.getElementById('login-form').addEventListener('submit', async function (e) {
+    /* ---- Email / Password Login via Cognito Hosted UI -------------------- */
+    document.getElementById('login-form').addEventListener('submit', function (e) {
         e.preventDefault();
         hideError();
 
@@ -242,29 +241,21 @@
             return;
         }
 
+        if (!authConfig) {
+            showError('Authentication service not available. Please try again.');
+            return;
+        }
+
         setLoading(loginBtn, true);
 
-        try {
-            const resp = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
-
-            const data = await resp.json();
-
-            if (!resp.ok || !data.success) {
-                showError(data.error || 'Invalid email or password.');
-                setLoading(loginBtn, false, 'Sign In');
-                return;
-            }
-
-            handleAuthSuccess(data.user);
-        } catch (err) {
-            console.error('[AlphaLearn] Login error:', err);
-            showError('Unable to connect to the server. Please try again.');
-            setLoading(loginBtn, false, 'Sign In');
-        }
+        // Route through Cognito Hosted UI (avoids USER_PASSWORD_AUTH requirement)
+        const redirectUri = encodeURIComponent(window.location.origin + '/callback');
+        const url = authConfig.cognito_domain +
+            '/login?response_type=code' +
+            '&client_id=' + encodeURIComponent(authConfig.client_id) +
+            '&scope=openid+email+profile' +
+            '&redirect_uri=' + redirectUri;
+        window.location.href = url;
     });
     </script>
 </body>

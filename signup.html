@@ -218,35 +218,35 @@
         }
     }
 
-    /* ---- Google Sign-Up -------------------------------------------------- */
-    (async function initGoogleBtn() {
+    /* ---- Auth Config (shared by Google + Email signup) --------------------- */
+    let authConfig = null;
+
+    (async function initAuth() {
         const googleBtn = document.getElementById('google-btn');
         try {
             const resp = await fetch('/api/auth/config');
             if (!resp.ok) throw new Error('Config endpoint unavailable');
-            const config = await resp.json();
-            const clientId = config.client_id;
-            const cognitoDomain = config.cognito_domain;
-            const redirectUri = encodeURIComponent(window.location.origin + '/callback');
+            authConfig = await resp.json();
 
             googleBtn.disabled = false;
             googleBtn.addEventListener('click', function () {
-                const url = cognitoDomain +
+                const redirectUri = encodeURIComponent(window.location.origin + '/callback');
+                const url = authConfig.cognito_domain +
                     '/oauth2/authorize?response_type=code' +
-                    '&client_id=' + encodeURIComponent(clientId) +
+                    '&client_id=' + encodeURIComponent(authConfig.client_id) +
                     '&scope=openid+email+profile' +
                     '&redirect_uri=' + redirectUri +
                     '&identity_provider=Google';
                 window.location.href = url;
             });
         } catch (err) {
-            console.warn('[AlphaLearn] Could not load auth config for Google button:', err.message);
+            console.warn('[AlphaLearn] Could not load auth config:', err.message);
             googleBtn.title = 'Google Sign-Up is not available right now';
         }
     })();
 
-    /* ---- Signup Form ----------------------------------------------------- */
-    document.getElementById('signup-form').addEventListener('submit', async function (e) {
+    /* ---- Signup Form → Redirect to Cognito Hosted UI Signup ------------- */
+    document.getElementById('signup-form').addEventListener('submit', function (e) {
         e.preventDefault();
         hideMessages();
 
@@ -271,32 +271,21 @@
             return;
         }
 
+        if (!authConfig) {
+            showError('Authentication service not available. Please try again.');
+            return;
+        }
+
         setLoading(signupBtn, true);
 
-        try {
-            const resp = await fetch('/api/auth/signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ givenName, familyName, email, password }),
-            });
-
-            const data = await resp.json();
-
-            if (!resp.ok || !data.success) {
-                showError(data.error || 'Could not create account. Please try again.');
-                setLoading(signupBtn, false);
-                return;
-            }
-
-            // Success - show message with sign-in link
-            showSuccess('Account created successfully! <a href="/login">Sign in now</a>');
-            document.getElementById('signup-form').reset();
-            setLoading(signupBtn, false);
-        } catch (err) {
-            console.error('[AlphaLearn] Signup error:', err);
-            showError('Unable to connect to the server. Please try again.');
-            setLoading(signupBtn, false);
-        }
+        // Redirect to Cognito Hosted UI signup page
+        const redirectUri = encodeURIComponent(window.location.origin + '/callback');
+        const url = authConfig.cognito_domain +
+            '/signup?response_type=code' +
+            '&client_id=' + encodeURIComponent(authConfig.client_id) +
+            '&scope=openid+email+profile' +
+            '&redirect_uri=' + redirectUri;
+        window.location.href = url;
     });
     </script>
 </body>
