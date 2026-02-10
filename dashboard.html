@@ -176,7 +176,7 @@
                 if (title.startsWith('Manual XP'))  continue;
                 if (title.includes('Hole-Filling')) continue;
                 if (title.includes('- PP'))         continue;  // PowerPath assessments
-                if (!subjects.length && !title)     continue;  // empty admin rows
+                if (!subjects.length)               continue;  // school/org rows (e.g. "Alpha High School 2025-26")
 
                 const item = {
                     title,
