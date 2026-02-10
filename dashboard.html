@@ -142,16 +142,21 @@
             const enrollResp = await fetch(`/api/enrollments?userId=${userId}`);
             const enrollData = await enrollResp.json();
 
-            // EduBridge may return data under different keys
-            const enrollments = enrollData.enrollments
+            // EduBridge returns { data: [ { course: { title, ... }, metadata: { goals: { dailyXp } } } ] }
+            const enrollments = enrollData.data
+                || enrollData.enrollments
                 || enrollData.courses
                 || (Array.isArray(enrollData) ? enrollData : []);
 
-            renderCourses(enrollments.map(e => ({
-                title:    e.courseTitle || e.title || e.courseName || e.name || 'Course',
-                xpEarned: e.xpEarned   || 0,
-                xpTotal:  e.xpTotal    || 0,
-            })));
+            renderCourses(enrollments.map(e => {
+                const course   = e.course || {};
+                const goals    = (e.metadata && e.metadata.goals) || {};
+                return {
+                    title:    course.title || e.courseTitle || e.title || e.name || 'Course',
+                    xpEarned: e.xpEarned   || 0,
+                    xpTotal:  goals.dailyXp || e.xpTotal || 0,
+                };
+            }));
 
             /* 3. Load today's XP analytics in background */
             const today = new Date().toISOString().split('T')[0];
