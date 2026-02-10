@@ -166,6 +166,7 @@
                 // ── Skip non-course rows ──
                 if (title.startsWith('Manual XP'))  continue;
                 if (title.includes('Hole-Filling')) continue;
+                if (title.includes('- PP'))         continue;  // PowerPath assessments
                 if (!subjects.length && !cMeta.primaryApp && !cMeta.courseType) continue;
 
                 const item = {
@@ -173,12 +174,16 @@
                     subject:  subjects[0] || '',
                     xpEarned: e.xpEarned || 0,
                     xpTotal:  goals.dailyXp || e.xpTotal || 0,
+                    isMasteryTest: cMeta.courseType === 'mastery_test'
+                        || cMeta.courseType === 'mastery-test'
+                        || cMeta.isMasteryTest === true
+                        || (title.toLowerCase().includes('mastery') && title.toLowerCase().includes('test')),
                 };
 
-                // ── Mastery track tests: courses with test metadata ──
-                if ('test' in cMeta) {
+                // ── Only mastery track tests go in the test section ──
+                if (item.isMasteryTest) {
                     tests.push(item);
-                    continue;   // show ONLY in tests section, not in course grid
+                    continue;
                 }
 
                 courses.push(item);
