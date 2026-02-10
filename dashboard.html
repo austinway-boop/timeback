@@ -71,32 +71,31 @@
         return COURSE_ICONS.default;
     }
 
-    function renderCourses(courses) {
+    /* ---- State ------------------------------------------------------------ */
+    let allCourses = [];       // set once after enrollment fetch
+    let xpBySubject = {};      // { "Math": 13, "Science": 77.5 } — updated per period
+    let currentPeriod = 'today';
+
+    /* ---- Render ----------------------------------------------------------- */
+    function renderCourses() {
+        const courses = allCourses;
         if (!courses.length) {
             document.getElementById('course-grid').innerHTML =
                 '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--color-text-muted);">No courses found for your account.</div>';
             return;
         }
+        const periodLabel = currentPeriod === 'today' ? 'TODAY' : 'THIS WEEK';
+
         document.getElementById('course-grid').innerHTML = courses.map((c, i) => {
-            const color    = COURSE_THEMES[i % COURSE_THEMES.length];
-            const icon     = guessIcon(c.title || '');
-            const name     = c.title || 'Untitled Course';
-            const totalXp  = c.totalXp || 0;
+            const color     = COURSE_THEMES[i % COURSE_THEMES.length];
+            const icon      = guessIcon(c.title || '');
+            const name      = c.title || 'Untitled Course';
             const dailyGoal = c.dailyXpGoal || 0;
-            const totalLessons = c.totalLessons || 0;
 
-            // XP display: show total earned + daily goal
-            const xpDisplay = totalXp > 0
-                ? `<span class="xp-progress">${totalXp.toLocaleString()} XP</span>`
-                : `<span class="xp-progress" style="opacity:0.5">0 XP</span>`;
-
-            // Progress bar: percentage of daily goal met (capped at 100%)
-            const dailyPct = dailyGoal > 0 ? Math.min((totalXp / dailyGoal) * 100, 100) : 0;
-
-            // Lessons stat
-            const lessonsDisplay = totalLessons > 0
-                ? `<span class="lessons-hint">${totalLessons.toLocaleString()} lessons completed</span>`
-                : '';
+            // Look up XP earned for this course's subject in the current period
+            const xpEarned  = Math.round(xpBySubject[c.subject] || 0);
+            const goal      = currentPeriod === 'today' ? dailyGoal : dailyGoal * 5;
+            const pct       = goal > 0 ? Math.min((xpEarned / goal) * 100, 100) : 0;
 
             return `
                 <div class="course-card">
@@ -109,13 +108,12 @@
                             <span class="course-card-name">${name}</span>
                         </div>
                         <div class="course-card-xp">
-                            ${xpDisplay}
-                            <span class="xp-period">${dailyGoal} XP / DAY GOAL</span>
+                            <span class="xp-progress">${xpEarned} / ${goal} XP</span>
+                            <span class="xp-period">${periodLabel}</span>
                         </div>
                         <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${dailyPct}%"></div>
+                            <div class="progress-fill" style="width: ${pct}%"></div>
                         </div>
-                        ${lessonsDisplay}
                     </div>
                 </div>`;
         }).join('');
@@ -238,20 +236,66 @@
                     </div>`).join('');
             }
 
-            /* 5. Render course cards */
-            renderCourses(courses);
-
-            /* 6. Load today's XP analytics in background */
-            const today = new Date().toISOString().split('T')[0];
-            fetch(`/api/analytics?email=${encodeURIComponent(email)}&startDate=${today}&endDate=${today}`)
-                .then(r => r.json())
-                .then(data => console.log('[AlphaLearn] Analytics:', data))
-                .catch(() => {});
+            /* 5. Store courses globally and fetch XP for today */
+            allCourses = courses;
+            await loadXp(email, 'today');
 
         } catch (err) {
             showError('Unable to reach the Timeback API. Please try again later.');
             console.error('[AlphaLearn]', err);
         }
+    });
+
+    /* ---- Fetch XP from EduBridge analytics -------------------------------- */
+    async function loadXp(email, period) {
+        currentPeriod = period;
+        const now = new Date();
+        let startDate, endDate;
+
+        if (period === 'today') {
+            const d = now.toISOString().split('T')[0];
+            startDate = d + 'T00:00:00Z';
+            endDate   = d + 'T23:59:59Z';
+        } else {
+            // This week: go back to last Monday (or 7 days)
+            const dayOfWeek = now.getDay();
+            const monday = new Date(now);
+            monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
+            startDate = monday.toISOString().split('T')[0] + 'T00:00:00Z';
+            endDate   = now.toISOString().split('T')[0] + 'T23:59:59Z';
+        }
+
+        try {
+            const resp = await fetch(
+                `/api/analytics?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}`
+            );
+            const data = await resp.json();
+            const facts = data.facts || {};
+
+            // Sum XP across all days in the range, grouped by subject
+            xpBySubject = {};
+            for (const dayFacts of Object.values(facts)) {
+                for (const [subject, info] of Object.entries(dayFacts)) {
+                    const xp = (info.activityMetrics || {}).xpEarned || 0;
+                    xpBySubject[subject] = (xpBySubject[subject] || 0) + xp;
+                }
+            }
+        } catch (err) {
+            console.warn('[AlphaLearn] Analytics unavailable:', err.message);
+            xpBySubject = {};
+        }
+
+        renderCourses();
+    }
+
+    /* ---- Today / This Week toggle ---------------------------------------- */
+    document.querySelectorAll('.toggle-btn[data-period]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.toggle-btn[data-period]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const email = localStorage.getItem('alphalearn_email') || '';
+            if (email) loadXp(email, btn.dataset.period);
+        });
     });
     </script>
 </body>
