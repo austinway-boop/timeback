@@ -84,8 +84,11 @@
 
     /* ---- State ------------------------------------------------------------ */
     let allCourses = [];       // set once after enrollment fetch
-    let xpBySubject = {};      // { "Math": 13, "Science": 77.5 } — updated per period
+    let xpByCourseIdx = {};    // { 0: 13, 1: 25, ... } — XP per course index
     let currentPeriod = 'today';
+
+    // Timeback-native app names (XP reported here for courses without their own app)
+    const NATIVE_APPS = ['timeback dash', 'alpha timeback', 'alphalearn', 'timeback'];
 
     /* ---- Render ----------------------------------------------------------- */
     function renderCourses() {
@@ -103,8 +106,8 @@
             const name      = c.title || 'Untitled Course';
             const dailyGoal = c.dailyXpGoal || 0;
 
-            // Look up XP earned for this course's subject in the current period
-            const xpEarned  = Math.round(xpBySubject[c.subject] || 0);
+            // Look up XP earned for THIS specific course
+            const xpEarned  = Math.round(xpByCourseIdx[i] || 0);
             const goal      = currentPeriod === 'today' ? dailyGoal : dailyGoal * 5;
             const pct       = goal > 0 ? Math.min((xpEarned / goal) * 100, 100) : 0;
 
@@ -186,6 +189,7 @@
 
             for (const e of raw) {
                 const course   = e.course || {};
+                const cMeta    = course.metadata || {};
                 const goals    = (e.metadata && e.metadata.goals) || {};
                 const metrics  = (e.metadata && e.metadata.metrics) || {};
                 const title    = (course.title || '').trim();
@@ -201,9 +205,15 @@
                 if (title.includes('Hole-Filling')) continue;
                 if (!subjects.length)               continue;  // school/org rows (e.g. "Alpha High School 2025-26")
 
+                // Resolve app name: course.primaryApp.name (per docs) or metadata fallback
+                const pApp = course.primaryApp || {};
+                const appName = (typeof pApp === 'object' ? pApp.name : '')
+                    || cMeta.primaryApp || cMeta.app || '';
+
                 const item = {
                     title,
                     subject:      subjects[0] || '',
+                    appName,
                     totalXp:      metrics.totalXp || 0,
                     totalLessons: metrics.totalLessons || 0,
                     dailyXpGoal:  goals.dailyXp || 0,
@@ -287,19 +297,56 @@
                 `/api/analytics?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}`
             );
             const data = await resp.json();
-            const facts = data.facts || {};
+            const factsByApp = data.factsByApp || {};
 
-            // Sum XP across all days in the range, grouped by subject
-            xpBySubject = {};
-            for (const dayFacts of Object.values(facts)) {
-                for (const [subject, info] of Object.entries(dayFacts)) {
-                    const xp = (info.activityMetrics || {}).xpEarned || 0;
-                    xpBySubject[subject] = (xpBySubject[subject] || 0) + xp;
+            // Build lookup: { subject: { appNameLower: totalXp } }
+            const xpMap = {};
+            for (const dayData of Object.values(factsByApp)) {
+                for (const [subject, apps] of Object.entries(dayData)) {
+                    if (!xpMap[subject]) xpMap[subject] = {};
+                    for (const [appName, info] of Object.entries(apps)) {
+                        const xp = (info.activityMetrics || {}).xpEarned || 0;
+                        const key = appName.toLowerCase();
+                        xpMap[subject][key] = (xpMap[subject][key] || 0) + xp;
+                    }
+                }
+            }
+
+            // Match XP to each course by its app name
+            xpByCourseIdx = {};
+            for (let i = 0; i < allCourses.length; i++) {
+                const c = allCourses[i];
+                const subjApps = xpMap[c.subject] || {};
+                const appName = (c.appName || '').toLowerCase();
+
+                if (appName) {
+                    // Course has a known app — find matching factsByApp key
+                    let matched = subjApps[appName] || 0;
+                    // Try partial match (e.g. "math_academy" matches "math academy")
+                    if (!matched) {
+                        const normalized = appName.replace(/_/g, ' ');
+                        for (const [key, xp] of Object.entries(subjApps)) {
+                            if (key === normalized || key.includes(normalized) || normalized.includes(key)) {
+                                matched = xp;
+                                break;
+                            }
+                        }
+                    }
+                    xpByCourseIdx[i] = matched;
+                } else {
+                    // No app — Timeback-native course: sum XP from native apps for this subject
+                    let nativeXp = 0;
+                    for (const [key, xp] of Object.entries(subjApps)) {
+                        if (NATIVE_APPS.some(n => key.includes(n) || n.includes(key))) {
+                            nativeXp += xp;
+                        }
+                    }
+                    xpByCourseIdx[i] = nativeXp;
                 }
             }
         } catch (err) {
             console.warn('[AlphaLearn] Analytics unavailable:', err.message);
-            xpBySubject = {};
+            xpByCourseIdx = {};
         }
 
         renderCourses();
