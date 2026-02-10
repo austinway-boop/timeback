@@ -9,6 +9,85 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* --- Courses page inline styles --- */
+        .course-admin-card { cursor: pointer; position: relative; }
+        .course-admin-actions {
+            display: flex; gap: 8px; margin-top: 10px;
+        }
+        .course-admin-actions .btn-sm {
+            padding: 6px 14px; border: none; border-radius: 20px;
+            font-size: 0.78rem; font-weight: 600; cursor: pointer;
+            transition: all var(--transition);
+        }
+        .btn-assign {
+            background: var(--color-primary-light); color: var(--color-primary-dark);
+        }
+        .btn-assign:hover { background: var(--color-primary); color: #fff; }
+        .btn-detail {
+            background: var(--color-bg); color: var(--color-text-secondary);
+        }
+        .btn-detail:hover { background: var(--color-border); color: var(--color-text); }
+        .course-admin-classes {
+            font-size: 0.82rem; color: var(--color-text-muted); margin-top: 6px;
+        }
+
+        /* Assign modal student list */
+        .student-list { max-height: 280px; overflow-y: auto; margin-top: 12px; }
+        .student-list-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; border-radius: var(--radius-sm);
+            cursor: pointer; transition: background var(--transition);
+        }
+        .student-list-item:hover { background: var(--color-bg); }
+        .student-list-item.selected { background: var(--color-primary-light); }
+        .student-list-item .user-cell-avatar {
+            width: 32px; height: 32px; font-size: 0.8rem;
+        }
+        .assign-confirm { margin-top: 16px; text-align: center; }
+        .assign-confirm .btn-primary {
+            padding: 10px 28px; border: none; border-radius: var(--radius-sm);
+            background: var(--color-primary); color: #fff; font-weight: 600;
+            font-size: 0.9rem; cursor: pointer; transition: background var(--transition);
+        }
+        .assign-confirm .btn-primary:hover { background: var(--color-primary-dark); }
+        .assign-confirm .btn-primary:disabled {
+            opacity: 0.5; cursor: not-allowed;
+        }
+        .assign-success {
+            text-align: center; padding: 32px 16px;
+        }
+        .assign-success i { font-size: 2.5rem; color: var(--color-primary); margin-bottom: 12px; }
+        .assign-success p { font-size: 0.95rem; color: var(--color-text); }
+        .assign-success .subtitle { font-size: 0.82rem; color: var(--color-text-muted); margin-top: 4px; }
+
+        /* Detail view tabs */
+        .detail-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+        .detail-tab {
+            padding: 8px 16px; border: none; border-radius: 6px;
+            background: transparent; color: var(--color-text-secondary);
+            font-weight: 500; cursor: pointer; font-size: 0.85rem;
+            transition: all var(--transition);
+        }
+        .detail-tab.active { background: var(--color-text); color: #fff; }
+        .detail-tab:hover:not(.active) { background: var(--color-bg); }
+
+        .detail-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .detail-table th {
+            text-align: left; padding: 8px 12px; font-size: 0.78rem;
+            font-weight: 600; color: var(--color-text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--color-border); background: var(--color-bg);
+        }
+        .detail-table td {
+            padding: 10px 12px; font-size: 0.88rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .detail-empty {
+            text-align: center; padding: 24px; color: var(--color-text-muted);
+            font-size: 0.88rem;
+        }
+    </style>
 </head>
 <body data-view="admin" data-active="courses">
 
@@ -21,6 +100,24 @@
                     <p class="page-subtitle">Manage curriculum and course content</p>
                 </div>
 
+                <!-- Controls -->
+                <div class="controls-bar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="course-search" class="search-input" placeholder="Search by title, code, or subject...">
+                    </div>
+                    <div class="controls-right">
+                        <select id="status-filter" class="filter-select">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="tobedeleted">To Be Deleted</option>
+                        </select>
+                        <select id="grade-filter" class="filter-select">
+                            <option value="">All Grades</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="results-info"><span id="courses-count">Loading courses from Timeback...</span></div>
                 <div class="course-admin-grid" id="courses-grid">
                     <div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--color-text-muted);">
@@ -29,18 +126,49 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Course Detail Modal -->
+            <div class="modal-overlay" id="detail-modal">
+                <div class="modal" style="max-width:680px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="detail-modal-title">Course Details</h2>
+                        <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" id="detail-modal-body"></div>
+                </div>
+            </div>
+
+            <!-- Assign to Student Modal -->
+            <div class="modal-overlay" id="assign-modal">
+                <div class="modal" style="max-width:520px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="assign-modal-title">Assign Course</h2>
+                        <button class="modal-close" onclick="closeAssignModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" id="assign-modal-body"></div>
+                </div>
+            </div>
         </main>
     </div>
 
+    <script src="/js/auth-guard.js"></script>
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
     <script>
+    /* ====================================================================
+       Courses Page – Enhanced
+       ==================================================================== */
     const THEMES = ['teal', 'purple', 'pink', 'orange'];
     const ICONS = {
         math: 'fa-calculator', science: 'fa-atom', language: 'fa-book-open',
         reading: 'fa-book-open-reader', geography: 'fa-globe-americas',
         biology: 'fa-dna', tech: 'fa-laptop-code', default: 'fa-graduation-cap',
     };
+
+    let allCourses = [];
+    let allClasses = [];
+    let allUsers   = [];
+    let filteredCourses = [];
 
     function guessIcon(title) {
         const t = (title || '').toLowerCase();
@@ -54,47 +182,324 @@
         return ICONS.default;
     }
 
+    /* ---- Bootstrap ------------------------------------------------------- */
     document.addEventListener('DOMContentLoaded', async function () {
         try {
-            const resp = await fetch('/api/courses');
-            const data = await resp.json();
-            const courses = data.courses || [];
+            // Fetch courses and classes in parallel
+            const [coursesResp, classesResp] = await Promise.all([
+                fetch('/api/courses'),
+                fetch('/api/classes')
+            ]);
+            const coursesData = await coursesResp.json();
+            const classesData = await classesResp.json();
 
-            document.getElementById('courses-count').textContent =
-                `${courses.length} course${courses.length !== 1 ? 's' : ''} found`;
+            allCourses = coursesData.courses || [];
+            allClasses = classesData.classes  || [];
 
-            if (!courses.length) {
-                document.getElementById('courses-grid').innerHTML =
-                    '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--color-text-muted);">No courses found</div>';
-                return;
-            }
+            // Populate grade filter from available grades
+            populateGradeFilter();
 
-            document.getElementById('courses-grid').innerHTML = courses.map((c, i) => {
-                const color  = THEMES[i % THEMES.length];
-                const icon   = guessIcon(c.title);
-                const status = c.status || 'active';
-                const grades = (c.grades || []).join(', ') || '—';
-                const subjects = (c.subjects || []).join(', ') || '';
-                return `
-                    <div class="course-admin-card">
-                        <div class="course-admin-image card-theme-${color}"><i class="fa-solid ${icon}"></i></div>
-                        <div class="course-admin-body">
-                            <h3>${c.title || 'Untitled'}</h3>
-                            <div class="course-admin-meta">
-                                ${subjects ? `<span><i class="fa-solid fa-tag"></i> ${subjects}</span>` : ''}
-                                <span><i class="fa-solid fa-layer-group"></i> ${grades}</span>
-                                ${c.courseCode ? `<span><i class="fa-solid fa-barcode"></i> ${c.courseCode}</span>` : ''}
-                            </div>
-                            <div class="course-admin-status">
-                                <span class="status-badge status-${status}">${status}</span>
-                            </div>
-                        </div>
-                    </div>`;
-            }).join('');
+            // Initial render
+            filterAndRender();
         } catch (e) {
             document.getElementById('courses-grid').innerHTML =
                 '<div style="grid-column:1/-1;text-align:center;padding:48px;color:#E53E3E;"><i class="fa-solid fa-circle-exclamation"></i> Failed to load courses</div>';
         }
+    });
+
+    /* ---- Grade Filter Populator ----------------------------------------- */
+    function populateGradeFilter() {
+        const gradeSet = new Set();
+        allCourses.forEach(c => (c.grades || []).forEach(g => gradeSet.add(g)));
+        const gradeSelect = document.getElementById('grade-filter');
+        Array.from(gradeSet).sort().forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g;
+            opt.textContent = `Grade ${g}`;
+            gradeSelect.appendChild(opt);
+        });
+    }
+
+    /* ---- Filter & Render ------------------------------------------------ */
+    function filterAndRender() {
+        const query        = (document.getElementById('course-search').value || '').toLowerCase();
+        const statusFilter = document.getElementById('status-filter').value;
+        const gradeFilter  = document.getElementById('grade-filter').value;
+
+        filteredCourses = allCourses.filter(c => {
+            const title      = (c.title || '').toLowerCase();
+            const code       = (c.courseCode || '').toLowerCase();
+            const subjects   = (c.subjects || []).join(' ').toLowerCase();
+            const matchText  = !query || title.includes(query) || code.includes(query) || subjects.includes(query);
+            const matchStatus = !statusFilter || c.status === statusFilter;
+            const matchGrade  = !gradeFilter  || (c.grades || []).includes(gradeFilter);
+            return matchText && matchStatus && matchGrade;
+        });
+
+        document.getElementById('courses-count').textContent =
+            `${filteredCourses.length} course${filteredCourses.length !== 1 ? 's' : ''} found`;
+
+        renderGrid();
+    }
+
+    function renderGrid() {
+        if (!filteredCourses.length) {
+            document.getElementById('courses-grid').innerHTML =
+                '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--color-text-muted);">No courses found</div>';
+            return;
+        }
+
+        document.getElementById('courses-grid').innerHTML = filteredCourses.map((c, i) => {
+            const color  = THEMES[i % THEMES.length];
+            const icon   = guessIcon(c.title);
+            const status = c.status || 'active';
+            const grades = (c.grades || []).join(', ') || '—';
+            const subjects = (c.subjects || []).join(', ') || '';
+            const classCount = allClasses.filter(cl => cl.courseSourcedId === c.sourcedId).length;
+
+            return `
+                <div class="course-admin-card" onclick="viewCourseDetail('${c.sourcedId}')">
+                    <div class="course-admin-image card-theme-${color}"><i class="fa-solid ${icon}"></i></div>
+                    <div class="course-admin-body">
+                        <h3>${c.title || 'Untitled'}</h3>
+                        <div class="course-admin-meta">
+                            ${subjects ? `<span><i class="fa-solid fa-tag"></i> ${subjects}</span>` : ''}
+                            <span><i class="fa-solid fa-layer-group"></i> ${grades}</span>
+                            ${c.courseCode ? `<span><i class="fa-solid fa-barcode"></i> ${c.courseCode}</span>` : ''}
+                        </div>
+                        <div class="course-admin-classes">
+                            <i class="fa-solid fa-chalkboard"></i> ${classCount} class${classCount !== 1 ? 'es' : ''}
+                        </div>
+                        <div class="course-admin-status">
+                            <span class="status-badge status-${status}">${status}</span>
+                        </div>
+                        <div class="course-admin-actions" onclick="event.stopPropagation();">
+                            <button class="btn-sm btn-assign" onclick="openAssignModal('${c.sourcedId}')">
+                                <i class="fa-solid fa-user-plus"></i> Assign to Student
+                            </button>
+                            <button class="btn-sm btn-detail" onclick="viewCourseDetail('${c.sourcedId}')">
+                                <i class="fa-solid fa-eye"></i> Details
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    /* ---- Search & Filter Listeners -------------------------------------- */
+    document.getElementById('course-search').addEventListener('input', debounce(filterAndRender, 250));
+    document.getElementById('status-filter').addEventListener('change', filterAndRender);
+    document.getElementById('grade-filter').addEventListener('change', filterAndRender);
+
+    function debounce(fn, ms) {
+        let t;
+        return function (...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); };
+    }
+
+    /* ====================================================================
+       Course Detail Modal
+       ==================================================================== */
+    async function viewCourseDetail(courseId) {
+        const modal = document.getElementById('detail-modal');
+        const body  = document.getElementById('detail-modal-body');
+        modal.classList.add('open');
+        body.innerHTML = '<div style="text-align:center;padding:32px;"><div class="loading-spinner" style="margin:0 auto 12px;"></div>Loading...</div>';
+
+        const course = allCourses.find(c => c.sourcedId === courseId);
+        if (!course) {
+            body.innerHTML = '<p class="error-text">Course not found.</p>';
+            return;
+        }
+
+        document.getElementById('detail-modal-title').textContent = course.title || 'Course Details';
+
+        const courseClasses = allClasses.filter(cl => cl.courseSourcedId === courseId);
+
+        // Try to fetch line items for the course's classes
+        let lineItems = [];
+        try {
+            const liResp = await fetch('/api/line-items');
+            const liData = await liResp.json();
+            const classIds = new Set(courseClasses.map(cl => cl.sourcedId));
+            lineItems = (liData.lineItems || []).filter(li => classIds.has(li.classSourcedId));
+        } catch (e) { /* line items unavailable */ }
+
+        const grades   = (course.grades || []).join(', ') || '—';
+        const subjects = (course.subjects || []).join(', ') || '—';
+
+        body.innerHTML = `
+            <div class="modal-detail-grid">
+                <div class="detail-item"><span class="detail-label">Title</span><span class="detail-value">${course.title || '—'}</span></div>
+                <div class="detail-item"><span class="detail-label">Course Code</span><span class="detail-value">${course.courseCode || '—'}</span></div>
+                <div class="detail-item"><span class="detail-label">Subjects</span><span class="detail-value">${subjects}</span></div>
+                <div class="detail-item"><span class="detail-label">Grades</span><span class="detail-value">${grades}</span></div>
+                <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value"><span class="status-badge status-${course.status}">${course.status || '—'}</span></span></div>
+                <div class="detail-item full-width"><span class="detail-label">Source ID</span><span class="detail-value monospace">${course.sourcedId}</span></div>
+            </div>
+
+            <div class="detail-tabs">
+                <button class="detail-tab active" onclick="switchDetailTab(this, 'classes-tab')">Classes (${courseClasses.length})</button>
+                <button class="detail-tab" onclick="switchDetailTab(this, 'lineitems-tab')">Line Items (${lineItems.length})</button>
+            </div>
+
+            <div id="classes-tab">
+                ${courseClasses.length ? `
+                <table class="detail-table">
+                    <thead><tr><th>Title</th><th>Code</th><th>Type</th><th>Status</th></tr></thead>
+                    <tbody>
+                        ${courseClasses.map(cl => `
+                            <tr>
+                                <td>${cl.title || '—'}</td>
+                                <td>${cl.classCode || '—'}</td>
+                                <td>${cl.classType || '—'}</td>
+                                <td><span class="status-badge status-${cl.status}">${cl.status || '—'}</span></td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>` : '<div class="detail-empty">No classes associated with this course.</div>'}
+            </div>
+
+            <div id="lineitems-tab" style="display:none;">
+                ${lineItems.length ? `
+                <table class="detail-table">
+                    <thead><tr><th>Title</th><th>Due Date</th><th>Max Score</th><th>Status</th></tr></thead>
+                    <tbody>
+                        ${lineItems.map(li => `
+                            <tr>
+                                <td>${li.title || '—'}</td>
+                                <td>${li.dueDate ? new Date(li.dueDate).toLocaleDateString() : '—'}</td>
+                                <td>${li.resultValueMax != null ? li.resultValueMax : '—'}</td>
+                                <td><span class="status-badge status-${li.status}">${li.status || '—'}</span></td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>` : '<div class="detail-empty">No line items found for this course\'s classes.</div>'}
+            </div>
+        `;
+    }
+
+    function switchDetailTab(btn, tabId) {
+        btn.parentElement.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('classes-tab').style.display    = tabId === 'classes-tab' ? '' : 'none';
+        document.getElementById('lineitems-tab').style.display  = tabId === 'lineitems-tab' ? '' : 'none';
+    }
+
+    function closeDetailModal() {
+        document.getElementById('detail-modal').classList.remove('open');
+    }
+    document.getElementById('detail-modal').addEventListener('click', function (e) {
+        if (e.target === this) closeDetailModal();
+    });
+
+    /* ====================================================================
+       Assign to Student Modal
+       ==================================================================== */
+    let assignCourseId    = null;
+    let assignSelectedUser = null;
+
+    async function openAssignModal(courseId) {
+        assignCourseId     = courseId;
+        assignSelectedUser = null;
+        const course = allCourses.find(c => c.sourcedId === courseId);
+        const modal  = document.getElementById('assign-modal');
+        const body   = document.getElementById('assign-modal-body');
+
+        document.getElementById('assign-modal-title').textContent = `Assign: ${course ? course.title : 'Course'}`;
+        modal.classList.add('open');
+        body.innerHTML = '<div style="text-align:center;padding:32px;"><div class="loading-spinner" style="margin:0 auto 12px;"></div>Loading students...</div>';
+
+        // Lazy-load users if not yet loaded
+        if (!allUsers.length) {
+            try {
+                const resp = await fetch('/api/users');
+                const data = await resp.json();
+                allUsers = (data.users || []).filter(u => u.role === 'student');
+            } catch (e) {
+                body.innerHTML = '<p class="error-text">Failed to load students.</p>';
+                return;
+            }
+        }
+
+        renderAssignModal(course);
+    }
+
+    function renderAssignModal(course) {
+        const body = document.getElementById('assign-modal-body');
+        body.innerHTML = `
+            <div class="search-box" style="max-width:100%;margin-bottom:0;">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="assign-search" class="search-input" placeholder="Search students..." oninput="filterAssignList()">
+            </div>
+            <div class="student-list" id="assign-student-list"></div>
+            <div class="assign-confirm" id="assign-confirm" style="display:none;">
+                <button class="btn-primary" id="assign-btn" onclick="confirmAssign()">Assign Course</button>
+            </div>
+        `;
+        filterAssignList();
+    }
+
+    function filterAssignList() {
+        const query = (document.getElementById('assign-search')?.value || '').toLowerCase();
+        const list  = document.getElementById('assign-student-list');
+        const filtered = allUsers.filter(u => {
+            const name = `${u.givenName || ''} ${u.familyName || ''}`.toLowerCase();
+            return !query || name.includes(query) || (u.email || '').toLowerCase().includes(query);
+        });
+
+        if (!filtered.length) {
+            list.innerHTML = '<div class="detail-empty">No students found.</div>';
+            return;
+        }
+
+        list.innerHTML = filtered.slice(0, 50).map(u => {
+            const name = `${u.givenName || ''} ${u.familyName || ''}`.trim();
+            const selected = assignSelectedUser && assignSelectedUser.sourcedId === u.sourcedId;
+            return `
+                <div class="student-list-item ${selected ? 'selected' : ''}" onclick="selectStudent('${u.sourcedId}')">
+                    <div class="user-cell-avatar">${(u.givenName || '?')[0].toUpperCase()}</div>
+                    <div>
+                        <div class="user-cell-name">${name}</div>
+                        <div class="user-cell-username">${u.email || u.username || ''}</div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function selectStudent(userId) {
+        assignSelectedUser = allUsers.find(u => u.sourcedId === userId);
+        filterAssignList();
+
+        const confirm = document.getElementById('assign-confirm');
+        if (assignSelectedUser) {
+            const course = allCourses.find(c => c.sourcedId === assignCourseId);
+            const studentName = `${assignSelectedUser.givenName || ''} ${assignSelectedUser.familyName || ''}`.trim();
+            const courseName  = course ? course.title : 'this course';
+            confirm.style.display = '';
+            document.getElementById('assign-btn').textContent = `Assign "${courseName}" to ${studentName}`;
+        } else {
+            confirm.style.display = 'none';
+        }
+    }
+
+    function confirmAssign() {
+        const course = allCourses.find(c => c.sourcedId === assignCourseId);
+        const studentName = `${assignSelectedUser.givenName || ''} ${assignSelectedUser.familyName || ''}`.trim();
+        const courseName  = course ? course.title : 'this course';
+
+        const body = document.getElementById('assign-modal-body');
+        body.innerHTML = `
+            <div class="assign-success">
+                <i class="fa-solid fa-circle-check"></i>
+                <p><strong>${courseName}</strong> assigned to <strong>${studentName}</strong></p>
+                <p class="subtitle">API integration pending — assignment will be synced when enrollment endpoint is available.</p>
+            </div>
+        `;
+    }
+
+    function closeAssignModal() {
+        document.getElementById('assign-modal').classList.remove('open');
+    }
+    document.getElementById('assign-modal').addEventListener('click', function (e) {
+        if (e.target === this) closeAssignModal();
     });
     </script>
 </body>

@@ -9,6 +9,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .page-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .page-header-left { flex: 1; }
+        .logout-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm); background: var(--color-surface);
+            color: var(--color-text-secondary); font-size: 0.85rem; font-weight: 500;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .logout-btn:hover { border-color: #E53E3E; color: #E53E3E; background: #FFF5F5; }
+        .leaderboard-loading {
+            text-align: center; padding: 2rem; color: var(--color-text-muted); font-size: 0.9rem;
+        }
+        .leaderboard-loading .mini-spinner {
+            display: inline-block; width: 20px; height: 20px;
+            border: 2px solid var(--color-border); border-top-color: var(--color-primary);
+            border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 8px;
+        }
+    </style>
 </head>
 <body data-view="admin" data-active="dashboard">
 
@@ -17,8 +37,13 @@
         <main class="main-content">
             <div class="admin-dashboard">
                 <div class="page-header">
-                    <h1 class="page-title">Dashboard</h1>
-                    <p class="page-subtitle">Overview of your school's activity</p>
+                    <div class="page-header-left">
+                        <h1 class="page-title">Dashboard</h1>
+                        <p class="page-subtitle">Overview of your school's activity</p>
+                    </div>
+                    <button class="logout-btn" onclick="logout()" title="Sign out">
+                        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                    </button>
                 </div>
 
                 <!-- Stats Cards -->
@@ -47,7 +72,7 @@
                     <div class="stat-card">
                         <div class="stat-icon stat-icon-orange"><i class="fa-solid fa-bolt"></i></div>
                         <div class="stat-info">
-                            <span class="stat-value">85</span>
+                            <span class="stat-value" id="stat-avg-xp">--</span>
                             <span class="stat-label">Avg XP Today</span>
                         </div>
                     </div>
@@ -61,41 +86,10 @@
                             <h2 class="card-title">Recent Activity</h2>
                             <a href="#" class="card-action">View All</a>
                         </div>
-                        <div class="activity-list">
-                            <div class="activity-item">
-                                <div class="activity-avatar purple"><i class="fa-solid fa-user-plus"></i></div>
-                                <div class="activity-content">
-                                    <p class="activity-text"><strong>New student enrolled</strong> - Sarah Johnson joined Chemistry Honors</p>
-                                    <span class="activity-time">2 minutes ago</span>
-                                </div>
-                            </div>
-                            <div class="activity-item">
-                                <div class="activity-avatar teal"><i class="fa-solid fa-trophy"></i></div>
-                                <div class="activity-content">
-                                    <p class="activity-text"><strong>Mastery achieved</strong> - James Liu completed Grade 8 Math</p>
-                                    <span class="activity-time">15 minutes ago</span>
-                                </div>
-                            </div>
-                            <div class="activity-item">
-                                <div class="activity-avatar blue"><i class="fa-solid fa-clipboard-check"></i></div>
-                                <div class="activity-content">
-                                    <p class="activity-text"><strong>Test completed</strong> - Emma Davis scored 92% on Reading Mastery</p>
-                                    <span class="activity-time">32 minutes ago</span>
-                                </div>
-                            </div>
-                            <div class="activity-item">
-                                <div class="activity-avatar orange"><i class="fa-solid fa-fire"></i></div>
-                                <div class="activity-content">
-                                    <p class="activity-text"><strong>Streak milestone</strong> - 12 students hit a 7-day streak</p>
-                                    <span class="activity-time">1 hour ago</span>
-                                </div>
-                            </div>
-                            <div class="activity-item">
-                                <div class="activity-avatar teal"><i class="fa-solid fa-chart-line"></i></div>
-                                <div class="activity-content">
-                                    <p class="activity-text"><strong>XP milestone</strong> - Austin Way earned 500 XP this week</p>
-                                    <span class="activity-time">2 hours ago</span>
-                                </div>
+                        <div class="activity-list" id="activity-list">
+                            <div class="leaderboard-loading">
+                                <div class="mini-spinner"></div>
+                                <p>Loading activity...</p>
                             </div>
                         </div>
                     </div>
@@ -106,36 +100,10 @@
                             <h2 class="card-title">Top Performers Today</h2>
                             <a href="/admin/students" class="card-action">See All</a>
                         </div>
-                        <div class="leaderboard">
-                            <div class="leader-item">
-                                <span class="leader-rank gold">1</span>
-                                <div class="leader-avatar" style="background:#E8F5E9;color:#2E7D32;">E</div>
-                                <div class="leader-info"><span class="leader-name">Emma Davis</span><span class="leader-detail">Grade 10</span></div>
-                                <span class="leader-xp">142 XP</span>
-                            </div>
-                            <div class="leader-item">
-                                <span class="leader-rank silver">2</span>
-                                <div class="leader-avatar" style="background:#E3F2FD;color:#1565C0;">J</div>
-                                <div class="leader-info"><span class="leader-name">James Liu</span><span class="leader-detail">Grade 11</span></div>
-                                <span class="leader-xp">128 XP</span>
-                            </div>
-                            <div class="leader-item">
-                                <span class="leader-rank bronze">3</span>
-                                <div class="leader-avatar" style="background:#FFF3E0;color:#E65100;">S</div>
-                                <div class="leader-info"><span class="leader-name">Sarah Johnson</span><span class="leader-detail">Grade 9</span></div>
-                                <span class="leader-xp">115 XP</span>
-                            </div>
-                            <div class="leader-item">
-                                <span class="leader-rank">4</span>
-                                <div class="leader-avatar" style="background:#F3E5F5;color:#7B1FA2;">M</div>
-                                <div class="leader-info"><span class="leader-name">Miguel Santos</span><span class="leader-detail">Grade 10</span></div>
-                                <span class="leader-xp">98 XP</span>
-                            </div>
-                            <div class="leader-item">
-                                <span class="leader-rank">5</span>
-                                <div class="leader-avatar" style="background:#E0F7FA;color:#00838F;">A</div>
-                                <div class="leader-info"><span class="leader-name">Aisha Patel</span><span class="leader-detail">Grade 11</span></div>
-                                <span class="leader-xp">91 XP</span>
+                        <div class="leaderboard" id="leaderboard">
+                            <div class="leaderboard-loading">
+                                <div class="mini-spinner"></div>
+                                <p>Loading leaderboard...</p>
                             </div>
                         </div>
                     </div>
@@ -144,36 +112,233 @@
         </main>
     </div>
 
+    <!-- Auth guard MUST be first -->
+    <script src="/js/auth-guard.js"></script>
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        /* --- Real user count from Timeback OneRoster API --- */
-        fetch('/api/users')
-            .then(r => r.json())
-            .then(data => {
-                const users = data.users || [];
-                const total = users.length;
-                const students = users.filter(u => u.role === 'student').length;
-                const active = users.filter(u => u.status === 'active').length;
+    /* ---- Helper: avatar color palette ------------------------------------ */
+    var AVATAR_COLORS = [
+        { bg: '#E8F5E9', fg: '#2E7D32' },
+        { bg: '#E3F2FD', fg: '#1565C0' },
+        { bg: '#FFF3E0', fg: '#E65100' },
+        { bg: '#F3E5F5', fg: '#7B1FA2' },
+        { bg: '#E0F7FA', fg: '#00838F' },
+        { bg: '#FFF8E1', fg: '#F9A825' },
+        { bg: '#FCE4EC', fg: '#AD1457' },
+        { bg: '#EDEBFF', fg: '#6C5CE7' },
+    ];
 
-                document.getElementById('stat-students').textContent = students.toLocaleString();
-                document.getElementById('stat-active').textContent = Math.round(active * 0.18).toLocaleString();
-            })
-            .catch(() => {
-                document.getElementById('stat-students').textContent = '—';
-                document.getElementById('stat-active').textContent = '—';
-            });
+    function avatarColor(index) {
+        return AVATAR_COLORS[index % AVATAR_COLORS.length];
+    }
 
-        /* --- Real course count from Timeback OneRoster API --- */
-        fetch('/api/courses')
-            .then(r => r.json())
-            .then(data => {
-                const courses = data.courses || [];
-                const activeCourses = courses.filter(c => c.status === 'active').length || courses.length;
-                document.getElementById('stat-courses').textContent = activeCourses.toLocaleString();
-            })
-            .catch(() => {});
+    function rankClass(i) {
+        if (i === 0) return 'gold';
+        if (i === 1) return 'silver';
+        if (i === 2) return 'bronze';
+        return '';
+    }
+
+    /* ---- Default activity feed (fallback) -------------------------------- */
+    var DEFAULT_ACTIVITY = [
+        { icon: 'fa-user-plus', color: 'purple', text: '<strong>New student enrolled</strong> - Sarah Johnson joined Chemistry Honors', time: '2 minutes ago' },
+        { icon: 'fa-trophy', color: 'teal', text: '<strong>Mastery achieved</strong> - James Liu completed Grade 8 Math', time: '15 minutes ago' },
+        { icon: 'fa-clipboard-check', color: 'blue', text: '<strong>Test completed</strong> - Emma Davis scored 92% on Reading Mastery', time: '32 minutes ago' },
+        { icon: 'fa-fire', color: 'orange', text: '<strong>Streak milestone</strong> - 12 students hit a 7-day streak', time: '1 hour ago' },
+        { icon: 'fa-chart-line', color: 'teal', text: '<strong>XP milestone</strong> - Austin Way earned 500 XP this week', time: '2 hours ago' },
+    ];
+
+    function renderActivity(items) {
+        document.getElementById('activity-list').innerHTML = items.map(function (a) {
+            return '<div class="activity-item">' +
+                '<div class="activity-avatar ' + a.color + '"><i class="fa-solid ' + a.icon + '"></i></div>' +
+                '<div class="activity-content">' +
+                    '<p class="activity-text">' + a.text + '</p>' +
+                    '<span class="activity-time">' + a.time + '</span>' +
+                '</div></div>';
+        }).join('');
+    }
+
+    /* ---- Render leaderboard ---------------------------------------------- */
+    function renderLeaderboard(students) {
+        if (!students.length) {
+            document.getElementById('leaderboard').innerHTML =
+                '<p class="leaderboard-loading">No student data available.</p>';
+            return;
+        }
+        document.getElementById('leaderboard').innerHTML = students.slice(0, 5).map(function (s, i) {
+            var c = avatarColor(i);
+            var initial = (s.name || 'S').charAt(0).toUpperCase();
+            var rank = rankClass(i);
+            return '<div class="leader-item">' +
+                '<span class="leader-rank ' + rank + '">' + (i + 1) + '</span>' +
+                '<div class="leader-avatar" style="background:' + c.bg + ';color:' + c.fg + ';">' + initial + '</div>' +
+                '<div class="leader-info"><span class="leader-name">' + s.name + '</span>' +
+                '<span class="leader-detail">' + (s.detail || s.role || 'Student') + '</span></div>' +
+                '<span class="leader-xp">' + (s.xp || 0) + ' XP</span></div>';
+        }).join('');
+    }
+
+    /* ---- Main data load -------------------------------------------------- */
+    document.addEventListener('DOMContentLoaded', async function () {
+        var allUsers = [];
+        var allStudents = [];
+
+        /* --- 1. Load users (students + counts) ----------------------------- */
+        try {
+            var usersResp = await fetch('/api/users');
+            var usersData = await usersResp.json();
+            allUsers = usersData.users || [];
+            allStudents = allUsers.filter(function (u) { return u.role === 'student'; });
+            var activeCount = allUsers.filter(function (u) { return u.status === 'active'; }).length;
+
+            document.getElementById('stat-students').textContent = allStudents.length.toLocaleString();
+            // Estimate ~18% of active users are active today (same heuristic as before)
+            document.getElementById('stat-active').textContent = Math.round(activeCount * 0.18).toLocaleString();
+        } catch (err) {
+            console.warn('[Admin] Users API unavailable:', err.message);
+            document.getElementById('stat-students').textContent = '—';
+            document.getElementById('stat-active').textContent = '—';
+        }
+
+        /* --- 2. Load courses count ----------------------------------------- */
+        try {
+            var coursesResp = await fetch('/api/courses');
+            var coursesData = await coursesResp.json();
+            var courses = coursesData.courses || [];
+            var activeCourses = courses.filter(function (c) { return c.status === 'active'; }).length || courses.length;
+            document.getElementById('stat-courses').textContent = activeCourses.toLocaleString();
+        } catch (err) {
+            console.warn('[Admin] Courses API unavailable:', err.message);
+            document.getElementById('stat-courses').textContent = '—';
+        }
+
+        /* --- 3. Build leaderboard from real students ----------------------- */
+        try {
+            if (allStudents.length > 0) {
+                // Try to fetch analytics for each student to get XP data
+                // We'll fetch in parallel but limit to first 20 students to avoid rate limits
+                var candidates = allStudents.slice(0, 20);
+                var leaderboard = [];
+
+                var analyticsPromises = candidates.map(async function (student) {
+                    var entry = {
+                        name: ((student.givenName || '') + ' ' + (student.familyName || '')).trim() || student.email || 'Student',
+                        detail: student.role || 'student',
+                        xp: 0,
+                    };
+
+                    try {
+                        var email = student.email || '';
+                        if (email) {
+                            var today = new Date().toISOString().split('T')[0];
+                            var aResp = await fetch('/api/analytics?email=' + encodeURIComponent(email) + '&startDate=' + today + '&endDate=' + today);
+                            if (aResp.ok) {
+                                var aData = await aResp.json();
+                                // Sum up XP/time from analytics facts
+                                var facts = aData.facts || aData.data || [];
+                                if (Array.isArray(facts)) {
+                                    entry.xp = facts.reduce(function (sum, f) {
+                                        return sum + (f.xpEarned || f.xp || f.totalMinutes || 0);
+                                    }, 0);
+                                } else if (typeof aData.totalXp === 'number') {
+                                    entry.xp = aData.totalXp;
+                                } else if (typeof aData.totalMinutes === 'number') {
+                                    entry.xp = aData.totalMinutes;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // Analytics not available for this student - that's ok
+                    }
+
+                    // Also try time-saved endpoint as secondary XP source
+                    try {
+                        if (student.sourcedId && entry.xp === 0) {
+                            var tResp = await fetch('/api/time-saved?userId=' + encodeURIComponent(student.sourcedId));
+                            if (tResp.ok) {
+                                var tData = await tResp.json();
+                                entry.xp = tData.totalMinutesSaved || tData.timeSaved || tData.xp || 0;
+                            }
+                        }
+                    } catch (e) {
+                        // Time-saved API not available
+                    }
+
+                    return entry;
+                });
+
+                leaderboard = await Promise.all(analyticsPromises);
+
+                // Sort by XP descending
+                leaderboard.sort(function (a, b) { return b.xp - a.xp; });
+
+                // Calculate avg XP from students who have data
+                var studentsWithXp = leaderboard.filter(function (s) { return s.xp > 0; });
+                if (studentsWithXp.length > 0) {
+                    var avgXp = Math.round(studentsWithXp.reduce(function (s, e) { return s + e.xp; }, 0) / studentsWithXp.length);
+                    document.getElementById('stat-avg-xp').textContent = avgXp.toLocaleString();
+                } else {
+                    document.getElementById('stat-avg-xp').textContent = '0';
+                }
+
+                renderLeaderboard(leaderboard);
+            } else {
+                document.getElementById('stat-avg-xp').textContent = '0';
+                renderLeaderboard([]);
+            }
+        } catch (err) {
+            console.warn('[Admin] Leaderboard build error:', err.message);
+            document.getElementById('stat-avg-xp').textContent = '—';
+            renderLeaderboard([]);
+        }
+
+        /* --- 4. Activity feed ---------------------------------------------- */
+        // Try to build from recent enrollment data, fall back to defaults
+        try {
+            if (allStudents.length > 0) {
+                // Pick a few random students and check their enrollments
+                var sampleStudents = allStudents.slice(0, 5);
+                var activityItems = [];
+
+                for (var i = 0; i < sampleStudents.length && activityItems.length < 5; i++) {
+                    var s = sampleStudents[i];
+                    if (!s.sourcedId) continue;
+                    try {
+                        var eResp = await fetch('/api/enrollments?userId=' + encodeURIComponent(s.sourcedId));
+                        if (eResp.ok) {
+                            var eData = await eResp.json();
+                            var enrollments = eData.data || eData.enrollments || eData.courses || [];
+                            if (enrollments.length > 0) {
+                                var studentName = ((s.givenName || '') + ' ' + (s.familyName || '')).trim() || 'A student';
+                                var course = enrollments[0].course || {};
+                                var courseName = course.title || enrollments[0].courseTitle || enrollments[0].title || 'a course';
+                                activityItems.push({
+                                    icon: 'fa-user-plus',
+                                    color: ['purple', 'teal', 'blue', 'orange'][i % 4],
+                                    text: '<strong>Enrolled</strong> - ' + studentName + ' is enrolled in ' + courseName,
+                                    time: 'Recently',
+                                });
+                            }
+                        }
+                    } catch (e) {
+                        // skip
+                    }
+                }
+
+                if (activityItems.length > 0) {
+                    renderActivity(activityItems);
+                } else {
+                    renderActivity(DEFAULT_ACTIVITY);
+                }
+            } else {
+                renderActivity(DEFAULT_ACTIVITY);
+            }
+        } catch (err) {
+            console.warn('[Admin] Activity feed error:', err.message);
+            renderActivity(DEFAULT_ACTIVITY);
+        }
     });
     </script>
 </body>

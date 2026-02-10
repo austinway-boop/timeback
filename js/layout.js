@@ -7,6 +7,19 @@
     const view   = document.body.dataset.view   || 'student';
     const active = document.body.dataset.active  || 'home';
 
+    /* ---- Logout helper (works on both admin and student pages) ----------- */
+    window.handleLogout = function () {
+        if (typeof logout === 'function') {
+            logout();
+        } else {
+            localStorage.removeItem('alphalearn_name');
+            localStorage.removeItem('alphalearn_email');
+            localStorage.removeItem('alphalearn_role');
+            localStorage.removeItem('alphalearn_sourcedId');
+            window.location.href = '/login';
+        }
+    };
+
     /* ---- Topbar ---------------------------------------------------------- */
     const switchBtn = view === 'student'
         ? '<a href="/admin" class="view-switch-btn" title="Switch to Admin View"><i class="fa-solid fa-shield-halved"></i></a>'
@@ -31,7 +44,7 @@
         <div class="topbar-right">
             ${switchBtn}
             <button class="topbar-icon-btn" title="Notifications"><i class="fa-solid fa-bell"></i></button>
-            <a href="/login" class="topbar-icon-btn" title="Sign out"><i class="fa-solid fa-right-from-bracket"></i></a>
+            <button class="topbar-icon-btn" onclick="handleLogout()" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
             <div class="avatar"><span>${initial}</span></div>
         </div>`;
     document.body.prepend(topbar);
