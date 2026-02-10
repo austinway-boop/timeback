@@ -21,54 +21,11 @@
                     <p class="page-subtitle">Manage curriculum and course content</p>
                 </div>
 
-                <div class="course-admin-grid">
-                    <div class="course-admin-card">
-                        <div class="course-admin-image card-theme-teal"><i class="fa-solid fa-calculator"></i></div>
-                        <div class="course-admin-body">
-                            <h3>Math Academy - SAT Fundamentals</h3>
-                            <div class="course-admin-meta"><span><i class="fa-solid fa-users"></i> 234 enrolled</span><span><i class="fa-solid fa-layer-group"></i> 12 units</span></div>
-                            <div class="course-admin-status"><span class="status-badge status-active">Published</span></div>
-                        </div>
-                    </div>
-                    <div class="course-admin-card">
-                        <div class="course-admin-image card-theme-purple"><i class="fa-solid fa-book-open"></i></div>
-                        <div class="course-admin-body">
-                            <h3>AP Language and Composition</h3>
-                            <div class="course-admin-meta"><span><i class="fa-solid fa-users"></i> 187 enrolled</span><span><i class="fa-solid fa-layer-group"></i> 8 units</span></div>
-                            <div class="course-admin-status"><span class="status-badge status-active">Published</span></div>
-                        </div>
-                    </div>
-                    <div class="course-admin-card">
-                        <div class="course-admin-image card-theme-pink"><i class="fa-solid fa-atom"></i></div>
-                        <div class="course-admin-body">
-                            <h3>Chemistry Honors</h3>
-                            <div class="course-admin-meta"><span><i class="fa-solid fa-users"></i> 156 enrolled</span><span><i class="fa-solid fa-layer-group"></i> 10 units</span></div>
-                            <div class="course-admin-status"><span class="status-badge status-active">Published</span></div>
-                        </div>
-                    </div>
-                    <div class="course-admin-card">
-                        <div class="course-admin-image card-theme-orange"><i class="fa-solid fa-globe-americas"></i></div>
-                        <div class="course-admin-body">
-                            <h3>World Geography</h3>
-                            <div class="course-admin-meta"><span><i class="fa-solid fa-users"></i> 142 enrolled</span><span><i class="fa-solid fa-layer-group"></i> 6 units</span></div>
-                            <div class="course-admin-status"><span class="status-badge status-active">Published</span></div>
-                        </div>
-                    </div>
-                    <div class="course-admin-card">
-                        <div class="course-admin-image card-theme-purple"><i class="fa-solid fa-laptop-code"></i></div>
-                        <div class="course-admin-body">
-                            <h3>eGumpp Grammar</h3>
-                            <div class="course-admin-meta"><span><i class="fa-solid fa-users"></i> 198 enrolled</span><span><i class="fa-solid fa-layer-group"></i> 15 units</span></div>
-                            <div class="course-admin-status"><span class="status-badge status-active">Published</span></div>
-                        </div>
-                    </div>
-                    <div class="course-admin-card">
-                        <div class="course-admin-image card-theme-pink"><i class="fa-solid fa-dna"></i></div>
-                        <div class="course-admin-body">
-                            <h3>Biology Fundamentals</h3>
-                            <div class="course-admin-meta"><span><i class="fa-solid fa-users"></i> 121 enrolled</span><span><i class="fa-solid fa-layer-group"></i> 9 units</span></div>
-                            <div class="course-admin-status"><span class="status-badge status-testing">Testing</span></div>
-                        </div>
+                <div class="results-info"><span id="courses-count">Loading courses from Timeback...</span></div>
+                <div class="course-admin-grid" id="courses-grid">
+                    <div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--color-text-muted);">
+                        <div class="loading-spinner" style="margin:0 auto 12px;"></div>
+                        Loading courses...
                     </div>
                 </div>
             </div>
@@ -77,5 +34,68 @@
 
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
+    <script>
+    const THEMES = ['teal', 'purple', 'pink', 'orange'];
+    const ICONS = {
+        math: 'fa-calculator', science: 'fa-atom', language: 'fa-book-open',
+        reading: 'fa-book-open-reader', geography: 'fa-globe-americas',
+        biology: 'fa-dna', tech: 'fa-laptop-code', default: 'fa-graduation-cap',
+    };
+
+    function guessIcon(title) {
+        const t = (title || '').toLowerCase();
+        if (t.includes('math') || t.includes('algebra'))  return ICONS.math;
+        if (t.includes('chem') || t.includes('physics'))   return ICONS.science;
+        if (t.includes('bio'))                              return ICONS.biology;
+        if (t.includes('read') || t.includes('ela'))       return ICONS.reading;
+        if (t.includes('lang') || t.includes('writing'))   return ICONS.language;
+        if (t.includes('geo') || t.includes('history'))    return ICONS.geography;
+        if (t.includes('code') || t.includes('tech'))      return ICONS.tech;
+        return ICONS.default;
+    }
+
+    document.addEventListener('DOMContentLoaded', async function () {
+        try {
+            const resp = await fetch('/api/courses');
+            const data = await resp.json();
+            const courses = data.courses || [];
+
+            document.getElementById('courses-count').textContent =
+                `${courses.length} course${courses.length !== 1 ? 's' : ''} found`;
+
+            if (!courses.length) {
+                document.getElementById('courses-grid').innerHTML =
+                    '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--color-text-muted);">No courses found</div>';
+                return;
+            }
+
+            document.getElementById('courses-grid').innerHTML = courses.map((c, i) => {
+                const color  = THEMES[i % THEMES.length];
+                const icon   = guessIcon(c.title);
+                const status = c.status || 'active';
+                const grades = (c.grades || []).join(', ') || '—';
+                const subjects = (c.subjects || []).join(', ') || '';
+                return `
+                    <div class="course-admin-card">
+                        <div class="course-admin-image card-theme-${color}"><i class="fa-solid ${icon}"></i></div>
+                        <div class="course-admin-body">
+                            <h3>${c.title || 'Untitled'}</h3>
+                            <div class="course-admin-meta">
+                                ${subjects ? `<span><i class="fa-solid fa-tag"></i> ${subjects}</span>` : ''}
+                                <span><i class="fa-solid fa-layer-group"></i> ${grades}</span>
+                                ${c.courseCode ? `<span><i class="fa-solid fa-barcode"></i> ${c.courseCode}</span>` : ''}
+                            </div>
+                            <div class="course-admin-status">
+                                <span class="status-badge status-${status}">${status}</span>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+        } catch (e) {
+            document.getElementById('courses-grid').innerHTML =
+                '<div style="grid-column:1/-1;text-align:center;padding:48px;color:#E53E3E;"><i class="fa-solid fa-circle-exclamation"></i> Failed to load courses</div>';
+        }
+    });
+    </script>
 </body>
 </html>

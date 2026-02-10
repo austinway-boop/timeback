@@ -40,7 +40,7 @@
                     <div class="stat-card">
                         <div class="stat-icon stat-icon-purple"><i class="fa-solid fa-book-open"></i></div>
                         <div class="stat-info">
-                            <span class="stat-value">42</span>
+                            <span class="stat-value" id="stat-courses">--</span>
                             <span class="stat-label">Active Courses</span>
                         </div>
                     </div>
@@ -148,17 +148,32 @@
     <script src="/js/app.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function () {
+        /* --- Real user count from Timeback OneRoster API --- */
         fetch('/api/users')
             .then(r => r.json())
             .then(data => {
-                const total = data.count || 0;
-                document.getElementById('stat-students').textContent = total.toLocaleString();
-                document.getElementById('stat-active').textContent = Math.round(total * 0.18).toLocaleString();
+                const users = data.users || [];
+                const total = users.length;
+                const students = users.filter(u => u.role === 'student').length;
+                const active = users.filter(u => u.status === 'active').length;
+
+                document.getElementById('stat-students').textContent = students.toLocaleString();
+                document.getElementById('stat-active').textContent = Math.round(active * 0.18).toLocaleString();
             })
             .catch(() => {
                 document.getElementById('stat-students').textContent = '—';
                 document.getElementById('stat-active').textContent = '—';
             });
+
+        /* --- Real course count from Timeback OneRoster API --- */
+        fetch('/api/courses')
+            .then(r => r.json())
+            .then(data => {
+                const courses = data.courses || [];
+                const activeCourses = courses.filter(c => c.status === 'active').length || courses.length;
+                document.getElementById('stat-courses').textContent = activeCourses.toLocaleString();
+            })
+            .catch(() => {});
     });
     </script>
 </body>

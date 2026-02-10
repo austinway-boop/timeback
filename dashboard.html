@@ -42,64 +42,131 @@
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Set user name
-        const name = localStorage.getItem('alphalearn_name') || DEMO_USER.givenName;
-        document.getElementById('user-name').textContent = name;
+    /* ---- Color + icon mappings for courses -------------------------------- */
+    const COURSE_THEMES = ['teal', 'purple', 'pink', 'orange'];
+    const COURSE_ICONS  = {
+        math:       'fa-calculator',
+        science:    'fa-atom',
+        language:   'fa-book-open',
+        reading:    'fa-book-open-reader',
+        geography:  'fa-globe-americas',
+        biology:    'fa-dna',
+        default:    'fa-graduation-cap',
+    };
 
-        // Render tests
-        if (DEMO_TESTS.length) {
-            document.getElementById('tests-section').style.display = '';
-            document.getElementById('tests-grid').innerHTML = DEMO_TESTS.map(test => `
-                <div class="test-card">
-                    <div class="test-card-image test-image-${test.image_style}">
-                        <div class="test-card-illustration">
-                            <i class="fa-solid ${test.image_style === 'reading' ? 'fa-book-open-reader' : 'fa-clipboard-check'}"></i>
-                        </div>
-                    </div>
-                    <div class="test-card-info">
-                        <div class="test-card-status">
-                            <span class="status-dot blue"></span>
-                            <span class="test-card-name">${test.name}</span>
-                        </div>
-                        <div class="test-card-meta">
-                            <span class="test-badge">${test.grade}</span>
-                            <span class="test-badge">${test.xp} XP</span>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
+    function guessIcon(title) {
+        const t = title.toLowerCase();
+        if (t.includes('math') || t.includes('algebra') || t.includes('calculus')) return COURSE_ICONS.math;
+        if (t.includes('chem') || t.includes('physics'))                          return COURSE_ICONS.science;
+        if (t.includes('bio'))                                                     return COURSE_ICONS.biology;
+        if (t.includes('read') || t.includes('ela') || t.includes('english'))     return COURSE_ICONS.reading;
+        if (t.includes('lang') || t.includes('composition') || t.includes('writing')) return COURSE_ICONS.language;
+        if (t.includes('geo') || t.includes('history') || t.includes('social'))   return COURSE_ICONS.geography;
+        return COURSE_ICONS.default;
+    }
 
-        // Render courses
-        document.getElementById('course-grid').innerHTML = DEMO_COURSES.map(course => {
-            const pct = course.xp_total > 0 ? (course.xp_earned / course.xp_total * 100) : 0;
-            const lessonsHint = course.lessons_left > 0
-                ? `<p class="lessons-hint">${course.lessons_left} lesson${course.lessons_left !== 1 ? 's' : ''} to reach daily goal</p>`
-                : '';
+    function renderCourses(courses) {
+        document.getElementById('course-grid').innerHTML = courses.map((c, i) => {
+            const color = COURSE_THEMES[i % COURSE_THEMES.length];
+            const icon  = guessIcon(c.title || c.name || '');
+            const name  = c.title || c.name || 'Untitled Course';
+            const xpEarned = c.xpEarned || 0;
+            const xpTotal  = c.xpTotal  || c.xp_total || 0;
+            const pct = xpTotal > 0 ? (xpEarned / xpTotal * 100) : 0;
             return `
                 <div class="course-card">
-                    <div class="course-card-image card-theme-${course.color}">
-                        <div class="course-card-illustration">
-                            <i class="fa-solid ${course.icon}"></i>
-                        </div>
+                    <div class="course-card-image card-theme-${color}">
+                        <div class="course-card-illustration"><i class="fa-solid ${icon}"></i></div>
                     </div>
                     <div class="course-card-body">
                         <div class="course-card-header">
                             <span class="status-dot blue"></span>
-                            <span class="course-card-name">${course.name}</span>
+                            <span class="course-card-name">${name}</span>
                         </div>
                         <div class="course-card-xp">
-                            <span class="xp-progress">${course.xp_earned} / ${course.xp_total} XP</span>
+                            <span class="xp-progress">${xpEarned} / ${xpTotal} XP</span>
                             <span class="xp-period">TODAY</span>
                         </div>
                         <div class="progress-bar">
                             <div class="progress-fill" style="width: ${pct}%"></div>
                         </div>
-                        ${lessonsHint}
                     </div>
                 </div>`;
         }).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', async function () {
+        const name  = localStorage.getItem('alphalearn_name') || DEMO_USER.givenName;
+        const email = localStorage.getItem('alphalearn_email') || DEMO_USER.email;
+        document.getElementById('user-name').textContent = name;
+
+        /* --- Try loading real data from Timeback API ---------------------- */
+        let usedLiveData = false;
+
+        try {
+            // 1. Find student in the system by email
+            const usersResp = await fetch('/api/users');
+            const usersData = await usersResp.json();
+            const me = (usersData.users || []).find(u =>
+                (u.email || '').toLowerCase() === email.toLowerCase()
+            );
+
+            if (me && me.sourcedId) {
+                // 2. Fetch real enrollments via EduBridge
+                const enrollResp = await fetch(`/api/enrollments?userId=${me.sourcedId}`);
+                const enrollData = await enrollResp.json();
+                const enrollments = enrollData.enrollments || enrollData.courses || [];
+
+                if (enrollments.length > 0) {
+                    usedLiveData = true;
+                    renderCourses(enrollments.map(e => ({
+                        title: e.courseTitle || e.title || e.courseName || 'Course',
+                        name: e.courseTitle || e.title || e.courseName || 'Course',
+                        xpEarned: e.xpEarned || 0,
+                        xpTotal: e.xpTotal || 0,
+                    })));
+                }
+
+                // 3. Try to load today's XP analytics
+                const today = new Date().toISOString().split('T')[0];
+                fetch(`/api/analytics?email=${encodeURIComponent(email)}&startDate=${today}&endDate=${today}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        // Analytics data is available for future dashboard enhancements
+                        console.log('[AlphaLearn] Analytics loaded:', data);
+                    })
+                    .catch(() => {});
+            }
+        } catch (err) {
+            console.warn('[AlphaLearn] API unavailable, using demo data:', err.message);
+        }
+
+        /* --- Fallback: render demo data if API didn't return courses ------ */
+        if (!usedLiveData) {
+            renderCourses(DEMO_COURSES);
+
+            if (DEMO_TESTS.length) {
+                document.getElementById('tests-section').style.display = '';
+                document.getElementById('tests-grid').innerHTML = DEMO_TESTS.map(test => `
+                    <div class="test-card">
+                        <div class="test-card-image test-image-${test.image_style}">
+                            <div class="test-card-illustration">
+                                <i class="fa-solid ${test.image_style === 'reading' ? 'fa-book-open-reader' : 'fa-clipboard-check'}"></i>
+                            </div>
+                        </div>
+                        <div class="test-card-info">
+                            <div class="test-card-status">
+                                <span class="status-dot blue"></span>
+                                <span class="test-card-name">${test.name}</span>
+                            </div>
+                            <div class="test-card-meta">
+                                <span class="test-badge">${test.grade}</span>
+                                <span class="test-badge">${test.xp} XP</span>
+                            </div>
+                        </div>
+                    </div>`).join('');
+            }
+        }
     });
     </script>
 </body>
