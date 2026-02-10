@@ -43,6 +43,17 @@
         </main>
     </div>
 
+    <!-- Course Detail Modal -->
+    <div class="modal-overlay" id="course-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.15);width:90%;max-width:520px;max-height:85vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid #E8ECF1;">
+                <h2 style="font-size:1.15rem;font-weight:700;margin:0;" id="course-modal-title">Course Details</h2>
+                <button onclick="closeCourseModal()" style="width:32px;height:32px;border:none;background:transparent;font-size:1.4rem;color:#A0AEC0;cursor:pointer;border-radius:8px;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background='#F4F6F9'" onmouseout="this.style.background='transparent'">&times;</button>
+            </div>
+            <div id="course-modal-body" style="padding:24px;"></div>
+        </div>
+    </div>
+
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
     <script>
@@ -98,7 +109,7 @@
             const pct       = goal > 0 ? Math.min((xpEarned / goal) * 100, 100) : 0;
 
             return `
-                <div class="course-card">
+                <div class="course-card" onclick="openCourseModal(${i})" style="cursor:pointer;">
                     <div class="course-card-image card-theme-${color}">
                         <div class="course-card-illustration"><i class="fa-solid ${icon}"></i></div>
                     </div>
@@ -196,6 +207,13 @@
                     totalXp:      metrics.totalXp || 0,
                     totalLessons: metrics.totalLessons || 0,
                     dailyXpGoal:  goals.dailyXp || 0,
+                    // Store full enrollment + course data for credential display
+                    _raw: e,
+                    _course: course,
+                    _credentials: e.credentials || (e.metadata && e.metadata.credentials) || course.metadata?.credentials || null,
+                    _loginUrl: e.loginUrl || e.url || course.metadata?.loginUrl || course.metadata?.url || course.metadata?.primaryAppUrl || null,
+                    _primaryApp: course.metadata?.primaryApp || '',
+                    _metadata: { ...course.metadata, ...e.metadata },
                 };
 
                 // ── Mastery track tests only (not PP, not regular courses) ──
@@ -286,6 +304,163 @@
 
         renderCourses();
     }
+
+    /* ---- Course detail modal --------------------------------------------- */
+    function openCourseModal(index) {
+        const c = allCourses[index];
+        if (!c) return;
+
+        const modal = document.getElementById('course-modal');
+        const body  = document.getElementById('course-modal-body');
+        document.getElementById('course-modal-title').textContent = c.title;
+
+        const meta   = c._metadata || {};
+        const creds  = c._credentials;
+        const url    = c._loginUrl;
+        const app    = c._primaryApp;
+        const raw    = c._raw || {};
+        const course = c._course || {};
+
+        // Try to extract credentials from various possible locations
+        let username = '', password = '', loginUrl = url || '';
+
+        if (creds && typeof creds === 'object') {
+            username = creds.username || creds.user || creds.login || creds.email || '';
+            password = creds.password || creds.pass || creds.secret || '';
+            loginUrl = loginUrl || creds.url || creds.loginUrl || '';
+        }
+
+        // Also check deeper in metadata
+        if (!username && meta.username) username = meta.username;
+        if (!username && meta.login) username = meta.login;
+        if (!password && meta.password) password = meta.password;
+        if (!loginUrl && meta.loginUrl) loginUrl = meta.loginUrl;
+        if (!loginUrl && meta.url) loginUrl = meta.url;
+        if (!loginUrl && meta.primaryAppUrl) loginUrl = meta.primaryAppUrl;
+        if (!loginUrl && meta.launchUrl) loginUrl = meta.launchUrl;
+
+        // Check raw enrollment fields
+        if (!loginUrl && raw.launchUrl) loginUrl = raw.launchUrl;
+        if (!loginUrl && raw.url) loginUrl = raw.url;
+
+        // Build credential rows
+        let credentialsHTML = '';
+        if (username || password || loginUrl || app) {
+            credentialsHTML = `
+                <div style="margin-bottom:20px;">
+                    <h3 style="font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#A0AEC0;margin-bottom:12px;">
+                        <i class="fa-solid fa-key" style="margin-right:6px;"></i>Course Credentials
+                    </h3>
+                    <div style="background:#F4F6F9;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;">
+                        ${app ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Platform</span><span style="font-size:0.95rem;color:#2D3748;font-weight:500;">${app}</span></div>` : ''}
+                        ${username ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Username</span><span style="font-family:'SF Mono','Fira Code',monospace;font-size:0.9rem;color:#2D3748;background:#fff;padding:4px 10px;border-radius:6px;border:1px solid #E8ECF1;display:inline-block;">${username}</span></div>` : ''}
+                        ${password ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Password</span><span style="font-family:'SF Mono','Fira Code',monospace;font-size:0.9rem;color:#2D3748;background:#fff;padding:4px 10px;border-radius:6px;border:1px solid #E8ECF1;display:inline-block;" id="cred-pw">${password}</span> <button onclick="navigator.clipboard.writeText('${password.replace(/'/g, "\\'")}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" style="border:none;background:#45B5AA;color:#fff;padding:3px 10px;border-radius:5px;font-size:0.75rem;font-weight:600;cursor:pointer;margin-left:6px;">Copy</button></div>` : ''}
+                        ${loginUrl ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Course URL</span><a href="${loginUrl}" target="_blank" style="font-size:0.88rem;color:#45B5AA;word-break:break-all;">${loginUrl}</a></div>` : ''}
+                    </div>
+                </div>`;
+        } else {
+            credentialsHTML = `
+                <div style="margin-bottom:20px;">
+                    <h3 style="font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#A0AEC0;margin-bottom:12px;">
+                        <i class="fa-solid fa-key" style="margin-right:6px;"></i>Course Credentials
+                    </h3>
+                    <div style="background:#F4F6F9;border-radius:10px;padding:20px;text-align:center;color:#718096;font-size:0.88rem;">
+                        <i class="fa-solid fa-lock" style="font-size:1.2rem;margin-bottom:8px;display:block;opacity:0.5;"></i>
+                        No separate credentials needed — this course uses your AlphaLearn account.
+                    </div>
+                </div>`;
+        }
+
+        // Build all raw metadata display for debugging/transparency
+        let metaDetailsHTML = '';
+        const displayMeta = {};
+        for (const [k, v] of Object.entries(meta)) {
+            if (v !== null && v !== undefined && v !== '' && typeof v !== 'object') {
+                displayMeta[k] = v;
+            } else if (typeof v === 'object' && v !== null) {
+                for (const [k2, v2] of Object.entries(v)) {
+                    if (v2 !== null && v2 !== undefined && v2 !== '') {
+                        displayMeta[`${k}.${k2}`] = v2;
+                    }
+                }
+            }
+        }
+        if (Object.keys(displayMeta).length > 0) {
+            metaDetailsHTML = `
+                <details style="margin-bottom:16px;">
+                    <summary style="font-size:0.8rem;font-weight:600;color:#A0AEC0;cursor:pointer;margin-bottom:8px;">
+                        <i class="fa-solid fa-info-circle" style="margin-right:4px;"></i>All Course Details
+                    </summary>
+                    <div style="background:#F4F6F9;border-radius:8px;padding:12px;font-size:0.82rem;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        ${Object.entries(displayMeta).map(([k, v]) => `
+                            <div><span style="color:#718096;font-weight:600;">${k}</span></div>
+                            <div style="color:#2D3748;word-break:break-all;">${v}</div>
+                        `).join('')}
+                    </div>
+                </details>`;
+        }
+
+        // XP info
+        const xpEarned = Math.round(xpBySubject[c.subject] || 0);
+        const goal = currentPeriod === 'today' ? (c.dailyXpGoal || 0) : (c.dailyXpGoal || 0) * 5;
+
+        body.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                <div style="width:48px;height:48px;border-radius:12px;background:var(--color-primary-light);display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--color-primary-dark);">
+                    <i class="fa-solid ${guessIcon(c.title)}"></i>
+                </div>
+                <div>
+                    <div style="font-weight:600;font-size:1rem;color:#2D3748;">${c.title}</div>
+                    <div style="font-size:0.82rem;color:#718096;">${c.subject}${c.totalLessons ? ' · ' + c.totalLessons + ' lessons' : ''}</div>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:12px;margin-bottom:20px;">
+                <div style="flex:1;background:#F4F6F9;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:1.3rem;font-weight:700;color:#45B5AA;">${xpEarned}</div>
+                    <div style="font-size:0.75rem;font-weight:600;color:#718096;text-transform:uppercase;letter-spacing:0.5px;">XP Earned</div>
+                </div>
+                <div style="flex:1;background:#F4F6F9;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:1.3rem;font-weight:700;color:#2D3748;">${goal}</div>
+                    <div style="font-size:0.75rem;font-weight:600;color:#718096;text-transform:uppercase;letter-spacing:0.5px;">XP Goal</div>
+                </div>
+                <div style="flex:1;background:#F4F6F9;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:1.3rem;font-weight:700;color:#2D3748;">${c.totalXp || 0}</div>
+                    <div style="font-size:0.75rem;font-weight:600;color:#718096;text-transform:uppercase;letter-spacing:0.5px;">Total XP</div>
+                </div>
+            </div>
+
+            ${credentialsHTML}
+            ${metaDetailsHTML}
+
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                ${loginUrl ? `<a href="${loginUrl}" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#45B5AA;color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;text-decoration:none;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#389E94'" onmouseout="this.style.background='#45B5AA'">
+                    Next <i class="fa-solid fa-arrow-right"></i>
+                </a>` : `<button disabled style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#E8ECF1;color:#718096;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;cursor:not-allowed;">
+                    No external link available
+                </button>`}
+                <button onclick="closeCourseModal()" style="padding:12px 20px;background:#F4F6F9;color:#718096;border:none;border-radius:10px;font-size:0.95rem;font-weight:500;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#E8ECF1'" onmouseout="this.style.background='#F4F6F9'">
+                    Close
+                </button>
+            </div>
+        `;
+
+        modal.style.display = 'flex';
+    }
+
+    function closeCourseModal() {
+        document.getElementById('course-modal').style.display = 'none';
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('course-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeCourseModal();
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeCourseModal();
+    });
 
     /* ---- Today / This Week toggle ---------------------------------------- */
     document.querySelectorAll('.toggle-btn[data-period]').forEach(btn => {
