@@ -97,6 +97,7 @@ DEMO_TESTS = [
 # ---------------------------------------------------------------------------
 # Student routes
 # ---------------------------------------------------------------------------
+@dashboard_bp.route("/dashboard")
 @dashboard_bp.route("/student")
 def student_home():
     return render_template(
