@@ -105,6 +105,9 @@
                 <i class="fa-solid fa-circle-exclamation"></i> <span id="error-text"></span>
             </div>
 
+            <!-- Debug panel (shown on login failure for diagnostics) -->
+            <div id="debug-panel" style="display:none; background:rgba(15,23,42,0.8); border:1px solid rgba(69,181,170,0.3); border-radius:0.5rem; padding:0.75rem 1rem; margin-bottom:1.25rem; font-size:0.75rem; color:#94a3b8; font-family:monospace; white-space:pre-wrap; word-break:break-all;"></div>
+
             <!-- Email / Password Form -->
             <form id="login-form">
                 <div class="form-group">
@@ -186,12 +189,20 @@
             const resp = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email, password, debug: true }),
             });
             const data = await resp.json();
 
             if (!resp.ok || !data.success) {
                 showError(data.error || 'Invalid email or password.');
+                // Show debug info if returned
+                const debugPanel = document.getElementById('debug-panel');
+                if (data.debug) {
+                    debugPanel.textContent = JSON.stringify(data.debug, null, 2);
+                    debugPanel.style.display = 'block';
+                } else {
+                    debugPanel.style.display = 'none';
+                }
                 setLoading(loginBtn, false, 'Sign In');
                 return;
             }

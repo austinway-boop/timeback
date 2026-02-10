@@ -86,12 +86,26 @@ class handler(BaseHTTPRequestHandler):
 
             # --- Verify password ----------------------------------------------
             stored_password = raw_user.get("password", "")
+
+            # Debug mode: include diagnostic info so we can see what
+            # the OneRoster API actually returns for the password field.
+            debug_requested = data.get("debug", False)
+            debug_info = {
+                "userFound": True,
+                "userSourcedId": raw_user.get("sourcedId", ""),
+                "passwordFieldExists": "password" in raw_user,
+                "passwordFieldEmpty": not stored_password,
+                "passwordFieldType": type(stored_password).__name__,
+                "passwordFieldLength": len(stored_password) if stored_password else 0,
+                "passwordMatch": stored_password == password if stored_password else False,
+                "rawUserKeys": sorted(raw_user.keys()),
+            }
+
             if not stored_password or stored_password != password:
-                send_json(
-                    self,
-                    {"error": "Invalid password", "success": False},
-                    401,
-                )
+                resp = {"error": "Invalid password", "success": False}
+                if debug_requested:
+                    resp["debug"] = debug_info
+                send_json(self, resp, 401)
                 return
 
             send_json(self, {"user": user, "success": True})
