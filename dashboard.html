@@ -147,47 +147,47 @@
                 || enrollData.courses
                 || (Array.isArray(enrollData) ? enrollData : []);
 
-            /* 3. Filter and categorise enrollments */
+            /* 3. Filter to ONLY currently-enrolled, real courses */
+            const now     = new Date();
             const courses = [];
             const tests   = [];
 
             for (const e of raw) {
-                const course = e.course || {};
-                const cMeta  = course.metadata || {};
-                const goals  = (e.metadata && e.metadata.goals) || {};
-                const title  = course.title || '';
+                const course   = e.course || {};
+                const cMeta    = course.metadata || {};
+                const goals    = (e.metadata && e.metadata.goals) || {};
+                const title    = course.title || '';
                 const subjects = course.subjects || [];
+                const endDate  = e.endDate ? new Date(e.endDate) : null;
 
-                // Skip non-courses
-                if (title.startsWith('Manual XP'))       continue;  // manual XP tracker
-                if (title.includes('Hole-Filling'))      continue;  // personalised remediation
-                if (!subjects.length && !cMeta.primaryApp && !cMeta.courseType) continue; // school enrolment rows
+                // ── Skip expired enrollments (endDate in the past) ──
+                if (endDate && endDate < now) continue;
+
+                // ── Skip non-course rows ──
+                if (title.startsWith('Manual XP'))  continue;
+                if (title.includes('Hole-Filling')) continue;
+                if (!subjects.length && !cMeta.primaryApp && !cMeta.courseType) continue;
 
                 const item = {
                     title,
                     subject:  subjects[0] || '',
                     xpEarned: e.xpEarned || 0,
                     xpTotal:  goals.dailyXp || e.xpTotal || 0,
-                    app:      cMeta.primaryApp || cMeta.app || '',
-                    hasTest:  'test' in cMeta,
-                    hasQuiz:  'quiz' in cMeta,
                 };
 
-                // Courses with a test component go to the Assigned Tests section
-                if (item.hasTest) {
+                // ── Mastery track tests: courses with test metadata ──
+                if ('test' in cMeta) {
                     tests.push(item);
+                    continue;   // show ONLY in tests section, not in course grid
                 }
 
                 courses.push(item);
             }
 
-            /* 4. Render tests in top section */
+            /* 4. Render mastery track tests in top section */
             if (tests.length) {
                 document.getElementById('tests-section').style.display = '';
-                document.getElementById('tests-grid').innerHTML = tests.map(t => {
-                    const icon = guessIcon(t.title);
-                    const styleClass = t.subject.toLowerCase().replace(/\s+/g, '-') || 'default';
-                    return `
+                document.getElementById('tests-grid').innerHTML = tests.map(t => `
                     <div class="test-card">
                         <div class="test-card-image test-image-reading" style="background:linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 50%,#A5D6A7 100%);">
                             <div class="test-card-illustration" style="color:#2E7D32;">
@@ -204,8 +204,7 @@
                                 <span class="test-badge">${t.xpTotal} XP</span>
                             </div>
                         </div>
-                    </div>`;
-                }).join('');
+                    </div>`).join('');
             }
 
             /* 5. Render course cards */
