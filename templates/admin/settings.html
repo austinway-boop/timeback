@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}AlphaLearn - Settings{% endblock %}
+
+{% block sidebar %}
+<ul class="nav-list">
+    <li class="nav-item">
+        <a href="{{ url_for('admin_dashboard') }}">
+            <i class="fa-solid fa-grid-2"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="{{ url_for('admin_students') }}">
+            <i class="fa-solid fa-users"></i>
+            <span>Students</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="{{ url_for('admin_courses') }}">
+            <i class="fa-solid fa-book"></i>
+            <span>Courses</span>
+        </a>
+    </li>
+    <li class="nav-item active">
+        <a href="{{ url_for('admin_settings') }}">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+        </a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block content %}
+<div class="admin-settings">
+    <div class="page-header">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Manage platform configuration</p>
+    </div>
+
+    <div class="settings-grid">
+        <div class="settings-card">
+            <div class="settings-card-icon">
+                <i class="fa-solid fa-school"></i>
+            </div>
+            <h3>Organization</h3>
+            <p>Manage school name, timezone, and general settings</p>
+        </div>
+        <div class="settings-card">
+            <div class="settings-card-icon">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <h3>Admin Users</h3>
+            <p>Invite and manage administrator accounts</p>
+        </div>
+        <div class="settings-card">
+            <div class="settings-card-icon">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <h3>Permissions</h3>
+            <p>Configure permission groups and access levels</p>
+        </div>
+        <div class="settings-card">
+            <div class="settings-card-icon">
+                <i class="fa-solid fa-bell"></i>
+            </div>
+            <h3>Notifications</h3>
+            <p>Set up email and in-app notification preferences</p>
+        </div>
+        <div class="settings-card">
+            <div class="settings-card-icon">
+                <i class="fa-solid fa-plug"></i>
+            </div>
+            <h3>Integrations</h3>
+            <p>Connect external tools and LTI providers</p>
+        </div>
+        <div class="settings-card">
+            <div class="settings-card-icon">
+                <i class="fa-solid fa-palette"></i>
+            </div>
+            <h3>Appearance</h3>
+            <p>Customize branding, themes, and seasonal settings</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

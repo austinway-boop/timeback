@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}AlphaLearn - Admin Dashboard{% endblock %}
+
+{% block sidebar %}
+<ul class="nav-list">
+    <li class="nav-item active">
+        <a href="{{ url_for('admin_dashboard') }}">
+            <i class="fa-solid fa-grid-2"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="{{ url_for('admin_students') }}">
+            <i class="fa-solid fa-users"></i>
+            <span>Students</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="{{ url_for('admin_courses') }}">
+            <i class="fa-solid fa-book"></i>
+            <span>Courses</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="{{ url_for('admin_settings') }}">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+        </a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <div class="page-header">
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Overview of your school's activity</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-blue">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value" id="stat-students">--</span>
+                <span class="stat-label">Total Students</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-teal">
+                <i class="fa-solid fa-user-check"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value" id="stat-active">--</span>
+                <span class="stat-label">Active Today</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-purple">
+                <i class="fa-solid fa-book-open"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value" id="stat-courses">42</span>
+                <span class="stat-label">Active Courses</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-orange">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value" id="stat-xp">85</span>
+                <span class="stat-label">Avg XP Today</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="dashboard-grid">
+        <!-- Recent Activity -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title">Recent Activity</h2>
+                <a href="#" class="card-action">View All</a>
+            </div>
+            <div class="activity-list" id="activity-list">
+                <div class="activity-item">
+                    <div class="activity-avatar purple">
+                        <i class="fa-solid fa-user-plus"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p class="activity-text"><strong>New student enrolled</strong> - Sarah Johnson joined Chemistry Honors</p>
+                        <span class="activity-time">2 minutes ago</span>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-avatar teal">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p class="activity-text"><strong>Mastery achieved</strong> - James Liu completed Grade 8 Math</p>
+                        <span class="activity-time">15 minutes ago</span>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-avatar blue">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p class="activity-text"><strong>Test completed</strong> - Emma Davis scored 92% on Reading Mastery</p>
+                        <span class="activity-time">32 minutes ago</span>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-avatar orange">
+                        <i class="fa-solid fa-fire"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p class="activity-text"><strong>Streak milestone</strong> - 12 students hit a 7-day streak</p>
+                        <span class="activity-time">1 hour ago</span>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-avatar teal">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p class="activity-text"><strong>XP milestone</strong> - Austin Way earned 500 XP this week</p>
+                        <span class="activity-time">2 hours ago</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Performers -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title">Top Performers Today</h2>
+                <a href="{{ url_for('admin_students') }}" class="card-action">See All</a>
+            </div>
+            <div class="leaderboard">
+                <div class="leader-item">
+                    <span class="leader-rank gold">1</span>
+                    <div class="leader-avatar" style="background: #E8F5E9; color: #2E7D32;">E</div>
+                    <div class="leader-info">
+                        <span class="leader-name">Emma Davis</span>
+                        <span class="leader-detail">Grade 10</span>
+                    </div>
+                    <span class="leader-xp">142 XP</span>
+                </div>
+                <div class="leader-item">
+                    <span class="leader-rank silver">2</span>
+                    <div class="leader-avatar" style="background: #E3F2FD; color: #1565C0;">J</div>
+                    <div class="leader-info">
+                        <span class="leader-name">James Liu</span>
+                        <span class="leader-detail">Grade 11</span>
+                    </div>
+                    <span class="leader-xp">128 XP</span>
+                </div>
+                <div class="leader-item">
+                    <span class="leader-rank bronze">3</span>
+                    <div class="leader-avatar" style="background: #FFF3E0; color: #E65100;">S</div>
+                    <div class="leader-info">
+                        <span class="leader-name">Sarah Johnson</span>
+                        <span class="leader-detail">Grade 9</span>
+                    </div>
+                    <span class="leader-xp">115 XP</span>
+                </div>
+                <div class="leader-item">
+                    <span class="leader-rank">4</span>
+                    <div class="leader-avatar" style="background: #F3E5F5; color: #7B1FA2;">M</div>
+                    <div class="leader-info">
+                        <span class="leader-name">Miguel Santos</span>
+                        <span class="leader-detail">Grade 10</span>
+                    </div>
+                    <span class="leader-xp">98 XP</span>
+                </div>
+                <div class="leader-item">
+                    <span class="leader-rank">5</span>
+                    <div class="leader-avatar" style="background: #E0F7FA; color: #00838F;">A</div>
+                    <div class="leader-info">
+                        <span class="leader-name">Aisha Patel</span>
+                        <span class="leader-detail">Grade 11</span>
+                    </div>
+                    <span class="leader-xp">91 XP</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load real student count from API
+    fetch('/api/users')
+        .then(r => r.json())
+        .then(data => {
+            const total = data.count || 0;
+            document.getElementById('stat-students').textContent = total.toLocaleString();
+            // Estimate active (demo: ~18% of total)
+            const active = Math.round(total * 0.18);
+            document.getElementById('stat-active').textContent = active.toLocaleString();
+        })
+        .catch(() => {
+            document.getElementById('stat-students').textContent = '—';
+            document.getElementById('stat-active').textContent = '—';
+        });
+});
+</script>
+{% endblock %}

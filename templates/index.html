@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timeback Users</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+                   Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+      background: #0f172a; color: #e2e8f0; min-height: 100vh;
+    }
+    .container { max-width: 1020px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { text-align: center; margin-bottom: 1.5rem; }
+    header h1 { font-size: 1.75rem; font-weight: 700; color: #f8fafc; margin-bottom: .25rem; }
+    header p  { color: #94a3b8; font-size: .95rem; }
+
+    /* Status banner */
+    .banner {
+      margin-bottom: 1.25rem; background: #1e293b; border: 1px solid #334155;
+      border-radius: 10px; padding: .75rem 1.25rem; text-align: center;
+      font-size: .85rem; color: #94a3b8;
+    }
+    .banner strong { color: #e2e8f0; }
+    .banner.done { border-color: #22c55e55; color: #86efac; }
+    .banner.err { border-color: #f8717155; color: #f87171; }
+    .mini-spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid #334155; border-top-color: #38bdf8;
+      border-radius: 50%; animation: spin .6s linear infinite;
+      vertical-align: middle; margin-right: .4rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Stats */
+    .stats { display: flex; gap: .75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .stat-card {
+      flex: 1; min-width: 100px; background: #1e293b; border: 1px solid #334155;
+      border-radius: 10px; padding: .7rem 1rem;
+    }
+    .stat-card .label {
+      font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+      color: #64748b; margin-bottom: .1rem;
+    }
+    .stat-card .value { font-size: 1.3rem; font-weight: 700; color: #38bdf8; }
+
+    /* Search */
+    .search-wrap input {
+      width: 100%; padding: .65rem 1rem .65rem 2.6rem; font-size: .9rem;
+      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+      color: #e2e8f0; outline: none; transition: border-color .2s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cline x1='10.5' y1='10.5' x2='14' y2='14'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: .8rem center;
+      margin-bottom: 1.25rem;
+    }
+    .search-wrap input::placeholder { color: #475569; }
+    .search-wrap input:focus { border-color: #38bdf8; }
+
+    /* Table */
+    .table-wrap {
+      background: #1e293b; border: 1px solid #334155; border-radius: 10px; overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left; padding: .65rem 1rem; font-size: .7rem;
+      text-transform: uppercase; letter-spacing: .05em; color: #64748b;
+      background: #162032; border-bottom: 1px solid #334155;
+      cursor: pointer; user-select: none; white-space: nowrap;
+      position: sticky; top: 0; z-index: 2;
+    }
+    thead th:hover { color: #94a3b8; }
+    thead th .arrow { margin-left: .2rem; font-size: .55rem; }
+    tbody tr { transition: background .12s; }
+    tbody tr:hover { background: #273449; }
+    tbody td {
+      padding: .5rem 1rem; font-size: .83rem; border-bottom: 1px solid #1a2740;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;
+    }
+    .email-cell { color: #38bdf8; }
+    .role-badge {
+      display: inline-block; padding: .12rem .5rem; border-radius: 9999px;
+      font-size: .65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em;
+    }
+    .role-student  { background: #164e63; color: #67e8f9; }
+    .role-teacher  { background: #422006; color: #fdba74; }
+    .role-admin    { background: #3b0764; color: #d8b4fe; }
+    .role-aide     { background: #1e3a2f; color: #6ee7b7; }
+    .role-other    { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    .status-active   { color: #4ade80; }
+    .status-inactive { color: #f87171; }
+
+    /* Pagination footer */
+    .table-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .7rem 1rem; border-top: 1px solid #334155; flex-wrap: wrap; gap: .5rem;
+    }
+    .footer-info { font-size: .8rem; color: #64748b; }
+    .footer-info strong { color: #e2e8f0; }
+    .footer-btns { display: flex; gap: .5rem; align-items: center; }
+    .page-btn {
+      padding: .35rem .85rem; border-radius: 6px; border: 1px solid #334155;
+      background: #1e293b; color: #94a3b8; font-size: .82rem; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+    }
+    .page-btn:hover:not(:disabled) { border-color: #38bdf8; color: #38bdf8; }
+    .page-btn:disabled { opacity: .3; cursor: not-allowed; }
+    .page-num { font-size: .82rem; color: #94a3b8; }
+    .page-num strong { color: #e2e8f0; }
+
+    .no-results { text-align: center; padding: 2rem; color: #64748b; }
+
+    @media (max-width: 640px) {
+      tbody td, thead th { padding: .4rem .5rem; font-size: .75rem; }
+      .stat-card { min-width: 80px; padding: .5rem .6rem; }
+      .stat-card .value { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Timeback User Directory</h1>
+      <p>OneRoster users from <code>api.alpha-1edtech.ai</code></p>
+    </header>
+
+    <div class="banner" id="banner">
+      <span class="mini-spinner"></span> Loading all users in one request&hellip;
+    </div>
+
+    <div id="content" style="display:none;">
+      <div class="stats">
+        <div class="stat-card"><div class="label">Total Users</div><div class="value" id="totalCount">0</div></div>
+        <div class="stat-card"><div class="label">With Email</div><div class="value" id="emailCount">0</div></div>
+        <div class="stat-card"><div class="label">Students</div><div class="value" id="studentCount">0</div></div>
+        <div class="stat-card"><div class="label">Teachers</div><div class="value" id="teacherCount">0</div></div>
+        <div class="stat-card"><div class="label">Other</div><div class="value" id="otherCount">0</div></div>
+      </div>
+
+      <div class="search-wrap">
+        <input type="text" id="search" placeholder="Search all users by name, email, or role..." />
+      </div>
+
+      <div class="table-wrap" id="tableWrap"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const ROWS = 100;
+
+    let ALL = [];
+    let filtered = [];
+    let viewPage = 1;
+    let sortCol = 'email';
+    let sortAsc = true;
+    let query = '';
+
+    // ---------------------------------------------------------------
+    // One big fetch
+    // ---------------------------------------------------------------
+    fetch('/api/users')
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          $('#banner').className = 'banner err';
+          $('#banner').innerHTML = 'Error: ' + JSON.stringify(data.error);
+          return;
+        }
+        ALL = data.users;
+        $('#banner').className = 'banner done';
+        $('#banner').innerHTML = `Loaded <strong>${ALL.length.toLocaleString()}</strong> users`;
+        $('#content').style.display = 'block';
+        updateStats();
+        refilter();
+        buildTable();
+      })
+      .catch(err => {
+        $('#banner').className = 'banner err';
+        $('#banner').textContent = 'Fetch failed: ' + err.message;
+      });
+
+    // ---------------------------------------------------------------
+    // Stats
+    // ---------------------------------------------------------------
+    function updateStats() {
+      $('#totalCount').textContent = ALL.length.toLocaleString();
+      $('#emailCount').textContent = ALL.filter(u => u.email).length.toLocaleString();
+      const s = ALL.filter(u => rn(u.role) === 'student').length;
+      const t = ALL.filter(u => rn(u.role) === 'teacher').length;
+      $('#studentCount').textContent = s.toLocaleString();
+      $('#teacherCount').textContent = t.toLocaleString();
+      $('#otherCount').textContent = (ALL.length - s - t).toLocaleString();
+    }
+
+    // ---------------------------------------------------------------
+    // Filter + sort
+    // ---------------------------------------------------------------
+    function refilter() {
+      let arr = ALL;
+      if (query) {
+        arr = arr.filter(u =>
+          (u.givenName + ' ' + u.familyName + ' ' + u.email + ' ' + u.role + ' ' + u.username)
+            .toLowerCase().includes(query)
+        );
+      }
+      arr.sort((a, b) => {
+        const va = (a[sortCol] || '').toLowerCase();
+        const vb = (b[sortCol] || '').toLowerCase();
+        return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+      filtered = arr;
+    }
+
+    // ---------------------------------------------------------------
+    // Render (only 100 rows at a time)
+    // ---------------------------------------------------------------
+    function buildTable() {
+      const total = filtered.length;
+      const pages = Math.max(1, Math.ceil(total / ROWS));
+      if (viewPage > pages) viewPage = pages;
+      const start = (viewPage - 1) * ROWS;
+      const slice = filtered.slice(start, start + ROWS);
+
+      const arrow = sortAsc ? '&#9650;' : '&#9660;';
+      const cols = [
+        { key: 'givenName',  label: 'First Name' },
+        { key: 'familyName', label: 'Last Name' },
+        { key: 'email',      label: 'Email' },
+        { key: 'role',       label: 'Role' },
+        { key: 'status',     label: 'Status' },
+        { key: 'username',   label: 'Username' },
+      ];
+
+      let h = '<table><thead><tr>';
+      for (const c of cols) {
+        h += `<th data-col="${c.key}">${c.label}${c.key === sortCol ? `<span class="arrow">${arrow}</span>` : ''}</th>`;
+      }
+      h += '</tr></thead><tbody>';
+
+      if (!slice.length) {
+        h += `<tr><td colspan="6"><div class="no-results">${query ? 'No users match your search.' : 'No users.'}</div></td></tr>`;
+      } else {
+        for (const u of slice) {
+          const r = rn(u.role);
+          const rc = ['student','teacher','admin','aide'].includes(r) ? 'role-'+r : 'role-other';
+          const sc = (u.status||'').toLowerCase()==='active' ? 'status-active' : 'status-inactive';
+          h += `<tr>
+            <td>${esc(u.givenName)}</td>
+            <td>${esc(u.familyName)}</td>
+            <td class="email-cell">${esc(u.email)||'<span style="color:#475569">&mdash;</span>'}</td>
+            <td><span class="role-badge ${rc}">${esc(u.role)}</span></td>
+            <td class="${sc}">${esc(u.status)||'&mdash;'}</td>
+            <td>${esc(u.username)||'&mdash;'}</td>
+          </tr>`;
+        }
+      }
+      h += '</tbody></table>';
+
+      const from = total ? start+1 : 0;
+      h += `<div class="table-footer">
+        <div class="footer-info">
+          <strong>${from.toLocaleString()}&ndash;${(start+slice.length).toLocaleString()}</strong> of
+          <strong>${total.toLocaleString()}</strong>${query ? ' matching' : ' users'}
+        </div>
+        <div class="footer-btns">
+          <button class="page-btn" id="prevBtn" ${viewPage<=1?'disabled':''}>&#8592; Prev</button>
+          <span class="page-num">Page <strong>${viewPage}</strong> / <strong>${pages}</strong></span>
+          <button class="page-btn" id="nextBtn" ${viewPage>=pages?'disabled':''}>Next &#8594;</button>
+        </div>
+      </div>`;
+
+      $('#tableWrap').innerHTML = h;
+
+      for (const th of document.querySelectorAll('thead th')) {
+        th.addEventListener('click', () => {
+          const c = th.dataset.col;
+          if (sortCol===c) sortAsc=!sortAsc; else { sortCol=c; sortAsc=true; }
+          viewPage=1; refilter(); buildTable();
+        });
+      }
+      $('#prevBtn')?.addEventListener('click', () => { if(viewPage>1){ viewPage--; buildTable(); scroll(); }});
+      $('#nextBtn')?.addEventListener('click', () => { if(viewPage<pages){ viewPage++; buildTable(); scroll(); }});
+    }
+
+    function scroll() { window.scrollTo({top:0,behavior:'smooth'}); }
+
+    // Search (debounced)
+    let t;
+    document.addEventListener('input', e => {
+      if (e.target.id!=='search') return;
+      clearTimeout(t);
+      t = setTimeout(() => {
+        query = e.target.value.trim().toLowerCase();
+        viewPage = 1;
+        refilter();
+        buildTable();
+      }, 150);
+    });
+
+    function rn(r) { return (r||'').toLowerCase().replace(/s$/,''); }
+    function esc(s) { if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  </script>
+</body>
+</html>

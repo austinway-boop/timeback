@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}AlphaLearn - Courses{% endblock %}
+
+{% block sidebar %}
+<ul class="nav-list">
+    <li class="nav-item">
+        <a href="{{ url_for('admin_dashboard') }}">
+            <i class="fa-solid fa-grid-2"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="{{ url_for('admin_students') }}">
+            <i class="fa-solid fa-users"></i>
+            <span>Students</span>
+        </a>
+    </li>
+    <li class="nav-item active">
+        <a href="{{ url_for('admin_courses') }}">
+            <i class="fa-solid fa-book"></i>
+            <span>Courses</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="{{ url_for('admin_settings') }}">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+        </a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block content %}
+<div class="admin-courses">
+    <div class="page-header">
+        <h1 class="page-title">Courses</h1>
+        <p class="page-subtitle">Manage curriculum and course content</p>
+    </div>
+
+    <div class="course-admin-grid">
+        <div class="course-admin-card">
+            <div class="course-admin-image card-theme-teal">
+                <i class="fa-solid fa-calculator"></i>
+            </div>
+            <div class="course-admin-body">
+                <h3>Math Academy - SAT Fundamentals</h3>
+                <div class="course-admin-meta">
+                    <span><i class="fa-solid fa-users"></i> 234 enrolled</span>
+                    <span><i class="fa-solid fa-layer-group"></i> 12 units</span>
+                </div>
+                <div class="course-admin-status">
+                    <span class="status-badge status-active">Published</span>
+                </div>
+            </div>
+        </div>
+        <div class="course-admin-card">
+            <div class="course-admin-image card-theme-purple">
+                <i class="fa-solid fa-book-open"></i>
+            </div>
+            <div class="course-admin-body">
+                <h3>AP Language and Composition</h3>
+                <div class="course-admin-meta">
+                    <span><i class="fa-solid fa-users"></i> 187 enrolled</span>
+                    <span><i class="fa-solid fa-layer-group"></i> 8 units</span>
+                </div>
+                <div class="course-admin-status">
+                    <span class="status-badge status-active">Published</span>
+                </div>
+            </div>
+        </div>
+        <div class="course-admin-card">
+            <div class="course-admin-image card-theme-pink">
+                <i class="fa-solid fa-atom"></i>
+            </div>
+            <div class="course-admin-body">
+                <h3>Chemistry Honors</h3>
+                <div class="course-admin-meta">
+                    <span><i class="fa-solid fa-users"></i> 156 enrolled</span>
+                    <span><i class="fa-solid fa-layer-group"></i> 10 units</span>
+                </div>
+                <div class="course-admin-status">
+                    <span class="status-badge status-active">Published</span>
+                </div>
+            </div>
+        </div>
+        <div class="course-admin-card">
+            <div class="course-admin-image card-theme-orange">
+                <i class="fa-solid fa-globe-americas"></i>
+            </div>
+            <div class="course-admin-body">
+                <h3>World Geography</h3>
+                <div class="course-admin-meta">
+                    <span><i class="fa-solid fa-users"></i> 142 enrolled</span>
+                    <span><i class="fa-solid fa-layer-group"></i> 6 units</span>
+                </div>
+                <div class="course-admin-status">
+                    <span class="status-badge status-active">Published</span>
+                </div>
+            </div>
+        </div>
+        <div class="course-admin-card">
+            <div class="course-admin-image card-theme-purple">
+                <i class="fa-solid fa-laptop-code"></i>
+            </div>
+            <div class="course-admin-body">
+                <h3>eGumpp Grammar</h3>
+                <div class="course-admin-meta">
+                    <span><i class="fa-solid fa-users"></i> 198 enrolled</span>
+                    <span><i class="fa-solid fa-layer-group"></i> 15 units</span>
+                </div>
+                <div class="course-admin-status">
+                    <span class="status-badge status-active">Published</span>
+                </div>
+            </div>
+        </div>
+        <div class="course-admin-card">
+            <div class="course-admin-image card-theme-pink">
+                <i class="fa-solid fa-dna"></i>
+            </div>
+            <div class="course-admin-body">
+                <h3>Biology Fundamentals</h3>
+                <div class="course-admin-meta">
+                    <span><i class="fa-solid fa-users"></i> 121 enrolled</span>
+                    <span><i class="fa-solid fa-layer-group"></i> 9 units</span>
+                </div>
+                <div class="course-admin-status">
+                    <span class="status-badge status-testing">Testing</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

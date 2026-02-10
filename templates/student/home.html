@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}AlphaLearn - Home{% endblock %}
+
+{% block sidebar %}
+<ul class="nav-list">
+    <li class="nav-item active">
+        <a href="{{ url_for('student_home') }}">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+        </a>
+    </li>
+    <li class="nav-item has-submenu">
+        <a href="#" class="nav-link-toggle">
+            <i class="fa-solid fa-trophy"></i>
+            <span>Mastery Progress</span>
+            <i class="fa-solid fa-chevron-right nav-chevron"></i>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="#">
+            <i class="fa-solid fa-award"></i>
+            <span>Badges</span>
+        </a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block content %}
+<div class="student-home">
+    <!-- Welcome -->
+    <h1 class="welcome-heading">Welcome, {{ user.givenName }}!</h1>
+
+    <!-- Assigned Tests -->
+    {% if tests %}
+    <section class="assigned-tests-section">
+        <h2 class="section-title">Assigned Tests</h2>
+        <div class="assigned-tests-grid">
+            {% for test in tests %}
+            <div class="test-card">
+                <div class="test-card-image test-image-{{ test.image_style }}">
+                    <div class="test-card-illustration">
+                        {% if test.image_style == 'reading' %}
+                        <i class="fa-solid fa-book-open-reader"></i>
+                        {% else %}
+                        <i class="fa-solid fa-clipboard-check"></i>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="test-card-info">
+                    <div class="test-card-status">
+                        <span class="status-dot blue"></span>
+                        <span class="test-card-name">{{ test.name }}</span>
+                    </div>
+                    <div class="test-card-meta">
+                        <span class="test-badge">{{ test.grade }}</span>
+                        <span class="test-badge">{{ test.xp }} XP</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Time Toggle -->
+    <div class="time-toggle">
+        <button class="toggle-btn active" data-period="today">Today</button>
+        <button class="toggle-btn" data-period="week">This Week</button>
+    </div>
+
+    <!-- Course Cards -->
+    <div class="course-grid">
+        {% for course in courses %}
+        <div class="course-card">
+            <div class="course-card-image card-theme-{{ course.color }}">
+                <div class="course-card-illustration">
+                    <i class="fa-solid {{ course.icon }}"></i>
+                </div>
+            </div>
+            <div class="course-card-body">
+                <div class="course-card-header">
+                    <span class="status-dot blue"></span>
+                    <span class="course-card-name">{{ course.name }}</span>
+                </div>
+                <div class="course-card-xp">
+                    <span class="xp-progress">{{ course.xp_earned }} / {{ course.xp_total }} XP</span>
+                    <span class="xp-period">TODAY</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ (course.xp_earned / course.xp_total * 100) if course.xp_total > 0 else 0 }}%"></div>
+                </div>
+                {% if course.lessons_left > 0 %}
+                <p class="lessons-hint">{{ course.lessons_left }} lesson{{ 's' if course.lessons_left != 1 else '' }} to reach daily goal</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

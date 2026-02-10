@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% block title %}AlphaLearn - Students{% endblock %}
+
+{% block sidebar %}
+<ul class="nav-list">
+    <li class="nav-item">
+        <a href="{{ url_for('admin_dashboard') }}">
+            <i class="fa-solid fa-grid-2"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="nav-item active">
+        <a href="{{ url_for('admin_students') }}">
+            <i class="fa-solid fa-users"></i>
+            <span>Students</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="{{ url_for('admin_courses') }}">
+            <i class="fa-solid fa-book"></i>
+            <span>Courses</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="{{ url_for('admin_settings') }}">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+        </a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block content %}
+<div class="admin-students">
+    <div class="page-header">
+        <h1 class="page-title">Students</h1>
+        <p class="page-subtitle">Manage and view all enrolled students</p>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="student-search" class="search-input" placeholder="Search by name, email, or role...">
+        </div>
+        <div class="controls-right">
+            <select id="role-filter" class="filter-select">
+                <option value="">All Roles</option>
+                <option value="student">Students</option>
+                <option value="teacher">Teachers</option>
+                <option value="administrator">Administrators</option>
+                <option value="aide">Aides</option>
+            </select>
+            <select id="status-filter" class="filter-select">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="tobedeleted">Inactive</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Results Info -->
+    <div class="results-info">
+        <span id="results-count">Loading students...</span>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+        <table class="data-table" id="students-table">
+            <thead>
+                <tr>
+                    <th class="sortable" data-sort="name">
+                        Name <i class="fa-solid fa-sort"></i>
+                    </th>
+                    <th class="sortable" data-sort="email">
+                        Email <i class="fa-solid fa-sort"></i>
+                    </th>
+                    <th class="sortable" data-sort="role">
+                        Role <i class="fa-solid fa-sort"></i>
+                    </th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="students-tbody">
+                <tr>
+                    <td colspan="5" class="loading-cell">
+                        <div class="loading-spinner"></div>
+                        <span>Loading students from Timeback...</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- Student Detail Modal -->
+<div class="modal-overlay" id="student-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modal-student-name">Student Details</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body">
+            <!-- Filled by JS -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ITEMS_PER_PAGE = 25;
+let allUsers = [];
+let filteredUsers = [];
+let currentPage = 1;
+let sortField = 'name';
+let sortDir = 'asc';
+
+document.addEventListener('DOMContentLoaded', loadStudents);
+
+async function loadStudents() {
+    try {
+        const resp = await fetch('/api/users');
+        const data = await resp.json();
+        allUsers = data.users || [];
+        filterAndRender();
+    } catch (e) {
+        document.getElementById('students-tbody').innerHTML =
+            '<tr><td colspan="5" class="loading-cell error-cell"><i class="fa-solid fa-circle-exclamation"></i> Failed to load students</td></tr>';
+    }
+}
+
+function filterAndRender() {
+    const query = document.getElementById('student-search').value.toLowerCase();
+    const roleFilter = document.getElementById('role-filter').value;
+    const statusFilter = document.getElementById('status-filter').value;
+
+    filteredUsers = allUsers.filter(u => {
+        const name = `${u.givenName} ${u.familyName}`.toLowerCase();
+        const matchText = !query || name.includes(query) || (u.email || '').toLowerCase().includes(query) || (u.role || '').toLowerCase().includes(query);
+        const matchRole = !roleFilter || u.role === roleFilter;
+        const matchStatus = !statusFilter || u.status === statusFilter;
+        return matchText && matchRole && matchStatus;
+    });
+
+    // Sort
+    filteredUsers.sort((a, b) => {
+        let va, vb;
+        if (sortField === 'name') {
+            va = `${a.givenName} ${a.familyName}`.toLowerCase();
+            vb = `${b.givenName} ${b.familyName}`.toLowerCase();
+        } else if (sortField === 'email') {
+            va = (a.email || '').toLowerCase();
+            vb = (b.email || '').toLowerCase();
+        } else if (sortField === 'role') {
+            va = (a.role || '').toLowerCase();
+            vb = (b.role || '').toLowerCase();
+        }
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    currentPage = 1;
+    renderTable();
+    renderPagination();
+}
+
+function renderTable() {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const page = filteredUsers.slice(start, start + ITEMS_PER_PAGE);
+
+    document.getElementById('results-count').textContent =
+        `Showing ${start + 1}–${Math.min(start + ITEMS_PER_PAGE, filteredUsers.length)} of ${filteredUsers.length} users`;
+
+    if (page.length === 0) {
+        document.getElementById('students-tbody').innerHTML =
+            '<tr><td colspan="5" class="loading-cell">No students found</td></tr>';
+        return;
+    }
+
+    const roleColors = {
+        student: 'role-student',
+        teacher: 'role-teacher',
+        administrator: 'role-admin',
+        aide: 'role-aide',
+    };
+
+    document.getElementById('students-tbody').innerHTML = page.map(u => `
+        <tr>
+            <td>
+                <div class="user-cell">
+                    <div class="user-cell-avatar">${(u.givenName || '?')[0].toUpperCase()}</div>
+                    <div>
+                        <div class="user-cell-name">${u.givenName} ${u.familyName}</div>
+                        <div class="user-cell-username">${u.username || ''}</div>
+                    </div>
+                </div>
+            </td>
+            <td class="email-cell">${u.email || '—'}</td>
+            <td><span class="role-badge ${roleColors[u.role] || ''}">${u.role || '—'}</span></td>
+            <td><span class="status-badge status-${u.status}">${u.status || '—'}</span></td>
+            <td>
+                <button class="action-btn" onclick="viewStudent('${u.sourcedId}')" title="View details">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderPagination() {
+    const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+    if (totalPages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+
+    let html = '';
+    html += `<button class="page-btn ${currentPage === 1 ? 'disabled' : ''}" onclick="goPage(${currentPage - 1})">&laquo;</button>`;
+
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+    if (start > 1) html += `<button class="page-btn" onclick="goPage(1)">1</button><span class="page-dots">…</span>`;
+    for (let i = start; i <= end; i++) {
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    if (end < totalPages) html += `<span class="page-dots">…</span><button class="page-btn" onclick="goPage(${totalPages})">${totalPages}</button>`;
+
+    html += `<button class="page-btn ${currentPage === totalPages ? 'disabled' : ''}" onclick="goPage(${currentPage + 1})">&raquo;</button>`;
+    document.getElementById('pagination').innerHTML = html;
+}
+
+function goPage(p) {
+    const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+    if (p < 1 || p > totalPages) return;
+    currentPage = p;
+    renderTable();
+    renderPagination();
+    document.querySelector('.table-container').scrollTop = 0;
+}
+
+// Sorting
+document.querySelectorAll('.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+        const field = th.dataset.sort;
+        if (sortField === field) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        else { sortField = field; sortDir = 'asc'; }
+        filterAndRender();
+    });
+});
+
+// Filters
+document.getElementById('student-search').addEventListener('input', debounce(filterAndRender, 250));
+document.getElementById('role-filter').addEventListener('change', filterAndRender);
+document.getElementById('status-filter').addEventListener('change', filterAndRender);
+
+function debounce(fn, ms) {
+    let t; return function(...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); };
+}
+
+// Student detail modal
+async function viewStudent(id) {
+    document.getElementById('student-modal').classList.add('open');
+    document.getElementById('modal-body').innerHTML = '<div class="loading-spinner"></div>';
+    try {
+        const resp = await fetch(`/api/users/${id}`);
+        const data = await resp.json();
+        const u = data.user;
+        document.getElementById('modal-student-name').textContent = `${u.givenName} ${u.familyName}`;
+        document.getElementById('modal-body').innerHTML = `
+            <div class="modal-detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Email</span>
+                    <span class="detail-value">${u.email || '—'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Username</span>
+                    <span class="detail-value">${u.username || '—'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Primary Role</span>
+                    <span class="detail-value"><span class="role-badge role-${u.role}">${u.role || '—'}</span></span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value"><span class="status-badge status-${u.status}">${u.status || '—'}</span></span>
+                </div>
+                <div class="detail-item full-width">
+                    <span class="detail-label">Source ID</span>
+                    <span class="detail-value monospace">${u.sourcedId}</span>
+                </div>
+            </div>
+            <div class="modal-section">
+                <h3>All Roles</h3>
+                <div class="roles-list">
+                    ${(u.roles || []).map(r =>
+                        `<div class="role-item">
+                            <span class="role-badge role-${r.role || r}">${typeof r === 'object' ? r.role : r}</span>
+                            <span class="role-type">${typeof r === 'object' ? r.roleType || '' : ''}</span>
+                        </div>`
+                    ).join('')}
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        document.getElementById('modal-body').innerHTML = '<p class="error-text">Failed to load student details.</p>';
+    }
+}
+
+function closeModal() {
+    document.getElementById('student-modal').classList.remove('open');
+}
+
+document.getElementById('student-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+</script>
+{% endblock %}
