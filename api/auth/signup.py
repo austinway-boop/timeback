@@ -1,30 +1,38 @@
-"""POST /api/auth/signup — Create a new account via Cognito User Pool."""
+"""POST /api/auth/signup — Create a new user via Timeback OneRoster API.
+
+Creates a user record in OneRoster with the provided name, email,
+and password.  Checks for duplicates before creating.
+"""
 
 import json
-import hmac
-import hashlib
-import base64
+import uuid
 from http.server import BaseHTTPRequestHandler
 
-import requests
-
-from api._helpers import CLIENT_ID, CLIENT_SECRET, send_json
-
-COGNITO_IDP_URL = "https://cognito-idp.us-east-1.amazonaws.com/"
+from api._helpers import (
+    fetch_with_params,
+    post_resource,
+    send_json,
+)
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _compute_secret_hash(username: str) -> str:
-    """Compute the Cognito SECRET_HASH for *username*."""
-    message = username + CLIENT_ID
-    dig = hmac.new(
-        CLIENT_SECRET.encode("utf-8"),
-        message.encode("utf-8"),
-        hashlib.sha256,
-    ).digest()
-    return base64.b64encode(dig).decode("utf-8")
+def _user_exists(email: str) -> bool:
+    """Return True if a user with this email already exists in OneRoster."""
+    data, status = fetch_with_params(
+        "/ims/oneroster/rostering/v1p2/users",
+        {"filter": f"email='{email}'"},
+    )
+    if data and status == 200:
+        users = data.get("users", [])
+        if not users:
+            for val in data.values():
+                if isinstance(val, list) and val:
+                    users = val
+                    break
+        return len(users) > 0
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -72,36 +80,48 @@ class handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            # --- Cognito SignUp -----------------------------------------------
-            secret_hash = _compute_secret_hash(email)
-
-            cognito_resp = requests.post(
-                COGNITO_IDP_URL,
-                headers={
-                    "Content-Type": "application/x-amz-json-1.1",
-                    "X-Amz-Target": "AWSCognitoIdentityProviderService.SignUp",
-                },
-                json={
-                    "ClientId": CLIENT_ID,
-                    "Username": email,
-                    "Password": password,
-                    "SecretHash": secret_hash,
-                    "UserAttributes": [
-                        {"Name": "email", "Value": email},
-                        {"Name": "given_name", "Value": given_name},
-                        {"Name": "family_name", "Value": family_name},
-                    ],
-                },
-                timeout=30,
-            )
-
-            if cognito_resp.status_code != 200:
-                err = cognito_resp.json()
+            # --- Check for existing user --------------------------------------
+            if _user_exists(email):
                 send_json(
                     self,
-                    {"error": err.get("message", "Signup failed"), "success": False},
+                    {"error": "An account with this email already exists", "success": False},
                     400,
                 )
+                return
+
+            # --- Create user via OneRoster ------------------------------------
+            user_id = str(uuid.uuid4())
+            user_payload = {
+                "user": {
+                    "sourcedId": user_id,
+                    "status": "active",
+                    "enabledUser": "true",
+                    "givenName": given_name,
+                    "familyName": family_name,
+                    "email": email,
+                    "username": email,
+                    "password": password,
+                    "roles": [
+                        {"role": "student", "roleType": "primary"},
+                    ],
+                }
+            }
+
+            resp_data, status = post_resource(
+                "/ims/oneroster/rostering/v1p2/users",
+                user_payload,
+            )
+
+            if status not in (200, 201):
+                error_msg = "Failed to create account"
+                if resp_data and isinstance(resp_data, dict):
+                    # Try common error response shapes
+                    error_msg = (
+                        resp_data.get("message")
+                        or resp_data.get("error")
+                        or resp_data.get("statusInfoSet", [{}])[0].get("imsx_description", error_msg)
+                    )
+                send_json(self, {"error": error_msg, "success": False}, 400)
                 return
 
             send_json(self, {"message": "Account created successfully", "success": True})

@@ -128,6 +128,22 @@ def fetch_with_params(path: str, params: dict) -> tuple[dict | None, int]:
     return None, resp.status_code
 
 
+def post_resource(path: str, payload: dict) -> tuple[dict | None, int]:
+    """POST a new resource. Returns (response_data, status_code)."""
+    url = f"{API_BASE}{path}"
+    headers = api_headers()
+    resp = requests.post(url, headers=headers, json=payload, timeout=30)
+
+    if resp.status_code == 401:
+        headers = api_headers()
+        resp = requests.post(url, headers=headers, json=payload, timeout=30)
+
+    try:
+        return resp.json(), resp.status_code
+    except Exception:
+        return None, resp.status_code
+
+
 # ---------------------------------------------------------------------------
 # User parser
 # ---------------------------------------------------------------------------
