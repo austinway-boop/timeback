@@ -33,12 +33,16 @@
                 </div>
 
                 <!-- Course Cards -->
-                <div class="course-grid" id="course-grid"></div>
+                <div class="course-grid" id="course-grid">
+                    <div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--color-text-muted);">
+                        <div class="loading-spinner" style="margin:0 auto 12px;"></div>
+                        Loading your courses...
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
-    <script src="/js/data.js"></script>
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
     <script>
@@ -51,28 +55,35 @@
         reading:    'fa-book-open-reader',
         geography:  'fa-globe-americas',
         biology:    'fa-dna',
+        tech:       'fa-laptop-code',
         default:    'fa-graduation-cap',
     };
 
     function guessIcon(title) {
-        const t = title.toLowerCase();
+        const t = (title || '').toLowerCase();
         if (t.includes('math') || t.includes('algebra') || t.includes('calculus')) return COURSE_ICONS.math;
         if (t.includes('chem') || t.includes('physics'))                          return COURSE_ICONS.science;
         if (t.includes('bio'))                                                     return COURSE_ICONS.biology;
         if (t.includes('read') || t.includes('ela') || t.includes('english'))     return COURSE_ICONS.reading;
         if (t.includes('lang') || t.includes('composition') || t.includes('writing')) return COURSE_ICONS.language;
         if (t.includes('geo') || t.includes('history') || t.includes('social'))   return COURSE_ICONS.geography;
+        if (t.includes('code') || t.includes('tech') || t.includes('gumpp'))      return COURSE_ICONS.tech;
         return COURSE_ICONS.default;
     }
 
     function renderCourses(courses) {
+        if (!courses.length) {
+            document.getElementById('course-grid').innerHTML =
+                '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--color-text-muted);">No courses found for your account.</div>';
+            return;
+        }
         document.getElementById('course-grid').innerHTML = courses.map((c, i) => {
-            const color = COURSE_THEMES[i % COURSE_THEMES.length];
-            const icon  = guessIcon(c.title || c.name || '');
-            const name  = c.title || c.name || 'Untitled Course';
+            const color    = COURSE_THEMES[i % COURSE_THEMES.length];
+            const icon     = guessIcon(c.title || '');
+            const name     = c.title || 'Untitled Course';
             const xpEarned = c.xpEarned || 0;
-            const xpTotal  = c.xpTotal  || c.xp_total || 0;
-            const pct = xpTotal > 0 ? (xpEarned / xpTotal * 100) : 0;
+            const xpTotal  = c.xpTotal  || 0;
+            const pct      = xpTotal > 0 ? (xpEarned / xpTotal * 100) : 0;
             return `
                 <div class="course-card">
                     <div class="course-card-image card-theme-${color}">
@@ -95,77 +106,63 @@
         }).join('');
     }
 
+    function showError(msg) {
+        document.getElementById('course-grid').innerHTML =
+            `<div style="grid-column:1/-1;text-align:center;padding:48px;color:#E53E3E;">
+                <i class="fa-solid fa-circle-exclamation"></i> ${msg}
+            </div>`;
+    }
+
     document.addEventListener('DOMContentLoaded', async function () {
-        const name  = localStorage.getItem('alphalearn_name') || DEMO_USER.givenName;
-        const email = localStorage.getItem('alphalearn_email') || DEMO_USER.email;
+        const name  = localStorage.getItem('alphalearn_name') || 'Student';
+        const email = localStorage.getItem('alphalearn_email') || '';
         document.getElementById('user-name').textContent = name;
 
-        /* --- Try loading real data from Timeback API ---------------------- */
-        let usedLiveData = false;
-
-        try {
-            // 1. Find student in the system by email
-            const usersResp = await fetch('/api/users');
-            const usersData = await usersResp.json();
-            const me = (usersData.users || []).find(u =>
-                (u.email || '').toLowerCase() === email.toLowerCase()
-            );
-
-            if (me && me.sourcedId) {
-                // 2. Fetch real enrollments via EduBridge
-                const enrollResp = await fetch(`/api/enrollments?userId=${me.sourcedId}`);
-                const enrollData = await enrollResp.json();
-                const enrollments = enrollData.enrollments || enrollData.courses || [];
-
-                if (enrollments.length > 0) {
-                    usedLiveData = true;
-                    renderCourses(enrollments.map(e => ({
-                        title: e.courseTitle || e.title || e.courseName || 'Course',
-                        name: e.courseTitle || e.title || e.courseName || 'Course',
-                        xpEarned: e.xpEarned || 0,
-                        xpTotal: e.xpTotal || 0,
-                    })));
-                }
-
-                // 3. Try to load today's XP analytics
-                const today = new Date().toISOString().split('T')[0];
-                fetch(`/api/analytics?email=${encodeURIComponent(email)}&startDate=${today}&endDate=${today}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        // Analytics data is available for future dashboard enhancements
-                        console.log('[AlphaLearn] Analytics loaded:', data);
-                    })
-                    .catch(() => {});
-            }
-        } catch (err) {
-            console.warn('[AlphaLearn] API unavailable, using demo data:', err.message);
+        if (!email) {
+            showError('No email found. Please <a href="/login" style="color:var(--color-primary)">sign in</a> first.');
+            return;
         }
 
-        /* --- Fallback: render demo data if API didn't return courses ------ */
-        if (!usedLiveData) {
-            renderCourses(DEMO_COURSES);
+        try {
+            /* 1. Fast user lookup by email (single filtered request) */
+            const lookupResp = await fetch(`/api/user-lookup?email=${encodeURIComponent(email)}`);
+            const lookupData = await lookupResp.json();
 
-            if (DEMO_TESTS.length) {
-                document.getElementById('tests-section').style.display = '';
-                document.getElementById('tests-grid').innerHTML = DEMO_TESTS.map(test => `
-                    <div class="test-card">
-                        <div class="test-card-image test-image-${test.image_style}">
-                            <div class="test-card-illustration">
-                                <i class="fa-solid ${test.image_style === 'reading' ? 'fa-book-open-reader' : 'fa-clipboard-check'}"></i>
-                            </div>
-                        </div>
-                        <div class="test-card-info">
-                            <div class="test-card-status">
-                                <span class="status-dot blue"></span>
-                                <span class="test-card-name">${test.name}</span>
-                            </div>
-                            <div class="test-card-meta">
-                                <span class="test-badge">${test.grade}</span>
-                                <span class="test-badge">${test.xp} XP</span>
-                            </div>
-                        </div>
-                    </div>`).join('');
+            if (!lookupData.user || !lookupData.user.sourcedId) {
+                showError('Could not find your account. Please check your email and try again.');
+                return;
             }
+
+            const userId = lookupData.user.sourcedId;
+
+            // Cache the sourcedId so future page loads can skip the lookup
+            localStorage.setItem('alphalearn_userId', userId);
+
+            /* 2. Fetch enrolled courses via EduBridge (fast, single request) */
+            const enrollResp = await fetch(`/api/enrollments?userId=${userId}`);
+            const enrollData = await enrollResp.json();
+
+            // EduBridge may return data under different keys
+            const enrollments = enrollData.enrollments
+                || enrollData.courses
+                || (Array.isArray(enrollData) ? enrollData : []);
+
+            renderCourses(enrollments.map(e => ({
+                title:    e.courseTitle || e.title || e.courseName || e.name || 'Course',
+                xpEarned: e.xpEarned   || 0,
+                xpTotal:  e.xpTotal    || 0,
+            })));
+
+            /* 3. Load today's XP analytics in background */
+            const today = new Date().toISOString().split('T')[0];
+            fetch(`/api/analytics?email=${encodeURIComponent(email)}&startDate=${today}&endDate=${today}`)
+                .then(r => r.json())
+                .then(data => console.log('[AlphaLearn] Analytics:', data))
+                .catch(() => {});
+
+        } catch (err) {
+            showError('Unable to reach the Timeback API. Please try again later.');
+            console.error('[AlphaLearn]', err);
         }
     });
     </script>
