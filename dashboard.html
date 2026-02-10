@@ -138,27 +138,80 @@
             // Cache the sourcedId so future page loads can skip the lookup
             localStorage.setItem('alphalearn_userId', userId);
 
-            /* 2. Fetch enrolled courses via EduBridge (fast, single request) */
+            /* 2. Fetch enrolled courses via EduBridge */
             const enrollResp = await fetch(`/api/enrollments?userId=${userId}`);
             const enrollData = await enrollResp.json();
 
-            // EduBridge returns { data: [ { course: { title, ... }, metadata: { goals: { dailyXp } } } ] }
-            const enrollments = enrollData.data
+            const raw = enrollData.data
                 || enrollData.enrollments
                 || enrollData.courses
                 || (Array.isArray(enrollData) ? enrollData : []);
 
-            renderCourses(enrollments.map(e => {
-                const course   = e.course || {};
-                const goals    = (e.metadata && e.metadata.goals) || {};
-                return {
-                    title:    course.title || e.courseTitle || e.title || e.name || 'Course',
-                    xpEarned: e.xpEarned   || 0,
-                    xpTotal:  goals.dailyXp || e.xpTotal || 0,
-                };
-            }));
+            /* 3. Filter and categorise enrollments */
+            const courses = [];
+            const tests   = [];
 
-            /* 3. Load today's XP analytics in background */
+            for (const e of raw) {
+                const course = e.course || {};
+                const cMeta  = course.metadata || {};
+                const goals  = (e.metadata && e.metadata.goals) || {};
+                const title  = course.title || '';
+                const subjects = course.subjects || [];
+
+                // Skip non-courses
+                if (title.startsWith('Manual XP'))       continue;  // manual XP tracker
+                if (title.includes('Hole-Filling'))      continue;  // personalised remediation
+                if (!subjects.length && !cMeta.primaryApp && !cMeta.courseType) continue; // school enrolment rows
+
+                const item = {
+                    title,
+                    subject:  subjects[0] || '',
+                    xpEarned: e.xpEarned || 0,
+                    xpTotal:  goals.dailyXp || e.xpTotal || 0,
+                    app:      cMeta.primaryApp || cMeta.app || '',
+                    hasTest:  'test' in cMeta,
+                    hasQuiz:  'quiz' in cMeta,
+                };
+
+                // Courses with a test component go to the Assigned Tests section
+                if (item.hasTest) {
+                    tests.push(item);
+                }
+
+                courses.push(item);
+            }
+
+            /* 4. Render tests in top section */
+            if (tests.length) {
+                document.getElementById('tests-section').style.display = '';
+                document.getElementById('tests-grid').innerHTML = tests.map(t => {
+                    const icon = guessIcon(t.title);
+                    const styleClass = t.subject.toLowerCase().replace(/\s+/g, '-') || 'default';
+                    return `
+                    <div class="test-card">
+                        <div class="test-card-image test-image-reading" style="background:linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 50%,#A5D6A7 100%);">
+                            <div class="test-card-illustration" style="color:#2E7D32;">
+                                <i class="fa-solid fa-clipboard-check"></i>
+                            </div>
+                        </div>
+                        <div class="test-card-info">
+                            <div class="test-card-status">
+                                <span class="status-dot blue"></span>
+                                <span class="test-card-name">${t.title}</span>
+                            </div>
+                            <div class="test-card-meta">
+                                <span class="test-badge">${t.subject}</span>
+                                <span class="test-badge">${t.xpTotal} XP</span>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            /* 5. Render course cards */
+            renderCourses(courses);
+
+            /* 6. Load today's XP analytics in background */
             const today = new Date().toISOString().split('T')[0];
             fetch(`/api/analytics?email=${encodeURIComponent(email)}&startDate=${today}&endDate=${today}`)
                 .then(r => r.json())
