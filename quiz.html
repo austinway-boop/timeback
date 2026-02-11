@@ -321,70 +321,66 @@
         var questions = data.questions || data.items || [];
         var totalQ = data.totalQuestions || questions.length;
 
-        // Parse QTI 3.0 assessment items
+        // Parse QTI 3.0 assessment items using renderNode for proper HTML
         function parseQtiItem(item) {
-            // QTI 3.0 items have qti-assessment-item wrapper
             var qi = item['qti-assessment-item'] || item;
             var attrs = qi['_attributes'] || {};
             var itemBody = qi['qti-item-body'] || qi['itemBody'] || {};
 
-            // Extract prompt text - walk the tree for text content
-            function extractText(node) {
-                if (!node) return '';
-                if (typeof node === 'string') return node;
-                if (node['_text']) return node['_text'];
-                if (node['#text']) return node['#text'];
-                var text = '';
+            // Find and extract choices BEFORE rendering (so we can separate prompt from choices)
+            function findChoices(node, depth) {
+                if (!node || typeof node !== 'object' || depth > 5) return [];
+                // Direct choice interaction
+                var interaction = node['qti-choice-interaction'] || node['choiceInteraction'];
+                if (interaction) {
+                    var sc = interaction['qti-simple-choice'] || interaction['simpleChoice'] || [];
+                    if (!Array.isArray(sc)) sc = [sc];
+                    return sc.map(function(c, i) {
+                        var ca = c['_attributes'] || {};
+                        // Render choice content as HTML
+                        var cHtml = renderNode(c);
+                        // Strip any nested choice attributes
+                        return { id: ca['identifier'] || String(i), html: cHtml };
+                    });
+                }
+                // Recurse into children
                 for (var k in node) {
                     if (k.startsWith('_')) continue;
                     var v = node[k];
-                    if (typeof v === 'string') text += v + ' ';
-                    else if (Array.isArray(v)) v.forEach(function(x) { text += extractText(x) + ' '; });
-                    else if (typeof v === 'object') text += extractText(v) + ' ';
-                }
-                return text.trim();
-            }
-
-            // Extract choices from qti-choice-interaction or qti-simple-choice
-            function extractChoices(node) {
-                if (!node) return [];
-                var choices = [];
-                // Look for qti-choice-interaction
-                var interaction = node['qti-choice-interaction'] || node['choiceInteraction'] || null;
-                if (!interaction && typeof node === 'object') {
-                    for (var k in node) {
-                        if (k.includes('choice') || k.includes('Choice')) {
-                            interaction = node[k];
-                            break;
-                        }
-                        if (typeof node[k] === 'object' && !Array.isArray(node[k])) {
-                            var sub = extractChoices(node[k]);
-                            if (sub.length > 0) return sub;
+                    if (typeof v === 'object') {
+                        var items = Array.isArray(v) ? v : [v];
+                        for (var i = 0; i < items.length; i++) {
+                            var found = findChoices(items[i], depth + 1);
+                            if (found.length > 0) return found;
                         }
                     }
                 }
-                if (!interaction) return [];
-                var simpleChoices = interaction['qti-simple-choice'] || interaction['simpleChoice'] || [];
-                if (!Array.isArray(simpleChoices)) simpleChoices = [simpleChoices];
-                for (var i = 0; i < simpleChoices.length; i++) {
-                    var sc = simpleChoices[i];
-                    var cAttrs = sc['_attributes'] || {};
-                    choices.push({
-                        id: cAttrs['identifier'] || i,
-                        text: extractText(sc) || sc['_text'] || JSON.stringify(sc),
-                    });
-                }
-                return choices;
+                return [];
             }
 
-            var prompt = extractText(itemBody);
-            // Remove choice text from prompt if it got mixed in
-            var choices = extractChoices(itemBody);
+            var choices = findChoices(itemBody, 0);
+
+            // Render the item body as HTML (this includes prompt + embedded content)
+            // Remove the choice interaction from the body before rendering as prompt
+            var bodyClone = JSON.parse(JSON.stringify(itemBody));
+            function removeChoices(obj) {
+                if (!obj || typeof obj !== 'object') return;
+                delete obj['qti-choice-interaction'];
+                delete obj['choiceInteraction'];
+                for (var k in obj) {
+                    if (typeof obj[k] === 'object') {
+                        if (Array.isArray(obj[k])) obj[k].forEach(removeChoices);
+                        else removeChoices(obj[k]);
+                    }
+                }
+            }
+            removeChoices(bodyClone);
+            var promptHtml = renderNode(bodyClone);
 
             return {
                 id: attrs['identifier'] || '',
                 title: attrs['title'] || '',
-                prompt: prompt,
+                promptHtml: promptHtml,
                 choices: choices,
             };
         }
@@ -401,22 +397,26 @@
             for (var qi = 0; qi < questions.length; qi++) {
                 var parsed = parseQtiItem(questions[qi]);
                 html += '<div class="question-card">';
-                html += '<div class="question-number">Question ' + (qi + 1) + (parsed.title ? ' — ' + esc(parsed.title) : '') + '</div>';
-                html += '<div class="question-prompt">' + (parsed.prompt || 'Loading question content...') + '</div>';
+                html += '<div class="question-number">Question ' + (qi + 1) + '</div>';
+                html += '<div class="question-prompt">' + (parsed.promptHtml || 'Loading...') + '</div>';
 
                 if (parsed.choices.length > 0) {
                     html += '<div class="choice-list">';
                     for (var ci = 0; ci < parsed.choices.length; ci++) {
                         html += '<div class="choice-item" onclick="selectChoice(this,' + qi + ',' + ci + ')">' +
                             '<span class="choice-letter">' + (letters[ci] || String(ci)) + '</span>' +
-                            '<span class="choice-text">' + parsed.choices[ci].text + '</span></div>';
+                            '<span class="choice-text">' + parsed.choices[ci].html + '</span></div>';
                     }
                     html += '</div>';
                 }
                 html += '</div>';
             }
-        } else if (!body) {
-            html += '<div style="text-align:center;padding:30px;color:var(--color-text-muted);">No renderable content found in the response.</div>';
+
+            // Submit button
+            html += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-primary" onclick="submitQuiz()"><i class="fa-solid fa-check" style="margin-right:6px;"></i>Submit Answers</button></div>';
+        } else if (!body && !stimulus) {
+            // Last resort: render the whole data object through renderNode
+            html += '<div class="stimulus-content">' + renderNode(data) + '</div>';
         }
 
         html += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left" style="margin-right:6px;"></i>Back to Course</button></div>';
