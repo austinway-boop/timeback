@@ -12,6 +12,27 @@
     <style>
     /* ---- Students Page Styles ---- */
 
+    /* Skeleton loading */
+    .skeleton-bar {
+        display: inline-block;
+        height: 14px;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #E8ECF1 25%, #F4F6F9 50%, #E8ECF1 75%);
+        background-size: 200% 100%;
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes skeleton-pulse {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    .skeleton-avatar {
+        width: 34px; height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(90deg, #E8ECF1 25%, #F4F6F9 50%, #E8ECF1 75%);
+        background-size: 200% 100%;
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
+    }
+
     /* Role summary stats */
     .role-stats {
         display: flex;
@@ -101,30 +122,7 @@
     .modal-tab-content { display: none; }
     .modal-tab-content.active { display: block; }
 
-    /* Modal action buttons row */
-    .modal-actions-row {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-    }
-    .modal-action-btn {
-        padding: 8px 16px;
-        border: none;
-        border-radius: var(--radius-sm);
-        font-weight: 600;
-        font-size: 0.85rem;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: all var(--transition);
-    }
-    .modal-action-btn.primary { background: var(--color-primary); color: white; }
-    .modal-action-btn.primary:hover { background: var(--color-primary-dark); }
-    .modal-action-btn.secondary { background: var(--color-purple-light); color: #6C5CE7; }
-    .modal-action-btn.secondary:hover { background: var(--color-purple); color: white; }
-
-    /* Stats row in analytics */
+    /* Analytics stats */
     .analytics-stats-row {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -155,180 +153,139 @@
     /* Enrollment list */
     .enrollment-list { display: flex; flex-direction: column; gap: 10px; }
     .enrollment-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 14px;
-        background: var(--color-bg);
-        border-radius: var(--radius-sm);
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px 14px; background: var(--color-bg); border-radius: var(--radius-sm);
     }
     .enrollment-icon {
-        width: 36px; height: 36px;
-        border-radius: var(--radius-sm);
+        width: 36px; height: 36px; border-radius: var(--radius-sm);
         display: flex; align-items: center; justify-content: center;
-        font-size: 0.9rem;
-        flex-shrink: 0;
+        font-size: 0.9rem; flex-shrink: 0;
     }
     .enrollment-icon.teal { background: var(--color-primary-light); color: var(--color-primary-dark); }
-    .enrollment-icon.blue { background: var(--color-blue-light); color: var(--color-blue); }
     .enrollment-info { flex: 1; min-width: 0; }
     .enrollment-name { font-weight: 600; font-size: 0.88rem; }
     .enrollment-meta { font-size: 0.78rem; color: var(--color-text-secondary); }
-    .enrollment-xp {
-        font-weight: 700;
-        font-size: 0.9rem;
-        color: var(--color-primary);
-        white-space: nowrap;
-    }
+    .enrollment-xp { font-weight: 700; font-size: 0.9rem; color: var(--color-primary); white-space: nowrap; }
 
     /* Empty state */
-    .empty-state {
-        text-align: center;
-        padding: 28px 16px;
-        color: var(--color-text-muted);
-    }
+    .empty-state { text-align: center; padding: 28px 16px; color: var(--color-text-muted); }
     .empty-state i { font-size: 2rem; margin-bottom: 8px; display: block; }
+
+    /* Assign section in modal */
+    .assign-section { margin-top: 8px; }
+    .assign-section h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; color: var(--color-text); }
+    .assign-row {
+        display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-end;
+    }
+    .assign-row select {
+        flex: 1;
+        padding: 9px 12px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        font-size: 0.88rem;
+        background: var(--color-surface);
+        color: var(--color-text);
+        outline: none;
+    }
+    .assign-row select:focus { border-color: var(--color-primary); }
+    .assign-row button {
+        padding: 9px 16px;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all var(--transition);
+    }
+    .assign-row .btn-primary { background: var(--color-primary); color: white; }
+    .assign-row .btn-primary:hover { background: var(--color-primary-dark); }
+    .assign-row .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .assign-row .btn-secondary { background: var(--color-purple-light); color: #6C5CE7; }
+    .assign-row .btn-secondary:hover { background: var(--color-purple); color: white; }
+    .assign-row .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .assign-result {
+        padding: 10px 14px;
+        border-radius: var(--radius-sm);
+        font-size: 0.85rem;
+        margin-top: 8px;
+        display: none;
+    }
+    .assign-result.success { display: block; background: #E8F5E9; color: #2E7D32; }
+    .assign-result.error { display: block; background: #FFEBEE; color: #C62828; }
+    .assign-result.pending { display: block; background: #FFF8E1; color: #F57F17; }
 
     /* Assign modal overlay */
     .assign-modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.35);
-        backdrop-filter: blur(2px);
-        z-index: 300;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s ease;
+        position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(2px);
+        z-index: 300; display: flex; align-items: center; justify-content: center;
+        opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
     }
     .assign-modal-overlay.open { opacity: 1; pointer-events: auto; }
     .assign-modal {
-        background: var(--color-surface);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow-lg);
-        width: 90%;
-        max-width: 480px;
-        max-height: 70vh;
-        display: flex;
-        flex-direction: column;
-        transform: translateY(20px);
-        transition: transform 0.2s ease;
+        background: var(--color-surface); border-radius: var(--radius);
+        box-shadow: var(--shadow-lg); width: 90%; max-width: 480px; max-height: 70vh;
+        display: flex; flex-direction: column;
+        transform: translateY(20px); transition: transform 0.2s ease;
     }
     .assign-modal-overlay.open .assign-modal { transform: translateY(0); }
     .assign-modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 18px 20px;
-        border-bottom: 1px solid var(--color-border);
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 18px 20px; border-bottom: 1px solid var(--color-border);
     }
     .assign-modal-header h3 { font-size: 1.05rem; font-weight: 700; }
     .assign-modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
     .assign-search-wrap { position: relative; }
     .assign-search-wrap i {
-        position: absolute;
-        left: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--color-text-muted);
-        font-size: 0.85rem;
+        position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+        color: var(--color-text-muted); font-size: 0.85rem;
     }
     .assign-search-input {
-        width: 100%;
-        padding: 10px 14px 10px 36px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        font-size: 0.9rem;
-        outline: none;
-        margin-bottom: 12px;
-        transition: border-color var(--transition);
-        background: var(--color-surface);
-        color: var(--color-text);
+        width: 100%; padding: 10px 14px 10px 36px;
+        border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+        font-size: 0.9rem; outline: none; margin-bottom: 12px;
+        background: var(--color-surface); color: var(--color-text);
     }
     .assign-search-input:focus { border-color: var(--color-primary); }
-    .assign-list {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        max-height: 260px;
-        overflow-y: auto;
-    }
+    .assign-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
     .assign-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 12px;
-        border-radius: var(--radius-sm);
-        cursor: pointer;
+        display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+        border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent;
         transition: background var(--transition);
-        border: 1px solid transparent;
     }
-    .assign-item:hover,
-    .assign-item.selected {
-        background: var(--color-primary-light);
-        border-color: var(--color-primary);
-    }
+    .assign-item:hover, .assign-item.selected { background: var(--color-primary-light); border-color: var(--color-primary); }
     .assign-item-icon {
-        width: 32px; height: 32px;
-        border-radius: var(--radius-sm);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 0.85rem;
-        flex-shrink: 0;
+        width: 32px; height: 32px; border-radius: var(--radius-sm);
+        display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0;
     }
     .assign-item-name { font-weight: 600; font-size: 0.88rem; }
     .assign-item-meta { font-size: 0.78rem; color: var(--color-text-secondary); }
     .assign-modal-footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        padding: 14px 20px;
-        border-top: 1px solid var(--color-border);
+        display: flex; justify-content: flex-end; gap: 10px;
+        padding: 14px 20px; border-top: 1px solid var(--color-border);
     }
     .assign-cancel-btn {
-        padding: 8px 18px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        background: var(--color-surface);
-        color: var(--color-text-secondary);
-        font-weight: 600;
-        font-size: 0.85rem;
-        cursor: pointer;
+        padding: 8px 18px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+        background: var(--color-surface); color: var(--color-text-secondary);
+        font-weight: 600; font-size: 0.85rem; cursor: pointer;
     }
     .assign-cancel-btn:hover { background: var(--color-bg); }
     .assign-confirm-btn {
-        padding: 8px 18px;
-        border: none;
-        border-radius: var(--radius-sm);
-        background: var(--color-primary);
-        color: white;
-        font-weight: 600;
-        font-size: 0.85rem;
-        cursor: pointer;
-        transition: background var(--transition);
+        padding: 8px 18px; border: none; border-radius: var(--radius-sm);
+        background: var(--color-primary); color: white; font-weight: 600;
+        font-size: 0.85rem; cursor: pointer;
     }
     .assign-confirm-btn:hover { background: var(--color-primary-dark); }
     .assign-confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* Toast notification */
+    /* Toast */
     .toast {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        padding: 14px 22px;
-        border-radius: var(--radius-sm);
-        color: white;
-        font-weight: 600;
-        font-size: 0.88rem;
-        z-index: 500;
-        box-shadow: var(--shadow-lg);
-        transform: translateY(80px);
-        opacity: 0;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        position: fixed; bottom: 24px; right: 24px; padding: 14px 22px;
+        border-radius: var(--radius-sm); color: white; font-weight: 600;
+        font-size: 0.88rem; z-index: 500; box-shadow: var(--shadow-lg);
+        transform: translateY(80px); opacity: 0; transition: all 0.3s ease;
+        display: flex; align-items: center; gap: 8px;
     }
     .toast.visible { transform: translateY(0); opacity: 1; }
     .toast.success { background: #2E7D32; }
@@ -338,15 +295,24 @@
     /* Activity facts */
     .activity-facts { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
     .fact-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 14px;
-        background: var(--color-bg);
-        border-radius: var(--radius-sm);
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 14px; background: var(--color-bg); border-radius: var(--radius-sm);
     }
     .fact-label { font-weight: 600; font-size: 0.88rem; }
     .fact-value { font-weight: 700; font-size: 0.95rem; color: var(--color-primary); }
+
+    /* Load more button */
+    .load-more-row {
+        display: flex; justify-content: center; padding: 16px 0;
+    }
+    .load-more-btn {
+        padding: 10px 28px; border: 1px solid var(--color-primary);
+        border-radius: var(--radius-sm); background: var(--color-surface);
+        color: var(--color-primary-dark); font-weight: 600; font-size: 0.88rem;
+        cursor: pointer; transition: all var(--transition);
+    }
+    .load-more-btn:hover { background: var(--color-primary); color: white; }
+    .load-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body data-view="admin" data-active="students">
@@ -389,6 +355,7 @@
                 <div class="bulk-actions-bar" id="bulk-actions-bar">
                     <span><span class="bulk-count" id="bulk-count">0</span> selected</span>
                     <button class="bulk-action-btn" onclick="bulkAssignCourse()"><i class="fa-solid fa-book"></i> Assign Course</button>
+                    <button class="bulk-action-btn" onclick="bulkAssignTest()"><i class="fa-solid fa-clipboard-list"></i> Assign Test</button>
                     <button class="bulk-action-btn" onclick="clearBulkSelection()" style="margin-left:auto; border-color:var(--color-text-muted); color:var(--color-text-secondary);"><i class="fa-solid fa-xmark"></i> Clear</button>
                 </div>
 
@@ -407,9 +374,7 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="students-tbody">
-                            <tr><td colspan="6" class="loading-cell"><div class="loading-spinner"></div><span>Loading students from Timeback...</span></td></tr>
-                        </tbody>
+                        <tbody id="students-tbody"></tbody>
                     </table>
                 </div>
 
@@ -427,7 +392,7 @@
                 </div>
             </div>
 
-            <!-- Assign Course Modal -->
+            <!-- Assign Course Modal (for bulk) -->
             <div class="assign-modal-overlay" id="assign-course-modal">
                 <div class="assign-modal">
                     <div class="assign-modal-header">
@@ -440,13 +405,33 @@
                             <i class="fa-solid fa-magnifying-glass"></i>
                             <input type="text" class="assign-search-input" id="course-search-input" placeholder="Search courses...">
                         </div>
-                        <div class="assign-list" id="course-assign-list">
-                            <div class="empty-state"><div class="loading-spinner" style="margin:0 auto 8px;"></div>Loading courses...</div>
-                        </div>
+                        <div class="assign-list" id="course-assign-list"></div>
                     </div>
                     <div class="assign-modal-footer">
                         <button class="assign-cancel-btn" onclick="closeAssignCourse()">Cancel</button>
                         <button class="assign-confirm-btn" id="confirm-assign-course" disabled onclick="confirmAssignCourse()">Assign Course</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assign Test Modal (for bulk) -->
+            <div class="assign-modal-overlay" id="assign-test-modal">
+                <div class="assign-modal">
+                    <div class="assign-modal-header">
+                        <h3><i class="fa-solid fa-clipboard-list" style="color:#6C5CE7; margin-right:8px;"></i>Assign Test</h3>
+                        <button class="modal-close" onclick="closeAssignTest()">&times;</button>
+                    </div>
+                    <div class="assign-modal-body">
+                        <p style="font-size:0.85rem; color:var(--color-text-secondary); margin-bottom:12px;" id="assign-test-target"></p>
+                        <div class="assign-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" class="assign-search-input" id="test-search-input" placeholder="Search tests...">
+                        </div>
+                        <div class="assign-list" id="test-assign-list"></div>
+                    </div>
+                    <div class="assign-modal-footer">
+                        <button class="assign-cancel-btn" onclick="closeAssignTest()">Cancel</button>
+                        <button class="assign-confirm-btn" id="confirm-assign-test" disabled onclick="confirmAssignTest()">Assign Test</button>
                     </div>
                 </div>
             </div>
@@ -461,41 +446,175 @@
     <script src="/js/app.js"></script>
     <script>
     /* =========================================================================
-       Admin Students Page — Full Rebuild
+       Admin Students Page — v3: Paginated, Skeleton, Cached
        ========================================================================= */
     const ITEMS_PER_PAGE = 25;
+    const CACHE_KEY = 'alphalearn_users_cache';
+    const CACHE_TTL = 5 * 60 * 1000;        // 5 minutes
+    const CACHE_STALE = 2 * 60 * 1000;      // 2 minutes — trigger background refresh
+
     let allUsers = [];
     let filteredUsers = [];
     let currentPage = 1;
     let sortField = 'name';
     let sortDir = 'asc';
+    let isLoading = false;
+    let totalServerCount = 0;
 
     // Caches
     let coursesCache = null;
+    let lineItemsCache = null;
 
     // Bulk selection
     let selectedIds = new Set();
 
-    // Assign modal state
+    // Assign state
     let assignTargetUsers = [];
     let selectedCourseId = null;
+    let selectedTestId = null;
+    let currentStudentId = null;
 
-    document.addEventListener('DOMContentLoaded', loadStudents);
+    document.addEventListener('DOMContentLoaded', init);
 
     /* =====================================================================
-       Data Loading
+       Init — Check cache, then load
        ===================================================================== */
-    async function loadStudents() {
+    async function init() {
+        showSkeletonRows(10);
+
+        // Try sessionStorage cache
+        const cached = getCache();
+        if (cached) {
+            allUsers = cached.users;
+            totalServerCount = cached.count || allUsers.length;
+            renderRoleStats();
+            filterAndRender();
+
+            // If cache is older than 2min, background refresh
+            if (Date.now() - cached.timestamp > CACHE_STALE) {
+                loadFromAPI(true);
+            }
+        } else {
+            await loadFromAPI(false);
+        }
+    }
+
+    /* =====================================================================
+       SessionStorage Cache
+       ===================================================================== */
+    function getCache() {
         try {
-            const resp = await fetch('/api/users');
-            const data = await resp.json();
-            allUsers = data.users || [];
+            const raw = sessionStorage.getItem(CACHE_KEY);
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            if (Date.now() - data.timestamp > CACHE_TTL) {
+                sessionStorage.removeItem(CACHE_KEY);
+                return null;
+            }
+            return data;
+        } catch { return null; }
+    }
+
+    function setCache(users, count) {
+        try {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+                users, count, timestamp: Date.now()
+            }));
+        } catch { /* quota exceeded — ignore */ }
+    }
+
+    /* =====================================================================
+       Data Loading — Paginated with fallback
+       ===================================================================== */
+    async function loadFromAPI(isBackground) {
+        if (isLoading) return;
+        isLoading = true;
+        if (!isBackground) showSkeletonRows(10);
+
+        try {
+            // Try paginated endpoint first (100 at a time)
+            let users = [];
+            let count = 0;
+            let usedPaginated = false;
+
+            try {
+                const resp = await fetch('/api/users-page?limit=100&offset=0');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    users = data.users || [];
+                    count = data.count || users.length;
+                    usedPaginated = true;
+
+                    // Load remaining pages in background
+                    if (count > 100) {
+                        loadRemainingPages(100, count);
+                    }
+                } else {
+                    throw new Error('Paginated endpoint unavailable');
+                }
+            } catch {
+                // Fallback to full /api/users
+                const resp = await fetch('/api/users');
+                const data = await resp.json();
+                users = data.users || [];
+                count = data.count || users.length;
+            }
+
+            allUsers = users;
+            totalServerCount = count;
+            setCache(users, count);
             renderRoleStats();
             filterAndRender();
         } catch (e) {
-            document.getElementById('students-tbody').innerHTML =
-                '<tr><td colspan="6" class="loading-cell error-cell"><i class="fa-solid fa-circle-exclamation"></i> Failed to load students</td></tr>';
+            if (!isBackground) {
+                document.getElementById('students-tbody').innerHTML =
+                    '<tr><td colspan="6" class="loading-cell error-cell"><i class="fa-solid fa-circle-exclamation"></i> Failed to load students</td></tr>';
+            }
+        } finally {
+            isLoading = false;
         }
+    }
+
+    async function loadRemainingPages(offset, total) {
+        while (offset < total) {
+            try {
+                const resp = await fetch(`/api/users-page?limit=100&offset=${offset}`);
+                if (!resp.ok) break;
+                const data = await resp.json();
+                const batch = data.users || [];
+                if (!batch.length) break;
+                allUsers = allUsers.concat(batch);
+                setCache(allUsers, total);
+                renderRoleStats();
+                // Re-render if user is on a page that now has data
+                const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+                if (currentPage <= totalPages) {
+                    filterAndRender();
+                }
+                offset += batch.length;
+            } catch { break; }
+        }
+    }
+
+    /* =====================================================================
+       Skeleton Loading
+       ===================================================================== */
+    function showSkeletonRows(count) {
+        const rows = [];
+        for (let i = 0; i < count; i++) {
+            const w1 = 40 + Math.random() * 30;
+            const w2 = 50 + Math.random() * 30;
+            rows.push(`<tr>
+                <td><div class="skeleton-bar" style="width:16px; height:16px; border-radius:3px;"></div></td>
+                <td><div style="display:flex; align-items:center; gap:12px;"><div class="skeleton-avatar"></div><div><div class="skeleton-bar" style="width:${w1}%; margin-bottom:4px;"></div><div class="skeleton-bar" style="width:50%; height:10px;"></div></div></div></td>
+                <td><div class="skeleton-bar" style="width:${w2}%;"></div></td>
+                <td><div class="skeleton-bar" style="width:60px;"></div></td>
+                <td><div class="skeleton-bar" style="width:55px;"></div></td>
+                <td><div class="skeleton-bar" style="width:28px; height:28px; border-radius:6px;"></div></td>
+            </tr>`);
+        }
+        document.getElementById('students-tbody').innerHTML = rows.join('');
+        document.getElementById('results-count').textContent = 'Loading students...';
     }
 
     /* =====================================================================
@@ -509,7 +628,7 @@
         const labels = { student: 'Students', teacher: 'Teachers', administrator: 'Admins', aide: 'Aides' };
 
         document.getElementById('role-stats').innerHTML =
-            `<div class="role-stat-chip"><i class="fa-solid fa-users" style="color:var(--color-primary);"></i><span class="stat-num">${allUsers.length}</span> Total</div>` +
+            `<div class="role-stat-chip"><i class="fa-solid fa-users" style="color:var(--color-primary);"></i><span class="stat-num">${totalServerCount || allUsers.length}</span> Total</div>` +
             Object.entries(counts).filter(([_, v]) => v > 0).map(([role, count]) =>
                 `<div class="role-stat-chip"><i class="fa-solid ${icons[role]}" style="color:var(--color-text-muted);"></i><span class="stat-num">${count}</span> ${labels[role]}</div>`
             ).join('');
@@ -554,14 +673,15 @@
         const page  = filteredUsers.slice(start, start + ITEMS_PER_PAGE);
         const total = filteredUsers.length;
 
-        if (total === 0) {
+        if (total === 0 && !isLoading) {
             document.getElementById('results-count').textContent = 'No users match your filters';
             document.getElementById('students-tbody').innerHTML = '<tr><td colspan="6" class="loading-cell">No students found</td></tr>';
             return;
         }
 
         document.getElementById('results-count').textContent =
-            `Showing ${start + 1}\u2013${Math.min(start + ITEMS_PER_PAGE, total)} of ${total} users`;
+            `Showing ${start + 1}\u2013${Math.min(start + ITEMS_PER_PAGE, total)} of ${total} users` +
+            (totalServerCount > allUsers.length ? ` (${totalServerCount} total, loading...)` : '');
 
         const roleColors = { student: 'role-student', teacher: 'role-teacher', administrator: 'role-admin', aide: 'role-aide' };
 
@@ -575,12 +695,10 @@
                 <td><span class="status-badge status-${u.status}">${u.status||'\u2014'}</span></td>
                 <td>
                     <button class="action-btn" onclick="viewStudent('${u.sourcedId}')" title="View details"><i class="fa-solid fa-eye"></i></button>
-                    <button class="action-btn" onclick="openAssignCourseForUser('${u.sourcedId}')" title="Assign course"><i class="fa-solid fa-book"></i></button>
                 </td>
             </tr>`;
         }).join('');
 
-        // Update select-all checkbox
         const allOnPage = page.map(u => u.sourcedId);
         document.getElementById('select-all-checkbox').checked = allOnPage.length > 0 && allOnPage.every(id => selectedIds.has(id));
     }
@@ -622,9 +740,9 @@
     });
 
     /* =====================================================================
-       Filters
+       Filters (300ms debounce)
        ===================================================================== */
-    document.getElementById('student-search').addEventListener('input', debounce(filterAndRender, 250));
+    document.getElementById('student-search').addEventListener('input', debounce(filterAndRender, 300));
     document.getElementById('role-filter').addEventListener('change', filterAndRender);
     document.getElementById('status-filter').addEventListener('change', filterAndRender);
 
@@ -650,10 +768,9 @@
     }
 
     function updateBulkBar() {
-        const bar = document.getElementById('bulk-actions-bar');
         const count = selectedIds.size;
         document.getElementById('bulk-count').textContent = count;
-        bar.classList.toggle('visible', count > 0);
+        document.getElementById('bulk-actions-bar').classList.toggle('visible', count > 0);
     }
 
     function clearBulkSelection() {
@@ -664,25 +781,28 @@
     }
 
     function bulkAssignCourse() {
-        const users = allUsers.filter(u => selectedIds.has(u.sourcedId));
-        if (!users.length) return;
-        assignTargetUsers = users;
-        document.getElementById('assign-course-target').textContent = `Assigning to ${users.length} student${users.length > 1 ? 's' : ''}`;
+        assignTargetUsers = allUsers.filter(u => selectedIds.has(u.sourcedId));
+        if (!assignTargetUsers.length) return;
+        document.getElementById('assign-course-target').textContent = `Assigning to ${assignTargetUsers.length} student${assignTargetUsers.length > 1 ? 's' : ''}`;
         openAssignCourseModal();
+    }
+
+    function bulkAssignTest() {
+        assignTargetUsers = allUsers.filter(u => selectedIds.has(u.sourcedId));
+        if (!assignTargetUsers.length) return;
+        document.getElementById('assign-test-target').textContent = `Assigning to ${assignTargetUsers.length} student${assignTargetUsers.length > 1 ? 's' : ''}`;
+        openAssignTestModal();
     }
 
     /* =====================================================================
        Student Detail Modal
        ===================================================================== */
-    let currentStudentId = null;
-
     async function viewStudent(id) {
         currentStudentId = id;
         document.getElementById('student-modal').classList.add('open');
         document.getElementById('modal-body').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:40px;"><div class="loading-spinner"></div></div>';
 
         try {
-            // Fetch user details, enrollments, and time-saved in parallel
             const [userResp, enrollResp, timeSavedResp] = await Promise.all([
                 fetch(`/api/users/${id}`),
                 fetch(`/api/enrollments?userId=${id}`),
@@ -692,14 +812,9 @@
             const userData = await userResp.json();
             const u = userData.user;
 
-            // Parse enrollment data — EduBridge format: { data: [...] }
             let enrollments = [];
-            try {
-                const ed = await enrollResp.json();
-                enrollments = ed.data || ed.enrollments || [];
-            } catch {}
+            try { const ed = await enrollResp.json(); enrollments = ed.data || ed.enrollments || []; } catch {}
 
-            // Parse time-saved data
             let timeSavedData = {};
             try { timeSavedData = await timeSavedResp.json(); } catch {}
 
@@ -707,40 +822,30 @@
             document.getElementById('modal-body').innerHTML = buildModalHTML(u, enrollments, timeSavedData);
             switchModalTab('profile');
 
-            // If student has email, lazily load analytics
-            if (u.email) {
-                loadAnalyticsForModal(u.email, id);
-            }
+            // Lazy-load analytics and course/test lists for assign tab
+            if (u.email) loadAnalyticsForModal(u.email);
+            loadAssignDropdowns(id);
         } catch (e) {
             document.getElementById('modal-body').innerHTML = '<p class="error-text">Failed to load student details.</p>';
         }
     }
 
     function buildModalHTML(u, enrollments, timeSaved) {
-        // Filter enrollments: remove Manual XP and Hole-Filling
         const filteredEnroll = enrollments.filter(e => {
             const title = (e.course?.title || '').trim();
             if (title.startsWith('Manual XP')) return false;
             if (title.includes('Hole-Filling')) return false;
             return true;
         });
-
-        // Calculate total XP from enrollments
         const totalXP = filteredEnroll.reduce((sum, e) => sum + (e.xpEarned || 0), 0);
 
         return `
-            <!-- Action buttons -->
-            <div class="modal-actions-row">
-                <button class="modal-action-btn primary" onclick="openAssignCourseForUser('${u.sourcedId}')">
-                    <i class="fa-solid fa-book"></i> Assign Course
-                </button>
-            </div>
-
             <!-- Tabs -->
             <div class="modal-tabs">
                 <button class="modal-tab active" onclick="switchModalTab('profile')">Profile</button>
                 <button class="modal-tab" onclick="switchModalTab('enrollments')">Enrollments (${filteredEnroll.length})</button>
                 <button class="modal-tab" onclick="switchModalTab('analytics')">Analytics</button>
+                <button class="modal-tab" onclick="switchModalTab('assign')">Assign</button>
             </div>
 
             <!-- TAB: Profile -->
@@ -783,10 +888,7 @@
                         </div>`;
                     }).join('')}
                 </div>` : `
-                <div class="empty-state">
-                    <i class="fa-solid fa-graduation-cap"></i>
-                    <p>No enrollments found for this student.</p>
-                </div>`}
+                <div class="empty-state"><i class="fa-solid fa-graduation-cap"></i><p>No enrollments found for this student.</p></div>`}
             </div>
 
             <!-- TAB: Analytics -->
@@ -806,132 +908,185 @@
                     </div>
                 </div>
                 <div id="analytics-details">
-                    <div class="empty-state" style="padding:16px;">
-                        <div class="loading-spinner" style="margin:0 auto 8px;"></div>
-                        <p>Loading activity analytics...</p>
+                    <div class="empty-state" style="padding:16px;"><div class="loading-spinner" style="margin:0 auto 8px;"></div><p>Loading activity analytics...</p></div>
+                </div>
+            </div>
+
+            <!-- TAB: Assign -->
+            <div class="modal-tab-content" id="tab-assign">
+                <div class="assign-section">
+                    <h4><i class="fa-solid fa-book" style="color:var(--color-primary); margin-right:6px;"></i>Assign Course</h4>
+                    <div class="assign-row">
+                        <select id="modal-course-select"><option value="">Loading courses...</option></select>
+                        <button class="btn-primary" id="modal-assign-course-btn" disabled onclick="assignCourseFromModal()">Assign</button>
                     </div>
+                    <div class="assign-result" id="assign-course-result"></div>
+                </div>
+                <div class="assign-section" style="margin-top:20px;">
+                    <h4><i class="fa-solid fa-clipboard-list" style="color:#6C5CE7; margin-right:6px;"></i>Assign Test</h4>
+                    <div class="assign-row">
+                        <select id="modal-test-select"><option value="">Loading tests...</option></select>
+                        <button class="btn-secondary" id="modal-assign-test-btn" disabled onclick="assignTestFromModal()">Assign</button>
+                    </div>
+                    <div class="assign-result" id="assign-test-result"></div>
                 </div>
             </div>
         `;
     }
 
-    async function loadAnalyticsForModal(email, userId) {
+    async function loadAssignDropdowns(userId) {
+        // Load courses
+        if (!coursesCache) {
+            try { const r = await fetch('/api/courses'); const d = await r.json(); coursesCache = d.courses || []; } catch { coursesCache = []; }
+        }
+        const courseSelect = document.getElementById('modal-course-select');
+        if (courseSelect) {
+            courseSelect.innerHTML = '<option value="">Select a course...</option>' +
+                coursesCache.map(c => `<option value="${c.sourcedId}">${esc(c.title || c.name || 'Untitled')}</option>`).join('');
+            courseSelect.addEventListener('change', function() {
+                const btn = document.getElementById('modal-assign-course-btn');
+                if (btn) btn.disabled = !this.value;
+            });
+        }
+
+        // Load tests / line items
+        if (!lineItemsCache) {
+            try { const r = await fetch('/api/line-items'); const d = await r.json(); lineItemsCache = d.lineItems || []; } catch { lineItemsCache = []; }
+        }
+        const testSelect = document.getElementById('modal-test-select');
+        if (testSelect) {
+            testSelect.innerHTML = '<option value="">Select a test...</option>' +
+                lineItemsCache.map(t => `<option value="${t.sourcedId}">${esc(t.title || t.name || 'Untitled')}</option>`).join('');
+            testSelect.addEventListener('change', function() {
+                const btn = document.getElementById('modal-assign-test-btn');
+                if (btn) btn.disabled = !this.value;
+            });
+        }
+    }
+
+    function assignCourseFromModal() {
+        const select = document.getElementById('modal-course-select');
+        const resultEl = document.getElementById('assign-course-result');
+        if (!select || !select.value || !currentStudentId) return;
+
+        const course = coursesCache.find(c => c.sourcedId === select.value);
+        const student = allUsers.find(u => u.sourcedId === currentStudentId);
+        const courseName = course?.title || course?.name || 'Unknown';
+        const studentName = student ? `${student.givenName} ${student.familyName}` : currentStudentId;
+
+        resultEl.className = 'assign-result pending';
+        resultEl.textContent = `Course "${courseName}" assignment requested for ${studentName}. (API integration pending)`;
+    }
+
+    async function assignTestFromModal() {
+        const select = document.getElementById('modal-test-select');
+        const resultEl = document.getElementById('assign-test-result');
+        if (!select || !select.value || !currentStudentId) return;
+
+        const test = lineItemsCache.find(t => t.sourcedId === select.value);
+        const student = allUsers.find(u => u.sourcedId === currentStudentId);
+        const testName = test?.title || test?.name || 'Unknown';
+        const studentName = student ? `${student.givenName} ${student.familyName}` : currentStudentId;
+
+        resultEl.className = 'assign-result pending';
+        resultEl.textContent = 'Submitting...';
+
+        try {
+            const resp = await fetch('/api/assign-test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: currentStudentId,
+                    lineItemId: select.value,
+                    testTitle: testName,
+                    studentName: studentName
+                })
+            });
+
+            if (resp.ok) {
+                resultEl.className = 'assign-result success';
+                resultEl.textContent = `Test "${testName}" successfully assigned to ${studentName}.`;
+            } else {
+                // API may not support this yet
+                resultEl.className = 'assign-result pending';
+                resultEl.textContent = `Test "${testName}" assignment requested for ${studentName}. (API integration pending)`;
+            }
+        } catch {
+            resultEl.className = 'assign-result pending';
+            resultEl.textContent = `Test "${testName}" assignment requested for ${studentName}. (API integration pending)`;
+        }
+    }
+
+    async function loadAnalyticsForModal(email) {
         const container = document.getElementById('analytics-details');
         if (!container) return;
-
         try {
             const resp = await fetch(`/api/analytics?email=${encodeURIComponent(email)}`);
             const data = await resp.json();
-
             const facts = data.facts || {};
-            const factsByApp = data.factsByApp || {};
-
-            // Aggregate XP by subject across all days
             const subjectXP = {};
-            let totalSessions = 0;
-
             for (const dayFacts of Object.values(facts)) {
                 for (const [subject, info] of Object.entries(dayFacts)) {
-                    const metrics = info.activityMetrics || {};
-                    const xp = metrics.xpEarned || 0;
-                    const sessions = metrics.sessions || metrics.totalSessions || 0;
+                    const xp = (info.activityMetrics || {}).xpEarned || 0;
                     subjectXP[subject] = (subjectXP[subject] || 0) + xp;
-                    totalSessions += sessions;
                 }
             }
-
-            if (Object.keys(subjectXP).length === 0) {
-                container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-chart-bar"></i><p>No recent activity data available.</p></div>`;
+            if (!Object.keys(subjectXP).length) {
+                container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-chart-bar"></i><p>No recent activity data available.</p></div>';
                 return;
             }
-
             container.innerHTML = `
                 <div class="modal-section" style="border-top:none; padding-top:0;">
                     <h3><i class="fa-solid fa-chart-bar" style="margin-right:6px; color:var(--color-primary);"></i>Activity by Subject</h3>
                     <div class="activity-facts">
                         ${Object.entries(subjectXP).sort((a, b) => b[1] - a[1]).map(([subject, xp]) =>
-                            `<div class="fact-item">
-                                <span class="fact-label">${esc(subject)}</span>
-                                <span class="fact-value">${Math.round(xp)} XP</span>
-                            </div>`
+                            `<div class="fact-item"><span class="fact-label">${esc(subject)}</span><span class="fact-value">${Math.round(xp)} XP</span></div>`
                         ).join('')}
                     </div>
                 </div>`;
         } catch {
-            container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-chart-bar"></i><p>Unable to load analytics data.</p></div>`;
+            container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-chart-bar"></i><p>Unable to load analytics data.</p></div>';
         }
     }
 
     function switchModalTab(tabName) {
-        const tabs = ['profile', 'enrollments', 'analytics'];
-        document.querySelectorAll('.modal-tab').forEach((t, i) => {
-            t.classList.toggle('active', tabs[i] === tabName);
-        });
+        const tabs = ['profile', 'enrollments', 'analytics', 'assign'];
+        document.querySelectorAll('.modal-tab').forEach((t, i) => { t.classList.toggle('active', tabs[i] === tabName); });
         document.querySelectorAll('.modal-tab-content').forEach(c => c.classList.remove('active'));
         const target = document.getElementById(`tab-${tabName}`);
         if (target) target.classList.add('active');
     }
 
-    function closeModal() {
-        document.getElementById('student-modal').classList.remove('open');
-        currentStudentId = null;
-    }
+    function closeModal() { document.getElementById('student-modal').classList.remove('open'); currentStudentId = null; }
     document.getElementById('student-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
     /* =====================================================================
-       Assign Course Modal
+       Assign Course Modal (bulk)
        ===================================================================== */
-    function openAssignCourseForUser(sourcedId) {
-        const u = allUsers.find(u => u.sourcedId === sourcedId);
-        if (!u) return;
-        assignTargetUsers = [u];
-        document.getElementById('assign-course-target').textContent = `Assigning course to: ${u.givenName} ${u.familyName}`;
-        openAssignCourseModal();
-    }
-
     async function openAssignCourseModal() {
         selectedCourseId = null;
         document.getElementById('confirm-assign-course').disabled = true;
         document.getElementById('assign-course-modal').classList.add('open');
         document.getElementById('course-search-input').value = '';
-
         if (!coursesCache) {
-            document.getElementById('course-assign-list').innerHTML = '<div class="empty-state"><div class="loading-spinner" style="margin:0 auto 8px;"></div>Loading courses...</div>';
-            try {
-                const resp = await fetch('/api/courses');
-                const data = await resp.json();
-                coursesCache = data.courses || [];
-            } catch {
-                coursesCache = [];
-            }
+            document.getElementById('course-assign-list').innerHTML = '<div class="empty-state"><div class="loading-spinner" style="margin:0 auto 8px;"></div>Loading...</div>';
+            try { const r = await fetch('/api/courses'); const d = await r.json(); coursesCache = d.courses || []; } catch { coursesCache = []; }
         }
         renderCourseList('');
     }
 
     function renderCourseList(query) {
         const q = query.toLowerCase();
-        const filtered = (coursesCache || []).filter(c => {
-            const name = (c.title || c.name || '').toLowerCase();
-            return !q || name.includes(q);
-        });
-
-        if (!filtered.length) {
-            document.getElementById('course-assign-list').innerHTML = '<div class="empty-state"><i class="fa-solid fa-book"></i><p>No courses found.</p></div>';
-            return;
-        }
-
-        const themeColors = ['primary', 'purple', 'pink', 'orange', 'blue'];
+        const filtered = (coursesCache || []).filter(c => !q || (c.title || c.name || '').toLowerCase().includes(q));
+        if (!filtered.length) { document.getElementById('course-assign-list').innerHTML = '<div class="empty-state"><i class="fa-solid fa-book"></i><p>No courses found.</p></div>'; return; }
+        const colors = ['primary', 'purple', 'pink', 'orange', 'blue'];
         document.getElementById('course-assign-list').innerHTML = filtered.map((c, i) => {
-            const color = themeColors[i % themeColors.length];
-            const bgVar = `var(--color-${color}-light)`;
-            const colorVar = color === 'primary' ? 'var(--color-primary-dark)' : color === 'purple' ? '#6C5CE7' : color === 'pink' ? '#AD1457' : color === 'orange' ? '#E65100' : 'var(--color-blue)';
-            const selected = selectedCourseId === c.sourcedId ? 'selected' : '';
-            return `<div class="assign-item ${selected}" onclick="selectCourse('${c.sourcedId}')">
-                <div class="assign-item-icon" style="background:${bgVar}; color:${colorVar};"><i class="fa-solid fa-book"></i></div>
-                <div>
-                    <div class="assign-item-name">${esc(c.title || c.name || 'Untitled')}</div>
-                    <div class="assign-item-meta">${esc(c.courseCode || c.sourcedId || '')}</div>
-                </div>
+            const color = colors[i % colors.length];
+            const bg = `var(--color-${color}-light)`;
+            const fg = color === 'primary' ? 'var(--color-primary-dark)' : color === 'purple' ? '#6C5CE7' : color === 'pink' ? '#AD1457' : color === 'orange' ? '#E65100' : 'var(--color-blue)';
+            return `<div class="assign-item ${selectedCourseId === c.sourcedId ? 'selected' : ''}" onclick="selectCourse('${c.sourcedId}')">
+                <div class="assign-item-icon" style="background:${bg}; color:${fg};"><i class="fa-solid fa-book"></i></div>
+                <div><div class="assign-item-name">${esc(c.title || c.name || 'Untitled')}</div><div class="assign-item-meta">${esc(c.courseCode || c.sourcedId || '')}</div></div>
             </div>`;
         }).join('');
     }
@@ -941,25 +1096,84 @@
     function selectCourse(id) {
         selectedCourseId = id;
         document.getElementById('confirm-assign-course').disabled = false;
-        document.querySelectorAll('#course-assign-list .assign-item').forEach(el => {
-            el.classList.toggle('selected', el.getAttribute('onclick').includes(id));
-        });
+        document.querySelectorAll('#course-assign-list .assign-item').forEach(el => { el.classList.toggle('selected', el.getAttribute('onclick').includes(id)); });
     }
 
     function confirmAssignCourse() {
         const course = (coursesCache || []).find(c => c.sourcedId === selectedCourseId);
         if (!course || !assignTargetUsers.length) return;
         const names = assignTargetUsers.map(u => `${u.givenName} ${u.familyName}`).join(', ');
-        const courseName = course.title || course.name || 'Untitled';
         closeAssignCourse();
-        showToast(`Course "${courseName}" assignment requested for ${names}. (API integration pending)`, 'success');
+        showToast(`Course "${course.title || course.name}" assignment requested for ${names}. (API integration pending)`, 'success');
     }
 
-    function closeAssignCourse() {
-        document.getElementById('assign-course-modal').classList.remove('open');
-        selectedCourseId = null;
-    }
+    function closeAssignCourse() { document.getElementById('assign-course-modal').classList.remove('open'); selectedCourseId = null; }
     document.getElementById('assign-course-modal').addEventListener('click', function(e) { if (e.target === this) closeAssignCourse(); });
+
+    /* =====================================================================
+       Assign Test Modal (bulk)
+       ===================================================================== */
+    async function openAssignTestModal() {
+        selectedTestId = null;
+        document.getElementById('confirm-assign-test').disabled = true;
+        document.getElementById('assign-test-modal').classList.add('open');
+        document.getElementById('test-search-input').value = '';
+        if (!lineItemsCache) {
+            document.getElementById('test-assign-list').innerHTML = '<div class="empty-state"><div class="loading-spinner" style="margin:0 auto 8px;"></div>Loading...</div>';
+            try { const r = await fetch('/api/line-items'); const d = await r.json(); lineItemsCache = d.lineItems || []; } catch { lineItemsCache = []; }
+        }
+        renderTestList('');
+    }
+
+    function renderTestList(query) {
+        const q = query.toLowerCase();
+        const filtered = (lineItemsCache || []).filter(t => !q || (t.title || t.name || '').toLowerCase().includes(q));
+        if (!filtered.length) { document.getElementById('test-assign-list').innerHTML = '<div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><p>No tests found.</p></div>'; return; }
+        document.getElementById('test-assign-list').innerHTML = filtered.map(t => {
+            return `<div class="assign-item ${selectedTestId === t.sourcedId ? 'selected' : ''}" onclick="selectTest('${t.sourcedId}')">
+                <div class="assign-item-icon" style="background:var(--color-purple-light); color:#6C5CE7;"><i class="fa-solid fa-clipboard-list"></i></div>
+                <div><div class="assign-item-name">${esc(t.title || t.name || 'Untitled')}</div><div class="assign-item-meta">${esc(t.sourcedId || '')}</div></div>
+            </div>`;
+        }).join('');
+    }
+
+    document.getElementById('test-search-input').addEventListener('input', function() { renderTestList(this.value); });
+
+    function selectTest(id) {
+        selectedTestId = id;
+        document.getElementById('confirm-assign-test').disabled = false;
+        document.querySelectorAll('#test-assign-list .assign-item').forEach(el => { el.classList.toggle('selected', el.getAttribute('onclick').includes(id)); });
+    }
+
+    async function confirmAssignTest() {
+        const test = (lineItemsCache || []).find(t => t.sourcedId === selectedTestId);
+        if (!test || !assignTargetUsers.length) return;
+        const testName = test.title || test.name || 'Untitled';
+
+        // Try POST /api/assign-test for each user
+        let anySuccess = false;
+        for (const u of assignTargetUsers) {
+            try {
+                const resp = await fetch('/api/assign-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: u.sourcedId, lineItemId: selectedTestId, testTitle: testName, studentName: `${u.givenName} ${u.familyName}` })
+                });
+                if (resp.ok) anySuccess = true;
+            } catch {}
+        }
+
+        const names = assignTargetUsers.map(u => `${u.givenName} ${u.familyName}`).join(', ');
+        closeAssignTest();
+        if (anySuccess) {
+            showToast(`Test "${testName}" assigned to ${names}.`, 'success');
+        } else {
+            showToast(`Test "${testName}" assignment requested for ${names}. (API integration pending)`, 'info');
+        }
+    }
+
+    function closeAssignTest() { document.getElementById('assign-test-modal').classList.remove('open'); selectedTestId = null; }
+    document.getElementById('assign-test-modal').addEventListener('click', function(e) { if (e.target === this) closeAssignTest(); });
 
     /* =====================================================================
        Utilities
@@ -967,8 +1181,7 @@
     function esc(str) {
         if (str === null || str === undefined) return '';
         if (typeof str !== 'string') str = String(str);
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function showToast(message, type = 'success') {
@@ -980,10 +1193,10 @@
         setTimeout(() => { toast.classList.remove('visible'); }, 4000);
     }
 
-    // Close modals on Escape
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            if (document.getElementById('assign-course-modal').classList.contains('open')) closeAssignCourse();
+            if (document.getElementById('assign-test-modal').classList.contains('open')) closeAssignTest();
+            else if (document.getElementById('assign-course-modal').classList.contains('open')) closeAssignCourse();
             else if (document.getElementById('student-modal').classList.contains('open')) closeModal();
         }
     });
