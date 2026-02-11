@@ -13,388 +13,174 @@
     <link rel="preload" href="/css/style.css" as="style">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* ── Hero Banner ─────────────────────────────────────────── */
+        /* ── Hero ─────────────────────────────────────────────────── */
         .hero-banner {
             position: relative;
             border-radius: var(--radius);
             overflow: hidden;
-            margin-bottom: 28px;
-            box-shadow: 0 4px 24px rgba(69, 181, 170, 0.12);
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
         }
         .hero-banner img {
-            width: 100%;
-            height: 180px;
-            object-fit: cover;
-            display: block;
+            width: 100%; height: 160px; object-fit: cover; display: block;
         }
         .hero-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(69,181,170,0.85) 0%, rgba(60,130,170,0.75) 100%);
-            display: flex;
-            align-items: center;
-            padding: 0 40px;
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(69,181,170,0.88) 0%, rgba(56,158,148,0.82) 100%);
+            display: flex; align-items: center; padding: 0 32px;
         }
-        .hero-content {
-            color: #fff;
+        .hero-overlay h1 {
+            font-size: 1.5rem; font-weight: 700; color: #fff; margin: 0 0 4px;
         }
-        .hero-content h1 {
-            font-size: 1.6rem;
-            font-weight: 800;
-            margin: 0 0 6px;
-            letter-spacing: -0.3px;
-        }
-        .hero-content p {
-            font-size: 0.95rem;
-            font-weight: 400;
-            opacity: 0.9;
-            margin: 0;
-        }
-        .hero-icon {
-            margin-left: auto;
-            font-size: 3.5rem;
-            opacity: 0.2;
-            flex-shrink: 0;
+        .hero-overlay p {
+            font-size: 0.88rem; color: rgba(255,255,255,0.85); margin: 0;
         }
 
-        /* ── Form Card ───────────────────────────────────────────── */
-        .form-card {
+        /* ── Form card (matches dashboard-card pattern) ───────────── */
+        .assign-card {
             background: var(--color-surface);
             border-radius: var(--radius);
             box-shadow: var(--shadow);
             overflow: visible;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
-        .form-card-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 22px 28px 0;
+        .assign-card .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-border);
         }
-        .form-card-header .header-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: var(--color-primary-light);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--color-primary-dark);
-            font-size: 1rem;
-            flex-shrink: 0;
+        .assign-card .card-header .card-title {
+            font-size: 0.95rem; font-weight: 600;
         }
-        .form-card-header h2 {
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: var(--color-text);
-            margin: 0;
-        }
-        .form-card-header .header-sub {
-            font-size: 0.82rem;
-            color: var(--color-text-muted);
-            margin: 2px 0 0;
+        .assign-card .card-header .card-title i {
+            color: var(--color-primary); margin-right: 6px;
         }
 
-        .form-card-body {
-            padding: 24px 28px 28px;
-        }
+        .assign-body { padding: 20px; }
 
-        /* ── Form Grid (2 rows) ──────────────────────────────────── */
-        .form-grid {
+        /* ── Form layout ──────────────────────────────────────────── */
+        .form-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 14px;
+            margin-bottom: 14px;
         }
-        .form-grid .field-full {
-            grid-column: 1 / -1;
-        }
+        .form-row-2 { grid-template-columns: 1fr 1fr; }
+        .form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
 
-        .field-group {
-            display: flex;
-            flex-direction: column;
-            position: relative;
+        .field {
+            display: flex; flex-direction: column; position: relative;
         }
-        .field-group label {
-            font-size: 0.76rem;
-            font-weight: 700;
-            color: var(--color-text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            margin-bottom: 7px;
+        .field label {
+            font-size: 0.78rem; font-weight: 600;
+            color: var(--color-text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 5px;
         }
-        .field-group input,
-        .field-group select {
-            padding: 11px 14px;
-            border: 1.5px solid var(--color-border);
-            border-radius: 10px;
-            background: var(--color-bg);
+        .field input,
+        .field select {
+            padding: 9px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            background: var(--color-surface);
             color: var(--color-text);
             font-size: 0.9rem;
-            font-family: inherit;
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: border-color var(--transition);
         }
-        .field-group input:focus,
-        .field-group select:focus {
+        .field input:focus,
+        .field select:focus {
             border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px rgba(69, 181, 170, 0.12);
         }
-        .field-group input::placeholder {
-            color: var(--color-text-muted);
-        }
+        .field input::placeholder { color: var(--color-text-muted); }
 
-        /* ── Submit Row ──────────────────────────────────────────── */
+        /* ── Submit area ──────────────────────────────────────────── */
         .submit-row {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-top: 24px;
-            padding-top: 20px;
+            display: flex; align-items: center; gap: 12px;
+            padding-top: 14px;
             border-top: 1px solid var(--color-border);
         }
-        .submit-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 28px;
-            background: linear-gradient(135deg, #45B5AA 0%, #3CA0AA 100%);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            font-size: 0.92rem;
-            font-weight: 700;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 2px 12px rgba(69, 181, 170, 0.3);
+        .assign-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 9px 20px;
+            background: var(--color-primary); color: #fff; border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.88rem; font-weight: 600;
+            cursor: pointer; transition: background var(--transition);
         }
-        .submit-btn:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 18px rgba(69, 181, 170, 0.4);
-        }
-        .submit-btn:disabled {
-            background: var(--color-border);
-            color: var(--color-text-muted);
-            cursor: not-allowed;
-            box-shadow: none;
+        .assign-btn:hover:not(:disabled) { background: var(--color-primary-dark); }
+        .assign-btn:disabled {
+            background: var(--color-border); color: var(--color-text-muted); cursor: not-allowed;
         }
         .submit-hint {
-            font-size: 0.82rem;
-            color: var(--color-text-muted);
+            font-size: 0.82rem; color: var(--color-text-muted);
         }
 
-        /* ── Feedback Messages ───────────────────────────────────── */
+        /* ── Feedback ─────────────────────────────────────────────── */
         .assign-msg {
-            margin-top: 16px;
-            padding: 12px 16px;
-            border-radius: 10px;
-            font-size: 0.88rem;
-            font-weight: 500;
-            display: none;
-            align-items: center;
-            gap: 8px;
+            margin-top: 12px; padding: 9px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem; font-weight: 500; display: none;
         }
-        .assign-msg.success {
-            display: flex;
-            background: #E8F5E9;
-            color: #2E7D32;
-            border: 1px solid #C8E6C9;
-        }
-        .assign-msg.error {
-            display: flex;
-            background: #FFF5F5;
-            color: #E53E3E;
-            border: 1px solid #FED7D7;
-        }
+        .assign-msg.success { display: block; background: #E8F5E9; color: #2E7D32; }
+        .assign-msg.error { display: block; background: #FFF5F5; color: #E53E3E; }
 
-        /* ── Search Dropdown ─────────────────────────────────────── */
+        /* ── Search Dropdown ──────────────────────────────────────── */
         .search-results-dropdown {
-            position: absolute;
-            top: calc(100% + 4px);
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            background: #fff;
-            border: 1px solid #E8ECF1;
-            border-radius: 10px;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
-            max-height: 280px;
-            overflow-y: auto;
-            display: none;
+            position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;
+            background: #fff; border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-md);
+            max-height: 260px; overflow-y: auto; display: none;
+            margin-top: 2px;
         }
         .search-results-dropdown.open { display: block; }
         .search-result-item {
-            padding: 11px 16px;
-            cursor: pointer;
-            font-size: 0.88rem;
-            border-bottom: 1px solid var(--color-border);
-            transition: background 0.12s;
+            padding: 9px 14px; cursor: pointer; font-size: 0.88rem;
+            border-bottom: 1px solid var(--color-border); transition: background 0.1s;
         }
         .search-result-item:last-child { border-bottom: none; }
         .search-result-item:hover { background: var(--color-primary-light); }
         .search-result-name { font-weight: 600; color: var(--color-text); }
-        .search-result-email { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 1px; }
+        .search-result-email { font-size: 0.78rem; color: var(--color-text-muted); }
         .search-result-empty {
-            padding: 20px;
-            text-align: center;
-            color: var(--color-text-muted);
-            font-size: 0.85rem;
+            padding: 16px; text-align: center;
+            color: var(--color-text-muted); font-size: 0.85rem;
         }
 
-        /* ── Selected Student Chip ───────────────────────────────── */
+        /* ── Selected Student Chip ────────────────────────────────── */
         .selected-student-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--color-primary-light);
-            color: var(--color-primary-dark);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.84rem;
-            font-weight: 600;
-            margin-top: 8px;
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--color-primary-light); color: var(--color-primary-dark);
+            padding: 4px 10px; border-radius: 20px;
+            font-size: 0.82rem; font-weight: 600; margin-top: 6px;
         }
-        .selected-student-tag i { font-size: 0.8rem; }
         .selected-student-tag button {
-            border: none;
-            background: none;
-            color: var(--color-primary-dark);
-            font-size: 1.1rem;
-            cursor: pointer;
-            padding: 0 2px;
-            line-height: 1;
-            opacity: 0.7;
-            transition: opacity 0.15s;
-        }
-        .selected-student-tag button:hover { opacity: 1; }
-
-        /* ── Recent Assignments Card ─────────────────────────────── */
-        .recent-card {
-            background: var(--color-surface);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            overflow: hidden;
-        }
-        .recent-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 18px 28px;
-            border-bottom: 1px solid var(--color-border);
-        }
-        .recent-card-header h2 {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--color-text);
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .recent-card-header .count-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--color-bg);
-            color: var(--color-text-muted);
-            font-size: 0.72rem;
-            font-weight: 700;
-            min-width: 22px;
-            height: 22px;
-            border-radius: 11px;
-            padding: 0 6px;
+            border: none; background: none; color: var(--color-primary-dark);
+            font-size: 1rem; cursor: pointer; padding: 0 2px; line-height: 1;
         }
 
-        .recent-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+        /* ── Recent table (matches mini-table pattern) ────────────── */
+        .recent-table { width: 100%; border-collapse: collapse; }
         .recent-table th {
-            padding: 11px 20px;
-            text-align: left;
-            font-weight: 700;
-            font-size: 0.72rem;
-            color: var(--color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            background: var(--color-bg);
-            border-bottom: 1px solid var(--color-border);
+            padding: 10px 16px; text-align: left; font-weight: 600; font-size: 0.78rem;
+            color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
+            background: var(--color-bg); border-bottom: 1px solid var(--color-border);
         }
         .recent-table td {
-            padding: 12px 20px;
-            border-bottom: 1px solid var(--color-border);
-            font-size: 0.88rem;
+            padding: 10px 16px; border-bottom: 1px solid var(--color-border); font-size: 0.88rem;
         }
         .recent-table tbody tr:hover { background: #FAFBFC; }
         .recent-table tbody tr:last-child td { border-bottom: none; }
 
         .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--color-text-muted);
+            text-align: center; padding: 32px 16px; color: var(--color-text-muted);
         }
-        .empty-state i {
-            font-size: 2.2rem;
-            margin-bottom: 12px;
-            display: block;
-            opacity: 0.4;
-        }
-        .empty-state p {
-            font-size: 0.88rem;
-            margin: 0;
-        }
+        .empty-state i { font-size: 1.8rem; margin-bottom: 8px; display: block; opacity: 0.35; }
+        .empty-state p { font-size: 0.85rem; margin: 0; }
 
-        /* ── Quick Stat Pills ────────────────────────────────────── */
-        .stat-pills {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-        .stat-pill {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 14px 20px;
-            background: var(--color-surface);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            flex: 1;
-        }
-        .stat-pill-icon {
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.95rem;
-            flex-shrink: 0;
-        }
-        .stat-pill-icon.teal { background: var(--color-primary-light); color: var(--color-primary-dark); }
-        .stat-pill-icon.blue { background: var(--color-blue-light, #E3F0FF); color: var(--color-blue, #2C6FD4); }
-        .stat-pill-icon.purple { background: var(--color-purple-light, #F0ECFF); color: #6C5CE7; }
-        .stat-pill-value {
-            font-size: 1.25rem;
-            font-weight: 800;
-            color: var(--color-text);
-            line-height: 1;
-        }
-        .stat-pill-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-        }
-
-        /* ── Responsive ──────────────────────────────────────────── */
         @media (max-width: 768px) {
-            .hero-overlay { padding: 0 24px; }
-            .hero-content h1 { font-size: 1.25rem; }
-            .hero-icon { display: none; }
-            .form-grid { grid-template-columns: 1fr; }
-            .stat-pills { flex-direction: column; }
-            .form-card-body { padding: 20px; }
+            .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
+            .hero-overlay { padding: 0 20px; }
+            .hero-overlay h1 { font-size: 1.2rem; }
         }
     </style>
 </head>
@@ -405,41 +191,37 @@
         <main class="main-content">
             <div class="admin-assign-tests">
 
-                <!-- Hero Banner -->
+                <!-- Hero -->
                 <div class="hero-banner">
-                    <img src="/img/assign-tests-header.png" alt="Assign Tests">
+                    <img src="/img/assign-tests-header.png" alt="">
                     <div class="hero-overlay">
-                        <div class="hero-content">
+                        <div>
                             <h1>Assign Tests</h1>
                             <p>Assign mastery tests and screening assignments for your students!</p>
                         </div>
-                        <i class="fa-solid fa-clipboard-check hero-icon"></i>
                     </div>
                 </div>
 
-                <!-- Assignment Form -->
-                <div class="form-card">
-                    <div class="form-card-header">
-                        <div class="header-icon"><i class="fa-solid fa-plus"></i></div>
-                        <div>
-                            <h2>New Assignment</h2>
-                            <p class="header-sub">Select a student and configure the test details</p>
-                        </div>
+                <!-- Form -->
+                <div class="assign-card">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa-solid fa-clipboard-check"></i>New Assignment</h2>
                     </div>
-                    <div class="form-card-body">
-                        <div class="form-grid">
-                            <!-- Student Search (full width) -->
-                            <div class="field-group field-full">
-                                <label><i class="fa-solid fa-user" style="margin-right:4px;"></i> Student</label>
-                                <input type="text" id="student-search-input" placeholder="Start typing a student name or email..." autocomplete="off" oninput="onStudentSearch(this.value)">
+                    <div class="assign-body">
+                        <!-- Row 1: Student (full width) -->
+                        <div class="form-row">
+                            <div class="field">
+                                <label>Student</label>
+                                <input type="text" id="student-search-input" placeholder="Search by name or email..." autocomplete="off" oninput="onStudentSearch(this.value)">
                                 <div id="student-search-results" class="search-results-dropdown"></div>
                                 <div id="selected-student-display"></div>
                                 <input type="hidden" id="selected-student-id" value="">
                             </div>
-
-                            <!-- Subject -->
-                            <div class="field-group">
-                                <label><i class="fa-solid fa-book" style="margin-right:4px;"></i> Subject</label>
+                        </div>
+                        <!-- Row 2: Subject + Grade + Type -->
+                        <div class="form-row form-row-3">
+                            <div class="field">
+                                <label>Subject</label>
                                 <select id="assign-subject" onchange="updateAssignBtn()">
                                     <option value="">Select subject...</option>
                                     <option value="Math">Math</option>
@@ -451,10 +233,8 @@
                                     <option value="Vocabulary">Vocabulary</option>
                                 </select>
                             </div>
-
-                            <!-- Grade -->
-                            <div class="field-group">
-                                <label><i class="fa-solid fa-layer-group" style="margin-right:4px;"></i> Grade Level</label>
+                            <div class="field">
+                                <label>Grade</label>
                                 <select id="assign-grade" onchange="updateAssignBtn()">
                                     <option value="">Select grade...</option>
                                     <option value="3">Grade 3</option>
@@ -469,37 +249,29 @@
                                     <option value="12">Grade 12</option>
                                 </select>
                             </div>
-
-                            <!-- Type -->
-                            <div class="field-group">
-                                <label><i class="fa-solid fa-tag" style="margin-right:4px;"></i> Assignment Type</label>
+                            <div class="field">
+                                <label>Type</label>
                                 <select id="assign-type">
                                     <option value="test-assignment">Test Assignment</option>
                                     <option value="screening">Screening Test</option>
                                 </select>
                             </div>
                         </div>
-
                         <!-- Submit -->
                         <div class="submit-row">
-                            <button class="submit-btn" id="assign-btn" onclick="submitAssignment()" disabled>
+                            <button class="assign-btn" id="assign-btn" onclick="submitAssignment()" disabled>
                                 <i class="fa-solid fa-paper-plane"></i> Assign Test
                             </button>
                             <span class="submit-hint" id="submit-hint">Select a student, subject, and grade to continue</span>
                         </div>
-
                         <div class="assign-msg" id="assign-msg"></div>
                     </div>
                 </div>
 
                 <!-- Recent Assignments -->
-                <div class="recent-card">
-                    <div class="recent-card-header">
-                        <h2>
-                            <i class="fa-solid fa-clock-rotate-left" style="color:var(--color-text-muted);"></i>
-                            Recent Assignments
-                            <span class="count-badge" id="recent-count">0</span>
-                        </h2>
+                <div class="assign-card">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa-solid fa-clock-rotate-left"></i>Recent Assignments</h2>
                     </div>
                     <div id="recent-body">
                         <div class="empty-state">
@@ -517,26 +289,19 @@
     <script src="/js/layout.js?v=2"></script>
     <script src="/js/app.js"></script>
     <script>
-    /* ==================================================================== */
-    /* State                                                                */
-    /* ==================================================================== */
+    /* ---- State ---------------------------------------------------------- */
     var cachedStudents = [];
     var selectedStudentId = '';
     var recentAssignments = [];
-    var assignedCount = 0;
-    var successCount = 0;
 
-    /* ---- Helpers -------------------------------------------------------- */
     function esc(s) {
         if (s == null) return '';
         if (typeof s !== 'string') s = String(s);
-        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
-    /* ==================================================================== */
-    /* Student Search                                                       */
-    /* ==================================================================== */
+    /* ---- Student search ------------------------------------------------- */
     var searchTimer = null;
 
     function onStudentSearch(query) {
@@ -550,42 +315,36 @@
 
     function doStudentSearch(query) {
         var q = query.toLowerCase();
-        var isEmail = q.includes('@');
-
-        if (isEmail) {
+        if (q.includes('@')) {
             fetch('/api/user-lookup?email=' + encodeURIComponent(query))
                 .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    showSearchResults(data.user ? [data.user] : []);
-                })
+                .then(function(d) { showSearchResults(d.user ? [d.user] : []); })
                 .catch(function() { showSearchResults([]); });
         } else {
             var filtered = cachedStudents.filter(function(u) {
-                var name = ((u.givenName || '') + ' ' + (u.familyName || '')).toLowerCase();
-                var uname = (u.username || '').toLowerCase();
-                return name.includes(q) || (u.email || '').toLowerCase().includes(q) || uname.includes(q);
+                var name = ((u.givenName||'') + ' ' + (u.familyName||'')).toLowerCase();
+                return name.includes(q) || (u.email||'').toLowerCase().includes(q) || (u.username||'').toLowerCase().includes(q);
             }).slice(0, 20);
             showSearchResults(filtered);
         }
     }
 
     function showSearchResults(results) {
-        var dropdown = document.getElementById('student-search-results');
+        var dd = document.getElementById('student-search-results');
         if (!results.length) {
-            dropdown.innerHTML = '<div class="search-result-empty"><i class="fa-solid fa-user-slash" style="margin-right:6px;opacity:0.5;"></i> No students found. Try a different name or email.</div>';
-            dropdown.className = 'search-results-dropdown open';
+            dd.innerHTML = '<div class="search-result-empty">No students found.</div>';
+            dd.className = 'search-results-dropdown open';
             return;
         }
-        dropdown.innerHTML = results.slice(0, 20).map(function(u) {
-            var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
+        dd.innerHTML = results.slice(0,20).map(function(u) {
+            var name = ((u.givenName||'') + ' ' + (u.familyName||'')).trim() || 'Unknown';
             var email = u.email || '';
             var id = u.sourcedId || '';
-            return '<div class="search-result-item" onclick="selectStudent(\'' + id + '\', \'' + name.replace(/'/g, "\\'") + '\', \'' + email.replace(/'/g, "\\'") + '\')">' +
+            return '<div class="search-result-item" onclick="selectStudent(\'' + id + '\',\'' + name.replace(/'/g,"\\'") + '\',\'' + email.replace(/'/g,"\\'") + '\')">' +
                 '<div class="search-result-name">' + esc(name) + '</div>' +
-                '<div class="search-result-email">' + esc(email) + '</div>' +
-            '</div>';
+                '<div class="search-result-email">' + esc(email) + '</div></div>';
         }).join('');
-        dropdown.className = 'search-results-dropdown open';
+        dd.className = 'search-results-dropdown open';
     }
 
     function selectStudent(id, name, email) {
@@ -594,10 +353,8 @@
         document.getElementById('student-search-input').value = '';
         document.getElementById('student-search-results').className = 'search-results-dropdown';
         document.getElementById('selected-student-display').innerHTML =
-            '<div class="selected-student-tag">' +
-                '<i class="fa-solid fa-user-check"></i> ' + esc(name) + ' (' + esc(email) + ')' +
-                '<button onclick="clearSelectedStudent()" title="Remove">&times;</button>' +
-            '</div>';
+            '<div class="selected-student-tag"><i class="fa-solid fa-user"></i> ' + esc(name) + ' (' + esc(email) + ')' +
+            '<button onclick="clearSelectedStudent()" title="Remove">&times;</button></div>';
         updateAssignBtn();
     }
 
@@ -609,41 +366,36 @@
     }
 
     document.addEventListener('click', function(e) {
-        var dropdown = document.getElementById('student-search-results');
-        if (dropdown && !e.target.closest('.field-group')) {
-            dropdown.className = 'search-results-dropdown';
-        }
+        var dd = document.getElementById('student-search-results');
+        if (dd && !e.target.closest('.field')) dd.className = 'search-results-dropdown';
     });
 
-    /* ==================================================================== */
-    /* Assign Button                                                        */
-    /* ==================================================================== */
+    /* ---- Assign button -------------------------------------------------- */
     function updateAssignBtn() {
         var btn = document.getElementById('assign-btn');
         var hint = document.getElementById('submit-hint');
         if (!btn) return;
-        var hasSubject = (document.getElementById('assign-subject') || {}).value !== '';
-        var hasGrade = (document.getElementById('assign-grade') || {}).value !== '';
         var hasStudent = selectedStudentId !== '';
+        var hasSubject = (document.getElementById('assign-subject')||{}).value !== '';
+        var hasGrade = (document.getElementById('assign-grade')||{}).value !== '';
         var ready = hasStudent && hasSubject && hasGrade;
         btn.disabled = !ready;
         if (hint) {
-            if (ready) {
-                hint.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#48BB78;margin-right:4px;"></i> Ready to assign';
-            } else {
-                var missing = [];
-                if (!hasStudent) missing.push('student');
-                if (!hasSubject) missing.push('subject');
-                if (!hasGrade) missing.push('grade');
-                hint.textContent = 'Select ' + missing.join(', ') + ' to continue';
+            if (ready) hint.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#48BB78;margin-right:3px;"></i> Ready to assign';
+            else {
+                var m = [];
+                if (!hasStudent) m.push('student');
+                if (!hasSubject) m.push('subject');
+                if (!hasGrade) m.push('grade');
+                hint.textContent = 'Select ' + m.join(', ') + ' to continue';
             }
         }
     }
 
     async function submitAssignment() {
-        var subject = (document.getElementById('assign-subject') || {}).value || '';
-        var grade = (document.getElementById('assign-grade') || {}).value || '';
-        var assignType = (document.getElementById('assign-type') || {}).value || 'test-assignment';
+        var subject = (document.getElementById('assign-subject')||{}).value || '';
+        var grade = (document.getElementById('assign-grade')||{}).value || '';
+        var assignType = (document.getElementById('assign-type')||{}).value || 'test-assignment';
         if (!subject || !grade || !selectedStudentId) return;
 
         var btn = document.getElementById('assign-btn');
@@ -652,107 +404,71 @@
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Assigning...';
         msgEl.className = 'assign-msg'; msgEl.style.display = 'none';
 
-        var studentTag = document.querySelector('.selected-student-tag');
-        var studentName = studentTag ? studentTag.textContent.replace('\u00d7', '').trim() : 'Unknown';
+        var tag = document.querySelector('.selected-student-tag');
+        var studentName = tag ? tag.textContent.replace('\u00d7','').trim() : 'Unknown';
 
         try {
             var resp = await fetch('/api/assign-test', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    studentId: selectedStudentId,
-                    subject: subject,
-                    grade: grade,
-                    type: assignType,
-                }),
+                body: JSON.stringify({ studentId: selectedStudentId, subject: subject, grade: grade, type: assignType }),
             });
             var data = await resp.json().catch(function() { return {}; });
             if (resp.ok && data.success) {
-                msgEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + (data.message || 'Test assigned successfully!');
-                msgEl.className = 'assign-msg success';
-                msgEl.style.display = 'flex';
-                addRecentAssignment(studentName, subject, grade, assignType, 'success');
-                successCount++;
+                msgEl.textContent = data.message || 'Test assigned successfully!';
+                msgEl.className = 'assign-msg success'; msgEl.style.display = 'block';
+                addRecent(studentName, subject, grade, assignType, 'success');
                 clearSelectedStudent();
                 document.getElementById('assign-subject').value = '';
                 document.getElementById('assign-grade').value = '';
             } else {
-                msgEl.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> ' + (data.error || data.message || 'Assignment failed.');
-                msgEl.className = 'assign-msg error';
-                msgEl.style.display = 'flex';
-                addRecentAssignment(studentName, subject, grade, assignType, 'error');
+                msgEl.textContent = data.error || data.message || 'Assignment failed.';
+                msgEl.className = 'assign-msg error'; msgEl.style.display = 'block';
+                addRecent(studentName, subject, grade, assignType, 'error');
             }
         } catch(e) {
-            msgEl.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Network error. Please try again.';
-            msgEl.className = 'assign-msg error';
-            msgEl.style.display = 'flex';
-            addRecentAssignment(studentName, subject, grade, assignType, 'error');
+            msgEl.textContent = 'Network error. Please try again.';
+            msgEl.className = 'assign-msg error'; msgEl.style.display = 'block';
+            addRecent(studentName, subject, grade, assignType, 'error');
         }
-        assignedCount++;
-        updateStatPills();
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Assign Test';
         updateAssignBtn();
     }
 
-    /* ==================================================================== */
-    /* Recent Assignments                                                   */
-    /* ==================================================================== */
-    function addRecentAssignment(studentName, subject, grade, type, status) {
-        recentAssignments.unshift({ studentName, subject, grade, type, status, time: new Date() });
+    /* ---- Recent Assignments --------------------------------------------- */
+    function addRecent(name, subject, grade, type, status) {
+        recentAssignments.unshift({ name, subject, grade, type, status });
         if (recentAssignments.length > 20) recentAssignments.pop();
-        renderRecentAssignments();
+        renderRecent();
     }
 
-    function renderRecentAssignments() {
-        var body = document.getElementById('recent-body');
-        var countEl = document.getElementById('recent-count');
-        if (countEl) countEl.textContent = recentAssignments.length;
-
+    function renderRecent() {
+        var el = document.getElementById('recent-body');
         if (!recentAssignments.length) {
-            body.innerHTML = '<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>No assignments yet. Use the form above to assign a test.</p></div>';
+            el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>No assignments yet.</p></div>';
             return;
         }
-        body.innerHTML = '<table class="recent-table"><thead><tr><th>Student</th><th>Subject</th><th>Grade</th><th>Type</th><th>Status</th></tr></thead><tbody>' +
+        el.innerHTML = '<table class="recent-table"><thead><tr><th>Student</th><th>Subject</th><th>Grade</th><th>Type</th><th>Status</th></tr></thead><tbody>' +
             recentAssignments.map(function(a) {
-                var statusBadge = a.status === 'success'
-                    ? '<span class="status-badge status-active"><i class="fa-solid fa-check" style="margin-right:4px;font-size:0.7rem;"></i>Assigned</span>'
-                    : '<span class="status-badge status-tobedeleted"><i class="fa-solid fa-xmark" style="margin-right:4px;font-size:0.7rem;"></i>Failed</span>';
-                var typeLabel = a.type === 'screening' ? 'Screening' : 'Test Assignment';
-                return '<tr>' +
-                    '<td style="font-weight:600;">' + esc(a.studentName) + '</td>' +
-                    '<td>' + esc(a.subject) + '</td>' +
-                    '<td>Grade ' + esc(a.grade) + '</td>' +
-                    '<td>' + esc(typeLabel) + '</td>' +
-                    '<td>' + statusBadge + '</td>' +
-                '</tr>';
+                var badge = a.status === 'success'
+                    ? '<span class="status-badge status-active">Assigned</span>'
+                    : '<span class="status-badge status-tobedeleted">Failed</span>';
+                return '<tr><td style="font-weight:600;">' + esc(a.name) + '</td><td>' + esc(a.subject) +
+                    '</td><td>Grade ' + esc(a.grade) + '</td><td>' + (a.type==='screening'?'Screening':'Test Assignment') +
+                    '</td><td>' + badge + '</td></tr>';
             }).join('') + '</tbody></table>';
     }
 
-    /* ==================================================================== */
-    /* Stat Pills                                                           */
-    /* ==================================================================== */
-    function updateStatPills() {
-        var el = document.getElementById('stat-assigned');
-        if (el) el.textContent = assignedCount;
-        el = document.getElementById('stat-success');
-        if (el) el.textContent = successCount;
-    }
-
-    /* ==================================================================== */
-    /* Init                                                                 */
-    /* ==================================================================== */
+    /* ---- Init ----------------------------------------------------------- */
     document.addEventListener('DOMContentLoaded', async function() {
         try {
             var resp = await fetch('/api/users');
             var data = await resp.json();
-            var allUsers = data.users || [];
-            cachedStudents = allUsers.filter(function(u) {
-                return (u.role || '').toLowerCase() === 'student';
+            cachedStudents = (data.users||[]).filter(function(u) {
+                return (u.role||'').toLowerCase() === 'student';
             }).slice(0, 500);
-            var el = document.getElementById('stat-students');
-            if (el) el.textContent = cachedStudents.length;
         } catch(e) {
-            console.warn('[Admin] Failed to load students for search:', e.message);
+            console.warn('[Admin] Failed to load students:', e.message);
         }
         updateAssignBtn();
     });
