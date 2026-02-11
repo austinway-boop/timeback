@@ -140,7 +140,7 @@
     const GOALS_KEY = 'alphalearn_goals';
     function loadSavedGoals() {
         try { return JSON.parse(localStorage.getItem(GOALS_KEY)) || {}; }
-        catch { return {}; }
+        catch (e) { return {}; }
     }
 
     /* ---- Render ----------------------------------------------------------- */

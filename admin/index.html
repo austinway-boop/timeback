@@ -281,8 +281,10 @@
         /* --- System Info: Admin name/role ---------------------------------- */
         var adminName = localStorage.getItem('alphalearn_name') || '—';
         var adminRole = localStorage.getItem('alphalearn_role') || '—';
-        document.getElementById('sys-admin-name').textContent = adminName;
-        document.getElementById('sys-admin-role').textContent = adminRole;
+        var elName = document.getElementById('sys-admin-name');
+        if (elName) elName.textContent = adminName;
+        var elRole = document.getElementById('sys-admin-role');
+        if (elRole) elRole.textContent = adminRole;
 
         /* --- 1. Load users ------------------------------------------------- */
         try {
