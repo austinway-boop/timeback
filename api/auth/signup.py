@@ -1,7 +1,7 @@
 """POST /api/auth/signup — Create a new user via Timeback OneRoster API.
 
-Creates a user record in OneRoster with the provided name, email,
-and password.  Checks for duplicates before creating.
+Creates a user record in OneRoster, then registers their password
+via the credentials endpoint so it can be verified on login.
 """
 
 import json
@@ -13,6 +13,8 @@ from api._helpers import (
     post_resource,
     send_json,
 )
+
+APP_NAME = "AlphaLearn"
 
 
 # ---------------------------------------------------------------------------
@@ -115,13 +117,37 @@ class handler(BaseHTTPRequestHandler):
             if status not in (200, 201):
                 error_msg = "Failed to create account"
                 if resp_data and isinstance(resp_data, dict):
-                    # Try common error response shapes
                     error_msg = (
                         resp_data.get("message")
                         or resp_data.get("error")
-                        or resp_data.get("statusInfoSet", [{}])[0].get("imsx_description", error_msg)
+                        or resp_data.get("statusInfoSet", [{}])[0].get(
+                            "imsx_description", error_msg
+                        )
                     )
                 send_json(self, {"error": error_msg, "success": False}, 400)
+                return
+
+            # --- Register credentials for our app -----------------------------
+            cred_path = f"/ims/oneroster/rostering/v1p2/users/{user_id}/credentials"
+            cred_payload = {
+                "applicationName": APP_NAME,
+                "credentials": {
+                    "username": email,
+                    "password": password,
+                },
+            }
+            cred_data, cred_status = post_resource(cred_path, cred_payload)
+
+            if cred_status not in (200, 201):
+                # User was created but credentials failed — still report success
+                # so they can set up credentials on first login.
+                send_json(
+                    self,
+                    {
+                        "message": "Account created. Password will be set on first login.",
+                        "success": True,
+                    },
+                )
                 return
 
             send_json(self, {"message": "Account created successfully", "success": True})
