@@ -145,6 +145,7 @@
 var cachedStudents = [];
 var selectedStudent = null;
 var existingAssignments = [];  // from GET /powerpath/test-assignments
+var enrolledKeys = new Set();  // "subject|grade" combos student is enrolled in
 var activeFilter = 'all';
 
 function esc(s) {
@@ -259,11 +260,25 @@ function pickStudent(el) {
     loadAssignments(user.sourcedId);
 }
 
-/* ── Filters ───────────────────────────────────────────────── */
+/* ── Filters (only subjects student is enrolled in) ────────── */
 function renderFilters() {
     var bar = document.getElementById('filter-bar');
+
+    // Only show subjects where the student has at least one enrolled grade
+    var enrolledSubjects = ALL_SUBJECTS.filter(function(s) {
+        return ALL_TESTS.some(function(t) {
+            return t.subject === s && enrolledKeys.has(t.subject.toLowerCase() + '|' + t.grade);
+        });
+    });
+
+    if (!enrolledSubjects.length) {
+        bar.innerHTML = '';
+        return;
+    }
+
+    activeFilter = 'all';
     bar.innerHTML = '<span class="filter-chip active" onclick="setFilter(\'all\',this)">All</span>' +
-        ALL_SUBJECTS.map(function(s) {
+        enrolledSubjects.map(function(s) {
             return '<span class="filter-chip" onclick="setFilter(\'' + esc(s) + '\',this)">' + esc(s) + '</span>';
         }).join('');
 }
@@ -275,20 +290,54 @@ function setFilter(f, el) {
     renderTests();
 }
 
-/* ── Load Assignments ──────────────────────────────────────── */
+/* ── Load Enrollments + Assignments in parallel ───────────── */
 async function loadAssignments(studentId) {
+    enrolledKeys = new Set();
+    existingAssignments = [];
+
     try {
-        var resp = await fetch('/api/assign-test?student=' + encodeURIComponent(studentId));
-        var data = await resp.json();
-        existingAssignments = data.testAssignments || [];
+        var [assignResp, enrollResp] = await Promise.all([
+            fetch('/api/assign-test?student=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { testAssignments: [] }; }),
+            fetch('/api/enrollments?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return {}; }),
+        ]);
+
+        existingAssignments = assignResp.testAssignments || [];
+
+        // Parse enrollments to find which subject+grade combos this student has
+        var raw = enrollResp.data || enrollResp.enrollments || enrollResp.courses || (Array.isArray(enrollResp) ? enrollResp : []);
+        for (var i = 0; i < raw.length; i++) {
+            var e = raw[i];
+            var c = e.course || {};
+            var title = (c.title || '').trim();
+            var subjects = c.subjects || [];
+            var grades = c.grades || [];
+
+            if (!title || !subjects.length) continue;
+            if (title.startsWith('Manual XP') || title.includes('Hole-Filling')) continue;
+
+            var subj = subjects[0] || '';
+            for (var g = 0; g < grades.length; g++) {
+                enrolledKeys.add(subj.toLowerCase() + '|' + grades[g]);
+            }
+        }
+
+        // Also count any existing test assignments as "enrolled" (they already have one)
+        for (var j = 0; j < existingAssignments.length; j++) {
+            var a = existingAssignments[j];
+            if (a.subject && a.grade) {
+                enrolledKeys.add((a.subject).toLowerCase() + '|' + a.grade);
+            }
+        }
     } catch(e) {
-        existingAssignments = [];
+        console.warn('[Admin] Error loading data:', e.message);
     }
+
+    renderFilters();
     renderTests();
     renderPending();
 }
 
-/* ── Render Available Tests ────────────────────────────────── */
+/* ── Render Available Tests (only enrolled combos) ─────────── */
 function renderTests() {
     var el = document.getElementById('tests-list');
 
@@ -299,14 +348,20 @@ function renderTests() {
         statusMap[key] = a.assignmentStatus || 'assigned';
     });
 
-    // Filter tests
-    var tests = ALL_TESTS;
+    // Only show tests where the student is enrolled in that subject+grade
+    var tests = ALL_TESTS.filter(function(t) {
+        return enrolledKeys.has(t.subject.toLowerCase() + '|' + t.grade);
+    });
+
+    // Apply subject filter
     if (activeFilter !== 'all') {
         tests = tests.filter(function(t) { return t.subject === activeFilter; });
     }
 
     if (!tests.length) {
-        el.innerHTML = '<div class="empty-state"><p>No tests match this filter.</p></div>';
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><p>No assignable tests for this student' +
+            (activeFilter !== 'all' ? ' in ' + activeFilter : '') +
+            '.<br><span style="font-size:0.78rem;">Tests require a matching course enrollment.</span></p></div>';
         return;
     }
 
