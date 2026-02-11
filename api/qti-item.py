@@ -90,16 +90,61 @@ class handler(BaseHTTPRequestHandler):
             # If direct URL provided, use it
             if direct_url:
                 resp = requests.get(direct_url, headers=headers, timeout=30)
-                if resp.status_code == 200:
-                    send_json(self, {"data": resp.json(), "success": True})
+                if resp.status_code != 200:
+                    send_json(self, {
+                        "error": f"QTI returned {resp.status_code}",
+                        "url": direct_url,
+                        "success": False,
+                    }, resp.status_code)
                     return
-                send_json(self, {
-                    "error": f"QTI returned {resp.status_code}",
-                    "url": direct_url,
-                    "detail": resp.text[:500],
-                    "token_note": token_error or "Token OK",
-                    "success": False,
-                }, resp.status_code)
+
+                data = resp.json()
+
+                # Check if this is an assessment-test manifest with question refs
+                test = data.get("qti-assessment-test", {})
+                if test:
+                    parts = test.get("qti-test-part", [])
+                    if not isinstance(parts, list):
+                        parts = [parts]
+
+                    question_urls = []
+                    for part in parts:
+                        sections = part.get("qti-assessment-section", [])
+                        if not isinstance(sections, list):
+                            sections = [sections]
+                        for section in sections:
+                            refs = section.get("qti-assessment-item-ref", [])
+                            if not isinstance(refs, list):
+                                refs = [refs]
+                            for ref in refs:
+                                href = (ref.get("_attributes", {}) or {}).get("href", "")
+                                if href:
+                                    question_urls.append(href)
+
+                    if question_urls:
+                        # Fetch individual questions (limit to first 20 to avoid timeout)
+                        questions = []
+                        for qurl in question_urls[:20]:
+                            try:
+                                qresp = requests.get(qurl, headers=headers, timeout=10)
+                                if qresp.status_code == 200:
+                                    questions.append(qresp.json())
+                            except Exception:
+                                pass
+
+                        title = (test.get("_attributes", {}) or {}).get("title", "")
+                        send_json(self, {
+                            "data": {
+                                "title": title,
+                                "totalQuestions": len(question_urls),
+                                "loadedQuestions": len(questions),
+                                "questions": questions,
+                            },
+                            "success": True,
+                        })
+                        return
+
+                send_json(self, {"data": data, "success": True})
                 return
 
             # Build URL from id + type
