@@ -127,7 +127,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             headers = api_headers()
-            payload = {"studentId": student_id, "testId": test_id}
+            # PowerPath API requires field names: "student" and "lesson" (not studentId/testId)
+            payload = {"student": student_id, "lesson": test_id}
 
             # createNewAttempt — try multiple path patterns
             urls = []
@@ -139,6 +140,11 @@ class handler(BaseHTTPRequestHandler):
                     f"{base}/attempts",
                 ])
             data, st = _try_post(headers, urls, payload)
+
+            # If "student"/"lesson" failed, retry with alternate field names
+            if not data or st >= 400:
+                alt_payload = {"studentId": student_id, "testId": test_id}
+                data, st = _try_post(headers, urls, alt_payload)
 
             if data and st < 400:
                 send_json(self, data, st)
