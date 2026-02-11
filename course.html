@@ -757,12 +757,6 @@
                                 quizExtra: quizExtra
                             };
 
-                            var xpHtml = '';
-                            if (prog && prog.score !== undefined && prog.score !== null) { xpHtml = '<span class="xp-text">' + prog.score + ' XP</span>'; }
-                            var actAllDone = (doneRes === totalRes && totalRes > 0);
-                            var actCls = 'act-text' + (actAllDone ? ' complete' : '');
-                            var actIcon = actAllDone ? 'fa-circle-check' : 'fa-circle';
-
                             var rowClick = lessonLocked ? '' : ' onclick="openLesson(\'' + lessonDataKey + '\')"';
                             html += '<div class="lesson-row"' + rowClick + '>' +
                                 '<div class="lesson-info"><div class="lesson-title">' + esc(lTitle) + '</div></div>' +
