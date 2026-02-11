@@ -1,15 +1,16 @@
-"""GET /api/course-content?courseId=...&userId=...&enrollmentId=...
+"""GET /api/course-content?courseId=...&userId=...
 
-Fetches course lesson plan tree and progress from the PowerPath API,
-plus classes and line items from OneRoster.
+Fetches the lesson plan tree and student progress from the PowerPath API.
+
+Endpoints used:
+  /powerpath/lessonPlans/tree/{courseId} — full tree (units → lessons → items)
+  /powerpath/lessonPlans/{courseId}/{userId} — student-specific lesson plan
+  /powerpath/lessonPlans/getCourseProgress/{courseId}/student/{userId} — progress
 """
 
 from http.server import BaseHTTPRequestHandler
 import requests
-from api._helpers import (
-    API_BASE, api_headers, send_json, get_query_params,
-    fetch_with_params, fetch_one,
-)
+from api._helpers import API_BASE, api_headers, send_json, get_query_params
 
 
 class handler(BaseHTTPRequestHandler):
@@ -24,23 +25,17 @@ class handler(BaseHTTPRequestHandler):
         params = get_query_params(self)
         course_id = params.get("courseId", "").strip()
         user_id = params.get("userId", "").strip()
-        enrollment_id = params.get("enrollmentId", "").strip()
 
         if not course_id:
             send_json(self, {"error": "Need courseId"}, 400)
             return
 
-        result = {
-            "lessonPlan": None,
-            "courseProgress": None,
-            "classes": [],
-            "lineItems": [],
-        }
+        result = {"lessonPlan": None, "courseProgress": None, "tree": None}
 
         try:
             headers = api_headers()
 
-            # ── 1. PowerPath: Get lesson plan tree for course + student ──
+            # 1. Student-specific lesson plan (best: personalized + has completion status)
             if user_id:
                 try:
                     resp = requests.get(
@@ -53,7 +48,20 @@ class handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-            # ── 2. PowerPath: Get course progress for student ──
+            # 2. Full lesson plan tree (fallback: structure without student-specific status)
+            if not result["lessonPlan"]:
+                try:
+                    resp = requests.get(
+                        f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
+                        headers=headers,
+                        timeout=30,
+                    )
+                    if resp.status_code == 200:
+                        result["tree"] = resp.json()
+                except Exception:
+                    pass
+
+            # 3. Student progress (completion status for assessments)
             if user_id:
                 try:
                     resp = requests.get(
@@ -65,57 +73,6 @@ class handler(BaseHTTPRequestHandler):
                         result["courseProgress"] = resp.json()
                 except Exception:
                     pass
-
-            # ── 3. OneRoster: Get classes for this course ──
-            try:
-                data, st = fetch_one(
-                    f"/ims/oneroster/rostering/v1p2/courses/{course_id}/classes"
-                )
-                if data and st == 200:
-                    classes = data.get("classes", [])
-                    if not classes:
-                        for v in data.values():
-                            if isinstance(v, list):
-                                classes = v
-                                break
-                    result["classes"] = [
-                        {
-                            "sourcedId": c.get("sourcedId", ""),
-                            "title": c.get("title", ""),
-                            "subjects": c.get("subjects", []),
-                            "status": c.get("status", ""),
-                        }
-                        for c in classes
-                        if c.get("title") and "SAFE TO DELETE" not in c.get("title", "")
-                    ]
-            except Exception:
-                pass
-
-            # ── 4. OneRoster: Get line items for classes ──
-            class_ids = [c["sourcedId"] for c in result["classes"] if c.get("sourcedId")]
-            for cid in class_ids[:5]:
-                try:
-                    data, st = fetch_with_params(
-                        "/ims/oneroster/gradebook/v1p2/lineItems",
-                        {"filter": f"class.sourcedId='{cid}'", "limit": 50},
-                    )
-                    if data and st == 200:
-                        items = data.get("lineItems", [])
-                        if not items:
-                            for v in data.values():
-                                if isinstance(v, list):
-                                    items = v
-                                    break
-                        for li in items:
-                            result["lineItems"].append({
-                                "sourcedId": li.get("sourcedId", ""),
-                                "title": li.get("title", ""),
-                                "dueDate": li.get("dueDate", ""),
-                                "resultValueMax": li.get("resultValueMax", ""),
-                                "status": li.get("status", ""),
-                            })
-                except Exception:
-                    continue
 
             result["success"] = True
             send_json(self, result)
