@@ -498,10 +498,13 @@ document.addEventListener('DOMContentLoaded', async function () {
             const totalLessons = mt.totalLessons || cmt.totalLessons || cm.totalLessons || 0;
             const totalXp      = mt.totalXp || cmt.totalXp || cm.totalXp || 0;
 
+            const vendorKey = cm.primaryApp || cm.app || cm.vendor
+                || (typeof pA === 'object' && pA.id ? pA.id : '') || '';
+
             courses.push({
                 title: ti,
                 subject: su[0] || '',
-                appName: an,
+                appName: [an, vendorKey].filter(Boolean).join(' '),
                 totalXp,
                 totalLessons,
                 dailyXpGoal: gl.dailyXp || 0,

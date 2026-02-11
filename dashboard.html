@@ -325,7 +325,6 @@
 
         document.getElementById('course-grid').innerHTML = courses.map((c, i) => {
             const color     = COURSE_THEMES[i % COURSE_THEMES.length];
-            const icon      = guessIcon(c.title || '', c.appName || '');
             const name      = c.title || 'Untitled Course';
             const goalKey   = c._goalKey || '';
             const savedGoal = savedGoals[goalKey] || null;
@@ -386,7 +385,10 @@
                 </div>`;
             }
 
-            const subjectImg = guessSubjectImage(c.title || '', c.appName || '');
+            // Combine all possible app identifiers for image/icon matching
+            const appId = [c.appName, platformName, c._vendorKey].filter(Boolean).join(' ');
+            const icon = guessIcon(c.title || '', appId);
+            const subjectImg = guessSubjectImage(c.title || '', appId);
 
             return `
                 <div class="course-card" data-course-index="${i}" ${isExternal && launchUrl ? `data-launch-url="${esc(launchUrl)}"` : ''} style="cursor:pointer;position:relative;">
@@ -872,7 +874,7 @@
             body.innerHTML = `
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
                     <div style="width:48px;height:48px;border-radius:12px;background:var(--color-primary-light);display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--color-primary-dark);">
-                        <i class="fa-solid ${guessIcon(c.title, c.appName)}"></i>
+                        <i class="fa-solid ${guessIcon(c.title, [c.appName, c._vendorKey].filter(Boolean).join(' '))}"></i>
                     </div>
                     <div>
                         <div style="font-weight:600;font-size:1rem;color:#2D3748;">${titleEsc}</div>
