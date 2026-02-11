@@ -414,7 +414,18 @@
         document.querySelectorAll('#course-grid .course-card[data-course-index]').forEach(function(card) {
             card.addEventListener('click', function() {
                 var idx = parseInt(this.getAttribute('data-course-index'), 10);
-                if (!isNaN(idx)) openCourseModal(idx);
+                if (isNaN(idx)) return;
+                var c = allCourses[idx];
+                if (!c) return;
+                // Internal courses (no vendor key / external app) → navigate to course viewer
+                var vKey = c._vendorKey || '';
+                if (!vKey) {
+                    var rawId = (c._raw || {}).id || (c._raw || {}).sourcedId || '';
+                    window.location.href = '/course?id=' + encodeURIComponent(rawId) + '&title=' + encodeURIComponent(c.title || '');
+                    return;
+                }
+                // External courses → open modal
+                openCourseModal(idx);
             });
         });
     }

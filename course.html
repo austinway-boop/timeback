@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - Course</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .course-viewer { max-width: 800px; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm); background: var(--color-surface);
+            color: var(--color-text-secondary); font-size: 0.85rem; font-weight: 500;
+            cursor: pointer; text-decoration: none; transition: all 0.2s; margin-bottom: 24px;
+        }
+        .back-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+        .course-header-card {
+            background: var(--color-surface); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 28px; margin-bottom: 24px;
+        }
+        .course-title { font-size: 1.5rem; font-weight: 700; color: var(--color-text); margin-bottom: 6px; }
+        .course-meta { font-size: 0.9rem; color: var(--color-text-secondary); display: flex; gap: 16px; flex-wrap: wrap; }
+        .course-meta-item { display: flex; align-items: center; gap: 6px; }
+        .course-meta-item i { color: var(--color-primary); }
+
+        .progress-card {
+            background: var(--color-surface); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 24px; margin-bottom: 24px;
+        }
+        .progress-stats {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;
+        }
+        .progress-stat {
+            text-align: center; padding: 16px;
+            background: var(--color-bg); border-radius: var(--radius-sm);
+        }
+        .progress-stat-value { font-size: 1.5rem; font-weight: 700; color: var(--color-primary); display: block; }
+        .progress-stat-label {
+            font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--color-text-muted); margin-top: 4px; display: block;
+        }
+        .progress-bar-lg { height: 10px; background: var(--color-bg); border-radius: 5px; overflow: hidden; }
+        .progress-fill-lg { height: 100%; background: var(--color-primary); border-radius: 5px; transition: width 0.6s ease; }
+        .progress-label { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--color-text-secondary); margin-top: 8px; }
+
+        .content-card {
+            background: var(--color-surface); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 24px; margin-bottom: 24px;
+        }
+        .content-card h2 {
+            font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; color: var(--color-text);
+        }
+        .launch-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 14px 28px; background: var(--color-primary); color: #fff;
+            border: none; border-radius: var(--radius-sm); font-size: 1rem;
+            font-weight: 600; cursor: pointer; transition: background 0.2s;
+            text-decoration: none;
+        }
+        .launch-btn:hover { background: var(--color-primary-dark); color: #fff; }
+        .launch-btn i { font-size: 1.1rem; }
+
+        .content-placeholder {
+            text-align: center; padding: 40px; color: var(--color-text-muted);
+        }
+        .content-placeholder i { font-size: 3rem; margin-bottom: 16px; display: block; opacity: 0.4; }
+        .content-placeholder p { font-size: 0.95rem; margin-bottom: 16px; }
+
+        .metadata-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+            font-size: 0.88rem;
+        }
+        .metadata-item { padding: 10px 14px; background: var(--color-bg); border-radius: var(--radius-sm); }
+        .metadata-key { font-weight: 600; color: var(--color-text-secondary); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+        .metadata-val { color: var(--color-text); font-weight: 500; }
+
+        .skeleton { background: linear-gradient(90deg, #E8ECF1 25%, #F4F6F9 50%, #E8ECF1 75%); background-size: 200% 100%; animation: skeleton-pulse 1.5s ease-in-out infinite; border-radius: 4px; }
+        @keyframes skeleton-pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        @media (max-width: 768px) {
+            .progress-stats { grid-template-columns: 1fr; }
+            .metadata-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body data-view="student" data-active="home">
+
+    <div class="layout">
+        <nav class="sidebar" id="sidebar"></nav>
+        <main class="main-content">
+            <div class="course-viewer">
+                <a href="/dashboard" class="back-btn">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+                </a>
+
+                <!-- Course Header -->
+                <div class="course-header-card" id="course-header">
+                    <div class="skeleton" style="height:24px;width:60%;margin-bottom:12px;"></div>
+                    <div class="skeleton" style="height:14px;width:40%;"></div>
+                </div>
+
+                <!-- Progress -->
+                <div class="progress-card" id="course-progress">
+                    <div class="progress-stats">
+                        <div class="progress-stat"><div class="skeleton" style="height:24px;width:40px;margin:0 auto 4px;"></div><div class="skeleton" style="height:10px;width:60px;margin:0 auto;"></div></div>
+                        <div class="progress-stat"><div class="skeleton" style="height:24px;width:40px;margin:0 auto 4px;"></div><div class="skeleton" style="height:10px;width:60px;margin:0 auto;"></div></div>
+                        <div class="progress-stat"><div class="skeleton" style="height:24px;width:40px;margin:0 auto 4px;"></div><div class="skeleton" style="height:10px;width:60px;margin:0 auto;"></div></div>
+                    </div>
+                </div>
+
+                <!-- Course Content -->
+                <div class="content-card" id="course-content">
+                    <div class="content-placeholder">
+                        <div class="skeleton" style="height:48px;width:48px;border-radius:50%;margin:0 auto 16px;"></div>
+                        <div class="skeleton" style="height:14px;width:200px;margin:0 auto;"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/layout.js"></script>
+    <script src="/js/app.js"></script>
+    <script>
+    function esc(str) {
+        if (str === null || str === undefined) return '';
+        if (typeof str !== 'string') str = String(str);
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    document.addEventListener('DOMContentLoaded', async function() {
+        var params = new URLSearchParams(window.location.search);
+        var courseTitle = params.get('title') || 'Course';
+        var courseId = params.get('id') || '';
+
+        var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+
+        // Set page title
+        document.title = 'AlphaLearn - ' + courseTitle;
+
+        // Show header immediately with title from URL
+        document.getElementById('course-header').innerHTML =
+            '<h1 class="course-title">' + esc(courseTitle) + '</h1>' +
+            '<div class="course-meta"><span class="course-meta-item"><i class="fa-solid fa-spinner fa-spin"></i> Loading course data...</span></div>';
+
+        if (!userId) {
+            document.getElementById('course-content').innerHTML =
+                '<div class="content-placeholder"><i class="fa-solid fa-circle-exclamation"></i><p>No user ID found. Please <a href="/login" style="color:var(--color-primary);">sign in</a> first.</p></div>';
+            return;
+        }
+
+        // Fetch enrollment data
+        var enrollment = null;
+        try {
+            var resp = await fetch('/api/enrollments?userId=' + encodeURIComponent(userId));
+            var data = await resp.json();
+            var enrollments = data.data || data.enrollments || data.courses || (Array.isArray(data) ? data : []);
+
+            // Find matching enrollment by ID or title
+            for (var i = 0; i < enrollments.length; i++) {
+                var e = enrollments[i];
+                var eId = e.id || e.sourcedId || '';
+                var eTitle = (e.course || {}).title || e.title || '';
+                if ((courseId && eId === courseId) || eTitle === courseTitle) {
+                    enrollment = e;
+                    break;
+                }
+            }
+        } catch(err) {
+            console.warn('[Course] Failed to fetch enrollments:', err.message);
+        }
+
+        if (!enrollment) {
+            // Still show the page with the title
+            document.getElementById('course-header').innerHTML =
+                '<h1 class="course-title">' + esc(courseTitle) + '</h1>' +
+                '<div class="course-meta"><span class="course-meta-item"><i class="fa-solid fa-info-circle"></i> Enrollment data not available</span></div>';
+            document.getElementById('course-progress').innerHTML = '';
+            document.getElementById('course-content').innerHTML =
+                '<div class="content-placeholder"><i class="fa-solid fa-book"></i><p>This course is part of your AlphaLearn curriculum. Course content will appear here as it becomes available.</p></div>';
+            return;
+        }
+
+        // Parse enrollment data
+        var course = enrollment.course || {};
+        var meta = { ...(course.metadata || {}), ...(enrollment.metadata || {}) };
+        var goals = meta.goals || {};
+        var metrics = meta.metrics || {};
+        var subjects = (course.subjects || []).join(', ') || '';
+        var xpEarned = enrollment.xpEarned || 0;
+        var totalXp = metrics.totalXp || goals.dailyXp || 0;
+        var dailyGoal = goals.dailyXp || 0;
+        var totalLessons = metrics.totalLessons || 0;
+        var isAlphaRead = meta.isAlphaRead || false;
+        var isAlphaWrite = meta.isAlphaWrite || meta.isAlphawrite || false;
+        var endDate = enrollment.endDate || '';
+
+        // Render header
+        var metaItems = [];
+        if (subjects) metaItems.push('<span class="course-meta-item"><i class="fa-solid fa-book"></i> ' + esc(subjects) + '</span>');
+        if (endDate) metaItems.push('<span class="course-meta-item"><i class="fa-solid fa-calendar"></i> Ends ' + esc(endDate.split('T')[0]) + '</span>');
+        if (totalLessons) metaItems.push('<span class="course-meta-item"><i class="fa-solid fa-list-check"></i> ' + totalLessons + ' lessons</span>');
+
+        document.getElementById('course-header').innerHTML =
+            '<h1 class="course-title">' + esc(course.title || courseTitle) + '</h1>' +
+            '<div class="course-meta">' + (metaItems.length ? metaItems.join('') : '<span class="course-meta-item"><i class="fa-solid fa-graduation-cap"></i> AlphaLearn Course</span>') + '</div>';
+
+        // Render progress
+        var pct = totalXp > 0 ? Math.min((xpEarned / totalXp) * 100, 100) : 0;
+        document.getElementById('course-progress').innerHTML =
+            '<div class="progress-stats">' +
+                '<div class="progress-stat"><span class="progress-stat-value">' + xpEarned + '</span><span class="progress-stat-label">XP Earned</span></div>' +
+                '<div class="progress-stat"><span class="progress-stat-value">' + totalXp + '</span><span class="progress-stat-label">Total XP</span></div>' +
+                '<div class="progress-stat"><span class="progress-stat-value">' + dailyGoal + '</span><span class="progress-stat-label">Daily Goal</span></div>' +
+            '</div>' +
+            '<div class="progress-bar-lg"><div class="progress-fill-lg" style="width:' + pct + '%;"></div></div>' +
+            '<div class="progress-label"><span>' + Math.round(pct) + '% complete</span><span>' + xpEarned + ' / ' + totalXp + ' XP</span></div>';
+
+        // Render content area
+        var contentHTML = '';
+
+        if (isAlphaRead) {
+            contentHTML =
+                '<h2><i class="fa-solid fa-book-open-reader" style="color:var(--color-primary);margin-right:8px;"></i>Alpha Read</h2>' +
+                '<div class="content-placeholder">' +
+                    '<i class="fa-solid fa-book-open-reader"></i>' +
+                    '<p>This is an Alpha Read course. Improve your reading skills with guided practice and comprehension exercises.</p>' +
+                    '<a href="#" class="launch-btn"><i class="fa-solid fa-rocket"></i> Launch Alpha Read</a>' +
+                '</div>';
+        } else if (isAlphaWrite) {
+            contentHTML =
+                '<h2><i class="fa-solid fa-pen-nib" style="color:var(--color-primary);margin-right:8px;"></i>Alpha Write</h2>' +
+                '<div class="content-placeholder">' +
+                    '<i class="fa-solid fa-pen-nib"></i>' +
+                    '<p>This is an Alpha Write course. Practice writing with AI-powered feedback and guided prompts.</p>' +
+                    '<a href="#" class="launch-btn"><i class="fa-solid fa-rocket"></i> Launch Alpha Write</a>' +
+                '</div>';
+        } else {
+            // General internal course
+            var metaHTML = '';
+            var displayMeta = {};
+            try {
+                for (var k in meta) {
+                    var v = meta[k];
+                    if (v === null || v === undefined || v === '') continue;
+                    if (typeof v !== 'object') displayMeta[k] = String(v);
+                }
+            } catch(e) {}
+
+            if (Object.keys(displayMeta).length > 0) {
+                metaHTML = '<h2>Course Details</h2><div class="metadata-grid">' +
+                    Object.keys(displayMeta).map(function(k) {
+                        return '<div class="metadata-item"><span class="metadata-key">' + esc(k) + '</span><span class="metadata-val">' + esc(displayMeta[k]) + '</span></div>';
+                    }).join('') + '</div>';
+            }
+
+            contentHTML =
+                '<h2><i class="fa-solid fa-graduation-cap" style="color:var(--color-primary);margin-right:8px;"></i>Course Content</h2>' +
+                '<div class="content-placeholder">' +
+                    '<i class="fa-solid fa-graduation-cap"></i>' +
+                    '<p>This AlphaLearn course tracks your progress through XP and daily goals. Keep learning to earn more XP!</p>' +
+                '</div>' +
+                metaHTML;
+        }
+
+        document.getElementById('course-content').innerHTML = contentHTML;
+    });
+    </script>
+</body>
+</html>
