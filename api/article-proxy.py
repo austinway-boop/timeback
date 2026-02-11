@@ -13,7 +13,7 @@ import json
 import html as html_mod
 import xml.etree.ElementTree as ET
 
-from _helpers import get_token, API_BASE, CLIENT_ID, CLIENT_SECRET
+from api._helpers import get_token, API_BASE, CLIENT_ID, CLIENT_SECRET
 
 COGNITO_URL = "https://prod-beyond-timeback-api-2-idp.auth.us-east-1.amazoncognito.com/oauth2/token"
 QTI_BASE = "https://qti.alpha-1edtech.ai"
