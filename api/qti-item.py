@@ -90,27 +90,35 @@ class handler(BaseHTTPRequestHandler):
                 }, resp.status_code)
                 return
 
-            # Otherwise try constructing the path from id + type
+            # Construct URLs from ID + type and try all possibilities
             path_segment = TYPE_MAP.get(item_type, "items")
             urls_to_try = [
-                f"{QTI_API}/qti/v3/{path_segment}/{item_id}",
                 f"https://qti.alpha-1edtech.ai/api/{path_segment}/{item_id}",
-                f"{QTI_API}/qti/v3/items/{item_id}",
+                f"https://qti.alpha-1edtech.ai/api/assessment-items/{item_id}",
+                f"https://qti.alpha-1edtech.ai/api/stimuli/{item_id}",
                 f"https://qti.alpha-1edtech.ai/api/items/{item_id}",
+                f"https://qti.alpha-1edtech.ai/api/assessments/{item_id}",
+                f"{QTI_API}/qti/v3/{path_segment}/{item_id}",
+                f"{QTI_API}/qti/v3/items/{item_id}",
+                f"{QTI_API}/qti/v3/stimuli/{item_id}",
+                f"{QTI_API}/qti/v3/assessments/{item_id}",
             ]
 
+            errors = []
             for url in urls_to_try:
                 try:
                     resp = requests.get(url, headers=headers, timeout=15)
                     if resp.status_code == 200:
                         send_json(self, {"data": resp.json(), "success": True})
                         return
-                except Exception:
-                    continue
+                    errors.append(f"{url}: {resp.status_code}")
+                except Exception as e:
+                    errors.append(f"{url}: {str(e)}")
 
             send_json(self, {
                 "error": "QTI item not found",
                 "success": False,
+                "tried": errors[:8],
             }, 404)
 
         except Exception as e:
