@@ -80,7 +80,7 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": "Need attemptId"}, 400)
                 return
 
-            headers = powerpath_headers()
+            headers = api_headers()
             # getNextQuestion — try multiple path patterns
             urls = []
             for base in _BASES:
@@ -96,7 +96,7 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, data or {"complete": True}, st if st and st < 400 else 200)
 
         elif action == "progress":
-            headers = powerpath_headers()
+            headers = api_headers()
             student_id = params.get("studentId", "")
             test_id = params.get("testId", "")
             urls = [f"{base}/progress" for base in _BASES]
@@ -129,7 +129,7 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": "Need testId"}, 400)
                 return
 
-            headers = powerpath_headers()
+            headers = api_headers()
 
             # Try multiple payload formats — the API needs "lesson" and "student"
             payloads = [
@@ -188,7 +188,7 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": "Need attemptId and questionId"}, 400)
                 return
 
-            headers = powerpath_headers()
+            headers = api_headers()
             payload = {"attemptId": attempt_id, "questionId": question_id, "response": response}
 
             # updateStudentQuestionResponse
@@ -209,7 +209,7 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": "Need attemptId"}, 400)
                 return
 
-            headers = powerpath_headers()
+            headers = api_headers()
             payload = {"attemptId": attempt_id}
 
             # finalStudentAssessmentResponse
