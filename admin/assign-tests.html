@@ -13,695 +13,400 @@
     <link rel="preload" href="/css/style.css" as="style">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* ── Hero ─────────────────────────────────────────────── */
-        .hero-banner {
-            position: relative; border-radius: var(--radius);
-            overflow: hidden; margin-bottom: 24px; box-shadow: var(--shadow);
-        }
-        .hero-banner img { width:100%; height:150px; object-fit:cover; display:block; }
-        .hero-overlay {
-            position:absolute; inset:0;
-            background:linear-gradient(135deg,rgba(69,181,170,0.88),rgba(56,158,148,0.82));
-            display:flex; align-items:center; padding:0 32px;
-        }
-        .hero-overlay h1 { font-size:1.5rem; font-weight:700; color:#fff; margin:0 0 4px; }
-        .hero-overlay p { font-size:0.88rem; color:rgba(255,255,255,0.85); margin:0; }
-
-        /* ── Search Section ───────────────────────────────────── */
-        .search-section {
-            background:var(--color-surface); border-radius:var(--radius);
-            box-shadow:var(--shadow); padding:20px; margin-bottom:20px;
-            position:relative;
-        }
-        .search-section label {
-            display:block; font-size:0.78rem; font-weight:600;
-            color:var(--color-text-muted); text-transform:uppercase;
-            letter-spacing:0.5px; margin-bottom:6px;
-        }
-        .search-wrap {
-            position:relative;
-        }
-        .search-wrap i.search-icon {
-            position:absolute; left:12px; top:50%; transform:translateY(-50%);
-            color:var(--color-text-muted); font-size:0.85rem; pointer-events:none;
+        /* ── Search ───────────────────────────────────────────── */
+        .search-wrap { position:relative; margin-bottom:20px; }
+        .search-wrap i.si {
+            position:absolute; left:14px; top:50%; transform:translateY(-50%);
+            color:var(--color-text-muted); font-size:0.9rem; pointer-events:none;
         }
         .search-wrap input {
-            width:100%; padding:10px 12px 10px 36px;
+            width:100%; padding:11px 14px 11px 40px;
             border:1px solid var(--color-border); border-radius:var(--radius-sm);
             background:var(--color-surface); color:var(--color-text);
-            font-size:0.9rem; outline:none; transition:border-color var(--transition);
+            font-size:0.92rem; outline:none; transition:border-color var(--transition);
+            box-shadow:var(--shadow);
         }
         .search-wrap input:focus { border-color:var(--color-primary); }
         .search-wrap input::placeholder { color:var(--color-text-muted); }
 
-        .search-dropdown {
+        .search-dd {
             position:absolute; top:100%; left:0; right:0; z-index:1000;
             background:#fff; border:1px solid var(--color-border);
             border-radius:var(--radius-sm); box-shadow:var(--shadow-md);
             max-height:320px; overflow-y:auto; display:none; margin-top:4px;
         }
-        .search-dropdown.open { display:block; }
-        .search-item {
+        .search-dd.open { display:block; }
+        .sr {
             display:flex; align-items:center; gap:12px;
             padding:10px 14px; cursor:pointer;
             border-bottom:1px solid var(--color-border); transition:background 0.1s;
         }
-        .search-item:last-child { border-bottom:none; }
-        .search-item:hover { background:var(--color-primary-light); }
-        .search-item .user-cell-avatar {
+        .sr:last-child { border-bottom:none; }
+        .sr:hover { background:var(--color-primary-light); }
+        .sr .av {
             width:32px; height:32px; border-radius:50%;
             background:var(--color-primary-light); color:var(--color-primary-dark);
             display:flex; align-items:center; justify-content:center;
             font-weight:600; font-size:0.8rem; flex-shrink:0;
         }
-        .search-item-info { flex:1; min-width:0; }
-        .search-item-name { font-weight:600; font-size:0.88rem; color:var(--color-text); }
-        .search-item-email { font-size:0.78rem; color:var(--color-text-muted); }
-        .search-empty {
-            padding:20px; text-align:center; color:var(--color-text-muted); font-size:0.85rem;
-        }
+        .sr-info { flex:1; min-width:0; }
+        .sr-name { font-weight:600; font-size:0.88rem; }
+        .sr-email { font-size:0.78rem; color:var(--color-text-muted); }
+        .sr-empty { padding:20px; text-align:center; color:var(--color-text-muted); font-size:0.85rem; }
 
-        /* ── Student Card ─────────────────────────────────────── */
-        .student-card {
-            background:var(--color-surface); border-radius:var(--radius);
-            box-shadow:var(--shadow); padding:18px 20px; margin-bottom:20px;
-            display:flex; align-items:center; gap:16px;
+        /* ── Student bar ──────────────────────────────────────── */
+        .stu-bar {
+            display:flex; align-items:center; gap:14px;
+            background:var(--color-surface); border-radius:var(--radius-sm);
+            box-shadow:var(--shadow); padding:12px 16px; margin-bottom:20px;
         }
-        .student-card .avatar-lg {
-            width:46px; height:46px; border-radius:50%;
+        .stu-bar .av {
+            width:36px; height:36px; border-radius:50%;
             background:var(--color-primary-light); color:var(--color-primary-dark);
             display:flex; align-items:center; justify-content:center;
-            font-weight:700; font-size:1.1rem; flex-shrink:0;
+            font-weight:700; font-size:0.95rem; flex-shrink:0;
         }
-        .student-card-info { flex:1; min-width:0; }
-        .student-card-name { font-weight:700; font-size:1rem; color:var(--color-text); }
-        .student-card-meta {
-            font-size:0.82rem; color:var(--color-text-secondary);
-            display:flex; align-items:center; gap:8px; margin-top:2px;
+        .stu-bar-info { flex:1; min-width:0; }
+        .stu-bar-name { font-weight:600; font-size:0.92rem; }
+        .stu-bar-email { font-size:0.78rem; color:var(--color-text-muted); }
+        .stu-bar .change-btn {
+            padding:5px 12px; border:1px solid var(--color-border);
+            border-radius:var(--radius-sm); background:transparent;
+            color:var(--color-text-secondary); font-size:0.78rem; font-weight:500;
+            cursor:pointer; transition:all var(--transition);
         }
-        .student-card-stats {
-            display:flex; gap:16px; margin-left:auto; flex-shrink:0;
-        }
-        .sc-stat { text-align:center; }
-        .sc-stat-val { font-size:1.1rem; font-weight:700; color:var(--color-text); }
-        .sc-stat-label { font-size:0.7rem; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.4px; font-weight:600; }
-        .student-card .change-btn {
-            padding:6px 14px; border:1px solid var(--color-border);
-            border-radius:var(--radius-sm); background:var(--color-surface);
-            color:var(--color-text-secondary); font-size:0.82rem; font-weight:500;
-            cursor:pointer; transition:all var(--transition); flex-shrink:0;
-        }
-        .student-card .change-btn:hover { border-color:var(--color-primary); color:var(--color-primary); }
+        .stu-bar .change-btn:hover { border-color:#E53E3E; color:#E53E3E; }
 
-        /* ── Bottom Grid (side-by-side) ───────────────────────── */
-        .bottom-grid {
-            display:grid; grid-template-columns:1fr 1fr; gap:20px;
-        }
+        /* ── Grid ─────────────────────────────────────────────── */
+        .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 
-        /* ── Shared card style ────────────────────────────────── */
-        .panel-card {
+        /* ── Card ─────────────────────────────────────────────── */
+        .card {
             background:var(--color-surface); border-radius:var(--radius);
             box-shadow:var(--shadow); overflow:visible;
         }
-        .panel-card .card-header {
+        .card-hd {
             padding:14px 18px; border-bottom:1px solid var(--color-border);
-            display:flex; align-items:center; justify-content:space-between;
         }
-        .panel-card .card-title {
-            font-size:0.92rem; font-weight:600; margin:0;
-        }
-        .panel-card .card-title i { color:var(--color-primary); margin-right:6px; }
-        .panel-body { padding:18px; }
+        .card-hd h3 { font-size:0.92rem; font-weight:600; margin:0; }
+        .card-hd h3 i { color:var(--color-primary); margin-right:6px; }
+        .card-bd { padding:16px 18px; }
 
-        /* ── Form fields ──────────────────────────────────────── */
-        .field { display:flex; flex-direction:column; margin-bottom:12px; }
-        .field label {
-            font-size:0.78rem; font-weight:600; color:var(--color-text-muted);
-            text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px;
+        /* ── Form ─────────────────────────────────────────────── */
+        .fg { margin-bottom:12px; }
+        .fg label {
+            display:block; font-size:0.75rem; font-weight:600;
+            color:var(--color-text-muted); text-transform:uppercase;
+            letter-spacing:0.5px; margin-bottom:4px;
         }
-        .field select {
-            padding:9px 12px; border:1px solid var(--color-border);
+        .fg select {
+            width:100%; padding:8px 10px; border:1px solid var(--color-border);
             border-radius:var(--radius-sm); background:var(--color-surface);
-            color:var(--color-text); font-size:0.9rem; outline:none;
+            color:var(--color-text); font-size:0.88rem; outline:none;
             transition:border-color var(--transition); font-family:inherit;
         }
-        .field select:focus { border-color:var(--color-primary); }
-        .field select:disabled { background:var(--color-bg); color:var(--color-text-muted); cursor:not-allowed; }
-        .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .fg select:focus { border-color:var(--color-primary); }
+        .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 
-        .assign-btn {
-            display:inline-flex; align-items:center; gap:6px;
-            padding:9px 20px; background:var(--color-primary); color:#fff; border:none;
-            border-radius:var(--radius-sm); font-size:0.88rem; font-weight:600;
-            cursor:pointer; transition:background var(--transition); width:100%; justify-content:center;
+        .abtn {
+            display:flex; align-items:center; justify-content:center; gap:6px;
+            width:100%; padding:9px; background:var(--color-primary); color:#fff;
+            border:none; border-radius:var(--radius-sm);
+            font-size:0.88rem; font-weight:600; cursor:pointer;
+            transition:background var(--transition); margin-top:4px;
         }
-        .assign-btn:hover:not(:disabled) { background:var(--color-primary-dark); }
-        .assign-btn:disabled { background:var(--color-border); color:var(--color-text-muted); cursor:not-allowed; }
+        .abtn:hover:not(:disabled) { background:var(--color-primary-dark); }
+        .abtn:disabled { background:var(--color-border); color:var(--color-text-muted); cursor:not-allowed; }
 
-        .assign-msg {
-            margin-top:10px; padding:8px 12px; border-radius:var(--radius-sm);
+        .msg {
+            margin-top:8px; padding:8px 10px; border-radius:var(--radius-sm);
             font-size:0.82rem; font-weight:500; display:none;
         }
-        .assign-msg.success { display:block; background:#E8F5E9; color:#2E7D32; }
-        .assign-msg.error { display:block; background:#FFF5F5; color:#E53E3E; }
-        .assign-msg.warning { display:block; background:#FFF8E1; color:#F57F17; }
+        .msg.ok { display:block; background:#E8F5E9; color:#2E7D32; }
+        .msg.err { display:block; background:#FFF5F5; color:#E53E3E; }
+        .msg.warn { display:block; background:#FFF8E1; color:#F57F17; }
 
-        /* ── Recent table ─────────────────────────────────────── */
-        .recent-table { width:100%; border-collapse:collapse; }
-        .recent-table th {
-            padding:9px 14px; text-align:left; font-weight:600; font-size:0.72rem;
+        /* ── Recent ───────────────────────────────────────────── */
+        .rtbl { width:100%; border-collapse:collapse; }
+        .rtbl th {
+            padding:8px 12px; text-align:left; font-weight:600; font-size:0.72rem;
             color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.5px;
             background:var(--color-bg); border-bottom:1px solid var(--color-border);
         }
-        .recent-table td { padding:9px 14px; border-bottom:1px solid var(--color-border); font-size:0.85rem; }
-        .recent-table tbody tr:hover { background:#FAFBFC; }
-        .recent-table tbody tr:last-child td { border-bottom:none; }
+        .rtbl td { padding:8px 12px; border-bottom:1px solid var(--color-border); font-size:0.84rem; }
+        .rtbl tbody tr:hover { background:#FAFBFC; }
+        .rtbl tbody tr:last-child td { border-bottom:none; }
 
-        .empty-state { text-align:center; padding:28px 16px; color:var(--color-text-muted); }
-        .empty-state i { font-size:1.6rem; margin-bottom:8px; display:block; opacity:0.3; }
-        .empty-state p { font-size:0.82rem; margin:0; }
+        .empty { text-align:center; padding:24px 16px; color:var(--color-text-muted); }
+        .empty i { font-size:1.4rem; margin-bottom:6px; display:block; opacity:0.3; }
+        .empty p { font-size:0.82rem; margin:0; }
 
-        /* ── Loading spinner ──────────────────────────────────── */
-        .loading-inline {
-            display:flex; align-items:center; gap:8px;
-            padding:16px; color:var(--color-text-muted); font-size:0.85rem;
-        }
-
-        /* ── Responsive ───────────────────────────────────────── */
-        @media (max-width:900px) {
-            .bottom-grid { grid-template-columns:1fr; }
-        }
-        @media (max-width:768px) {
-            .hero-overlay { padding:0 20px; }
-            .hero-overlay h1 { font-size:1.2rem; }
-            .form-row-2 { grid-template-columns:1fr; }
-            .student-card { flex-wrap:wrap; }
-            .student-card-stats { margin-left:0; width:100%; justify-content:flex-start; margin-top:8px; }
-        }
+        @media(max-width:900px) { .two-col { grid-template-columns:1fr; } }
+        @media(max-width:768px) { .row2 { grid-template-columns:1fr; } }
     </style>
 </head>
 <body data-view="admin" data-active="assign-tests">
 
-    <div class="layout">
-        <nav class="sidebar" id="sidebar"></nav>
-        <main class="main-content">
-            <div class="admin-assign-tests">
+<div class="layout">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="main-content">
+        <div>
+            <div class="page-header">
+                <h1 class="page-title">Assign Tests</h1>
+                <p class="page-subtitle">Search for a student, then assign a mastery test or screening</p>
+            </div>
 
-                <!-- Hero -->
-                <div class="hero-banner">
-                    <img src="/img/assign-tests-header.png" alt="">
-                    <div class="hero-overlay">
-                        <div>
-                            <h1>Assign Tests</h1>
-                            <p>Assign mastery tests and screening assignments for your students!</p>
-                        </div>
-                    </div>
-                </div>
+            <!-- Search -->
+            <div class="search-wrap" id="search-wrap">
+                <i class="fa-solid fa-magnifying-glass si"></i>
+                <input type="text" id="q" placeholder="Type a student name or email..." autocomplete="off">
+                <div class="search-dd" id="dd"></div>
+            </div>
 
-                <!-- Step 1: Student Search -->
-                <div class="search-section" id="search-section">
-                    <label>Find a Student</label>
-                    <div class="search-wrap">
-                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                        <input type="text" id="student-search" placeholder="Search by name or email..." autocomplete="off">
-                        <div class="search-dropdown" id="search-dropdown"></div>
-                    </div>
-                </div>
+            <!-- Selected student (hidden) -->
+            <div id="stu" style="display:none"></div>
 
-                <!-- Step 2: Selected Student Card (hidden until selected) -->
-                <div id="student-card-wrap" style="display:none;"></div>
-
-                <!-- Step 3: Assign + Recent side by side (hidden until selected) -->
-                <div class="bottom-grid" id="bottom-section" style="display:none;">
-
-                    <!-- Assign Test -->
-                    <div class="panel-card">
-                        <div class="card-header">
-                            <h2 class="card-title"><i class="fa-solid fa-clipboard-check"></i>Assign Test</h2>
-                        </div>
-                        <div class="panel-body">
-                            <div class="form-row-2">
-                                <div class="field">
-                                    <label>Subject</label>
-                                    <select id="assign-subject" onchange="checkCompletion()">
-                                        <option value="">Select subject...</option>
-                                        <option value="Math">Math</option>
-                                        <option value="Reading">Reading</option>
-                                        <option value="Writing">Writing</option>
-                                        <option value="Science">Science</option>
-                                        <option value="Social Studies">Social Studies</option>
-                                        <option value="Language">Language</option>
-                                        <option value="Vocabulary">Vocabulary</option>
-                                    </select>
-                                </div>
-                                <div class="field">
-                                    <label>Grade</label>
-                                    <select id="assign-grade" onchange="checkCompletion()">
-                                        <option value="">Select grade...</option>
-                                        <option value="3">Grade 3</option>
-                                        <option value="4">Grade 4</option>
-                                        <option value="5">Grade 5</option>
-                                        <option value="6">Grade 6</option>
-                                        <option value="7">Grade 7</option>
-                                        <option value="8">Grade 8</option>
-                                        <option value="9">Grade 9</option>
-                                        <option value="10">Grade 10</option>
-                                        <option value="11">Grade 11</option>
-                                        <option value="12">Grade 12</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="field">
-                                <label>Type</label>
-                                <select id="assign-type">
-                                    <option value="test-assignment">Test Assignment</option>
-                                    <option value="screening">Screening Test</option>
+            <!-- Form + Recent (hidden until student picked) -->
+            <div class="two-col" id="panels" style="display:none">
+                <div class="card">
+                    <div class="card-hd"><h3><i class="fa-solid fa-clipboard-check"></i>New Assignment</h3></div>
+                    <div class="card-bd">
+                        <div class="row2">
+                            <div class="fg">
+                                <label>Subject</label>
+                                <select id="subj" onchange="chk()">
+                                    <option value="">Select...</option>
+                                    <option>Math</option><option>Reading</option><option>Writing</option>
+                                    <option>Science</option><option>Social Studies</option>
+                                    <option>Language</option><option>Vocabulary</option>
                                 </select>
                             </div>
-                            <div class="assign-msg" id="completion-warn"></div>
-                            <button class="assign-btn" id="assign-btn" onclick="submitAssignment()" disabled>
-                                <i class="fa-solid fa-paper-plane"></i> Assign Test
-                            </button>
-                            <div class="assign-msg" id="assign-msg"></div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Assignments -->
-                    <div class="panel-card">
-                        <div class="card-header">
-                            <h2 class="card-title"><i class="fa-solid fa-clock-rotate-left"></i>Recent Assignments</h2>
-                        </div>
-                        <div id="recent-body">
-                            <div class="empty-state">
-                                <i class="fa-solid fa-inbox"></i>
-                                <p>No assignments yet this session.</p>
+                            <div class="fg">
+                                <label>Grade</label>
+                                <select id="grd" onchange="chk()">
+                                    <option value="">Select...</option>
+                                    <option value="3">3</option><option value="4">4</option>
+                                    <option value="5">5</option><option value="6">6</option>
+                                    <option value="7">7</option><option value="8">8</option>
+                                    <option value="9">9</option><option value="10">10</option>
+                                    <option value="11">11</option><option value="12">12</option>
+                                </select>
                             </div>
                         </div>
+                        <div class="fg">
+                            <label>Type</label>
+                            <select id="typ">
+                                <option value="test-assignment">Test Assignment</option>
+                                <option value="screening">Screening</option>
+                            </select>
+                        </div>
+                        <div class="msg" id="warn"></div>
+                        <button class="abtn" id="btn" onclick="submit()" disabled>
+                            <i class="fa-solid fa-paper-plane"></i> Assign Test
+                        </button>
+                        <div class="msg" id="res"></div>
                     </div>
                 </div>
-
+                <div class="card">
+                    <div class="card-hd"><h3><i class="fa-solid fa-clock-rotate-left"></i>Recent</h3></div>
+                    <div id="recent">
+                        <div class="empty"><i class="fa-solid fa-inbox"></i><p>No assignments yet.</p></div>
+                    </div>
+                </div>
             </div>
-        </main>
-    </div>
+        </div>
+    </main>
+</div>
 
-    <script src="/js/auth-guard.js?v=3"></script>
-    <script src="/js/layout.js?v=2"></script>
-    <script src="/js/app.js"></script>
-    <script>
-    /* ==================================================================
-       State
-       ================================================================== */
-    var cachedStudents = [];
-    var selectedStudent = null;       // { sourcedId, givenName, familyName, email, role }
-    var completedCombos = new Set();  // "math|6", "reading|8", etc.
-    var studentEnrollments = [];
-    var studentResults = [];
-    var recentAssignments = [];
+<script src="/js/auth-guard.js?v=3"></script>
+<script src="/js/layout.js?v=2"></script>
+<script src="/js/app.js"></script>
+<script>
+var students=[], sel=null, done=new Set(), recents=[];
 
-    function esc(s) {
-        if (s == null) return '';
-        if (typeof s !== 'string') s = String(s);
-        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-                .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    }
+function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-    /* ==================================================================
-       Student Search
-       ================================================================== */
-    var searchTimer = null;
-    var searchInput = null;
-
-    document.addEventListener('DOMContentLoaded', async function() {
-        searchInput = document.getElementById('student-search');
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimer);
-            var q = this.value.trim();
-            if (q.length < 1) { closeDropdown(); return; }
-            searchTimer = setTimeout(function() { doSearch(q); }, 150);
-        });
-
-        // Close dropdown on outside click
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.search-section')) closeDropdown();
-        });
-
-        // Load students
-        try {
-            var resp = await fetch('/api/users');
-            var data = await resp.json();
-            cachedStudents = (data.users || []).filter(function(u) {
-                return (u.role || '').toLowerCase() === 'student';
-            });
-        } catch(e) {
-            console.warn('[Admin] Failed to load students:', e.message);
-        }
+/* ── Init ─────────────────────────────────────────────────────── */
+var qi, timer;
+document.addEventListener('DOMContentLoaded', async function(){
+    qi=document.getElementById('q');
+    qi.addEventListener('input',function(){
+        clearTimeout(timer);
+        var v=this.value.trim();
+        if(v.length<1){cdd();return;}
+        timer=setTimeout(function(){search(v);},150);
     });
+    document.addEventListener('click',function(e){if(!e.target.closest('.search-wrap'))cdd();});
 
-    function doSearch(query) {
-        var q = query.toLowerCase();
-        var dd = document.getElementById('search-dropdown');
+    try{
+        var r=await fetch('/api/users');
+        var d=await r.json();
+        students=(d.users||[]).filter(function(u){return(u.role||'').toLowerCase()==='student';});
+    }catch(e){}
+});
 
-        // Email lookup via API
-        if (q.includes('@')) {
-            fetch('/api/user-lookup?email=' + encodeURIComponent(query))
-                .then(function(r) { return r.json(); })
-                .then(function(d) { renderDropdown(d.user ? [d.user] : []); })
-                .catch(function() { renderDropdown([]); });
-            return;
-        }
-
-        // Local filter — match first name, last name, full name, email, username
-        var results = cachedStudents.filter(function(u) {
-            var first = (u.givenName || '').toLowerCase();
-            var last = (u.familyName || '').toLowerCase();
-            var full = first + ' ' + last;
-            var email = (u.email || '').toLowerCase();
-            var uname = (u.username || '').toLowerCase();
-            return first.includes(q) || last.includes(q) || full.includes(q)
-                || email.includes(q) || uname.includes(q);
-        });
-
-        renderDropdown(results.slice(0, 30));
+/* ── Search ───────────────────────────────────────────────────── */
+function search(q){
+    var lq=q.toLowerCase();
+    if(lq.includes('@')){
+        fetch('/api/user-lookup?email='+encodeURIComponent(q))
+            .then(function(r){return r.json();})
+            .then(function(d){rdd(d.user?[d.user]:[]);})
+            .catch(function(){rdd([]);});
+        return;
     }
+    var res=students.filter(function(u){
+        var f=(u.givenName||'').toLowerCase(), l=(u.familyName||'').toLowerCase();
+        return f.includes(lq)||l.includes(lq)||(f+' '+l).includes(lq)
+            ||(u.email||'').toLowerCase().includes(lq)||(u.username||'').toLowerCase().includes(lq);
+    });
+    rdd(res.slice(0,30));
+}
 
-    function renderDropdown(results) {
-        var dd = document.getElementById('search-dropdown');
-        if (!results.length) {
-            dd.innerHTML = '<div class="search-empty"><i class="fa-solid fa-user-slash" style="opacity:0.4;margin-right:6px;"></i>No students found.</div>';
-            dd.classList.add('open');
-            return;
-        }
-        dd.innerHTML = results.map(function(u) {
-            var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
-            var email = u.email || '';
-            var initial = (u.givenName || '?')[0].toUpperCase();
-            return '<div class="search-item" data-id="' + esc(u.sourcedId) + '" onclick="pickStudent(this)">' +
-                '<div class="user-cell-avatar">' + esc(initial) + '</div>' +
-                '<div class="search-item-info">' +
-                    '<div class="search-item-name">' + esc(name) + '</div>' +
-                    '<div class="search-item-email">' + esc(email) + '</div>' +
-                '</div>' +
-                '<span class="role-badge role-' + esc(u.role || 'student') + '">' + esc(u.role || 'student') + '</span>' +
-            '</div>';
-        }).join('');
-        dd.classList.add('open');
+function rdd(list){
+    var dd=document.getElementById('dd');
+    if(!list.length){dd.innerHTML='<div class="sr-empty">No students found.</div>';dd.classList.add('open');return;}
+    dd.innerHTML=list.map(function(u){
+        var nm=((u.givenName||'')+' '+(u.familyName||'')).trim()||'Unknown';
+        return '<div class="sr" data-id="'+esc(u.sourcedId)+'" onclick="pick(this)">'+
+            '<div class="av">'+esc((u.givenName||'?')[0].toUpperCase())+'</div>'+
+            '<div class="sr-info"><div class="sr-name">'+esc(nm)+'</div><div class="sr-email">'+esc(u.email||'')+'</div></div></div>';
+    }).join('');
+    dd.classList.add('open');
+}
+function cdd(){document.getElementById('dd').classList.remove('open');}
+
+/* ── Pick student ─────────────────────────────────────────────── */
+function pick(el){
+    var id=el.getAttribute('data-id');
+    sel=students.find(function(u){return u.sourcedId===id;})||null;
+    if(!sel){
+        var n=el.querySelector('.sr-name'),e=el.querySelector('.sr-email');
+        sel={sourcedId:id,givenName:n?n.textContent:'',familyName:'',email:e?e.textContent:'',role:'student'};
     }
+    cdd(); qi.value='';
+    done=new Set();
 
-    function closeDropdown() {
-        document.getElementById('search-dropdown').classList.remove('open');
-    }
+    var nm=((sel.givenName||'')+' '+(sel.familyName||'')).trim()||'Unknown';
+    var ini=(sel.givenName||'?')[0].toUpperCase();
+    document.getElementById('stu').style.display='';
+    document.getElementById('stu').innerHTML=
+        '<div class="stu-bar"><div class="av">'+esc(ini)+'</div>'+
+        '<div class="stu-bar-info"><div class="stu-bar-name">'+esc(nm)+'</div>'+
+        '<div class="stu-bar-email">'+esc(sel.email||'')+'</div></div>'+
+        '<button class="change-btn" onclick="clr()"><i class="fa-solid fa-xmark"></i> Change</button></div>';
 
-    /* ==================================================================
-       Pick Student → Show card, fetch data, reveal form
-       ================================================================== */
-    function pickStudent(el) {
-        var id = el.getAttribute('data-id');
-        var user = cachedStudents.find(function(u) { return u.sourcedId === id; });
-        if (!user) {
-            // Might be from email lookup — extract from DOM
-            var nameEl = el.querySelector('.search-item-name');
-            var emailEl = el.querySelector('.search-item-email');
-            user = { sourcedId: id, givenName: nameEl ? nameEl.textContent : '', familyName: '', email: emailEl ? emailEl.textContent : '', role: 'student' };
-        }
+    document.getElementById('panels').style.display='';
+    document.getElementById('subj').value='';
+    document.getElementById('grd').value='';
+    hide('warn'); hide('res'); upd();
 
-        selectedStudent = user;
-        closeDropdown();
-        searchInput.value = '';
+    // Fetch enrollments + results
+    loadData(sel.sourcedId);
+}
 
-        // Reset completion data
-        completedCombos = new Set();
-        studentEnrollments = [];
-        studentResults = [];
+function clr(){
+    sel=null; done=new Set();
+    document.getElementById('stu').style.display='none';
+    document.getElementById('panels').style.display='none';
+    qi.focus();
+}
 
-        // Show student card
-        renderStudentCard(true);
-
-        // Show bottom section
-        document.getElementById('bottom-section').style.display = '';
-
-        // Reset form
-        document.getElementById('assign-subject').value = '';
-        document.getElementById('assign-grade').value = '';
-        document.getElementById('completion-warn').className = 'assign-msg';
-        document.getElementById('completion-warn').style.display = 'none';
-        document.getElementById('assign-msg').className = 'assign-msg';
-        document.getElementById('assign-msg').style.display = 'none';
-        updateAssignBtn();
-
-        // Fetch enrollment + results in parallel
-        fetchStudentData(user.sourcedId);
-    }
-
-    function renderStudentCard(loading) {
-        var u = selectedStudent;
-        if (!u) return;
-        var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
-        var initial = (u.givenName || '?')[0].toUpperCase();
-        var completedCount = completedCombos.size;
-        var enrollCount = studentEnrollments.length;
-
-        var statsHtml = loading
-            ? '<div class="sc-stat"><div class="sc-stat-val"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.85rem;color:var(--color-text-muted);"></i></div><div class="sc-stat-label">Loading</div></div>'
-            : '<div class="sc-stat"><div class="sc-stat-val">' + enrollCount + '</div><div class="sc-stat-label">Enrollments</div></div>' +
-              '<div class="sc-stat"><div class="sc-stat-val">' + completedCount + '</div><div class="sc-stat-label">Tests Done</div></div>';
-
-        document.getElementById('student-card-wrap').style.display = '';
-        document.getElementById('student-card-wrap').innerHTML =
-            '<div class="student-card">' +
-                '<div class="avatar-lg">' + esc(initial) + '</div>' +
-                '<div class="student-card-info">' +
-                    '<div class="student-card-name">' + esc(name) + '</div>' +
-                    '<div class="student-card-meta">' +
-                        '<span>' + esc(u.email || '') + '</span>' +
-                        '<span class="role-badge role-' + esc(u.role || 'student') + '">' + esc(u.role || 'student') + '</span>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="student-card-stats">' + statsHtml + '</div>' +
-                '<button class="change-btn" onclick="clearStudent()"><i class="fa-solid fa-arrows-rotate" style="margin-right:4px;"></i>Change</button>' +
-            '</div>';
-    }
-
-    function clearStudent() {
-        selectedStudent = null;
-        completedCombos = new Set();
-        studentEnrollments = [];
-        studentResults = [];
-        document.getElementById('student-card-wrap').style.display = 'none';
-        document.getElementById('student-card-wrap').innerHTML = '';
-        document.getElementById('bottom-section').style.display = 'none';
-        searchInput.focus();
-    }
-
-    /* ==================================================================
-       Fetch Enrollments + Results → Build completed combos
-       ================================================================== */
-    async function fetchStudentData(studentId) {
-        try {
-            var [enrollResp, resultsResp] = await Promise.all([
-                fetch('/api/enrollments?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }),
-                fetch('/api/results?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { results: [] }; }),
-            ]);
-
-            // Parse enrollments
-            var raw = enrollResp.data || enrollResp.enrollments || enrollResp.courses || (Array.isArray(enrollResp) ? enrollResp : []);
-            studentEnrollments = raw.filter(function(e) {
-                var title = ((e.course || {}).title || '').trim();
-                return title && !title.startsWith('Manual XP') && !title.includes('Hole-Filling');
-            });
-
-            // Parse results
-            studentResults = resultsResp.results || [];
-
-            // Build completed subject+grade combos from mastery test enrollments
-            completedCombos = new Set();
-
-            // Method 1: Check enrollments with mastery_test courseType
-            for (var i = 0; i < studentEnrollments.length; i++) {
-                var e = studentEnrollments[i];
-                var meta = (e.metadata && e.metadata.metrics) || {};
-                var courseMeta = ((e.course || {}).metadata || {});
-                var courseMetrics = courseMeta.metrics || {};
-
-                var isMastery = meta.courseType === 'mastery_test'
-                    || meta.courseType === 'mastery-test'
-                    || meta.courseType === 'masteryTest'
-                    || courseMetrics.courseType === 'mastery_test'
-                    || courseMetrics.courseType === 'mastery-test'
-                    || courseMetrics.courseType === 'masteryTest';
-
-                if (!isMastery) {
-                    var title = ((e.course || {}).title || '').toLowerCase();
-                    isMastery = title.includes('mastery') && title.includes('test');
-                }
-
-                if (isMastery) {
-                    // Extract subject + grade from the enrollment
-                    var subjects = (e.course || {}).subjects || [];
-                    var grades = (e.course || {}).grades || [];
-                    var subject = subjects[0] || '';
-                    // Also try to extract from title
-                    if (!subject) subject = guessSubjectFromTitle((e.course || {}).title || '');
-
-                    for (var g = 0; g < grades.length; g++) {
-                        if (subject) {
-                            completedCombos.add(subject.toLowerCase() + '|' + grades[g]);
-                        }
-                    }
-                    // If no grades, still record subject
-                    if (!grades.length && subject) {
-                        completedCombos.add(subject.toLowerCase() + '|*');
-                    }
-                }
+/* ── Fetch completion data ────────────────────────────────────── */
+async function loadData(sid){
+    try{
+        var [er,rr]=await Promise.all([
+            fetch('/api/enrollments?userId='+encodeURIComponent(sid)).then(function(r){return r.json();}),
+            fetch('/api/results?userId='+encodeURIComponent(sid)).then(function(r){return r.json();}).catch(function(){return{results:[]};})
+        ]);
+        var raw=er.data||er.enrollments||er.courses||(Array.isArray(er)?er:[]);
+        for(var i=0;i<raw.length;i++){
+            var e=raw[i], m=(e.metadata&&e.metadata.metrics)||{}, cm=((e.course||{}).metadata||{}), cx=cm.metrics||{};
+            var mt=m.courseType==='mastery_test'||m.courseType==='mastery-test'||m.courseType==='masteryTest'
+                ||cx.courseType==='mastery_test'||cx.courseType==='mastery-test'||cx.courseType==='masteryTest';
+            if(!mt){var t=((e.course||{}).title||'').toLowerCase();mt=t.includes('mastery')&&t.includes('test');}
+            if(mt){
+                var subs=(e.course||{}).subjects||[], grs=(e.course||{}).grades||[];
+                var subj=subs[0]||guessSub((e.course||{}).title||'');
+                if(subj){for(var g=0;g<grs.length;g++)done.add(subj.toLowerCase()+'|'+grs[g]);
+                if(!grs.length)done.add(subj.toLowerCase()+'|*');}
             }
-
-            // Method 2: Check results — any result with a score means that test is done
-            // Results have lineItemSourcedId which links to tests
-            var completedLineItems = new Set();
-            for (var j = 0; j < studentResults.length; j++) {
-                var r = studentResults[j];
-                if (r.score !== null && r.score !== undefined && r.score !== '') {
-                    completedLineItems.add(r.lineItemSourcedId);
-                }
-            }
-
-        } catch(err) {
-            console.warn('[Admin] Error fetching student data:', err.message);
         }
+    }catch(e){}
+    chk();
+}
 
-        // Re-render card with loaded stats
-        renderStudentCard(false);
-        checkCompletion();
-    }
+function guessSub(t){
+    t=(t||'').toLowerCase();
+    if(t.includes('math'))return'Math';if(t.includes('reading')||t.includes('ela'))return'Reading';
+    if(t.includes('writing'))return'Writing';if(t.includes('science'))return'Science';
+    if(t.includes('social'))return'Social Studies';if(t.includes('lang'))return'Language';
+    if(t.includes('vocab'))return'Vocabulary';return'';
+}
 
-    function guessSubjectFromTitle(title) {
-        var t = (title || '').toLowerCase();
-        if (t.includes('math') || t.includes('algebra')) return 'Math';
-        if (t.includes('reading') || t.includes('ela')) return 'Reading';
-        if (t.includes('writing') || t.includes('composition')) return 'Writing';
-        if (t.includes('science') || t.includes('physics') || t.includes('chem')) return 'Science';
-        if (t.includes('social') || t.includes('history') || t.includes('geo')) return 'Social Studies';
-        if (t.includes('lang')) return 'Language';
-        if (t.includes('vocab')) return 'Vocabulary';
-        return '';
-    }
+/* ── Completion check ─────────────────────────────────────────── */
+function chk(){
+    var s=document.getElementById('subj').value, g=document.getElementById('grd').value, w=document.getElementById('warn');
+    if(s&&g&&(done.has(s.toLowerCase()+'|'+g)||done.has(s.toLowerCase()+'|*'))){
+        w.innerHTML='<i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;"></i>Already completed '+esc(s)+' Grade '+esc(g);
+        w.className='msg warn'; w.style.display='block';
+    } else { hide('warn'); }
+    upd();
+}
 
-    /* ==================================================================
-       Check if selected combo is already completed
-       ================================================================== */
-    function checkCompletion() {
-        var subject = (document.getElementById('assign-subject') || {}).value || '';
-        var grade = (document.getElementById('assign-grade') || {}).value || '';
-        var warnEl = document.getElementById('completion-warn');
+function upd(){
+    var b=document.getElementById('btn');
+    b.disabled=!(sel&&document.getElementById('subj').value&&document.getElementById('grd').value);
+}
+function hide(id){var e=document.getElementById(id);e.className='msg';e.style.display='none';}
 
-        if (subject && grade) {
-            var key = subject.toLowerCase() + '|' + grade;
-            var keyWild = subject.toLowerCase() + '|*';
-            if (completedCombos.has(key) || completedCombos.has(keyWild)) {
-                warnEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i>This student has already completed ' + esc(subject) + ' Grade ' + esc(grade) + '. Consider choosing a different test.';
-                warnEl.className = 'assign-msg warning';
-                warnEl.style.display = 'block';
-            } else {
-                warnEl.className = 'assign-msg';
-                warnEl.style.display = 'none';
-            }
+/* ── Submit ───────────────────────────────────────────────────── */
+async function submit(){
+    if(!sel)return;
+    var s=document.getElementById('subj').value, g=document.getElementById('grd').value, t=document.getElementById('typ').value;
+    if(!s||!g)return;
+    var b=document.getElementById('btn'), r=document.getElementById('res');
+    b.disabled=true; b.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Assigning...';
+    hide('res');
+
+    var nm=((sel.givenName||'')+' '+(sel.familyName||'')).trim()||'Unknown';
+    try{
+        var resp=await fetch('/api/assign-test',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({studentId:sel.sourcedId,subject:s,grade:g,type:t})});
+        var data=await resp.json().catch(function(){return{};});
+        if(resp.ok&&data.success){
+            r.textContent=data.message||'Test assigned!';
+            r.className='msg ok'; r.style.display='block';
+            addR(nm,s,g,'ok');
+            done.add(s.toLowerCase()+'|'+g);
+            document.getElementById('subj').value='';
+            document.getElementById('grd').value='';
+            hide('warn');
         } else {
-            warnEl.className = 'assign-msg';
-            warnEl.style.display = 'none';
+            r.textContent=data.error||data.message||'Assignment failed.';
+            r.className='msg err'; r.style.display='block';
+            addR(nm,s,g,'err');
         }
-
-        updateAssignBtn();
+    }catch(e){
+        r.textContent='Network error — the API may be slow. Please try again.';
+        r.className='msg err'; r.style.display='block';
+        addR(nm,s,g,'err');
     }
+    b.innerHTML='<i class="fa-solid fa-paper-plane"></i> Assign Test';
+    upd();
+}
 
-    /* ==================================================================
-       Assign Button
-       ================================================================== */
-    function updateAssignBtn() {
-        var btn = document.getElementById('assign-btn');
-        if (!btn) return;
-        var hasStudent = !!selectedStudent;
-        var hasSubject = (document.getElementById('assign-subject') || {}).value !== '';
-        var hasGrade = (document.getElementById('assign-grade') || {}).value !== '';
-        btn.disabled = !(hasStudent && hasSubject && hasGrade);
-    }
-
-    async function submitAssignment() {
-        if (!selectedStudent) return;
-        var subject = (document.getElementById('assign-subject') || {}).value || '';
-        var grade = (document.getElementById('assign-grade') || {}).value || '';
-        var assignType = (document.getElementById('assign-type') || {}).value || 'test-assignment';
-        if (!subject || !grade) return;
-
-        var btn = document.getElementById('assign-btn');
-        var msgEl = document.getElementById('assign-msg');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Assigning...';
-        msgEl.className = 'assign-msg'; msgEl.style.display = 'none';
-
-        var name = ((selectedStudent.givenName || '') + ' ' + (selectedStudent.familyName || '')).trim() || 'Unknown';
-
-        try {
-            var resp = await fetch('/api/assign-test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    studentId: selectedStudent.sourcedId,
-                    subject: subject,
-                    grade: grade,
-                    type: assignType,
-                }),
-            });
-            var data = await resp.json().catch(function() { return {}; });
-            if (resp.ok && data.success) {
-                msgEl.textContent = data.message || 'Test assigned successfully!';
-                msgEl.className = 'assign-msg success'; msgEl.style.display = 'block';
-                addRecent(name, subject, grade, assignType, 'success');
-                // Mark as completed now
-                completedCombos.add(subject.toLowerCase() + '|' + grade);
-                document.getElementById('assign-subject').value = '';
-                document.getElementById('assign-grade').value = '';
-                document.getElementById('completion-warn').className = 'assign-msg';
-                document.getElementById('completion-warn').style.display = 'none';
-                // Update card stats
-                renderStudentCard(false);
-            } else {
-                msgEl.textContent = data.error || data.message || 'Assignment failed.';
-                msgEl.className = 'assign-msg error'; msgEl.style.display = 'block';
-                addRecent(name, subject, grade, assignType, 'error');
-            }
-        } catch(e) {
-            msgEl.textContent = 'Network error. Please try again.';
-            msgEl.className = 'assign-msg error'; msgEl.style.display = 'block';
-            addRecent(name, subject, grade, assignType, 'error');
-        }
-
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Assign Test';
-        updateAssignBtn();
-    }
-
-    /* ==================================================================
-       Recent Assignments
-       ================================================================== */
-    function addRecent(name, subject, grade, type, status) {
-        recentAssignments.unshift({ name: name, subject: subject, grade: grade, type: type, status: status });
-        if (recentAssignments.length > 20) recentAssignments.pop();
-        renderRecent();
-    }
-
-    function renderRecent() {
-        var el = document.getElementById('recent-body');
-        if (!recentAssignments.length) {
-            el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>No assignments yet this session.</p></div>';
-            return;
-        }
-        el.innerHTML = '<table class="recent-table"><thead><tr><th>Student</th><th>Subject</th><th>Grade</th><th>Status</th></tr></thead><tbody>' +
-            recentAssignments.map(function(a) {
-                var badge = a.status === 'success'
-                    ? '<span class="status-badge status-active">Assigned</span>'
-                    : '<span class="status-badge status-tobedeleted">Failed</span>';
-                return '<tr><td style="font-weight:600;">' + esc(a.name) + '</td><td>' + esc(a.subject) +
-                    '</td><td>' + esc(a.grade) + '</td><td>' + badge + '</td></tr>';
-            }).join('') + '</tbody></table>';
-    }
-    </script>
+/* ── Recents ──────────────────────────────────────────────────── */
+function addR(nm,s,g,st){
+    recents.unshift({nm:nm,s:s,g:g,st:st});
+    if(recents.length>15)recents.pop();
+    var el=document.getElementById('recent');
+    el.innerHTML='<table class="rtbl"><thead><tr><th>Student</th><th>Test</th><th>Status</th></tr></thead><tbody>'+
+        recents.map(function(a){
+            var bd=a.st==='ok'?'<span class="status-badge status-active">Assigned</span>':'<span class="status-badge status-tobedeleted">Failed</span>';
+            return '<tr><td style="font-weight:600;">'+esc(a.nm)+'</td><td>'+esc(a.s)+' Gr.'+esc(a.g)+'</td><td>'+bd+'</td></tr>';
+        }).join('')+'</tbody></table>';
+}
+</script>
 </body>
 </html>

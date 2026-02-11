@@ -69,7 +69,7 @@ class handler(BaseHTTPRequestHandler):
                         f"{API_BASE}/powerpath/test-assignments/bulk",
                         headers=headers,
                         json={"assignments": bulk_assignments},
-                        timeout=30,
+                        timeout=60,
                     )
                     if resp.status_code in (200, 201, 204):
                         applied = True
@@ -147,21 +147,28 @@ class handler(BaseHTTPRequestHandler):
 # ── Helpers ───────────────────────────────────────────────────────────
 
 def _post_assignment(headers, url, payload, method_name):
-    """POST to a PowerPath endpoint. Returns (applied, method, response, error)."""
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=30)
+    """POST to a PowerPath endpoint. Returns (applied, method, response, error).
+    Retries once on timeout."""
+    for attempt in range(2):
         try:
-            resp_data = resp.json()
-        except Exception:
-            resp_data = {"status": resp.status_code}
+            resp = requests.post(url, headers=headers, json=payload, timeout=60)
+            try:
+                resp_data = resp.json()
+            except Exception:
+                resp_data = {"status": resp.status_code}
 
-        if resp.status_code in (200, 201, 204):
-            return True, method_name, resp_data, None
+            if resp.status_code in (200, 201, 204):
+                return True, method_name, resp_data, None
 
-        error_msg = resp_data.get("error", resp_data.get("message", f"Status {resp.status_code}"))
-        return False, method_name, resp_data, error_msg
-    except Exception as e:
-        return False, method_name, None, str(e)
+            error_msg = resp_data.get("error", resp_data.get("message", f"Status {resp.status_code}"))
+            return False, method_name, resp_data, error_msg
+        except requests.exceptions.Timeout:
+            if attempt == 0:
+                continue  # retry once
+            return False, method_name, None, "Request timed out after 2 attempts (60s each)"
+        except Exception as e:
+            return False, method_name, None, str(e)
+    return False, method_name, None, "Unexpected error"
 
 
 def _try_line_item_assign(headers, student_id, line_item_id):
