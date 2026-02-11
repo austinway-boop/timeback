@@ -129,6 +129,8 @@
         var qtiUrl = params.get('url') || '';
         var subject = params.get('subject') || '';
         var gradeLevel = params.get('grade') || params.get('gradeLevel') || '';
+        var lessonId = params.get('lessonId') || '';
+        var courseCode = params.get('courseCode') || '';
         quizState.title = params.get('title') || 'Quiz';
         quizState.testId = testId;
 
@@ -157,36 +159,51 @@
         }
 
         // ── 2. Try production Timeback server functions (user may be logged in) ──
-        if (testId) {
+        // The production app uses TanStack Start server functions for PowerPath quizzes.
+        // Format: POST /_serverFn/{handler}?createServerFn with body {"data":{"lessonId":"..."},"context":{}}
+        var effectiveLessonId = lessonId || testId;
+        if (effectiveLessonId) {
             try {
                 area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading assessment content...</div>';
-                // The production app uses TanStack Start server functions for PowerPath quizzes
-                // These require the user to be logged into alpha.timeback.com (cookies sent via credentials:include)
-                var tbPayload = JSON.stringify({ data: { lessonId: testId } });
+                var tbBody = JSON.stringify({ data: { lessonId: effectiveLessonId }, context: {} });
+
+                // Try getLessonType first to understand what kind of content this is
                 var tbResp = await fetch(
-                    'https://alpha.timeback.com/_serverFn/src_features_powerpath-quiz_services_lesson-mastery_ts--getLessonType_createServerFn_handler?payload=' + encodeURIComponent(tbPayload) + '&createServerFn',
-                    { credentials: 'include', headers: { 'Accept': 'application/json' } }
+                    'https://alpha.timeback.com/_serverFn/src_features_powerpath-quiz_services_lesson-mastery_ts--getLessonType_createServerFn_handler?createServerFn',
+                    { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: tbBody }
                 );
                 if (tbResp.ok) {
                     var tbData = await tbResp.json();
                     console.log('Timeback getLessonType:', JSON.stringify(tbData));
-                    // If we got lesson data, try to get the QTI content from it
-                    if (tbData && (tbData.qtiUrl || tbData.itemId || tbData.testId || tbData.content)) {
-                        var tbQtiUrl = tbData.qtiUrl || tbData.url || '';
-                        var tbItemId = tbData.itemId || tbData.testId || tbData.id || '';
+
+                    // If we got useful data, use it
+                    if (tbData) {
+                        var tbQtiUrl = tbData.qtiUrl || tbData.url || tbData.href || '';
+                        var tbItemId = tbData.itemId || tbData.testId || tbData.id || tbData.qtiId || '';
+
                         if (tbQtiUrl) {
                             var loaded = await loadAllQuestions(tbQtiUrl, '', subject, gradeLevel);
                             if (loaded) return;
-                        } else if (tbItemId) {
+                        }
+                        if (tbItemId) {
                             var loaded = await loadAllQuestions('', tbItemId, subject, gradeLevel);
                             if (loaded) return;
                         }
-                        // If tbData has questions/content directly
-                        if (tbData.questions || tbData.content) {
-                            area.innerHTML = '<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px;">' + esc(quizState.title) + '</h1>' +
-                                '<div class="stimulus-box" style="max-height:none;">' + (typeof tbData.content === 'string' ? tbData.content : JSON.stringify(tbData, null, 2)) + '</div>' +
-                                '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button></div>';
-                            return;
+                        if (tbData.questions || tbData.items) {
+                            var qs = tbData.questions || tbData.items || [];
+                            if (qs.length > 0) {
+                                // TODO: render these questions through the quiz engine
+                                console.log('Got ' + qs.length + ' questions from Timeback');
+                            }
+                        }
+                        if (tbData.content || tbData.body || tbData.html) {
+                            var content = tbData.content || tbData.body || tbData.html || '';
+                            if (typeof content === 'string' && content.length > 20) {
+                                area.innerHTML = '<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px;">' + esc(quizState.title) + '</h1>' +
+                                    '<div class="stimulus-box" style="max-height:none;">' + content + '</div>' +
+                                    '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button></div>';
+                                return;
+                            }
                         }
                     }
                 }
