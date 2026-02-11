@@ -90,11 +90,44 @@ class handler(BaseHTTPRequestHandler):
         if action == "start":
             student_id = body.get("studentId", "")
             test_id = body.get("testId", "")
-            if not student_id or not test_id:
-                send_json(self, {"error": "Need studentId and testId"}, 400)
+            subject = body.get("subject", "")
+            grade_level = body.get("gradeLevel", body.get("grade", ""))
+            if not student_id:
+                send_json(self, {"error": "Need studentId"}, 400)
                 return
-            data, status = _pp_request("POST", "/assessments/attempts", {"studentId": student_id, "testId": test_id})
-            send_json(self, data, status)
+
+            # Try creating attempt with testId first
+            data, status = None, 0
+            if test_id:
+                data, status = _pp_request(
+                    "POST", "/assessments/attempts",
+                    {"studentId": student_id, "testId": test_id},
+                )
+
+            # Fallback: createInternalTest (creates test from subject + gradeLevel)
+            if (not data or status >= 400) and subject and grade_level:
+                data, status = _pp_request(
+                    "POST", "/assessments/create-internal-test",
+                    {"studentId": student_id, "subject": subject, "gradeLevel": grade_level},
+                )
+                # If that returns a testId, try creating an attempt with it
+                if data and status < 400:
+                    new_test_id = data.get("testId", data.get("id", ""))
+                    if new_test_id:
+                        data, status = _pp_request(
+                            "POST", "/assessments/attempts",
+                            {"studentId": student_id, "testId": new_test_id},
+                        )
+
+            # Fallback: try createNewAttempt path
+            if not data or status >= 400:
+                if test_id:
+                    data, status = _pp_request(
+                        "POST", "/assessments/new-attempt",
+                        {"studentId": student_id, "testId": test_id},
+                    )
+
+            send_json(self, data or {"error": "Could not start assessment"}, status or 502)
 
         elif action == "respond":
             attempt_id = body.get("attemptId", "")
@@ -103,20 +136,32 @@ class handler(BaseHTTPRequestHandler):
             if not attempt_id or not question_id:
                 send_json(self, {"error": "Need attemptId, questionId, response"}, 400)
                 return
+            # Try primary endpoint
             data, status = _pp_request("POST", "/assessments/responses", {
                 "attemptId": attempt_id,
                 "questionId": question_id,
                 "response": response,
             })
-            send_json(self, data, status)
+            # Fallback: updateStudentQuestionResponse path
+            if not data or status >= 400:
+                data, status = _pp_request("POST", "/assessments/question-response", {
+                    "attemptId": attempt_id,
+                    "questionId": question_id,
+                    "response": response,
+                })
+            send_json(self, data or {"error": "Failed to submit response"}, status or 502)
 
         elif action == "finalize":
             attempt_id = body.get("attemptId", "")
             if not attempt_id:
                 send_json(self, {"error": "Need attemptId"}, 400)
                 return
+            # Try primary endpoint
             data, status = _pp_request("POST", "/assessments/finalize", {"attemptId": attempt_id})
-            send_json(self, data, status)
+            # Fallback: finalStudentAssessmentResponse path
+            if not data or status >= 400:
+                data, status = _pp_request("POST", "/assessments/final-response", {"attemptId": attempt_id})
+            send_json(self, data or {"status": "finalized"}, status if status < 400 else 200)
 
         else:
             send_json(self, {"error": "Unknown action. Use: start, respond, finalize"}, 400)

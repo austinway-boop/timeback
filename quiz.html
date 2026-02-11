@@ -174,6 +174,8 @@
         var choices = q.choices || q.options || q.answers || [];
         var stimulus = q.stimulus || q.passage || q.reading || '';
         if (typeof stimulus === 'object') stimulus = renderNode(stimulus);
+        var isFRQ = q.isFRQ || false;
+        var expectedLines = q.expectedLines || 10;
 
         var accuracy = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
         var accColor = accuracy >= 90 ? '#2E7D32' : accuracy >= 80 ? '#F9A825' : accuracy > 0 ? '#E53E3E' : 'var(--color-text-muted)';
@@ -183,7 +185,7 @@
             '<div class="quiz-score"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP</div>' +
         '</div>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-            '<div class="quiz-status">Question ' + quizState.questionNum + '</div>' +
+            '<div class="quiz-status">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>' +
             '<div style="display:flex;gap:16px;font-size:0.85rem;font-weight:600;">' +
                 '<span>' + quizState.correct + '/' + quizState.total + ' correct</span>' +
                 '<span style="color:' + accColor + ';">' + accuracy + '% accuracy</span>' +
@@ -195,10 +197,17 @@
             html += '<div class="stimulus-box">' + stimulus + '</div>';
         }
 
-        html += '<div class="question-card"><div class="question-num">Question ' + quizState.questionNum + '</div>';
+        html += '<div class="question-card"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>';
         html += '<div class="question-text">' + (prompt || 'Loading question...') + '</div>';
 
-        if (choices.length > 0) {
+        if (isFRQ) {
+            // Free Response Question — textarea
+            html += '<textarea id="frq-response" rows="' + expectedLines + '" placeholder="Type your response here..." ' +
+                'style="width:100%;padding:14px;border:2px solid var(--color-border);border-radius:10px;font-size:0.95rem;font-family:inherit;line-height:1.7;resize:vertical;outline:none;transition:border-color 0.15s;box-sizing:border-box;" ' +
+                'onfocus="this.style.borderColor=\'var(--color-primary)\'" onblur="this.style.borderColor=\'var(--color-border)\'" ' +
+                'oninput="document.getElementById(\'submit-btn\').disabled=!this.value.trim()"></textarea>' +
+                '<div style="text-align:right;font-size:0.75rem;color:var(--color-text-muted);margin-top:4px;">Write a complete response. Be specific and use evidence.</div>';
+        } else if (choices.length > 0) {
             var letters = 'ABCDEFGHIJ';
             html += '<div class="choices" id="choices">';
             for (var i = 0; i < choices.length; i++) {
@@ -233,6 +242,11 @@
     }
 
     async function submitAnswer() {
+        // Handle FRQ: read from textarea
+        var frqEl = document.getElementById('frq-response');
+        if (frqEl && !quizState.selectedChoice) {
+            quizState.selectedChoice = frqEl.value.trim();
+        }
         if (!quizState.selectedChoice || quizState.answered) return;
         quizState.answered = true;
         quizState.total++;
@@ -370,34 +384,71 @@
                     var qi = q['qti-assessment-item'] || (q.content && q.content['qti-assessment-item']) || q;
                     var attrs = qi['_attributes'] || {};
                     var body = qi['qti-item-body'] || {};
+
+                    // Detect FRQ: qti-extended-text-interaction present
+                    var eti = body['qti-extended-text-interaction'];
                     var ci = body['qti-choice-interaction'] || {};
-                    var prompt = ci['qti-prompt'] || {};
+                    var isFRQ = !!eti && !ci['qti-simple-choice'];
+
+                    // Extract prompt — check multiple possible locations
+                    var prompt = ci['qti-prompt'] || body['qti-prompt'] || (eti && eti['qti-prompt']) || {};
                     var promptText = '';
-                    if (prompt.p) promptText = typeof prompt.p === 'string' ? prompt.p : (prompt.p['_'] || renderNode(prompt.p));
+                    if (prompt.p) {
+                        var ps = Array.isArray(prompt.p) ? prompt.p : [prompt.p];
+                        promptText = ps.map(function(p) {
+                            return '<p>' + (typeof p === 'string' ? p : (p['_'] || renderNode(p))) + '</p>';
+                        }).join('');
+                    }
+                    if (!promptText && typeof prompt === 'string') promptText = prompt;
                     if (!promptText) {
                         var bc = JSON.parse(JSON.stringify(body));
                         delete bc['qti-choice-interaction'];
+                        delete bc['qti-extended-text-interaction'];
+                        delete bc['qti-response-declaration'];
+                        delete bc['qti-outcome-declaration'];
                         promptText = renderNode(bc);
                     }
+
+                    // FRQ: get expected lines
+                    var expectedLines = 10;
+                    if (eti) {
+                        var etiAttrs = eti['_attributes'] || eti;
+                        expectedLines = parseInt(etiAttrs['expected-lines'] || etiAttrs.expectedLines || '10', 10);
+                    }
+
+                    // Stimulus reference
+                    var stimRef = body['qti-stimulus-ref'];
+                    var stimId = stimRef ? ((stimRef['_attributes'] || stimRef).identifier || '') : '';
+
+                    // Multiple choice parsing
                     var sc = ci['qti-simple-choice'] || [];
                     if (!Array.isArray(sc)) sc = [sc];
-                    var choices = sc.map(function(c,i) {
+                    var choices = isFRQ ? [] : sc.map(function(c,i) {
                         var ca = c['_attributes'] || {};
                         var t = c.p ? (typeof c.p === 'string' ? c.p : (c.p['_'] || renderNode(c.p))) : renderNode(c);
                         return { id: ca.identifier || String(i), text: t };
                     });
-                    // Get correct answer
+
+                    // Get correct answer (MC only)
                     var rd = qi['qti-response-declaration'] || {};
                     var cr = rd['qti-correct-response'] || {};
                     var correctId = cr['qti-value'] || '';
+
                     // Get feedback
                     var feedbackMap = {};
-                    sc.forEach(function(c) {
-                        var ca = c['_attributes'] || {};
-                        var fb = c['qti-feedback-inline'] || {};
-                        if (fb.span) feedbackMap[ca.identifier] = typeof fb.span === 'string' ? fb.span : renderNode(fb.span);
-                    });
-                    return { prompt: promptText, choices: choices, correctId: correctId, feedbackMap: feedbackMap };
+                    if (!isFRQ) {
+                        sc.forEach(function(c) {
+                            var ca = c['_attributes'] || {};
+                            var fb = c['qti-feedback-inline'] || {};
+                            if (fb.span) feedbackMap[ca.identifier] = typeof fb.span === 'string' ? fb.span : renderNode(fb.span);
+                        });
+                    }
+
+                    return {
+                        prompt: promptText, choices: choices, correctId: correctId,
+                        feedbackMap: feedbackMap, isFRQ: isFRQ, expectedLines: expectedLines,
+                        stimulusId: stimId,
+                    };
                 });
 
                 // Run static quiz one at a time
@@ -413,32 +464,53 @@
                     var qData = {
                         prompt: q.prompt,
                         choices: q.choices.map(function(c) { return { id: c.id, text: c.text }; }),
+                        isFRQ: q.isFRQ,
+                        expectedLines: q.expectedLines,
                     };
                     renderQuestion(qData);
 
                     // Override submit to handle locally
                     document.getElementById('submit-btn').onclick = function() {
+                        // FRQ: read from textarea
+                        var frqEl = document.getElementById('frq-response');
+                        if (frqEl && !quizState.selectedChoice) {
+                            quizState.selectedChoice = frqEl.value.trim();
+                        }
                         if (!quizState.selectedChoice || quizState.answered) return;
                         quizState.answered = true;
                         quizState.total++;
-                        var isCorrect = quizState.selectedChoice === q.correctId;
+
+                        var isCorrect;
+                        if (q.isFRQ) {
+                            // FRQ: mark as correct if response is substantial (30+ chars)
+                            isCorrect = quizState.selectedChoice.length >= 30;
+                        } else {
+                            isCorrect = quizState.selectedChoice === q.correctId;
+                        }
                         if (isCorrect) {
                             quizState.correct++;
-                            // XP: 1 XP per minute of focused learning. Estimate ~1 min per question.
-                            quizState.xpEarned += 1;
+                            quizState.xpEarned += q.isFRQ ? 2 : 1;
                         }
-                        var fb = q.feedbackMap[quizState.selectedChoice] || '';
+                        var fb = q.isFRQ ? '' : (q.feedbackMap[quizState.selectedChoice] || '');
 
-                        // Highlight correct and incorrect
-                        document.querySelectorAll('.choice').forEach(function(c) {
-                            if (c.dataset.id === quizState.selectedChoice) c.classList.add(isCorrect ? 'correct' : 'incorrect');
-                            if (c.dataset.id === q.correctId) c.classList.add('correct');
-                        });
-
-                        // Show feedback
-                        var feedbackEl = document.getElementById('feedback');
-                        feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-                        feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
+                        if (q.isFRQ) {
+                            // FRQ: disable textarea, show submission feedback
+                            var frqBox = document.getElementById('frq-response');
+                            if (frqBox) { frqBox.disabled = true; frqBox.style.opacity = '0.7'; }
+                            var feedbackEl = document.getElementById('feedback');
+                            feedbackEl.className = 'feedback correct';
+                            feedbackEl.innerHTML = '<strong><i class="fa-solid fa-check-circle"></i> Response Submitted</strong>' +
+                                (isCorrect ? '<p style="margin-top:6px;">Good response! XP awarded.</p>' : '<p style="margin-top:6px;">Try to write a more detailed response next time (at least 30 characters).</p>');
+                        } else {
+                            // MC: Highlight correct and incorrect choices
+                            document.querySelectorAll('.choice').forEach(function(c) {
+                                if (c.dataset.id === quizState.selectedChoice) c.classList.add(isCorrect ? 'correct' : 'incorrect');
+                                if (c.dataset.id === q.correctId) c.classList.add('correct');
+                            });
+                            var feedbackEl = document.getElementById('feedback');
+                            feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
+                            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
+                        }
 
                         // Update score displays
                         var acc = Math.round((quizState.correct / quizState.total) * 100);
