@@ -383,16 +383,35 @@
                         var isDone = prog && (prog.scoreStatus === 'fully graded' || prog.textScore === 'Completed');
                         var resources = lesson.componentResources || [];
 
-                        // Find the first openable URL (video or qti)
+                        // Find the best openable URL for this lesson
                         var openUrl = '';
                         for (var ri = 0; ri < resources.length; ri++) {
                             var res = resources[ri].resource || {};
                             var rmeta = (typeof res === 'object' ? res.metadata : null) || {};
+                            var rtype = (rmeta.type || '').toLowerCase();
                             var rurl = rmeta.url || res.url || '';
-                            if (rurl) { openUrl = rurl; break; }
+                            var resId = res.sourcedId || res.id || '';
+
+                            if (rtype === 'video' && rurl) {
+                                // Videos: open YouTube/direct URL
+                                openUrl = rurl;
+                                break;
+                            } else if (rtype === 'qti' && resId) {
+                                // QTI items: open our quiz page
+                                var qtiType = rurl && rurl.includes('stimuli') ? 'stimulus' : (rurl && rurl.includes('assessment') ? 'assessment' : 'item');
+                                openUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=' + qtiType + '&title=' + encodeURIComponent(lTitle);
+                                break;
+                            } else if (rtype && rtype.includes('assessment') && resId) {
+                                openUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=assessment&title=' + encodeURIComponent(lTitle);
+                                break;
+                            } else if (rurl && !rurl.includes('flashcard.com')) {
+                                // Any other real URL (not placeholder)
+                                openUrl = rurl;
+                                break;
+                            }
                         }
 
-                        html += '<div style="padding:10px 20px 10px 40px;border-top:1px solid #F4F6F9;' + (openUrl ? 'cursor:pointer;' : '') + '" ' + (openUrl ? 'onclick="window.open(\'' + esc(openUrl) + '\',\'_blank\')" onmouseover="this.style.background=\'#F8FAFC\'" onmouseout="this.style.background=\'transparent\'"' : '') + '>' +
+                        html += '<div style="padding:10px 20px 10px 40px;border-top:1px solid #F4F6F9;' + (openUrl ? 'cursor:pointer;' : '') + '" ' + (openUrl ? 'onclick="' + (openUrl.startsWith('/') ? 'window.location.href' : 'window.open') + '(\'' + esc(openUrl) + '\'' + (openUrl.startsWith('/') ? '' : ',\'_blank\'') + ')" onmouseover="this.style.background=\'#F8FAFC\'" onmouseout="this.style.background=\'transparent\'"' : '') + '>' +
                             '<div style="display:flex;align-items:center;gap:10px;">' +
                                 '<div style="width:26px;height:26px;border-radius:6px;background:' + (isDone ? '#E8F5E9' : '#F4F6F9') + ';color:' + (isDone ? '#2E7D32' : '#A0AEC0') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;flex-shrink:0;"><i class="fa-solid ' + (isDone ? 'fa-check' : 'fa-file-lines') + '"></i></div>' +
                                 '<div style="flex:1;min-width:0;font-weight:500;font-size:0.88rem;">' + esc(lTitle) + '</div>' +
@@ -407,10 +426,25 @@
                                 var res = cr.resource || {};
                                 var rTitle = (typeof res === 'object' ? (res.title || cr.title || '') : String(res)).substring(0, 40);
                                 var rmeta = (typeof res === 'object' ? res.metadata : null) || {};
-                                var rtype = rmeta.type || '';
+                                var rtype = (rmeta.type || '').toLowerCase();
                                 var rurl = rmeta.url || res.url || '';
+                                var resId = (typeof res === 'object' ? (res.sourcedId || res.id) : '') || '';
 
-                                html += '<a ' + (rurl ? 'href="' + esc(rurl) + '" target="_blank"' : '') + ' style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#F4F6F9;font-size:0.72rem;font-weight:500;color:' + resColor(rtype) + ';text-decoration:none;transition:background 0.15s;" onmouseover="this.style.background=\'#E8ECF1\'" onmouseout="this.style.background=\'#F4F6F9\'" onclick="event.stopPropagation()">' +
+                                // Build proper link: QTI → quiz page, video → direct, placeholder → skip
+                                var pillUrl = '';
+                                if (rtype === 'video' && rurl) {
+                                    pillUrl = rurl;
+                                } else if (rtype === 'qti' && resId) {
+                                    var qType = rurl && rurl.includes('stimuli') ? 'stimulus' : (rurl && rurl.includes('assessment') ? 'assessment' : 'item');
+                                    pillUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=' + qType + '&title=' + encodeURIComponent(rTitle);
+                                } else if (rtype.includes('assessment') && resId) {
+                                    pillUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=assessment&title=' + encodeURIComponent(rTitle);
+                                } else if (rurl && !rurl.includes('flashcard.com')) {
+                                    pillUrl = rurl;
+                                }
+
+                                var isInternal = pillUrl.startsWith('/');
+                                html += '<a ' + (pillUrl ? (isInternal ? 'href="' + esc(pillUrl) + '"' : 'href="' + esc(pillUrl) + '" target="_blank"') : '') + ' style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#F4F6F9;font-size:0.72rem;font-weight:500;color:' + resColor(rtype) + ';text-decoration:none;transition:background 0.15s;' + (pillUrl ? 'cursor:pointer;' : 'opacity:0.5;cursor:default;') + '" onmouseover="this.style.background=\'#E8ECF1\'" onmouseout="this.style.background=\'#F4F6F9\'" onclick="event.stopPropagation()">' +
                                     '<i class="fa-solid ' + resIcon(rtype) + '" style="font-size:0.65rem;"></i>' +
                                     esc(rtype || 'resource') +
                                 '</a>';

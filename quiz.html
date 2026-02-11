@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - Quiz</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .quiz-container { max-width: 760px; margin: 0 auto; padding: 20px; }
+        .quiz-header { margin-bottom: 24px; }
+        .quiz-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+        .quiz-meta { font-size: 0.85rem; color: var(--color-text-secondary); }
+        .quiz-loading { text-align: center; padding: 60px 20px; color: var(--color-text-muted); }
+        .quiz-loading .loading-spinner { margin: 0 auto 12px; }
+        .question-card {
+            background: var(--color-surface); border: 1px solid var(--color-border);
+            border-radius: var(--radius); padding: 24px; margin-bottom: 16px;
+        }
+        .question-number { font-size: 0.78rem; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .question-prompt { font-size: 1rem; font-weight: 500; line-height: 1.6; margin-bottom: 16px; color: var(--color-text); }
+        .question-prompt img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
+        .choice-list { display: flex; flex-direction: column; gap: 8px; }
+        .choice-item {
+            display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px;
+            border: 2px solid var(--color-border); border-radius: var(--radius-sm);
+            cursor: pointer; transition: all 0.15s; font-size: 0.92rem;
+        }
+        .choice-item:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+        .choice-item.selected { border-color: var(--color-primary); background: var(--color-primary-light); }
+        .choice-item.correct { border-color: #2E7D32; background: #E8F5E9; }
+        .choice-item.incorrect { border-color: #E53E3E; background: #FFF5F5; }
+        .choice-letter {
+            width: 28px; height: 28px; border-radius: 50%; background: var(--color-bg);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.82rem; flex-shrink: 0; color: var(--color-text-secondary);
+        }
+        .choice-item.selected .choice-letter { background: var(--color-primary); color: #fff; }
+        .choice-item.correct .choice-letter { background: #2E7D32; color: #fff; }
+        .choice-item.incorrect .choice-letter { background: #E53E3E; color: #fff; }
+        .choice-text { flex: 1; line-height: 1.5; }
+        .choice-text img { max-width: 100%; border-radius: 4px; margin-top: 4px; }
+        .quiz-actions { display: flex; gap: 12px; margin-top: 24px; }
+        .quiz-btn {
+            padding: 12px 24px; border: none; border-radius: var(--radius-sm);
+            font-weight: 600; font-size: 0.92rem; cursor: pointer; transition: all 0.2s;
+        }
+        .quiz-btn-primary { background: var(--color-primary); color: #fff; }
+        .quiz-btn-primary:hover { background: var(--color-primary-dark); }
+        .quiz-btn-secondary { background: var(--color-bg); color: var(--color-text-secondary); }
+        .quiz-btn-secondary:hover { background: var(--color-border); }
+        .quiz-score { text-align: center; padding: 40px; background: var(--color-surface); border-radius: var(--radius); border: 1px solid var(--color-border); }
+        .quiz-score-value { font-size: 3rem; font-weight: 800; color: var(--color-primary); }
+        .quiz-score-label { font-size: 1rem; color: var(--color-text-secondary); margin-top: 4px; }
+        .stimulus-content { background: var(--color-bg); border-radius: var(--radius-sm); padding: 20px; margin-bottom: 20px; line-height: 1.7; font-size: 0.95rem; }
+        .stimulus-content p { margin: 0 0 12px; }
+        .back-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--color-text-secondary); font-size: 0.88rem; font-weight: 500; text-decoration: none; margin-bottom: 16px; }
+        .back-btn:hover { color: var(--color-primary); }
+        .raw-display { background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); font-size: 0.78rem; overflow-x: auto; max-height: 500px; white-space: pre-wrap; word-break: break-all; }
+    </style>
+</head>
+<body data-view="student" data-active="home">
+    <div class="layout">
+        <nav class="sidebar" id="sidebar"></nav>
+        <main class="main-content">
+            <div class="quiz-container">
+                <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back to course</a>
+                <div id="quiz-area">
+                    <div class="quiz-loading">
+                        <div class="loading-spinner"></div>
+                        Loading quiz...
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/layout.js"></script>
+    <script>
+    function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    document.addEventListener('DOMContentLoaded', async function() {
+        var params = new URLSearchParams(window.location.search);
+        var itemId = params.get('id') || '';
+        var itemType = params.get('type') || 'item';
+        var title = params.get('title') || 'Quiz';
+        var area = document.getElementById('quiz-area');
+
+        if (!itemId) {
+            area.innerHTML = '<div class="quiz-loading"><p>No quiz ID provided.</p></div>';
+            return;
+        }
+
+        try {
+            var resp = await fetch('/api/qti-item?id=' + encodeURIComponent(itemId) + '&type=' + encodeURIComponent(itemType));
+            var result = await resp.json();
+
+            if (!result.success || !result.data) {
+                area.innerHTML = '<div class="quiz-loading"><i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:#E53E3E;margin-bottom:12px;display:block;"></i><p>Could not load quiz: ' + esc(result.error || 'Unknown error') + '</p></div>';
+                return;
+            }
+
+            var data = result.data;
+            var questions = data.questions || data.items || data.assessmentItems || [];
+            var stimulus = data.stimulus || data.passage || data.content || data.body || '';
+
+            // If data has a different structure, try to extract questions
+            if (!questions.length && data.qtiMetadata) {
+                questions = data.qtiMetadata.items || [];
+            }
+            if (!questions.length && Array.isArray(data)) {
+                questions = data;
+            }
+
+            var qTitle = data.title || data.identifier || title;
+            var html = '<div class="quiz-header"><h1 class="quiz-title">' + esc(qTitle) + '</h1><div class="quiz-meta">' + questions.length + ' questions</div></div>';
+
+            // Show stimulus/passage if present
+            if (stimulus) {
+                var stimHTML = typeof stimulus === 'string' ? stimulus : (stimulus.body || stimulus.content || JSON.stringify(stimulus));
+                html += '<div class="stimulus-content">' + stimHTML + '</div>';
+            }
+
+            if (questions.length > 0) {
+                var letters = 'ABCDEFGHIJ';
+                for (var qi = 0; qi < questions.length; qi++) {
+                    var q = questions[qi];
+                    var prompt = q.prompt || q.question || q.body || q.text || q.itemBody || '';
+                    var choices = q.choices || q.options || q.simpleChoices || q.responseDeclaration || [];
+                    var qType = q.type || q.interactionType || '';
+
+                    html += '<div class="question-card">';
+                    html += '<div class="question-number">Question ' + (qi + 1) + (qType ? ' · ' + esc(qType) : '') + '</div>';
+                    html += '<div class="question-prompt">' + (prompt || 'No prompt available') + '</div>';
+
+                    if (choices.length > 0) {
+                        html += '<div class="choice-list">';
+                        for (var ci = 0; ci < choices.length; ci++) {
+                            var c = choices[ci];
+                            var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : JSON.stringify(c));
+                            var cId = c.id || c.identifier || letters[ci] || ci;
+                            html += '<div class="choice-item" data-q="' + qi + '" data-c="' + ci + '" onclick="selectChoice(this,' + qi + ',' + ci + ')">';
+                            html += '<span class="choice-letter">' + (letters[ci] || ci) + '</span>';
+                            html += '<span class="choice-text">' + cText + '</span>';
+                            html += '</div>';
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+
+                html += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-primary" onclick="submitQuiz()"><i class="fa-solid fa-check" style="margin-right:6px;"></i>Submit</button><button class="quiz-btn quiz-btn-secondary" onclick="history.back()">Cancel</button></div>';
+            } else {
+                // No parseable questions - show raw data nicely
+                html += '<div class="question-card"><div class="question-number">Content</div>';
+                if (typeof data === 'object') {
+                    // Try to render any HTML content
+                    var body = data.body || data.content || data.itemBody || data.stimulus || '';
+                    if (body) {
+                        html += '<div class="stimulus-content">' + (typeof body === 'string' ? body : JSON.stringify(body, null, 2)) + '</div>';
+                    } else {
+                        html += '<div class="raw-display">' + esc(JSON.stringify(data, null, 2)) + '</div>';
+                    }
+                }
+                html += '</div>';
+            }
+
+            area.innerHTML = html;
+
+        } catch(e) {
+            area.innerHTML = '<div class="quiz-loading"><i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:#E53E3E;margin-bottom:12px;display:block;"></i><p>Error: ' + esc(e.message) + '</p></div>';
+        }
+    });
+
+    var selections = {};
+    function selectChoice(el, qi, ci) {
+        // Deselect others in same question
+        el.parentNode.querySelectorAll('.choice-item').forEach(function(c) { c.classList.remove('selected'); });
+        el.classList.add('selected');
+        selections[qi] = ci;
+    }
+
+    function submitQuiz() {
+        var total = document.querySelectorAll('.question-card').length;
+        var answered = Object.keys(selections).length;
+        alert('Submitted ' + answered + ' of ' + total + ' answers. (Scoring handled by the platform)');
+    }
+    </script>
+</body>
+</html>
