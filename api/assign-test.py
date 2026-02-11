@@ -12,7 +12,7 @@ import json
 from http.server import BaseHTTPRequestHandler
 
 import requests
-from api._helpers import API_BASE, POWERPATH_BASE, api_headers, powerpath_headers, send_json
+from api._helpers import API_BASE, api_headers, send_json
 
 
 class handler(BaseHTTPRequestHandler):
@@ -33,12 +33,9 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            try:
-                headers = powerpath_headers()
-            except Exception:
-                headers = api_headers()
+            headers = api_headers()
             resp = requests.get(
-                f"{POWERPATH_BASE}/test-assignments",
+                f"{API_BASE}/powerpath/test-assignments",
                 headers=headers,
                 params={"student": sid},
                 timeout=10,
@@ -55,15 +52,12 @@ class handler(BaseHTTPRequestHandler):
             raw = self.rfile.read(int(self.headers.get("Content-Length", 0)) or 0)
             body = json.loads(raw) if raw else {}
             aid = (body.get("assignmentId") or "").strip()
-            try:
-                headers = powerpath_headers()
-            except Exception:
-                headers = api_headers()
+            headers = api_headers()
             deleted = False
 
             if aid:
                 try:
-                    resp = requests.delete(f"{POWERPATH_BASE}/test-assignments/{aid}", headers=headers, timeout=10)
+                    resp = requests.delete(f"{API_BASE}/powerpath/test-assignments/{aid}", headers=headers, timeout=10)
                     if resp.status_code in (200, 204):
                         deleted = True
                 except Exception:
@@ -93,16 +87,10 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": "subject and grade are required", "success": False}, 400)
                 return
 
-            # Try PowerPath auth first, fall back to legacy
-            pp_headers = None
-            try:
-                pp_headers = powerpath_headers()
-            except Exception:
-                pp_headers = api_headers()
+            headers = api_headers()
 
             # Try multiple URLs and field name combos
             urls = [
-                f"{POWERPATH_BASE}/test-assignments",
                 f"{API_BASE}/powerpath/test-assignments",
             ]
             payloads = [
@@ -119,7 +107,7 @@ class handler(BaseHTTPRequestHandler):
             for url in urls:
                 for payload in payloads:
                     try:
-                        resp = requests.post(url, headers=pp_headers, json=payload, timeout=6)
+                        resp = requests.post(url, headers=headers, json=payload, timeout=6)
                         try:
                             data = resp.json()
                         except Exception:
