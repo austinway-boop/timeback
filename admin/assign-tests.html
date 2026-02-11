@@ -13,84 +13,388 @@
     <link rel="preload" href="/css/style.css" as="style">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* Assign Tests Section */
-        .assign-section {
-            background: var(--color-surface); border-radius: var(--radius);
-            box-shadow: var(--shadow); padding: 0; margin-bottom: 20px; overflow: visible;
+        /* ── Hero Banner ─────────────────────────────────────────── */
+        .hero-banner {
+            position: relative;
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 28px;
+            box-shadow: 0 4px 24px rgba(69, 181, 170, 0.12);
         }
-        .assign-section .card-header { padding: 20px 24px 0; }
-        .assign-body { padding: 20px 24px 24px; }
-        .assign-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; }
-        .assign-field { display: flex; flex-direction: column; position: relative; }
-        .assign-field label {
-            font-size: 0.78rem; font-weight: 600; color: var(--color-text-secondary);
-            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+        .hero-banner img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
         }
-        .assign-field input, .assign-field select {
-            padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
-            background: var(--color-surface); color: var(--color-text); font-size: 0.9rem; outline: none;
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(69,181,170,0.85) 0%, rgba(60,130,170,0.75) 100%);
+            display: flex;
+            align-items: center;
+            padding: 0 40px;
         }
-        .assign-field input:focus, .assign-field select:focus { border-color: var(--color-primary); }
-        .assign-btn {
-            padding: 10px 24px; background: var(--color-primary); color: #fff; border: none;
-            border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 600;
-            cursor: pointer; transition: background 0.2s; white-space: nowrap; height: 42px;
+        .hero-content {
+            color: #fff;
         }
-        .assign-btn:hover { background: var(--color-primary-dark); }
-        .assign-btn:disabled { background: var(--color-border); color: var(--color-text-muted); cursor: not-allowed; }
-        .assign-msg {
-            margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm);
-            font-size: 0.88rem; font-weight: 500; display: none;
+        .hero-content h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin: 0 0 6px;
+            letter-spacing: -0.3px;
         }
-        .assign-msg.success { display: block; background: #E8F5E9; color: #2E7D32; }
-        .assign-msg.error { display: block; background: #FFF5F5; color: #E53E3E; }
+        .hero-content p {
+            font-size: 0.95rem;
+            font-weight: 400;
+            opacity: 0.9;
+            margin: 0;
+        }
+        .hero-icon {
+            margin-left: auto;
+            font-size: 3.5rem;
+            opacity: 0.2;
+            flex-shrink: 0;
+        }
 
-        /* Search-as-you-type dropdown */
+        /* ── Form Card ───────────────────────────────────────────── */
+        .form-card {
+            background: var(--color-surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: visible;
+            margin-bottom: 24px;
+        }
+        .form-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 22px 28px 0;
+        }
+        .form-card-header .header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--color-primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-primary-dark);
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .form-card-header h2 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--color-text);
+            margin: 0;
+        }
+        .form-card-header .header-sub {
+            font-size: 0.82rem;
+            color: var(--color-text-muted);
+            margin: 2px 0 0;
+        }
+
+        .form-card-body {
+            padding: 24px 28px 28px;
+        }
+
+        /* ── Form Grid (2 rows) ──────────────────────────────────── */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .form-grid .field-full {
+            grid-column: 1 / -1;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .field-group label {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 7px;
+        }
+        .field-group input,
+        .field-group select {
+            padding: 11px 14px;
+            border: 1.5px solid var(--color-border);
+            border-radius: 10px;
+            background: var(--color-bg);
+            color: var(--color-text);
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .field-group input:focus,
+        .field-group select:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(69, 181, 170, 0.12);
+        }
+        .field-group input::placeholder {
+            color: var(--color-text-muted);
+        }
+
+        /* ── Submit Row ──────────────────────────────────────────── */
+        .submit-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--color-border);
+        }
+        .submit-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #45B5AA 0%, #3CA0AA 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 12px rgba(69, 181, 170, 0.3);
+        }
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 18px rgba(69, 181, 170, 0.4);
+        }
+        .submit-btn:disabled {
+            background: var(--color-border);
+            color: var(--color-text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .submit-hint {
+            font-size: 0.82rem;
+            color: var(--color-text-muted);
+        }
+
+        /* ── Feedback Messages ───────────────────────────────────── */
+        .assign-msg {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+        .assign-msg.success {
+            display: flex;
+            background: #E8F5E9;
+            color: #2E7D32;
+            border: 1px solid #C8E6C9;
+        }
+        .assign-msg.error {
+            display: flex;
+            background: #FFF5F5;
+            color: #E53E3E;
+            border: 1px solid #FED7D7;
+        }
+
+        /* ── Search Dropdown ─────────────────────────────────────── */
         .search-results-dropdown {
-            position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;
-            background: #fff; border: 1px solid #E8ECF1;
-            border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-            max-height: 300px; overflow-y: auto; display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: #fff;
+            border: 1px solid #E8ECF1;
+            border-radius: 10px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+            max-height: 280px;
+            overflow-y: auto;
+            display: none;
         }
         .search-results-dropdown.open { display: block; }
         .search-result-item {
-            padding: 10px 14px; cursor: pointer; font-size: 0.88rem;
-            border-bottom: 1px solid var(--color-border); transition: background 0.1s;
+            padding: 11px 16px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            border-bottom: 1px solid var(--color-border);
+            transition: background 0.12s;
         }
         .search-result-item:last-child { border-bottom: none; }
         .search-result-item:hover { background: var(--color-primary-light); }
         .search-result-name { font-weight: 600; color: var(--color-text); }
-        .search-result-email { font-size: 0.78rem; color: var(--color-text-muted); }
-        .search-result-empty { padding: 14px; text-align: center; color: var(--color-text-muted); font-size: 0.85rem; }
+        .search-result-email { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 1px; }
+        .search-result-empty {
+            padding: 20px;
+            text-align: center;
+            color: var(--color-text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* ── Selected Student Chip ───────────────────────────────── */
         .selected-student-tag {
-            display: inline-flex; align-items: center; gap: 6px;
-            background: var(--color-primary-light); color: var(--color-primary-dark);
-            padding: 4px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
-            margin-top: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--color-primary-light);
+            color: var(--color-primary-dark);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            margin-top: 8px;
         }
+        .selected-student-tag i { font-size: 0.8rem; }
         .selected-student-tag button {
-            border: none; background: none; color: var(--color-primary-dark);
-            font-size: 1rem; cursor: pointer; padding: 0 2px; line-height: 1;
+            border: none;
+            background: none;
+            color: var(--color-primary-dark);
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 0 2px;
+            line-height: 1;
+            opacity: 0.7;
+            transition: opacity 0.15s;
+        }
+        .selected-student-tag button:hover { opacity: 1; }
+
+        /* ── Recent Assignments Card ─────────────────────────────── */
+        .recent-card {
+            background: var(--color-surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .recent-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 28px;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .recent-card-header h2 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--color-text);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .recent-card-header .count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--color-bg);
+            color: var(--color-text-muted);
+            font-size: 0.72rem;
+            font-weight: 700;
+            min-width: 22px;
+            height: 22px;
+            border-radius: 11px;
+            padding: 0 6px;
         }
 
-        /* Recent assignments table */
-        .recent-section {
-            background: var(--color-surface); border-radius: var(--radius);
-            box-shadow: var(--shadow); overflow: hidden;
+        .recent-table {
+            width: 100%;
+            border-collapse: collapse;
         }
-        .recent-section .card-header { padding: 20px 24px; border-bottom: 1px solid var(--color-border); }
-        .mini-table { width: 100%; border-collapse: collapse; }
-        .mini-table th {
-            padding: 10px 16px; text-align: left; font-weight: 600; font-size: 0.78rem;
-            color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
-            background: var(--color-bg); border-bottom: 1px solid var(--color-border);
+        .recent-table th {
+            padding: 11px 20px;
+            text-align: left;
+            font-weight: 700;
+            font-size: 0.72rem;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            background: var(--color-bg);
+            border-bottom: 1px solid var(--color-border);
         }
-        .mini-table td { padding: 10px 16px; border-bottom: 1px solid var(--color-border); font-size: 0.88rem; }
-        .mini-table tbody tr:hover { background: #FAFBFC; }
-        .mini-table tbody tr:last-child td { border-bottom: none; }
+        .recent-table td {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 0.88rem;
+        }
+        .recent-table tbody tr:hover { background: #FAFBFC; }
+        .recent-table tbody tr:last-child td { border-bottom: none; }
 
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--color-text-muted);
+        }
+        .empty-state i {
+            font-size: 2.2rem;
+            margin-bottom: 12px;
+            display: block;
+            opacity: 0.4;
+        }
+        .empty-state p {
+            font-size: 0.88rem;
+            margin: 0;
+        }
+
+        /* ── Quick Stat Pills ────────────────────────────────────── */
+        .stat-pills {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .stat-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 20px;
+            background: var(--color-surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            flex: 1;
+        }
+        .stat-pill-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+        .stat-pill-icon.teal { background: var(--color-primary-light); color: var(--color-primary-dark); }
+        .stat-pill-icon.blue { background: var(--color-blue-light, #E3F0FF); color: var(--color-blue, #2C6FD4); }
+        .stat-pill-icon.purple { background: var(--color-purple-light, #F0ECFF); color: #6C5CE7; }
+        .stat-pill-value {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--color-text);
+            line-height: 1;
+        }
+        .stat-pill-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        /* ── Responsive ──────────────────────────────────────────── */
         @media (max-width: 768px) {
-            .assign-row { grid-template-columns: 1fr; }
+            .hero-overlay { padding: 0 24px; }
+            .hero-content h1 { font-size: 1.25rem; }
+            .hero-icon { display: none; }
+            .form-grid { grid-template-columns: 1fr; }
+            .stat-pills { flex-direction: column; }
+            .form-card-body { padding: 20px; }
         }
     </style>
 </head>
@@ -100,27 +404,67 @@
         <nav class="sidebar" id="sidebar"></nav>
         <main class="main-content">
             <div class="admin-assign-tests">
-                <div class="page-header">
-                    <h1 class="page-title">Assign Tests</h1>
-                    <p class="page-subtitle">Assign mastery tests and screenings to students</p>
+
+                <!-- Hero Banner -->
+                <div class="hero-banner">
+                    <img src="/img/assign-tests-header.png" alt="Assign Tests">
+                    <div class="hero-overlay">
+                        <div class="hero-content">
+                            <h1>Assign Tests</h1>
+                            <p>Create mastery test and screening assignments for your students</p>
+                        </div>
+                        <i class="fa-solid fa-clipboard-check hero-icon"></i>
+                    </div>
                 </div>
 
-                <!-- Assign Tests Form -->
-                <div class="assign-section">
-                    <div class="card-header">
-                        <h2 class="card-title"><i class="fa-solid fa-clipboard-check" style="color:var(--color-primary);margin-right:8px;"></i>New Assignment</h2>
+                <!-- Quick Stats -->
+                <div class="stat-pills">
+                    <div class="stat-pill">
+                        <div class="stat-pill-icon teal"><i class="fa-solid fa-users"></i></div>
+                        <div>
+                            <div class="stat-pill-value" id="stat-students">--</div>
+                            <div class="stat-pill-label">Students</div>
+                        </div>
                     </div>
-                    <div class="assign-body">
-                        <div class="assign-row">
-                            <div class="assign-field">
-                                <label>Student</label>
-                                <input type="text" id="student-search-input" placeholder="Search student by name or email..." autocomplete="off" oninput="onStudentSearch(this.value)">
+                    <div class="stat-pill">
+                        <div class="stat-pill-icon blue"><i class="fa-solid fa-clipboard-list"></i></div>
+                        <div>
+                            <div class="stat-pill-value" id="stat-assigned">0</div>
+                            <div class="stat-pill-label">Assigned Today</div>
+                        </div>
+                    </div>
+                    <div class="stat-pill">
+                        <div class="stat-pill-icon purple"><i class="fa-solid fa-check-double"></i></div>
+                        <div>
+                            <div class="stat-pill-value" id="stat-success">0</div>
+                            <div class="stat-pill-label">Successful</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assignment Form -->
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <div class="header-icon"><i class="fa-solid fa-plus"></i></div>
+                        <div>
+                            <h2>New Assignment</h2>
+                            <p class="header-sub">Select a student and configure the test details</p>
+                        </div>
+                    </div>
+                    <div class="form-card-body">
+                        <div class="form-grid">
+                            <!-- Student Search (full width) -->
+                            <div class="field-group field-full">
+                                <label><i class="fa-solid fa-user" style="margin-right:4px;"></i> Student</label>
+                                <input type="text" id="student-search-input" placeholder="Start typing a student name or email..." autocomplete="off" oninput="onStudentSearch(this.value)">
                                 <div id="student-search-results" class="search-results-dropdown"></div>
                                 <div id="selected-student-display"></div>
                                 <input type="hidden" id="selected-student-id" value="">
                             </div>
-                            <div class="assign-field">
-                                <label>Subject</label>
+
+                            <!-- Subject -->
+                            <div class="field-group">
+                                <label><i class="fa-solid fa-book" style="margin-right:4px;"></i> Subject</label>
                                 <select id="assign-subject" onchange="updateAssignBtn()">
                                     <option value="">Select subject...</option>
                                     <option value="Math">Math</option>
@@ -132,8 +476,10 @@
                                     <option value="Vocabulary">Vocabulary</option>
                                 </select>
                             </div>
-                            <div class="assign-field">
-                                <label>Grade</label>
+
+                            <!-- Grade -->
+                            <div class="field-group">
+                                <label><i class="fa-solid fa-layer-group" style="margin-right:4px;"></i> Grade Level</label>
                                 <select id="assign-grade" onchange="updateAssignBtn()">
                                     <option value="">Select grade...</option>
                                     <option value="3">Grade 3</option>
@@ -148,47 +494,62 @@
                                     <option value="12">Grade 12</option>
                                 </select>
                             </div>
-                            <div class="assign-field">
-                                <label>Type</label>
+
+                            <!-- Type -->
+                            <div class="field-group">
+                                <label><i class="fa-solid fa-tag" style="margin-right:4px;"></i> Assignment Type</label>
                                 <select id="assign-type">
                                     <option value="test-assignment">Test Assignment</option>
                                     <option value="screening">Screening Test</option>
                                 </select>
                             </div>
-                            <button class="assign-btn" id="assign-btn" onclick="submitAssignment()" disabled>
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="submit-row">
+                            <button class="submit-btn" id="assign-btn" onclick="submitAssignment()" disabled>
                                 <i class="fa-solid fa-paper-plane"></i> Assign Test
                             </button>
+                            <span class="submit-hint" id="submit-hint">Select a student, subject, and grade to continue</span>
                         </div>
+
                         <div class="assign-msg" id="assign-msg"></div>
                     </div>
                 </div>
 
                 <!-- Recent Assignments -->
-                <div class="recent-section">
-                    <div class="card-header">
-                        <h2 class="card-title">Recent Assignments</h2>
+                <div class="recent-card">
+                    <div class="recent-card-header">
+                        <h2>
+                            <i class="fa-solid fa-clock-rotate-left" style="color:var(--color-text-muted);"></i>
+                            Recent Assignments
+                            <span class="count-badge" id="recent-count">0</span>
+                        </h2>
                     </div>
-                    <table class="mini-table">
-                        <thead><tr><th>Student</th><th>Subject</th><th>Grade</th><th>Type</th><th>Status</th></tr></thead>
-                        <tbody id="recent-assignments-tbody">
-                            <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--color-text-muted);">No recent assignments.</td></tr>
-                        </tbody>
-                    </table>
+                    <div id="recent-body">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-inbox"></i>
+                            <p>No assignments yet. Use the form above to assign a test.</p>
+                        </div>
+                    </div>
                 </div>
+
             </div>
         </main>
     </div>
 
     <script src="/js/auth-guard.js?v=3"></script>
-    <script src="/js/layout.js"></script>
+    <script src="/js/layout.js?v=2"></script>
     <script src="/js/app.js"></script>
     <script>
     /* ==================================================================== */
-    /* Global state                                                         */
+    /* State                                                                */
     /* ==================================================================== */
     var cachedStudents = [];
     var selectedStudentId = '';
     var recentAssignments = [];
+    var assignedCount = 0;
+    var successCount = 0;
 
     /* ---- Helpers -------------------------------------------------------- */
     function esc(s) {
@@ -199,7 +560,7 @@
     }
 
     /* ==================================================================== */
-    /* Student search-as-you-type (max 20 results, debounced)               */
+    /* Student Search                                                       */
     /* ==================================================================== */
     var searchTimer = null;
 
@@ -236,7 +597,7 @@
     function showSearchResults(results) {
         var dropdown = document.getElementById('student-search-results');
         if (!results.length) {
-            dropdown.innerHTML = '<div class="search-result-empty">No students found. Try a different name or email.</div>';
+            dropdown.innerHTML = '<div class="search-result-empty"><i class="fa-solid fa-user-slash" style="margin-right:6px;opacity:0.5;"></i> No students found. Try a different name or email.</div>';
             dropdown.className = 'search-results-dropdown open';
             return;
         }
@@ -245,8 +606,8 @@
             var email = u.email || '';
             var id = u.sourcedId || '';
             return '<div class="search-result-item" onclick="selectStudent(\'' + id + '\', \'' + name.replace(/'/g, "\\'") + '\', \'' + email.replace(/'/g, "\\'") + '\')">' +
-                '<div class="search-result-name">' + name + '</div>' +
-                '<div class="search-result-email">' + email + '</div>' +
+                '<div class="search-result-name">' + esc(name) + '</div>' +
+                '<div class="search-result-email">' + esc(email) + '</div>' +
             '</div>';
         }).join('');
         dropdown.className = 'search-results-dropdown open';
@@ -259,7 +620,7 @@
         document.getElementById('student-search-results').className = 'search-results-dropdown';
         document.getElementById('selected-student-display').innerHTML =
             '<div class="selected-student-tag">' +
-                '<i class="fa-solid fa-user"></i> ' + name + ' (' + email + ')' +
+                '<i class="fa-solid fa-user-check"></i> ' + esc(name) + ' (' + esc(email) + ')' +
                 '<button onclick="clearSelectedStudent()" title="Remove">&times;</button>' +
             '</div>';
         updateAssignBtn();
@@ -272,22 +633,36 @@
         updateAssignBtn();
     }
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', function(e) {
         var dropdown = document.getElementById('student-search-results');
-        if (dropdown && !e.target.closest('.assign-field')) {
+        if (dropdown && !e.target.closest('.field-group')) {
             dropdown.className = 'search-results-dropdown';
         }
     });
 
-    /* ---- Assign button state ------------------------------------------- */
+    /* ==================================================================== */
+    /* Assign Button                                                        */
+    /* ==================================================================== */
     function updateAssignBtn() {
         var btn = document.getElementById('assign-btn');
+        var hint = document.getElementById('submit-hint');
         if (!btn) return;
         var hasSubject = (document.getElementById('assign-subject') || {}).value !== '';
         var hasGrade = (document.getElementById('assign-grade') || {}).value !== '';
         var hasStudent = selectedStudentId !== '';
-        btn.disabled = !(hasStudent && hasSubject && hasGrade);
+        var ready = hasStudent && hasSubject && hasGrade;
+        btn.disabled = !ready;
+        if (hint) {
+            if (ready) {
+                hint.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#48BB78;margin-right:4px;"></i> Ready to assign';
+            } else {
+                var missing = [];
+                if (!hasStudent) missing.push('student');
+                if (!hasSubject) missing.push('subject');
+                if (!hasGrade) missing.push('grade');
+                hint.textContent = 'Select ' + missing.join(', ') + ' to continue';
+            }
+        }
     }
 
     async function submitAssignment() {
@@ -302,9 +677,8 @@
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Assigning...';
         msgEl.className = 'assign-msg'; msgEl.style.display = 'none';
 
-        // Get the student name from the tag for the recent assignments table
         var studentTag = document.querySelector('.selected-student-tag');
-        var studentName = studentTag ? studentTag.textContent.replace('×', '').trim() : 'Unknown';
+        var studentName = studentTag ? studentTag.textContent.replace('\u00d7', '').trim() : 'Unknown';
 
         try {
             var resp = await fetch('/api/assign-test', {
@@ -319,30 +693,35 @@
             });
             var data = await resp.json().catch(function() { return {}; });
             if (resp.ok && data.success) {
-                msgEl.textContent = data.message || 'Test assigned successfully!';
+                msgEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + (data.message || 'Test assigned successfully!');
                 msgEl.className = 'assign-msg success';
-                msgEl.style.display = 'block';
+                msgEl.style.display = 'flex';
                 addRecentAssignment(studentName, subject, grade, assignType, 'success');
+                successCount++;
                 clearSelectedStudent();
                 document.getElementById('assign-subject').value = '';
                 document.getElementById('assign-grade').value = '';
             } else {
-                msgEl.textContent = data.error || data.message || 'Assignment failed.';
+                msgEl.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> ' + (data.error || data.message || 'Assignment failed.');
                 msgEl.className = 'assign-msg error';
-                msgEl.style.display = 'block';
+                msgEl.style.display = 'flex';
                 addRecentAssignment(studentName, subject, grade, assignType, 'error');
             }
         } catch(e) {
-            msgEl.textContent = 'Network error. Please try again.';
+            msgEl.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Network error. Please try again.';
             msgEl.className = 'assign-msg error';
-            msgEl.style.display = 'block';
+            msgEl.style.display = 'flex';
             addRecentAssignment(studentName, subject, grade, assignType, 'error');
         }
+        assignedCount++;
+        updateStatPills();
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Assign Test';
         updateAssignBtn();
     }
 
-    /* ---- Recent Assignments Table -------------------------------------- */
+    /* ==================================================================== */
+    /* Recent Assignments                                                   */
+    /* ==================================================================== */
     function addRecentAssignment(studentName, subject, grade, type, status) {
         recentAssignments.unshift({ studentName, subject, grade, type, status, time: new Date() });
         if (recentAssignments.length > 20) recentAssignments.pop();
@@ -350,28 +729,42 @@
     }
 
     function renderRecentAssignments() {
-        var tbody = document.getElementById('recent-assignments-tbody');
+        var body = document.getElementById('recent-body');
+        var countEl = document.getElementById('recent-count');
+        if (countEl) countEl.textContent = recentAssignments.length;
+
         if (!recentAssignments.length) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--color-text-muted);">No recent assignments.</td></tr>';
+            body.innerHTML = '<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>No assignments yet. Use the form above to assign a test.</p></div>';
             return;
         }
-        tbody.innerHTML = recentAssignments.map(function(a) {
-            var statusBadge = a.status === 'success'
-                ? '<span class="status-badge status-active">Assigned</span>'
-                : '<span class="status-badge status-tobedeleted">Failed</span>';
-            var typeLabel = a.type === 'screening' ? 'Screening' : 'Test Assignment';
-            return '<tr>' +
-                '<td style="font-weight:600;">' + esc(a.studentName) + '</td>' +
-                '<td>' + esc(a.subject) + '</td>' +
-                '<td>Grade ' + esc(a.grade) + '</td>' +
-                '<td>' + esc(typeLabel) + '</td>' +
-                '<td>' + statusBadge + '</td>' +
-            '</tr>';
-        }).join('');
+        body.innerHTML = '<table class="recent-table"><thead><tr><th>Student</th><th>Subject</th><th>Grade</th><th>Type</th><th>Status</th></tr></thead><tbody>' +
+            recentAssignments.map(function(a) {
+                var statusBadge = a.status === 'success'
+                    ? '<span class="status-badge status-active"><i class="fa-solid fa-check" style="margin-right:4px;font-size:0.7rem;"></i>Assigned</span>'
+                    : '<span class="status-badge status-tobedeleted"><i class="fa-solid fa-xmark" style="margin-right:4px;font-size:0.7rem;"></i>Failed</span>';
+                var typeLabel = a.type === 'screening' ? 'Screening' : 'Test Assignment';
+                return '<tr>' +
+                    '<td style="font-weight:600;">' + esc(a.studentName) + '</td>' +
+                    '<td>' + esc(a.subject) + '</td>' +
+                    '<td>Grade ' + esc(a.grade) + '</td>' +
+                    '<td>' + esc(typeLabel) + '</td>' +
+                    '<td>' + statusBadge + '</td>' +
+                '</tr>';
+            }).join('') + '</tbody></table>';
     }
 
     /* ==================================================================== */
-    /* Main load: fetch students for search                                 */
+    /* Stat Pills                                                           */
+    /* ==================================================================== */
+    function updateStatPills() {
+        var el = document.getElementById('stat-assigned');
+        if (el) el.textContent = assignedCount;
+        el = document.getElementById('stat-success');
+        if (el) el.textContent = successCount;
+    }
+
+    /* ==================================================================== */
+    /* Init                                                                 */
     /* ==================================================================== */
     document.addEventListener('DOMContentLoaded', async function() {
         try {
@@ -381,6 +774,8 @@
             cachedStudents = allUsers.filter(function(u) {
                 return (u.role || '').toLowerCase() === 'student';
             }).slice(0, 500);
+            var el = document.getElementById('stat-students');
+            if (el) el.textContent = cachedStudents.length;
         } catch(e) {
             console.warn('[Admin] Failed to load students for search:', e.message);
         }
