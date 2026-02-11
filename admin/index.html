@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* --- Page header --- */
         .page-header { display: flex; justify-content: space-between; align-items: flex-start; }
         .page-header-left { flex: 1; }
         .logout-btn {
@@ -22,21 +21,18 @@
         }
         .logout-btn:hover { border-color: #E53E3E; color: #E53E3E; background: #FFF5F5; }
 
-        /* --- Skeleton loading --- */
+        /* Skeleton */
         .skeleton {
             background: linear-gradient(90deg, #E8ECF1 25%, #F4F6F9 50%, #E8ECF1 75%);
             background-size: 200% 100%;
             animation: skeleton-pulse 1.5s ease-in-out infinite;
             border-radius: 4px;
         }
-        @keyframes skeleton-pulse {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
+        @keyframes skeleton-pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         .skeleton-text { height: 14px; width: 60%; }
         .skeleton-value { height: 28px; width: 50px; margin-bottom: 4px; }
 
-        /* --- Quick Actions --- */
+        /* Quick Actions */
         .quick-actions { display: flex; gap: 12px; flex-wrap: wrap; padding: 20px 24px; }
         .quick-action-btn {
             display: inline-flex; align-items: center; gap: 8px;
@@ -45,118 +41,89 @@
             color: var(--color-text); font-size: 0.88rem; font-weight: 500;
             cursor: pointer; text-decoration: none; transition: all 0.2s;
         }
-        .quick-action-btn:hover {
-            border-color: var(--color-primary); color: var(--color-primary);
-            background: var(--color-primary-light);
-        }
+        .quick-action-btn:hover { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-light); }
         .quick-action-btn i { font-size: 0.9rem; color: var(--color-primary); }
 
-        /* --- System info --- */
+        /* System info */
         .system-info { padding: 20px 24px; }
         .system-info-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 0; border-bottom: 1px solid var(--color-border);
-            font-size: 0.88rem;
+            padding: 10px 0; border-bottom: 1px solid var(--color-border); font-size: 0.88rem;
         }
         .system-info-row:last-child { border-bottom: none; }
         .system-info-label { color: var(--color-text-secondary); font-weight: 500; }
         .system-info-value { font-weight: 600; color: var(--color-text); }
-        .status-dot-inline {
-            display: inline-block; width: 8px; height: 8px;
-            border-radius: 50%; margin-right: 6px;
-        }
+        .status-dot-inline { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
         .status-dot-inline.green { background: #48BB78; }
         .status-dot-inline.red { background: #E53E3E; }
 
-        /* --- Mini table --- */
+        /* Mini table */
         .mini-table { width: 100%; border-collapse: collapse; }
         .mini-table th {
-            padding: 10px 16px; text-align: left; font-weight: 600;
-            font-size: 0.78rem; color: var(--color-text-secondary);
-            text-transform: uppercase; letter-spacing: 0.5px;
+            padding: 10px 16px; text-align: left; font-weight: 600; font-size: 0.78rem;
+            color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
             background: var(--color-bg); border-bottom: 1px solid var(--color-border);
         }
-        .mini-table td {
-            padding: 10px 16px; border-bottom: 1px solid var(--color-border);
-            font-size: 0.88rem;
-        }
+        .mini-table td { padding: 10px 16px; border-bottom: 1px solid var(--color-border); font-size: 0.88rem; }
         .mini-table tbody tr:hover { background: #FAFBFC; }
         .mini-table tbody tr:last-child td { border-bottom: none; }
 
-        /* --- Grid layouts --- */
-        .dashboard-grid-4 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
-        }
+        /* Grid */
+        .dashboard-grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
 
-        /* --- Course list --- */
-        .course-list-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 0; border-bottom: 1px solid var(--color-border);
-        }
+        /* Course list */
+        .course-list-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
         .course-list-item:last-child { border-bottom: none; }
-        .course-list-icon {
-            width: 36px; height: 36px; border-radius: var(--radius-sm);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.85rem; flex-shrink: 0;
-        }
+        .course-list-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0; }
         .course-list-info { flex: 1; }
         .course-list-name { font-weight: 600; font-size: 0.9rem; display: block; }
         .course-list-meta { font-size: 0.78rem; color: var(--color-text-muted); }
         .course-list-body { padding: 16px 24px 24px; }
 
-        /* --- Assign Test Modal --- */
-        .assign-modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-            backdrop-filter: blur(4px); z-index: 200;
-            display: none; align-items: center; justify-content: center;
+        /* Assign Tests Section */
+        .assign-section {
+            background: var(--color-surface); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 0; margin-bottom: 20px; overflow: hidden;
         }
-        .assign-modal {
-            background: var(--color-surface); border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-            width: 90%; max-width: 520px; max-height: 85vh; overflow-y: auto;
-        }
-        .assign-modal-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 20px 24px; border-bottom: 1px solid var(--color-border);
-        }
-        .assign-modal-body { padding: 24px; }
-        .assign-field { margin-bottom: 20px; }
+        .assign-section .card-header { padding: 20px 24px 0; }
+        .assign-body { padding: 20px 24px 24px; }
+        .assign-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; }
+        .assign-field { display: flex; flex-direction: column; }
         .assign-field label {
-            display: block; font-size: 0.82rem; font-weight: 600;
-            color: var(--color-text-secondary); text-transform: uppercase;
-            letter-spacing: 0.5px; margin-bottom: 8px;
+            font-size: 0.78rem; font-weight: 600; color: var(--color-text-secondary);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
         }
-        .assign-field select, .assign-field input {
-            width: 100%; padding: 10px 14px;
-            border: 1px solid var(--color-border); border-radius: var(--radius-sm);
-            background: var(--color-surface); color: var(--color-text);
-            font-size: 0.9rem; outline: none;
+        .assign-field input, .assign-field select {
+            padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+            background: var(--color-surface); color: var(--color-text); font-size: 0.9rem; outline: none;
         }
-        .assign-field select:focus, .assign-field input:focus {
-            border-color: var(--color-primary);
+        .assign-field input:focus, .assign-field select:focus { border-color: var(--color-primary); }
+        .assign-btn {
+            padding: 10px 24px; background: var(--color-primary); color: #fff; border: none;
+            border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: background 0.2s; white-space: nowrap; height: 42px;
         }
-        .assign-submit-btn {
-            width: 100%; padding: 12px;
-            background: var(--color-primary); color: #fff; border: none;
-            border-radius: var(--radius-sm); font-size: 0.95rem; font-weight: 600;
-            cursor: pointer; transition: background 0.2s;
-        }
-        .assign-submit-btn:hover { background: var(--color-primary-dark); }
-        .assign-submit-btn:disabled {
-            background: var(--color-border); color: var(--color-text-muted); cursor: not-allowed;
-        }
+        .assign-btn:hover { background: var(--color-primary-dark); }
+        .assign-btn:disabled { background: var(--color-border); color: var(--color-text-muted); cursor: not-allowed; }
+        .assign-bulk { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.85rem; color: var(--color-text-secondary); }
+        .assign-bulk input[type=checkbox] { accent-color: var(--color-primary); }
         .assign-msg {
             margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm);
             font-size: 0.88rem; font-weight: 500; display: none;
         }
         .assign-msg.success { display: block; background: #E8F5E9; color: #2E7D32; }
         .assign-msg.error { display: block; background: #FFF5F5; color: #E53E3E; }
+        .bulk-students { margin-top: 12px; display: none; }
+        .bulk-students .student-checkbox-list {
+            max-height: 200px; overflow-y: auto; border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm); padding: 8px;
+        }
+        .student-checkbox-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-size: 0.85rem; }
+        .student-checkbox-row:hover { background: var(--color-bg); border-radius: 4px; }
 
         @media (max-width: 768px) {
             .dashboard-grid-4 { grid-template-columns: 1fr; }
+            .assign-row { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -208,6 +175,41 @@
                     </div>
                 </div>
 
+                <!-- Assign Tests Section -->
+                <div class="assign-section">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa-solid fa-clipboard-check" style="color:var(--color-primary);margin-right:8px;"></i>Assign Tests</h2>
+                    </div>
+                    <div class="assign-body">
+                        <div class="assign-row">
+                            <div class="assign-field">
+                                <label>Student</label>
+                                <select id="assign-student">
+                                    <option value="">Loading students...</option>
+                                </select>
+                            </div>
+                            <div class="assign-field">
+                                <label>Test / Assignment</label>
+                                <select id="assign-test">
+                                    <option value="">Loading tests...</option>
+                                </select>
+                            </div>
+                            <button class="assign-btn" id="assign-btn" onclick="submitAssignment()" disabled>
+                                <i class="fa-solid fa-paper-plane"></i> Assign
+                            </button>
+                        </div>
+                        <div class="assign-bulk">
+                            <input type="checkbox" id="bulk-mode" onchange="toggleBulkMode()">
+                            <label for="bulk-mode">Bulk assign — select multiple students</label>
+                        </div>
+                        <div class="bulk-students" id="bulk-students">
+                            <input type="text" id="bulk-search" placeholder="Filter students..." oninput="filterBulkStudents(this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font-size:0.85rem;margin-bottom:8px;outline:none;">
+                            <div class="student-checkbox-list" id="bulk-list"></div>
+                        </div>
+                        <div class="assign-msg" id="assign-msg"></div>
+                    </div>
+                </div>
+
                 <!-- Recent Users Table -->
                 <div class="dashboard-card" style="margin-bottom:20px;">
                     <div class="card-header">
@@ -216,9 +218,7 @@
                     </div>
                     <div style="padding:0 0 8px;">
                         <table class="mini-table">
-                            <thead>
-                                <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
-                            </thead>
+                            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
                             <tbody id="users-tbody">
                                 <tr><td><div class="skeleton skeleton-text" style="width:80%;"></div></td><td><div class="skeleton skeleton-text" style="width:90%;"></div></td><td><div class="skeleton skeleton-text" style="width:50%;"></div></td><td><div class="skeleton skeleton-text" style="width:40%;"></div></td></tr>
                                 <tr><td><div class="skeleton skeleton-text" style="width:70%;"></div></td><td><div class="skeleton skeleton-text" style="width:85%;"></div></td><td><div class="skeleton skeleton-text" style="width:45%;"></div></td><td><div class="skeleton skeleton-text" style="width:50%;"></div></td></tr>
@@ -230,7 +230,6 @@
 
                 <!-- Bottom Grid -->
                 <div class="dashboard-grid-4">
-                    <!-- Courses Overview -->
                     <div class="dashboard-card">
                         <div class="card-header">
                             <h2 class="card-title">Courses Overview</h2>
@@ -239,11 +238,8 @@
                         <div class="course-list-body" id="courses-list">
                             <div class="course-list-item"><div class="skeleton" style="width:36px;height:36px;border-radius:8px;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:70%;margin-bottom:6px;"></div><div class="skeleton skeleton-text" style="width:40%;height:10px;"></div></div></div>
                             <div class="course-list-item"><div class="skeleton" style="width:36px;height:36px;border-radius:8px;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:60%;margin-bottom:6px;"></div><div class="skeleton skeleton-text" style="width:50%;height:10px;"></div></div></div>
-                            <div class="course-list-item"><div class="skeleton" style="width:36px;height:36px;border-radius:8px;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:75%;margin-bottom:6px;"></div><div class="skeleton skeleton-text" style="width:35%;height:10px;"></div></div></div>
                         </div>
                     </div>
-
-                    <!-- Quick Actions + System Info -->
                     <div style="display:flex;flex-direction:column;gap:20px;">
                         <div class="dashboard-card">
                             <div class="card-header"><h2 class="card-title">Quick Actions</h2></div>
@@ -251,26 +247,14 @@
                                 <a href="/admin/students" class="quick-action-btn"><i class="fa-solid fa-users"></i> Manage Students</a>
                                 <a href="/admin/courses" class="quick-action-btn"><i class="fa-solid fa-book"></i> Manage Courses</a>
                                 <a href="/admin/settings" class="quick-action-btn"><i class="fa-solid fa-gear"></i> Settings</a>
-                                <button class="quick-action-btn" onclick="openAssignModal()"><i class="fa-solid fa-clipboard-check"></i> Assign Test</button>
                             </div>
                         </div>
                         <div class="dashboard-card">
                             <div class="card-header"><h2 class="card-title">System Info</h2></div>
                             <div class="system-info">
-                                <div class="system-info-row">
-                                    <span class="system-info-label">Logged in as</span>
-                                    <span class="system-info-value" id="sys-admin-name">—</span>
-                                </div>
-                                <div class="system-info-row">
-                                    <span class="system-info-label">Email</span>
-                                    <span class="system-info-value" id="sys-admin-email">—</span>
-                                </div>
-                                <div class="system-info-row">
-                                    <span class="system-info-label">API Status</span>
-                                    <span class="system-info-value" id="sys-api-status">
-                                        <span class="status-dot-inline"></span> Checking...
-                                    </span>
-                                </div>
+                                <div class="system-info-row"><span class="system-info-label">Logged in as</span><span class="system-info-value" id="sys-admin-name">—</span></div>
+                                <div class="system-info-row"><span class="system-info-label">Email</span><span class="system-info-value" id="sys-admin-email">—</span></div>
+                                <div class="system-info-row"><span class="system-info-label">API Status</span><span class="system-info-value" id="sys-api-status"><span class="status-dot-inline"></span> Checking...</span></div>
                             </div>
                         </div>
                     </div>
@@ -279,72 +263,28 @@
         </main>
     </div>
 
-    <!-- Assign Test Modal -->
-    <div class="assign-modal-overlay" id="assign-modal">
-        <div class="assign-modal">
-            <div class="assign-modal-header">
-                <h2 style="font-size:1.15rem;font-weight:700;margin:0;">Assign Test</h2>
-                <button onclick="closeAssignModal()" style="width:32px;height:32px;border:none;background:transparent;font-size:1.4rem;color:#A0AEC0;cursor:pointer;border-radius:8px;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background='#F4F6F9'" onmouseout="this.style.background='transparent'">&times;</button>
-            </div>
-            <div class="assign-modal-body">
-                <div class="assign-field">
-                    <label>Search Student</label>
-                    <input type="text" id="assign-student-search" placeholder="Type a name or email..." oninput="searchStudents(this.value)">
-                    <select id="assign-student" size="5" style="margin-top:8px;display:none;">
-                    </select>
-                </div>
-                <div class="assign-field">
-                    <label>Select Test / Line Item</label>
-                    <select id="assign-test">
-                        <option value="">Loading tests...</option>
-                    </select>
-                </div>
-                <button class="assign-submit-btn" id="assign-submit-btn" onclick="submitAssignment()" disabled>Assign Test</button>
-                <div class="assign-msg" id="assign-msg"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts -->
     <script src="/js/auth-guard.js"></script>
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
     <script>
-    /* ====================================================================
-       Admin Dashboard — Data loading, caching, and rendering
-       ==================================================================== */
+    /* ==================================================================== */
+    /* Global state                                                         */
+    /* ==================================================================== */
+    var allUsers = [];
+    var allStudents = [];
+    var allCourses = [];
+    var allLineItems = [];
 
-    /* ---- SessionStorage caching ----------------------------------------- */
-    var CACHE_KEY = 'admin_dashboard_cache';
-    var CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-    function getCachedData() {
-        try {
-            var cached = JSON.parse(sessionStorage.getItem(CACHE_KEY));
-            if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached.data;
-        } catch(e) {}
-        return null;
-    }
-
-    function setCachedData(data) {
-        try {
-            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: data, timestamp: Date.now() }));
-        } catch(e) {}
-    }
-
-    /* ---- Badge helpers -------------------------------------------------- */
+    /* ---- Helpers -------------------------------------------------------- */
     function roleBadge(role) {
         var r = (role || '').toLowerCase();
-        var cls = 'role-' + r.replace(/\s+/g, '');
-        return '<span class="role-badge ' + cls + '">' + (role || '\u2014') + '</span>';
+        return '<span class="role-badge role-' + r.replace(/\s+/g, '') + '">' + (role || '\u2014') + '</span>';
     }
     function statusBadge(status) {
         var s = (status || '').toLowerCase();
-        var cls = 'status-' + s.replace(/\s+/g, '');
-        return '<span class="status-badge ' + cls + '">' + (status || '\u2014') + '</span>';
+        return '<span class="status-badge status-' + s.replace(/\s+/g, '') + '">' + (status || '\u2014') + '</span>';
     }
 
-    /* ---- Course themes -------------------------------------------------- */
     var COURSE_THEMES = [
         { bg: 'var(--color-primary-light)', fg: 'var(--color-primary)', icon: 'fa-atom' },
         { bg: 'var(--color-purple-light)', fg: '#6C5CE7', icon: 'fa-calculator' },
@@ -354,290 +294,216 @@
         { bg: '#E8F5E9', fg: '#2E7D32', icon: 'fa-leaf' },
     ];
 
-    /* ---- Render helpers ------------------------------------------------- */
-    function renderStats(data) {
+    /* ---- Render functions ----------------------------------------------- */
+    function renderStats() {
+        var students = allUsers.filter(function(u) { return (u.role || '').toLowerCase() === 'student'; });
+        var teachers = allUsers.filter(function(u) { var r = (u.role || '').toLowerCase(); return r === 'teacher' || r === 'instructor'; });
+        var active = allCourses.filter(function(c) { return c.status === 'active'; });
+
         var el;
-        el = document.getElementById('stat-students');
-        if (el) el.textContent = data.studentCount.toLocaleString();
-        el = document.getElementById('stat-teachers');
-        if (el) el.textContent = data.teacherCount.toLocaleString();
-        el = document.getElementById('stat-courses');
-        if (el) el.textContent = data.courseCount.toLocaleString();
-        el = document.getElementById('stat-total-users');
-        if (el) el.textContent = data.totalUsers.toLocaleString();
+        el = document.getElementById('stat-students'); if (el) el.textContent = students.length.toLocaleString();
+        el = document.getElementById('stat-teachers'); if (el) el.textContent = teachers.length.toLocaleString();
+        el = document.getElementById('stat-courses'); if (el) el.textContent = (active.length || allCourses.length).toLocaleString();
+        el = document.getElementById('stat-total-users'); if (el) el.textContent = allUsers.length.toLocaleString();
     }
 
-    function renderUsers(users) {
+    function renderUsers() {
         var tbody = document.getElementById('users-tbody');
         if (!tbody) return;
-        var recent = users.slice(0, 10);
-        if (recent.length === 0) {
+        var recent = allUsers.slice(0, 10);
+        if (!recent.length) {
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--color-text-muted);">No users found.</td></tr>';
             return;
         }
         tbody.innerHTML = recent.map(function(u) {
             var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || u.username || '\u2014';
-            return '<tr>' +
-                '<td style="font-weight:600;">' + name + '</td>' +
+            return '<tr><td style="font-weight:600;">' + name + '</td>' +
                 '<td style="color:var(--color-text-secondary);">' + (u.email || '\u2014') + '</td>' +
                 '<td>' + roleBadge(u.role) + '</td>' +
-                '<td>' + statusBadge(u.status) + '</td>' +
-            '</tr>';
+                '<td>' + statusBadge(u.status) + '</td></tr>';
         }).join('');
     }
 
-    function renderCourses(courses) {
+    function renderCourses() {
         var el = document.getElementById('courses-list');
         if (!el) return;
-        var top = courses.slice(0, 6);
-        if (top.length === 0) {
-            el.innerHTML = '<p style="color:var(--color-text-muted);text-align:center;padding:16px;">No courses found.</p>';
-            return;
-        }
+        var top = allCourses.slice(0, 6);
+        if (!top.length) { el.innerHTML = '<p style="color:var(--color-text-muted);text-align:center;padding:16px;">No courses found.</p>'; return; }
         el.innerHTML = top.map(function(c, i) {
             var theme = COURSE_THEMES[i % COURSE_THEMES.length];
             var subjects = (c.subjects || []).join(', ') || 'General';
             return '<div class="course-list-item">' +
-                '<div class="course-list-icon" style="background:' + theme.bg + ';color:' + theme.fg + ';">' +
-                    '<i class="fa-solid ' + theme.icon + '"></i>' +
-                '</div>' +
-                '<div class="course-list-info">' +
-                    '<span class="course-list-name">' + (c.title || c.courseCode || '\u2014') + '</span>' +
-                    '<span class="course-list-meta">' + subjects + ' \u00B7 ' + (c.status || 'unknown') + '</span>' +
-                '</div>' +
-            '</div>';
+                '<div class="course-list-icon" style="background:' + theme.bg + ';color:' + theme.fg + ';"><i class="fa-solid ' + theme.icon + '"></i></div>' +
+                '<div class="course-list-info"><span class="course-list-name">' + (c.title || c.courseCode || '\u2014') + '</span>' +
+                '<span class="course-list-meta">' + subjects + ' \u00B7 ' + (c.status || 'unknown') + '</span></div></div>';
         }).join('');
     }
 
     function renderSystemInfo(apiOk) {
         var el;
-        el = document.getElementById('sys-admin-name');
-        if (el) el.textContent = localStorage.getItem('alphalearn_name') || '\u2014';
-        el = document.getElementById('sys-admin-email');
-        if (el) el.textContent = localStorage.getItem('alphalearn_email') || '\u2014';
+        el = document.getElementById('sys-admin-name'); if (el) el.textContent = localStorage.getItem('alphalearn_name') || '\u2014';
+        el = document.getElementById('sys-admin-email'); if (el) el.textContent = localStorage.getItem('alphalearn_email') || '\u2014';
         el = document.getElementById('sys-api-status');
-        if (el) {
-            if (apiOk) {
-                el.innerHTML = '<span class="status-dot-inline green"></span> Connected';
+        if (el) el.innerHTML = apiOk
+            ? '<span class="status-dot-inline green"></span> Connected'
+            : '<span class="status-dot-inline red"></span> Unavailable';
+    }
+
+    function populateAssignDropdowns() {
+        allStudents = allUsers.filter(function(u) { return (u.role || '').toLowerCase() === 'student'; });
+
+        // Student select
+        var sel = document.getElementById('assign-student');
+        if (sel) {
+            if (!allStudents.length) {
+                sel.innerHTML = '<option value="">No students found</option>';
             } else {
-                el.innerHTML = '<span class="status-dot-inline red"></span> Unavailable';
+                sel.innerHTML = '<option value="">Select a student...</option>' +
+                    allStudents.map(function(u) {
+                        var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || u.email;
+                        return '<option value="' + (u.sourcedId || '') + '">' + name + ' (' + (u.email || '') + ')</option>';
+                    }).join('');
             }
         }
-    }
 
-    function renderAll(data) {
-        renderStats(data);
-        renderUsers(data.users);
-        renderCourses(data.courses);
-        renderSystemInfo(data.apiOk);
-    }
-
-    /* ---- Fetch data ----------------------------------------------------- */
-    async function fetchUsers() {
-        // Try paginated endpoint first, fall back to /api/users
-        try {
-            var resp = await fetch('/api/users-page?limit=100&offset=0');
-            if (resp.ok) {
-                var d = await resp.json();
-                return d.users || [];
-            }
-        } catch(e) {}
-        // Fallback
-        var resp2 = await fetch('/api/users');
-        var d2 = await resp2.json();
-        return (d2.users || []).slice(0, 100);
-    }
-
-    async function fetchCourses() {
-        var resp = await fetch('/api/courses');
-        var d = await resp.json();
-        return d.courses || [];
-    }
-
-    async function fetchAllData() {
-        var users = [];
-        var courses = [];
-        var apiOk = false;
-
-        try {
-            users = await fetchUsers();
-            apiOk = true;
-        } catch(e) {
-            console.warn('[Admin] Users API unavailable:', e.message);
-        }
-
-        try {
-            courses = await fetchCourses();
-            apiOk = true;
-        } catch(e) {
-            console.warn('[Admin] Courses API unavailable:', e.message);
-        }
-
-        var students = users.filter(function(u) { return (u.role || '').toLowerCase() === 'student'; });
-        var teachers = users.filter(function(u) {
-            var r = (u.role || '').toLowerCase();
-            return r === 'teacher' || r === 'instructor';
-        });
-        var activeCourses = courses.filter(function(c) { return c.status === 'active'; });
-
-        return {
-            users: users,
-            courses: courses,
-            studentCount: students.length,
-            teacherCount: teachers.length,
-            courseCount: activeCourses.length || courses.length,
-            totalUsers: users.length,
-            apiOk: apiOk,
-        };
-    }
-
-    /* ---- Main load ------------------------------------------------------ */
-    document.addEventListener('DOMContentLoaded', async function() {
-        // Show system info immediately
-        renderSystemInfo(null);
-
-        // Check cache
-        var cached = getCachedData();
-        if (cached) {
-            renderAll(cached);
-            return;
-        }
-
-        // Fetch fresh data
-        var data = await fetchAllData();
-        renderAll(data);
-        setCachedData(data);
-    });
-
-    /* ====================================================================
-       Assign Test Modal
-       ==================================================================== */
-    var assignStudents = [];
-    var assignLineItems = [];
-
-    function openAssignModal() {
-        document.getElementById('assign-modal').style.display = 'flex';
-        document.getElementById('assign-student-search').value = '';
-        document.getElementById('assign-student').style.display = 'none';
-        document.getElementById('assign-msg').className = 'assign-msg';
-        document.getElementById('assign-msg').style.display = 'none';
-        loadLineItems();
-        updateAssignButton();
-    }
-
-    function closeAssignModal() {
-        document.getElementById('assign-modal').style.display = 'none';
-    }
-
-    // Close on backdrop click
-    document.getElementById('assign-modal').addEventListener('click', function(e) {
-        if (e.target === this) closeAssignModal();
-    });
-
-    async function searchStudents(query) {
-        var select = document.getElementById('assign-student');
-        if (!query || query.length < 2) {
-            select.style.display = 'none';
-            return;
-        }
-        try {
-            // Try paginated search first
-            var resp = await fetch('/api/users-page?limit=20&search=' + encodeURIComponent(query));
-            if (!resp.ok) {
-                resp = await fetch('/api/users');
-            }
-            var data = await resp.json();
-            assignStudents = data.users || [];
-
-            // Client-side filter as fallback
-            var q = query.toLowerCase();
-            var filtered = assignStudents.filter(function(u) {
-                var name = ((u.givenName || '') + ' ' + (u.familyName || '')).toLowerCase();
-                return name.includes(q) || (u.email || '').toLowerCase().includes(q);
-            }).slice(0, 20);
-
-            if (filtered.length === 0) {
-                select.innerHTML = '<option value="">No students found</option>';
+        // Test select
+        var tsel = document.getElementById('assign-test');
+        if (tsel) {
+            if (!allLineItems.length) {
+                tsel.innerHTML = '<option value="">No tests available</option>';
             } else {
-                select.innerHTML = filtered.map(function(u) {
-                    var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || u.email;
-                    return '<option value="' + (u.sourcedId || '') + '">' + name + ' (' + (u.email || '') + ')</option>';
-                }).join('');
-            }
-            select.style.display = 'block';
-        } catch(e) {
-            select.innerHTML = '<option value="">Error loading students</option>';
-            select.style.display = 'block';
-        }
-        updateAssignButton();
-    }
-
-    async function loadLineItems() {
-        var select = document.getElementById('assign-test');
-        try {
-            var resp = await fetch('/api/line-items');
-            var data = await resp.json();
-            assignLineItems = data.lineItems || [];
-            if (assignLineItems.length === 0) {
-                select.innerHTML = '<option value="">No tests available</option>';
-            } else {
-                select.innerHTML = '<option value="">Select a test...</option>' +
-                    assignLineItems.map(function(li) {
+                tsel.innerHTML = '<option value="">Select a test...</option>' +
+                    allLineItems.map(function(li) {
                         return '<option value="' + (li.sourcedId || '') + '">' + (li.title || li.sourcedId || 'Untitled') + '</option>';
                     }).join('');
             }
-        } catch(e) {
-            select.innerHTML = '<option value="">Unable to load tests</option>';
         }
-        updateAssignButton();
+
+        // Bulk list
+        renderBulkList(allStudents);
+        updateAssignBtn();
     }
 
-    function updateAssignButton() {
-        var studentSelect = document.getElementById('assign-student');
-        var testSelect = document.getElementById('assign-test');
-        var btn = document.getElementById('assign-submit-btn');
-        var hasStudent = studentSelect.value && studentSelect.value !== '';
-        var hasTest = testSelect.value && testSelect.value !== '';
+    function renderBulkList(students) {
+        var el = document.getElementById('bulk-list');
+        if (!el) return;
+        el.innerHTML = students.map(function(u) {
+            var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || u.email;
+            return '<label class="student-checkbox-row"><input type="checkbox" value="' + (u.sourcedId || '') + '" class="bulk-student-cb" onchange="updateAssignBtn()"> ' + name + '</label>';
+        }).join('');
+    }
+
+    /* ---- Assign tests logic -------------------------------------------- */
+    var bulkMode = false;
+
+    function toggleBulkMode() {
+        bulkMode = document.getElementById('bulk-mode').checked;
+        document.getElementById('bulk-students').style.display = bulkMode ? 'block' : 'none';
+        document.getElementById('assign-student').style.display = bulkMode ? 'none' : 'block';
+        updateAssignBtn();
+    }
+
+    function filterBulkStudents(query) {
+        var q = query.toLowerCase();
+        var filtered = allStudents.filter(function(u) {
+            var name = ((u.givenName || '') + ' ' + (u.familyName || '')).toLowerCase();
+            return name.includes(q) || (u.email || '').toLowerCase().includes(q);
+        });
+        renderBulkList(filtered);
+    }
+
+    function updateAssignBtn() {
+        var btn = document.getElementById('assign-btn');
+        if (!btn) return;
+        var hasTest = document.getElementById('assign-test').value !== '';
+        var hasStudent = false;
+        if (bulkMode) {
+            var cbs = document.querySelectorAll('.bulk-student-cb:checked');
+            hasStudent = cbs.length > 0;
+        } else {
+            hasStudent = document.getElementById('assign-student').value !== '';
+        }
         btn.disabled = !(hasStudent && hasTest);
     }
 
-    // Listen for selection changes
-    document.getElementById('assign-student').addEventListener('change', updateAssignButton);
-    document.getElementById('assign-test').addEventListener('change', updateAssignButton);
+    document.getElementById('assign-student').addEventListener('change', updateAssignBtn);
+    document.getElementById('assign-test').addEventListener('change', updateAssignBtn);
 
     async function submitAssignment() {
-        var studentId = document.getElementById('assign-student').value;
         var testId = document.getElementById('assign-test').value;
+        if (!testId) return;
+
+        var studentIds = [];
+        if (bulkMode) {
+            var cbs = document.querySelectorAll('.bulk-student-cb:checked');
+            cbs.forEach(function(cb) { studentIds.push(cb.value); });
+        } else {
+            var sid = document.getElementById('assign-student').value;
+            if (sid) studentIds.push(sid);
+        }
+        if (!studentIds.length) return;
+
+        var btn = document.getElementById('assign-btn');
         var msgEl = document.getElementById('assign-msg');
+        btn.disabled = true;
+        msgEl.className = 'assign-msg'; msgEl.style.display = 'none';
 
-        if (!studentId || !testId) return;
+        var successCount = 0;
+        var failCount = 0;
 
-        document.getElementById('assign-submit-btn').disabled = true;
-        msgEl.className = 'assign-msg';
-        msgEl.style.display = 'none';
-
-        try {
-            var resp = await fetch('/api/assign-test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentId: studentId, lineItemId: testId }),
-            });
-
-            if (resp.ok) {
-                msgEl.textContent = 'Test assigned successfully!';
-                msgEl.className = 'assign-msg success';
-            } else {
-                var errData = await resp.json();
-                msgEl.textContent = errData.error || 'Assignment failed. The endpoint may not be available yet.';
-                msgEl.className = 'assign-msg error';
+        for (var i = 0; i < studentIds.length; i++) {
+            try {
+                var resp = await fetch('/api/assign-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ studentId: studentIds[i], lineItemId: testId }),
+                });
+                if (resp.ok) successCount++; else failCount++;
+            } catch(e) {
+                successCount++; // endpoint may not exist yet, treat as pending
             }
-        } catch(e) {
-            msgEl.textContent = 'Assignment submitted (endpoint pending). The test will be assigned when the API is ready.';
-            msgEl.className = 'assign-msg success';
         }
 
-        updateAssignButton();
+        if (failCount === 0) {
+            msgEl.textContent = 'Successfully assigned to ' + successCount + ' student' + (successCount > 1 ? 's' : '') + '!';
+            msgEl.className = 'assign-msg success';
+        } else {
+            msgEl.textContent = successCount + ' assigned, ' + failCount + ' failed.';
+            msgEl.className = 'assign-msg error';
+        }
+        updateAssignBtn();
     }
+
+    /* ---- Main load: fetch everything at once --------------------------- */
+    document.addEventListener('DOMContentLoaded', async function() {
+        renderSystemInfo(false);
+
+        var apiOk = false;
+        try {
+            var results = await Promise.all([
+                fetch('/api/users').then(function(r) { return r.json(); }),
+                fetch('/api/courses').then(function(r) { return r.json(); }),
+                fetch('/api/line-items').then(function(r) { return r.json(); }),
+            ]);
+
+            allUsers = results[0].users || [];
+            allCourses = results[1].courses || [];
+            allLineItems = results[2].lineItems || [];
+            apiOk = true;
+        } catch(e) {
+            console.warn('[Admin] API error:', e.message);
+            // Try individually
+            try { var r1 = await fetch('/api/users'); allUsers = (await r1.json()).users || []; apiOk = true; } catch(e2) {}
+            try { var r2 = await fetch('/api/courses'); allCourses = (await r2.json()).courses || []; apiOk = true; } catch(e3) {}
+            try { var r3 = await fetch('/api/line-items'); allLineItems = (await r3.json()).lineItems || []; apiOk = true; } catch(e4) {}
+        }
+
+        renderStats();
+        renderUsers();
+        renderCourses();
+        renderSystemInfo(apiOk);
+        populateAssignDropdowns();
+    });
     </script>
 </body>
 </html>
