@@ -295,131 +295,102 @@
 
             var html = '';
 
-            // Helper: extract modules/units from various response shapes
-            function getModules(data) {
-                if (!data) return [];
-                if (data.modules) return data.modules;
-                if (data.lessonPlan && data.lessonPlan.modules) return data.lessonPlan.modules;
-                if (data.tree && data.tree.modules) return data.tree.modules;
-                if (data.children) return data.children;
-                if (data.units) return data.units;
-                if (Array.isArray(data)) return data;
-                // Walk one level to find an array
-                for (var k in data) {
-                    if (Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === 'object') return data[k];
+            // ── Build progress lookup from courseProgress.lineItems ──
+            // Match by title to determine which lessons are completed
+            var progressByTitle = {};
+            var cp = contentData.courseProgress;
+            if (cp && cp.lineItems) {
+                for (var pi = 0; pi < cp.lineItems.length; pi++) {
+                    var pItem = cp.lineItems[pi];
+                    var pTitle = (pItem.title || '').trim();
+                    if (pTitle && pItem.results && pItem.results.length > 0) {
+                        var r = pItem.results[0];
+                        progressByTitle[pTitle] = {
+                            scoreStatus: r.scoreStatus || '',
+                            textScore: r.textScore || '',
+                            score: r.score,
+                            scorePercentile: r.scorePercentile,
+                            scoreDate: r.scoreDate || '',
+                        };
+                    }
                 }
-                return [];
             }
+            var totalCompleted = Object.keys(progressByTitle).length;
 
-            // Helper: status badge
-            function statusBadge(status) {
-                if (!status) return '';
-                var s = String(status).toLowerCase();
-                var bg, fg, icon;
-                if (s === 'completed' || s === 'mastered') { bg = '#E8F5E9'; fg = '#2E7D32'; icon = 'fa-check'; }
-                else if (s === 'in_progress' || s === 'started' || s === 'in progress') { bg = '#FFF8E1'; fg = '#F9A825'; icon = 'fa-clock'; }
-                else { bg = 'var(--color-bg)'; fg = 'var(--color-text-muted)'; icon = 'fa-circle'; }
-                return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:600;padding:3px 10px;border-radius:20px;background:' + bg + ';color:' + fg + ';text-transform:capitalize;white-space:nowrap;"><i class="fa-solid ' + icon + '" style="font-size:0.6rem;"></i>' + esc(s.replace(/_/g, ' ')) + '</span>';
-            }
+            // ── Parse lesson plan: subComponents = units, each has subComponents = lessons ──
+            var plan = contentData.lessonPlan;
+            var innerPlan = (plan && plan.lessonPlan) ? plan.lessonPlan : plan;
+            var units = (innerPlan && innerPlan.subComponents) ? innerPlan.subComponents : [];
 
-            // Helper: lesson type icon
-            function lessonIcon(type) {
-                var t = (type || '').toLowerCase();
-                if (t === 'quiz') return 'fa-clipboard-check';
-                if (t === 'test') return 'fa-flask';
-                if (t === 'video') return 'fa-play-circle';
-                if (t === 'article' || t === 'reading') return 'fa-book-open';
-                if (t === 'exercise' || t === 'practice') return 'fa-pen';
-                if (t === 'activity') return 'fa-puzzle-piece';
-                return 'fa-file-lines';
-            }
+            // Sort units by sortOrder
+            units.sort(function(a, b) { return (a.sortOrder || '').localeCompare(b.sortOrder || ''); });
 
-            // ── Parse lesson plan data ──
-            var plan = contentData.lessonPlan || contentData.tree;
-            var modules = getModules(plan);
+            if (units.length > 0) {
+                // Count total lessons
+                var totalLessons = 0;
+                for (var u = 0; u < units.length; u++) totalLessons += (units[u].subComponents || []).length;
 
-            // Check if items have nested lessons (hierarchical) or are flat
-            var isHierarchical = modules.length > 0 && modules.some(function(m) {
-                return (m.lessons && m.lessons.length > 0) || (m.children && m.children.length > 0) || (m.items && m.items.length > 0);
-            });
-
-            // Render function for a single lesson/item row
-            function renderLesson(lesson, idx, indent) {
-                var lTitle = lesson.name || lesson.title || lesson.label || 'Lesson ' + (idx + 1);
-                var lType = lesson.type || lesson.nodeType || '';
-                var lStatus = (lesson.status || lesson.state || '').toLowerCase();
-                var lScore = lesson.score;
-                var lDate = lesson.completedAt || lesson.completed_at || '';
-                var isComplete = lStatus === 'completed' || lStatus === 'mastered';
-                var isInProgress = lStatus === 'in_progress' || lStatus === 'started' || lStatus === 'in progress';
-                var lUrl = lesson.url || lesson.href || '';
-                var lessonId = lesson.id || lesson.sourcedId || '';
-                var linkUrl = lUrl || (lessonId ? 'https://alpha.timeback.com/app' : '');
-
-                var row = '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;' + (indent ? 'margin-left:20px;' : '') + 'border-radius:var(--radius-sm);transition:background 0.15s;cursor:pointer;" onmouseover="this.style.background=\'var(--color-bg)\'" onmouseout="this.style.background=\'transparent\'"' + (linkUrl ? ' onclick="window.open(\'' + esc(linkUrl) + '\',\'_blank\')"' : '') + '>' +
-                    '<div style="width:30px;height:30px;border-radius:var(--radius-sm);background:' + (isComplete ? '#E8F5E9' : isInProgress ? '#FFF8E1' : 'var(--color-primary-light)') + ';color:' + (isComplete ? '#2E7D32' : isInProgress ? '#F9A825' : 'var(--color-primary-dark)') + ';display:flex;align-items:center;justify-content:center;font-size:0.75rem;flex-shrink:0;"><i class="fa-solid ' + (isComplete ? 'fa-check' : lessonIcon(lType)) + '"></i></div>' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="font-weight:500;font-size:0.88rem;">' + esc(lTitle) + '</div>' +
-                        (lType || lDate ? '<div style="font-size:0.7rem;color:var(--color-text-muted);text-transform:capitalize;">' + (lType ? esc(lType) : '') + (lDate ? (lType ? ' · ' : '') + esc(lDate.split('T')[0]) : '') + '</div>' : '') +
+                // Overall progress
+                var overallPct = totalLessons > 0 ? Math.round((totalCompleted / totalLessons) * 100) : 0;
+                html += '<div style="background:#fff;border:1px solid var(--color-border);border-radius:var(--radius);padding:20px;margin-bottom:16px;">' +
+                    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+                        '<span style="font-weight:700;font-size:1rem;">Course Progress</span>' +
+                        '<span style="font-weight:700;font-size:1.2rem;color:var(--color-primary);">' + overallPct + '%</span>' +
                     '</div>' +
-                    (lScore !== null && lScore !== undefined && lScore !== '' ? '<span style="font-weight:700;font-size:0.85rem;color:#2E7D32;">' + esc(String(lScore)) + '</span>' : '') +
-                    statusBadge(lStatus) +
-                    '<i class="fa-solid fa-chevron-right" style="font-size:0.65rem;color:var(--color-text-muted);"></i>' +
+                    '<div style="height:10px;background:#E8ECF1;border-radius:5px;overflow:hidden;">' +
+                        '<div style="height:100%;width:' + overallPct + '%;background:var(--color-primary);border-radius:5px;transition:width 0.3s;"></div>' +
+                    '</div>' +
+                    '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.8rem;color:var(--color-text-muted);">' +
+                        '<span>' + totalCompleted + ' of ' + totalLessons + ' lessons completed</span>' +
+                        '<span>' + units.length + ' units</span>' +
+                    '</div>' +
                 '</div>';
-                return row;
-            }
 
-            if (isHierarchical && modules.length > 0) {
-                // ── Hierarchical: units with lessons inside ──
-                html += '<h2><i class="fa-solid fa-sitemap" style="color:var(--color-primary);margin-right:8px;"></i>Course Content</h2>';
+                html += '<h2><i class="fa-solid fa-sitemap" style="color:var(--color-primary);margin-right:8px;"></i>Units</h2>';
 
-                for (var mi = 0; mi < modules.length; mi++) {
-                    var mod = modules[mi];
-                    var modTitle = mod.name || mod.title || 'Unit ' + (mi + 1);
-                    var modLessons = mod.lessons || mod.children || mod.items || [];
-                    var completedCount = modLessons.filter(function(l) { var s = (l.status || l.state || '').toLowerCase(); return s === 'completed' || s === 'mastered'; }).length;
-                    var modTotal = modLessons.length;
-                    var modPct = modTotal > 0 ? Math.round((completedCount / modTotal) * 100) : 0;
+                for (var mi = 0; mi < units.length; mi++) {
+                    var mod = units[mi];
+                    var modTitle = mod.title || 'Unit ' + (mi + 1);
+                    var modLessons = mod.subComponents || [];
+                    // Sort lessons by sortOrder
+                    modLessons.sort(function(a, b) { return (a.sortOrder || '').localeCompare(b.sortOrder || ''); });
+
+                    var unitCompleted = 0;
+                    for (var lc = 0; lc < modLessons.length; lc++) {
+                        var lt = (modLessons[lc].title || '').trim();
+                        if (progressByTitle[lt]) unitCompleted++;
+                    }
+                    var unitPct = modLessons.length > 0 ? Math.round((unitCompleted / modLessons.length) * 100) : 0;
 
                     html += '<div style="background:#fff;border-radius:var(--radius);padding:16px 20px;margin-top:' + (mi > 0 ? '12' : '0') + 'px;border:1px solid var(--color-border);border-left:4px solid var(--color-primary);">' +
-                        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:' + (modTotal > 0 ? '10' : '0') + 'px;">' +
+                        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:' + (modLessons.length > 0 ? '10' : '0') + 'px;">' +
                             '<div style="width:40px;height:40px;border-radius:50%;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.95rem;flex-shrink:0;">' + (mi + 1) + '</div>' +
                             '<div style="flex:1;">' +
                                 '<div style="font-weight:700;font-size:0.95rem;">' + esc(modTitle) + '</div>' +
-                                '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + modTotal + ' lessons' + (completedCount > 0 ? ' · ' + completedCount + ' done' : '') + '</div>' +
+                                '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + modLessons.length + ' lessons · ' + unitCompleted + ' completed</div>' +
                             '</div>' +
                             '<div style="display:flex;align-items:center;gap:8px;">' +
-                                '<div style="width:80px;height:6px;background:#E8ECF1;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + modPct + '%;background:var(--color-primary);border-radius:3px;transition:width 0.3s;"></div></div>' +
-                                '<span style="font-size:0.82rem;font-weight:700;color:var(--color-primary);min-width:36px;text-align:right;">' + modPct + '%</span>' +
+                                '<div style="width:80px;height:6px;background:#E8ECF1;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + unitPct + '%;background:var(--color-primary);border-radius:3px;"></div></div>' +
+                                '<span style="font-size:0.82rem;font-weight:700;color:var(--color-primary);min-width:36px;text-align:right;">' + unitPct + '%</span>' +
                             '</div>' +
                         '</div>';
 
+                    // Lessons
                     for (var li = 0; li < modLessons.length; li++) {
-                        html += renderLesson(modLessons[li], li, true);
-                    }
-                    html += '</div>';
-                }
+                        var lesson = modLessons[li];
+                        var lTitle = lesson.title || 'Lesson ' + (li + 1);
+                        var prog = progressByTitle[lTitle.trim()] || null;
+                        var isComplete = prog && (prog.scoreStatus === 'fully graded' || prog.textScore === 'Completed');
+                        var scoreText = prog ? (prog.textScore || (prog.scorePercentile !== null ? prog.scorePercentile + '%' : '')) : '';
 
-            } else if (modules.length > 0) {
-                // ── Flat list: each item is a lesson ──
-                html += '<h2><i class="fa-solid fa-list" style="color:var(--color-primary);margin-right:8px;"></i>Course Content (' + modules.length + ' items)</h2>';
-                html += '<div style="background:#fff;border-radius:var(--radius);border:1px solid var(--color-border);overflow:hidden;">';
-                for (var fi = 0; fi < modules.length; fi++) {
-                    html += renderLesson(modules[fi], fi, false);
-                }
-                html += '</div>';
-            }
-
-            // ── Course progress (from getCourseProgress) — only if no lesson plan ──
-            var progress = contentData.courseProgress;
-            if (progress && !modules.length) {
-                var progItems = getModules(progress);
-                if (progItems.length > 0) {
-                    html += '<h2><i class="fa-solid fa-chart-line" style="color:var(--color-primary);margin-right:8px;"></i>Progress (' + progItems.length + ')</h2>';
-                    html += '<div style="background:#fff;border-radius:var(--radius);border:1px solid var(--color-border);overflow:hidden;">';
-                    for (var pi = 0; pi < progItems.length; pi++) {
-                        html += renderLesson(progItems[pi], pi, false);
+                        html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px 10px 36px;">' +
+                            '<div style="width:28px;height:28px;border-radius:6px;background:' + (isComplete ? '#E8F5E9' : '#F4F6F9') + ';color:' + (isComplete ? '#2E7D32' : '#A0AEC0') + ';display:flex;align-items:center;justify-content:center;font-size:0.7rem;flex-shrink:0;"><i class="fa-solid ' + (isComplete ? 'fa-check' : 'fa-file-lines') + '"></i></div>' +
+                            '<div style="flex:1;min-width:0;"><div style="font-weight:500;font-size:0.88rem;color:' + (isComplete ? 'var(--color-text)' : 'var(--color-text)') + ';">' + esc(lTitle) + '</div></div>' +
+                            (scoreText ? '<span style="font-size:0.78rem;font-weight:600;color:#2E7D32;">' + esc(scoreText) + '</span>' : '') +
+                            (isComplete ? '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:#E8F5E9;color:#2E7D32;">Done</span>' : '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:#F4F6F9;color:#A0AEC0;">To do</span>') +
+                        '</div>';
                     }
+
                     html += '</div>';
                 }
             }
