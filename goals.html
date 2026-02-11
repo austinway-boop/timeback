@@ -305,7 +305,7 @@ function lessonCard(c, i) {
         } else if (d.school <= 0) {
             paceHtml = '<div class="gc-pace gc-pace-overdue"><i class="fa-solid fa-triangle-exclamation"></i> Past due</div>';
         } else {
-            paceHtml = `<div class="gc-pace"><i class="fa-solid fa-bolt"></i>${daily} units/${dayT} &middot; ${d.school} days left</div>`;
+            paceHtml = `<div class="gc-pace"><i class="fa-solid fa-bolt"></i>${daily} lessons/${dayT} &middot; ${d.school} days left</div>`;
         }
     }
 
@@ -314,7 +314,7 @@ function lessonCard(c, i) {
         <div class="gc-b">
             <div class="gc-name">${c.title}</div>
             <div class="gc-detail">
-                <div class="gc-detail-big">${done} <span>/ ${total || '?'} units</span></div>
+                <div class="gc-detail-big">${done} <span>/ ${total || '?'} lessons</span></div>
             </div>
             <div class="gc-bar"><div class="gc-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
             ${paceHtml}
@@ -378,7 +378,7 @@ function previewL(i) {
 
     if (d.school <= 0)    pvt.textContent = 'That date has already passed.';
     else if (rem <= 0)    pvt.textContent = 'Already completed!';
-    else                  pvt.innerHTML = `${Math.ceil(rem / d.school)} units/${dayT} &middot; ${d.school} ${dayT}s left`;
+    else                  pvt.innerHTML = `${Math.ceil(rem / d.school)} lessons/${dayT} &middot; ${d.school} ${dayT}s left`;
     pv.classList.add('show');
 }
 
