@@ -326,7 +326,6 @@ function lessonCard(c, i) {
                 </div>
                 <div class="gc-detail">
                     <div class="gc-detail-big">${done} <span>/ ${total || '?'} units</span></div>
-                    <div class="gc-detail-sub">${remaining > 0 ? remaining + ' remaining' : 'Complete!'}</div>
                 </div>
             </div>
             ${paceHtml}
@@ -360,7 +359,6 @@ function xpCard(c, i) {
                 </div>
                 <div class="gc-detail">
                     <div class="gc-detail-big">${xpE.toLocaleString()} <span>XP earned</span></div>
-                    <div class="gc-detail-sub">${has ? dailyG + ' XP / day goal' : 'No daily goal set'}</div>
                 </div>
             </div>
             <div class="gc-form">
