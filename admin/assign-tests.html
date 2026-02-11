@@ -13,48 +13,31 @@
     <link rel="preload" href="/css/style.css" as="style">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* ── Hero Banner ──────────────────────────────────────── */
+        /* ── Hero ─────────────────────────────────────────────── */
         .hero-banner {
-            position: relative;
-            border-radius: var(--radius);
-            overflow: hidden;
-            margin-bottom: 24px;
-            box-shadow: var(--shadow);
+            position: relative; border-radius: var(--radius);
+            overflow: hidden; margin-bottom: 24px; box-shadow: var(--shadow);
         }
-        .hero-banner img {
-            width: 100%; height: 150px; object-fit: cover; display: block;
-        }
+        .hero-banner img { width: 100%; height: 150px; object-fit: cover; display: block; }
         .hero-overlay {
             position: absolute; inset: 0;
             background: linear-gradient(135deg, rgba(69,181,170,0.88), rgba(56,158,148,0.82));
             display: flex; align-items: center; padding: 0 32px;
         }
-        .hero-overlay h1 {
-            font-size: 1.7rem; font-weight: 700; color: #fff; margin: 0 0 4px;
-        }
-        .hero-overlay p {
-            font-size: 0.95rem; color: rgba(255,255,255,0.85); margin: 0;
-        }
+        .hero-overlay h1 { font-size: 1.7rem; font-weight: 700; color: #fff; margin: 0 0 4px; }
+        .hero-overlay p { font-size: 0.95rem; color: rgba(255,255,255,0.85); margin: 0; }
 
         /* ── Search ───────────────────────────────────────────── */
-        .search-wrap {
-            position: relative;
-            margin-bottom: 20px;
-        }
+        .search-wrap { position: relative; margin-bottom: 20px; }
         .search-wrap .search-icon {
             position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
             color: var(--color-text-muted); font-size: 0.9rem; pointer-events: none;
         }
         .search-wrap input {
-            width: 100%;
-            padding: 10px 14px 10px 40px;
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
-            background: var(--color-surface);
-            color: var(--color-text);
-            font-size: 0.9rem;
-            outline: none;
-            transition: border-color var(--transition);
+            width: 100%; padding: 10px 14px 10px 40px;
+            border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+            background: var(--color-surface); color: var(--color-text);
+            font-size: 0.9rem; outline: none; transition: border-color var(--transition);
             box-shadow: var(--shadow);
         }
         .search-wrap input:focus { border-color: var(--color-primary); }
@@ -70,151 +53,98 @@
         .search-item {
             display: flex; align-items: center; gap: 12px;
             padding: 10px 14px; cursor: pointer;
-            border-bottom: 1px solid var(--color-border);
-            transition: background 0.1s;
+            border-bottom: 1px solid var(--color-border); transition: background 0.1s;
         }
         .search-item:last-child { border-bottom: none; }
         .search-item:hover { background: var(--color-primary-light); }
         .search-item-name { font-weight: 600; font-size: 0.9rem; color: var(--color-text); }
         .search-item-email { font-size: 0.8rem; color: var(--color-text-muted); }
-        .search-empty {
-            padding: 20px; text-align: center;
-            color: var(--color-text-muted); font-size: 0.85rem;
-        }
+        .search-empty { padding: 20px; text-align: center; color: var(--color-text-muted); font-size: 0.85rem; }
 
-        /* ── Selected Student Chip ────────────────────────────── */
+        /* ── Student chip ─────────────────────────────────────── */
         .student-chip {
             display: inline-flex; align-items: center; gap: 8px;
             background: var(--color-primary-light); color: var(--color-primary-dark);
             padding: 6px 14px; border-radius: 20px;
             font-size: 0.85rem; font-weight: 600; margin-bottom: 20px;
         }
-        .student-chip i { font-size: 0.8rem; }
 
-        /* ── Two Column Grid ──────────────────────────────────── */
-        .two-col {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
-        }
+        /* ── Two column grid ──────────────────────────────────── */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
-        /* ── Cards ────────────────────────────────────────────── */
+        /* ── Panel card ───────────────────────────────────────── */
         .panel-card {
-            background: var(--color-surface);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            overflow: visible;
+            background: var(--color-surface); border-radius: var(--radius);
+            box-shadow: var(--shadow); overflow: hidden;
         }
         .panel-card .card-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--color-border);
+            padding: 16px 20px; border-bottom: 1px solid var(--color-border);
         }
-        .panel-card .card-title {
-            font-size: 1.05rem; font-weight: 600; margin: 0;
-        }
-        .panel-card .card-title i {
-            color: var(--color-primary); margin-right: 8px;
-        }
-        .panel-body {
-            padding: 20px;
-        }
+        .panel-card .card-title { font-size: 1.05rem; font-weight: 600; margin: 0; }
+        .panel-card .card-title i { color: var(--color-primary); margin-right: 8px; }
+        .panel-body { padding: 16px 20px; max-height: 500px; overflow-y: auto; }
 
-        /* ── Form ─────────────────────────────────────────────── */
-        .form-field {
-            margin-bottom: 14px;
-        }
-        .form-field label {
-            display: block;
-            font-size: 0.82rem; font-weight: 600;
-            color: var(--color-text-secondary);
-            margin-bottom: 6px;
-        }
-        .form-field select {
-            width: 100%;
-            padding: 9px 12px;
+        /* ── Course row (clickable test) ──────────────────────── */
+        .course-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; border-radius: var(--radius-sm);
             border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
-            background: var(--color-surface);
-            color: var(--color-text);
-            font-size: 0.9rem;
-            font-family: inherit;
-            outline: none;
-            transition: border-color var(--transition);
+            margin-bottom: 8px; transition: all var(--transition);
         }
-        .form-field select:focus { border-color: var(--color-primary); }
-        .form-row-2 {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+        .course-row:last-child { margin-bottom: 0; }
+        .course-row-info { flex: 1; min-width: 0; }
+        .course-row-title { font-weight: 600; font-size: 0.88rem; color: var(--color-text); }
+        .course-row-meta { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 1px; }
+        .course-row .assign-row-btn {
+            padding: 5px 14px; border: none; border-radius: var(--radius-sm);
+            font-size: 0.78rem; font-weight: 600; cursor: pointer;
+            transition: all var(--transition); white-space: nowrap;
         }
-
-        .assign-btn {
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            width: 100%;
-            padding: 10px;
-            background: var(--color-primary); color: #fff; border: none;
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem; font-weight: 600; font-family: inherit;
-            cursor: pointer;
-            transition: background var(--transition);
+        .assign-row-btn.assign {
+            background: var(--color-primary); color: #fff;
         }
-        .assign-btn:hover:not(:disabled) { background: var(--color-primary-dark); }
-        .assign-btn:disabled {
-            background: var(--color-border); color: var(--color-text-muted); cursor: not-allowed;
+        .assign-row-btn.assign:hover { background: var(--color-primary-dark); }
+        .assign-row-btn.pending {
+            background: #FFF8E1; color: #F57F17; cursor: default;
+        }
+        .assign-row-btn.completed {
+            background: #E8F5E9; color: #2E7D32; cursor: default;
+        }
+        .assign-row-btn.assigning {
+            background: var(--color-border); color: var(--color-text-muted); cursor: wait;
         }
 
-        .feedback {
-            margin-top: 10px; padding: 9px 12px;
-            border-radius: var(--radius-sm);
-            font-size: 0.85rem; font-weight: 500;
-            display: none;
+        /* ── Pending test row ─────────────────────────────────── */
+        .pending-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; border-radius: var(--radius-sm);
+            background: var(--color-bg); margin-bottom: 8px;
         }
-        .feedback.success { display: block; background: #E8F5E9; color: #2E7D32; }
-        .feedback.error   { display: block; background: #FFF5F5; color: #E53E3E; }
-        .feedback.warning { display: block; background: #FFF8E1; color: #F57F17; }
-
-        /* ── Recent Table ─────────────────────────────────────── */
-        .recent-table { width: 100%; border-collapse: collapse; }
-        .recent-table th {
-            padding: 10px 16px; text-align: left;
-            font-weight: 600; font-size: 0.78rem;
-            color: var(--color-text-secondary);
-            text-transform: uppercase; letter-spacing: 0.5px;
-            background: var(--color-bg);
-            border-bottom: 1px solid var(--color-border);
-        }
-        .recent-table td {
-            padding: 10px 16px;
-            border-bottom: 1px solid var(--color-border);
-            font-size: 0.88rem;
-        }
-        .recent-table tbody tr:hover { background: #FAFBFC; }
-        .recent-table tbody tr:last-child td { border-bottom: none; }
-
-        .empty-state {
-            text-align: center; padding: 32px 16px; color: var(--color-text-muted);
-        }
-        .empty-state i {
-            font-size: 1.6rem; margin-bottom: 8px; display: block; opacity: 0.3;
-        }
-        .empty-state p { font-size: 0.85rem; margin: 0; }
-
-        /* ── Remove button ────────────────────────────────────── */
+        .pending-row:last-child { margin-bottom: 0; }
+        .pending-row-info { flex: 1; }
+        .pending-row-title { font-weight: 600; font-size: 0.88rem; }
+        .pending-row-meta { font-size: 0.78rem; color: var(--color-text-muted); }
         .remove-btn {
-            padding: 3px 10px; border: 1px solid var(--color-border);
+            padding: 4px 10px; border: 1px solid var(--color-border);
             border-radius: var(--radius-sm); background: transparent;
             color: var(--color-text-muted); font-size: 0.75rem; font-weight: 600;
             cursor: pointer; transition: all var(--transition);
         }
-        .remove-btn:hover {
-            border-color: #E53E3E; color: #E53E3E; background: #FFF5F5;
-        }
+        .remove-btn:hover { border-color: #E53E3E; color: #E53E3E; background: #FFF5F5; }
 
-        /* ── Responsive ───────────────────────────────────────── */
-        @media (max-width: 900px) {
-            .two-col { grid-template-columns: 1fr; }
+        /* ── Feedback ─────────────────────────────────────────── */
+        .feedback {
+            margin-top: 10px; padding: 9px 12px; border-radius: var(--radius-sm);
+            font-size: 0.85rem; font-weight: 500; display: none;
         }
-        @media (max-width: 768px) {
-            .hero-overlay { padding: 0 20px; }
-            .hero-overlay h1 { font-size: 1.3rem; }
-            .form-row-2 { grid-template-columns: 1fr; }
-        }
+        .feedback.success { display: block; background: #E8F5E9; color: #2E7D32; }
+        .feedback.error   { display: block; background: #FFF5F5; color: #E53E3E; }
+
+        .empty-state { text-align: center; padding: 32px 16px; color: var(--color-text-muted); }
+        .empty-state i { font-size: 1.6rem; margin-bottom: 8px; display: block; opacity: 0.3; }
+        .empty-state p { font-size: 0.85rem; margin: 0; }
+
+        @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body data-view="admin" data-active="assign-tests">
@@ -223,7 +153,7 @@
     <nav class="sidebar" id="sidebar"></nav>
     <main class="main-content">
         <div>
-            <!-- Hero Banner -->
+            <!-- Hero -->
             <div class="hero-banner">
                 <img src="/img/assign-tests-header.png" alt="">
                 <div class="hero-overlay">
@@ -241,73 +171,35 @@
                 <div class="search-dropdown" id="search-dropdown"></div>
             </div>
 
-            <!-- Selected Student Chip (hidden until picked) -->
+            <!-- Selected student chip -->
             <div id="student-chip" style="display:none;"></div>
 
-            <!-- Form + Recent side by side (hidden until student picked) -->
+            <!-- Panels (hidden until student picked) -->
             <div class="two-col" id="panels" style="display:none;">
 
-                <!-- Assign Form -->
+                <!-- Left: Available Tests from Enrollments -->
                 <div class="panel-card">
                     <div class="card-header">
-                        <h2 class="card-title"><i class="fa-solid fa-clipboard-check"></i>New Assignment</h2>
+                        <h2 class="card-title"><i class="fa-solid fa-clipboard-check"></i>Available Tests</h2>
                     </div>
-                    <div class="panel-body">
-                        <div class="form-row-2">
-                            <div class="form-field">
-                                <label>Subject</label>
-                                <select id="assign-subject" onchange="checkCombo()">
-                                    <option value="">Select subject...</option>
-                                    <option value="Math">Math</option>
-                                    <option value="Reading">Reading</option>
-                                    <option value="Writing">Writing</option>
-                                    <option value="Science">Science</option>
-                                    <option value="Social Studies">Social Studies</option>
-                                    <option value="Language">Language</option>
-                                    <option value="Vocabulary">Vocabulary</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label>Grade Level</label>
-                                <select id="assign-grade" onchange="checkCombo()">
-                                    <option value="">Select grade...</option>
-                                    <option value="3">Grade 3</option>
-                                    <option value="4">Grade 4</option>
-                                    <option value="5">Grade 5</option>
-                                    <option value="6">Grade 6</option>
-                                    <option value="7">Grade 7</option>
-                                    <option value="8">Grade 8</option>
-                                    <option value="9">Grade 9</option>
-                                    <option value="10">Grade 10</option>
-                                    <option value="11">Grade 11</option>
-                                    <option value="12">Grade 12</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-field">
-                            <label>Type</label>
-                            <select id="assign-type">
-                                <option value="test-assignment">Test Assignment</option>
-                                <option value="screening">Screening Test</option>
-                            </select>
-                        </div>
-                        <div class="feedback" id="completion-warn"></div>
-                        <button class="assign-btn" id="assign-btn" onclick="submitAssignment()" disabled>
-                            <i class="fa-solid fa-paper-plane"></i> Assign Test
-                        </button>
-                        <div class="feedback" id="assign-feedback"></div>
-                    </div>
-                </div>
-
-                <!-- Current Test Assignments -->
-                <div class="panel-card">
-                    <div class="card-header">
-                        <h2 class="card-title"><i class="fa-solid fa-list-check"></i>Current Assignments</h2>
-                    </div>
-                    <div id="assignments-body">
+                    <div class="panel-body" id="available-tests">
                         <div class="empty-state">
                             <i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i>
-                            <p>Loading assignments...</p>
+                            <p>Loading courses...</p>
+                        </div>
+                    </div>
+                    <div id="assign-feedback" style="padding:0 20px 16px;"></div>
+                </div>
+
+                <!-- Right: Pending Test Assignments -->
+                <div class="panel-card">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa-solid fa-hourglass-half"></i>Pending Tests</h2>
+                    </div>
+                    <div class="panel-body" id="pending-tests">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i>
+                            <p>Loading...</p>
                         </div>
                     </div>
                 </div>
@@ -325,7 +217,8 @@
    ================================================================== */
 var cachedStudents = [];
 var selectedStudent = null;
-var completedCombos = new Set();
+var enrolledCourses = [];      // from /api/enrollments
+var pendingAssignments = [];   // from /api/assign-test GET
 
 function esc(s) {
     if (s == null) return '';
@@ -351,16 +244,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!e.target.closest('.search-wrap')) closeDropdown();
     });
 
-    // Pre-fetch all students
     try {
         var resp = await fetch('/api/users');
         var data = await resp.json();
         cachedStudents = (data.users || []).filter(function(u) {
             return (u.role || '').toLowerCase() === 'student';
         });
-    } catch(e) {
-        console.warn('[Admin] Failed to load students:', e.message);
-    }
+    } catch(e) {}
 });
 
 /* ==================================================================
@@ -368,7 +258,6 @@ document.addEventListener('DOMContentLoaded', async function() {
    ================================================================== */
 function doSearch(query) {
     var q = query.toLowerCase();
-
     if (q.includes('@')) {
         fetch('/api/user-lookup?email=' + encodeURIComponent(query))
             .then(function(r) { return r.json(); })
@@ -376,16 +265,11 @@ function doSearch(query) {
             .catch(function() { renderDropdown([]); });
         return;
     }
-
     var results = cachedStudents.filter(function(u) {
-        var first = (u.givenName || '').toLowerCase();
-        var last = (u.familyName || '').toLowerCase();
-        var full = first + ' ' + last;
-        return first.includes(q) || last.includes(q) || full.includes(q)
-            || (u.email || '').toLowerCase().includes(q)
-            || (u.username || '').toLowerCase().includes(q);
+        var f = (u.givenName || '').toLowerCase(), l = (u.familyName || '').toLowerCase();
+        return f.includes(q) || l.includes(q) || (f + ' ' + l).includes(q)
+            || (u.email || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q);
     });
-
     renderDropdown(results.slice(0, 30));
 }
 
@@ -393,26 +277,19 @@ function renderDropdown(results) {
     var dd = document.getElementById('search-dropdown');
     if (!results.length) {
         dd.innerHTML = '<div class="search-empty">No students found.</div>';
-        dd.classList.add('open');
-        return;
+        dd.classList.add('open'); return;
     }
     dd.innerHTML = results.map(function(u) {
         var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
-        var email = u.email || '';
-        var initial = (u.givenName || '?')[0].toUpperCase();
         return '<div class="search-item" data-id="' + esc(u.sourcedId) + '" onclick="pickStudent(this)">' +
-            '<div class="user-cell-avatar">' + esc(initial) + '</div>' +
-            '<div style="flex:1;min-width:0;">' +
-                '<div class="search-item-name">' + esc(name) + '</div>' +
-                '<div class="search-item-email">' + esc(email) + '</div>' +
-            '</div></div>';
+            '<div class="user-cell-avatar">' + esc((u.givenName || '?')[0].toUpperCase()) + '</div>' +
+            '<div style="flex:1;min-width:0;"><div class="search-item-name">' + esc(name) +
+            '</div><div class="search-item-email">' + esc(u.email || '') + '</div></div></div>';
     }).join('');
     dd.classList.add('open');
 }
 
-function closeDropdown() {
-    document.getElementById('search-dropdown').classList.remove('open');
-}
+function closeDropdown() { document.getElementById('search-dropdown').classList.remove('open'); }
 
 /* ==================================================================
    Pick Student
@@ -421,292 +298,241 @@ function pickStudent(el) {
     var id = el.getAttribute('data-id');
     var user = cachedStudents.find(function(u) { return u.sourcedId === id; });
     if (!user) {
-        var nameEl = el.querySelector('.search-item-name');
-        var emailEl = el.querySelector('.search-item-email');
-        user = { sourcedId: id, givenName: nameEl ? nameEl.textContent : '', familyName: '', email: emailEl ? emailEl.textContent : '', role: 'student' };
+        var n = el.querySelector('.search-item-name'), e = el.querySelector('.search-item-email');
+        user = { sourcedId: id, givenName: n ? n.textContent : '', familyName: '', email: e ? e.textContent : '', role: 'student' };
     }
 
     selectedStudent = user;
-    completedCombos = new Set();
     closeDropdown();
 
-    // Show selected name in the search input
     var name = ((user.givenName || '') + ' ' + (user.familyName || '')).trim();
     searchInput.value = name;
 
-    // Show chip
-    var chipEl = document.getElementById('student-chip');
-    chipEl.style.display = '';
-    chipEl.innerHTML = '<div class="student-chip"><i class="fa-solid fa-user-check"></i>' + esc(name) + ' &mdash; ' + esc(user.email || '') + '</div>';
+    document.getElementById('student-chip').style.display = '';
+    document.getElementById('student-chip').innerHTML =
+        '<div class="student-chip"><i class="fa-solid fa-user-check"></i>' + esc(name) + ' &mdash; ' + esc(user.email || '') + '</div>';
 
-    // Show panels
     document.getElementById('panels').style.display = '';
 
-    // Reset form
-    document.getElementById('assign-subject').value = '';
-    document.getElementById('assign-grade').value = '';
-    hideFeedback('completion-warn');
-    hideFeedback('assign-feedback');
-    updateBtn();
+    // Reset
+    enrolledCourses = [];
+    pendingAssignments = [];
+    document.getElementById('available-tests').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading courses...</p></div>';
+    document.getElementById('pending-tests').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading...</p></div>';
+    clearFeedback();
 
-    // Fetch completion data
     loadStudentData(user.sourcedId);
 }
 
 /* ==================================================================
-   Fetch Enrollment + Results + Existing Assignments
+   Load Data
    ================================================================== */
-var existingAssignments = [];
-
 async function loadStudentData(studentId) {
-    // Fetch enrollments, results, and existing assignments in parallel
     try {
-        var [enrollResp, resultsResp, assignResp] = await Promise.all([
+        var [enrollResp, assignResp] = await Promise.all([
             fetch('/api/enrollments?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }),
-            fetch('/api/results?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { results: [] }; }),
-            fetch('/api/assign-test?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { assignments: [] }; }),
+            fetch('/api/assign-test?student=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { testAssignments: [] }; }),
         ]);
 
-        // Parse enrollments for completed mastery tests
+        // Parse enrollments — extract real courses (not manual XP, hole-filling, school rows)
         var raw = enrollResp.data || enrollResp.enrollments || enrollResp.courses || (Array.isArray(enrollResp) ? enrollResp : []);
+        enrolledCourses = [];
 
         for (var i = 0; i < raw.length; i++) {
             var e = raw[i];
-            var meta = (e.metadata && e.metadata.metrics) || {};
-            var courseMeta = ((e.course || {}).metadata || {});
-            var courseMetrics = courseMeta.metrics || {};
+            var c = e.course || {};
+            var title = (c.title || '').trim();
+            var subjects = c.subjects || [];
+            var grades = c.grades || [];
 
-            var isMastery = meta.courseType === 'mastery_test' || meta.courseType === 'mastery-test' || meta.courseType === 'masteryTest'
-                || courseMetrics.courseType === 'mastery_test' || courseMetrics.courseType === 'mastery-test' || courseMetrics.courseType === 'masteryTest';
+            // Skip junk
+            if (!title) continue;
+            if (title.startsWith('Manual XP')) continue;
+            if (title.includes('Hole-Filling')) continue;
+            if (!subjects.length) continue;
 
-            if (!isMastery) {
-                var title = ((e.course || {}).title || '').toLowerCase();
-                isMastery = title.includes('mastery') && title.includes('test');
-            }
-
-            if (isMastery) {
-                var subjects = (e.course || {}).subjects || [];
-                var grades = (e.course || {}).grades || [];
-                var subject = subjects[0] || guessSubject((e.course || {}).title || '');
-
-                if (subject) {
-                    for (var g = 0; g < grades.length; g++) {
-                        completedCombos.add(subject.toLowerCase() + '|' + grades[g]);
-                    }
-                    if (!grades.length) {
-                        completedCombos.add(subject.toLowerCase() + '|*');
-                    }
-                }
-            }
-        }
-
-        // Store existing test assignments
-        existingAssignments = assignResp.assignments || [];
-
-        // Also build display list from mastery enrollments if API returned nothing
-        if (!existingAssignments.length) {
-            existingAssignments = raw.filter(function(e) {
-                var m = (e.metadata && e.metadata.metrics) || {};
-                var cm = ((e.course || {}).metadata || {}).metrics || {};
-                return m.courseType === 'mastery_test' || m.courseType === 'mastery-test' || m.courseType === 'masteryTest'
-                    || cm.courseType === 'mastery_test' || cm.courseType === 'mastery-test' || cm.courseType === 'masteryTest'
-                    || (((e.course || {}).title || '').toLowerCase().includes('mastery') && ((e.course || {}).title || '').toLowerCase().includes('test'));
-            }).map(function(e) {
-                var c = e.course || {};
-                return {
-                    id: e.id || e.sourcedId || '',
-                    title: c.title || 'Unknown Test',
-                    subject: (c.subjects || [])[0] || guessSubject(c.title || ''),
-                    grade: (c.grades || [])[0] || '',
-                    status: e.status || 'active',
-                    _fromEnrollment: true,
-                };
+            enrolledCourses.push({
+                id: e.id || e.sourcedId || '',
+                title: title,
+                subject: subjects[0] || '',
+                grades: grades,
+                app: ((c.primaryApp || {}).name || (c.metadata || {}).primaryApp || (c.metadata || {}).app || ''),
+                status: e.status || 'active',
             });
         }
 
+        // Pending test assignments from PowerPath
+        pendingAssignments = assignResp.testAssignments || [];
+
     } catch(err) {
-        console.warn('[Admin] Error fetching student data:', err.message);
+        console.warn('[Admin] Error loading data:', err.message);
     }
 
-    renderAssignments();
-    checkCombo();
+    renderAvailableTests();
+    renderPendingTests();
 }
 
 /* ==================================================================
-   Render Existing Assignments
+   Render Available Tests (from enrollments)
    ================================================================== */
-function renderAssignments() {
-    var el = document.getElementById('assignments-body');
-    if (!existingAssignments.length) {
-        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-check"></i><p>No test assignments found for this student.</p></div>';
+function renderAvailableTests() {
+    var el = document.getElementById('available-tests');
+
+    if (!enrolledCourses.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-graduation-cap"></i><p>No enrolled courses found.</p></div>';
         return;
     }
 
-    el.innerHTML = '<table class="recent-table"><thead><tr><th>Test</th><th>Subject</th><th>Grade</th><th></th></tr></thead><tbody>' +
-        existingAssignments.map(function(a, idx) {
-            var title = esc(a.title || a.name || a.subject || 'Test');
-            var subj = esc(a.subject || '');
-            var grade = esc(a.grade || '');
-            var aid = esc(a.id || a.sourcedId || a.assignmentId || '');
-            return '<tr>' +
-                '<td style="font-weight:600;">' + title + '</td>' +
-                '<td>' + subj + '</td>' +
-                '<td>' + (grade ? 'Grade ' + grade : '') + '</td>' +
-                '<td><button class="remove-btn" onclick="removeAssignment(' + idx + ')" title="Remove this assignment"><i class="fa-solid fa-trash-can" style="margin-right:3px;"></i>Remove</button></td>' +
-            '</tr>';
-        }).join('') + '</tbody></table>';
-}
-
-async function removeAssignment(idx) {
-    var a = existingAssignments[idx];
-    if (!a || !selectedStudent) return;
-
-    var aid = a.id || a.sourcedId || a.assignmentId || '';
-    var subj = a.subject || '';
-    var grade = a.grade || '';
-
-    // Optimistic UI — remove from list immediately
-    existingAssignments.splice(idx, 1);
-    renderAssignments();
-
-    // Also remove from completed combos so it can be re-assigned
-    if (subj && grade) {
-        completedCombos.delete(subj.toLowerCase() + '|' + grade);
-        checkCombo();
+    // Build a set of pending subject|grade keys to mark status
+    var pendingKeys = new Set();
+    for (var p = 0; p < pendingAssignments.length; p++) {
+        var pa = pendingAssignments[p];
+        var pk = ((pa.subject || '') + '|' + (pa.grade || '')).toLowerCase();
+        pendingKeys.add(pk);
     }
 
-    // Call API to remove
-    try {
-        await fetch('/api/assign-test', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                assignmentId: aid,
-                studentId: selectedStudent.sourcedId,
-                subject: subj,
-                grade: grade,
-            }),
-        });
-    } catch(e) {
-        console.warn('[Admin] Remove assignment error:', e.message);
-    }
-}
+    el.innerHTML = enrolledCourses.map(function(c, idx) {
+        var gradeStr = (c.grades || []).join(', ');
+        var meta = c.subject + (gradeStr ? ' &middot; Grade ' + gradeStr : '') + (c.app ? ' &middot; ' + esc(c.app) : '');
 
-function guessSubject(title) {
-    var t = (title || '').toLowerCase();
-    if (t.includes('math')) return 'Math';
-    if (t.includes('reading') || t.includes('ela')) return 'Reading';
-    if (t.includes('writing')) return 'Writing';
-    if (t.includes('science')) return 'Science';
-    if (t.includes('social')) return 'Social Studies';
-    if (t.includes('lang')) return 'Language';
-    if (t.includes('vocab')) return 'Vocabulary';
-    return '';
-}
-
-/* ==================================================================
-   Check Completion
-   ================================================================== */
-function checkCombo() {
-    var subject = (document.getElementById('assign-subject') || {}).value || '';
-    var grade = (document.getElementById('assign-grade') || {}).value || '';
-    var warnEl = document.getElementById('completion-warn');
-
-    if (subject && grade) {
-        var key = subject.toLowerCase() + '|' + grade;
-        var wildKey = subject.toLowerCase() + '|*';
-        if (completedCombos.has(key) || completedCombos.has(wildKey)) {
-            warnEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i>This student has already completed ' + esc(subject) + ' Grade ' + esc(grade) + '.';
-            warnEl.className = 'feedback warning';
-            warnEl.style.display = 'block';
-        } else {
-            hideFeedback('completion-warn');
+        // Check if any grade for this course is already pending
+        var isPending = false;
+        for (var g = 0; g < (c.grades || []).length; g++) {
+            if (pendingKeys.has((c.subject + '|' + c.grades[g]).toLowerCase())) {
+                isPending = true; break;
+            }
         }
-    } else {
-        hideFeedback('completion-warn');
-    }
 
-    updateBtn();
+        var btnHtml;
+        if (isPending) {
+            btnHtml = '<span class="assign-row-btn pending"><i class="fa-solid fa-clock" style="margin-right:4px;"></i>Pending</span>';
+        } else {
+            btnHtml = '<button class="assign-row-btn assign" id="assign-btn-' + idx + '" onclick="assignTest(' + idx + ')"><i class="fa-solid fa-plus" style="margin-right:4px;"></i>Assign</button>';
+        }
+
+        return '<div class="course-row">' +
+            '<div class="course-row-info">' +
+                '<div class="course-row-title">' + esc(c.title) + '</div>' +
+                '<div class="course-row-meta">' + meta + '</div>' +
+            '</div>' +
+            btnHtml +
+        '</div>';
+    }).join('');
 }
 
 /* ==================================================================
-   Assign Button
+   Render Pending Tests (from PowerPath)
    ================================================================== */
-function updateBtn() {
-    var btn = document.getElementById('assign-btn');
-    if (!btn) return;
-    var hasStudent = !!selectedStudent;
-    var hasSubject = (document.getElementById('assign-subject') || {}).value !== '';
-    var hasGrade = (document.getElementById('assign-grade') || {}).value !== '';
-    btn.disabled = !(hasStudent && hasSubject && hasGrade);
+function renderPendingTests() {
+    var el = document.getElementById('pending-tests');
+
+    if (!pendingAssignments.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle"></i><p>No pending tests for this student.</p></div>';
+        return;
+    }
+
+    el.innerHTML = pendingAssignments.map(function(a, idx) {
+        var title = a.title || a.name || ((a.subject || '') + ' Grade ' + (a.grade || ''));
+        var meta = (a.subject || '') + (a.grade ? ' &middot; Grade ' + a.grade : '') + (a.status ? ' &middot; ' + a.status : '');
+        var aid = a.id || a.sourcedId || a.assignmentId || '';
+
+        return '<div class="pending-row">' +
+            '<div class="pending-row-info">' +
+                '<div class="pending-row-title">' + esc(title) + '</div>' +
+                '<div class="pending-row-meta">' + esc(meta) + '</div>' +
+            '</div>' +
+            '<button class="remove-btn" onclick="removeAssignment(' + idx + ')"><i class="fa-solid fa-xmark" style="margin-right:3px;"></i>Remove</button>' +
+        '</div>';
+    }).join('');
 }
 
-function hideFeedback(id) {
-    var el = document.getElementById(id);
-    if (el) { el.className = 'feedback'; el.style.display = 'none'; }
-}
+/* ==================================================================
+   Assign Test
+   ================================================================== */
+async function assignTest(idx) {
+    var course = enrolledCourses[idx];
+    if (!course || !selectedStudent) return;
 
-async function submitAssignment() {
-    if (!selectedStudent) return;
-    var subject = (document.getElementById('assign-subject') || {}).value || '';
-    var grade = (document.getElementById('assign-grade') || {}).value || '';
-    var assignType = (document.getElementById('assign-type') || {}).value || 'test-assignment';
-    if (!subject || !grade) return;
+    var grade = (course.grades || [])[0] || '';
+    if (!course.subject || !grade) {
+        showFeedback('This course is missing subject or grade info.', 'error');
+        return;
+    }
 
-    var btn = document.getElementById('assign-btn');
-    var fbEl = document.getElementById('assign-feedback');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Assigning...';
-    hideFeedback('assign-feedback');
-
-    var name = ((selectedStudent.givenName || '') + ' ' + (selectedStudent.familyName || '')).trim() || 'Unknown';
+    var btn = document.getElementById('assign-btn-' + idx);
+    if (btn) { btn.className = 'assign-row-btn assigning'; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true; }
+    clearFeedback();
 
     try {
         var resp = await fetch('/api/assign-test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                studentId: selectedStudent.sourcedId,
-                subject: subject,
+                student: selectedStudent.sourcedId,
+                subject: course.subject,
                 grade: grade,
-                type: assignType,
+                type: 'test-assignment',
             }),
         });
         var data = await resp.json().catch(function() { return {}; });
 
         if (resp.ok && data.success) {
-            fbEl.textContent = data.message || 'Test assigned successfully!';
-            fbEl.className = 'feedback success';
-            fbEl.style.display = 'block';
-            completedCombos.add(subject.toLowerCase() + '|' + grade);
-            // Add to the existing assignments list
-            existingAssignments.push({
-                title: subject + ' Grade ' + grade,
-                subject: subject,
+            showFeedback(data.message || 'Test assigned!', 'success');
+            // Add to pending
+            pendingAssignments.push({
+                title: course.title,
+                subject: course.subject,
                 grade: grade,
                 id: (data.response && data.response.id) || '',
-                status: 'active',
             });
-            renderAssignments();
-            document.getElementById('assign-subject').value = '';
-            document.getElementById('assign-grade').value = '';
-            hideFeedback('completion-warn');
+            renderAvailableTests();
+            renderPendingTests();
         } else {
-            fbEl.textContent = data.error || data.message || 'Assignment failed.';
-            fbEl.className = 'feedback error';
-            fbEl.style.display = 'block';
+            var errMsg = data.error || data.message || 'Assignment failed.';
+            showFeedback(errMsg, 'error');
+            if (btn) { btn.className = 'assign-row-btn assign'; btn.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:4px;"></i>Assign'; btn.disabled = false; }
         }
     } catch(e) {
-        fbEl.textContent = 'The API is slow or unreachable. Please try again.';
-        fbEl.className = 'feedback error';
-        fbEl.style.display = 'block';
+        showFeedback('Network error — the API may be slow. Try again.', 'error');
+        if (btn) { btn.className = 'assign-row-btn assign'; btn.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:4px;"></i>Assign'; btn.disabled = false; }
     }
-
-    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Assign Test';
-    updateBtn();
 }
 
-/* (Recent assignments replaced by existing assignments panel) */
+/* ==================================================================
+   Remove Assignment
+   ================================================================== */
+async function removeAssignment(idx) {
+    var a = pendingAssignments[idx];
+    if (!a || !selectedStudent) return;
+
+    pendingAssignments.splice(idx, 1);
+    renderPendingTests();
+    renderAvailableTests();
+
+    try {
+        await fetch('/api/assign-test', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                assignmentId: a.id || a.sourcedId || a.assignmentId || '',
+                student: selectedStudent.sourcedId,
+                subject: a.subject || '',
+                grade: a.grade || '',
+            }),
+        });
+    } catch(e) {}
+}
+
+/* ==================================================================
+   Feedback
+   ================================================================== */
+function showFeedback(msg, type) {
+    var el = document.getElementById('assign-feedback');
+    el.innerHTML = '<div class="feedback ' + type + '">' + esc(msg) + '</div>';
+}
+function clearFeedback() {
+    document.getElementById('assign-feedback').innerHTML = '';
+}
 </script>
 </body>
 </html>
