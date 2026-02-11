@@ -763,21 +763,9 @@
                             var actCls = 'act-text' + (actAllDone ? ' complete' : '');
                             var actIcon = actAllDone ? 'fa-circle-check' : 'fa-circle';
 
-                            // Lesson row — clickable card navigating to lesson viewer
-                            // Only show stats for completed lessons
-                            var statsHtml = '';
-                            if (isDone) {
-                                statsHtml = '<div class="lesson-stats">' +
-                                    '<span class="pct-badge ' + pctBadgeClass(lessonPctVal) + '"><i class="fa-solid fa-circle" style="font-size:0.35rem;vertical-align:middle;margin-right:3px;"></i>' + lessonPctVal + '%</span>' +
-                                    xpHtml +
-                                    '<span class="' + actCls + '"><i class="fa-solid ' + actIcon + '"></i> ' + doneRes + '/' + totalRes + ' Activities</span>' +
-                                '</div>';
-                            }
-
                             var rowClick = lessonLocked ? '' : ' onclick="openLesson(\'' + lessonDataKey + '\')"';
                             html += '<div class="lesson-row"' + rowClick + '>' +
                                 '<div class="lesson-info"><div class="lesson-title">' + esc(lTitle) + '</div></div>' +
-                                statsHtml +
                             '</div>';
 
                             html += '</div>'; // tl-item
