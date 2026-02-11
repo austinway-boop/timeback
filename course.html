@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/css/style.css">
     <style>
         /* ── Course Page ─────────────────────────────────────────── */
-        .course-page { max-width: 820px; }
+        .course-page { max-width: 820px; margin: 0 auto; }
 
         .back-link {
             display: inline-flex; align-items: center; gap: 6px;
@@ -372,15 +372,6 @@
                     <div class="sk" style="height:14px;width:40%;"></div>
                 </div>
 
-                <!-- Progress -->
-                <div id="course-progress" class="progress-overview">
-                    <div class="progress-stats-row">
-                        <div class="progress-chip"><div class="sk" style="height:20px;width:40px;margin:0 auto 4px;"></div><div class="sk" style="height:10px;width:60px;margin:0 auto;"></div></div>
-                        <div class="progress-chip"><div class="sk" style="height:20px;width:40px;margin:0 auto 4px;"></div><div class="sk" style="height:10px;width:60px;margin:0 auto;"></div></div>
-                        <div class="progress-chip"><div class="sk" style="height:20px;width:40px;margin:0 auto 4px;"></div><div class="sk" style="height:10px;width:60px;margin:0 auto;"></div></div>
-                    </div>
-                </div>
-
                 <!-- Course Content -->
                 <div id="course-content">
                     <div style="text-align:center;padding:40px;color:var(--color-text-muted);">
@@ -515,7 +506,6 @@
             document.getElementById('course-header').innerHTML =
                 '<h1>' + esc(courseTitle) + '</h1>' +
                 '<div class="meta"><span class="meta-item"><i class="fa-solid fa-info-circle"></i> Enrollment data not available</span></div>';
-            document.getElementById('course-progress').innerHTML = '';
             document.getElementById('course-content').innerHTML =
                 '<div style="text-align:center;padding:40px;color:var(--color-text-muted);"><i class="fa-solid fa-book" style="font-size:2.5rem;display:block;margin-bottom:12px;opacity:0.4;"></i><p>This course is part of your AlphaLearn curriculum. Course content will appear here as it becomes available.</p></div>';
             return;
@@ -545,65 +535,8 @@
             '<h1>' + esc(course.title || courseTitle) + '</h1>' +
             '<div class="meta">' + (metaItems.length ? metaItems.join('') : '<span class="meta-item"><i class="fa-solid fa-graduation-cap"></i> AlphaLearn Course</span>') + '</div>';
 
-        // ── Render Progress ────────────────────────────────────────
-        var pct = totalXp > 0 ? Math.min((xpEarned / totalXp) * 100, 100) : 0;
-        document.getElementById('course-progress').innerHTML =
-            '<div class="progress-header"><span class="label">Course Progress</span><span class="value">' + Math.round(pct) + '%</span></div>' +
-            '<div class="progress-bar-track"><div class="progress-bar-fill" style="width:' + pct + '%;"></div></div>' +
-            '<div class="progress-sub"><span>' + xpEarned + ' / ' + totalXp + ' XP</span><span>' + Math.round(pct) + '% complete</span></div>' +
-            '<div class="progress-stats-row">' +
-                '<div class="progress-chip"><span class="num">' + xpEarned + '</span><span class="txt">XP Earned</span></div>' +
-                '<div class="progress-chip"><span class="num">' + totalXp + '</span><span class="txt">Total XP</span></div>' +
-                '<div class="progress-chip"><span class="num">' + dailyGoal + '</span><span class="txt">Daily Goal</span></div>' +
-            '</div>';
-
         // ── Build content sections ─────────────────────────────────
         var contentHTML = '';
-
-        // Admin banner
-        if (isAdmin) {
-            contentHTML += '<div class="admin-banner">' +
-                '<i class="fa-solid fa-shield-halved shield"></i>' +
-                '<div style="flex:1;"><span class="ab-title">Admin Mode</span>' +
-                '<span class="ab-desc">All content unlocked — sequential locks bypassed</span></div></div>';
-        }
-
-        // Daily Goals
-        var hasGoals = goals.dailyXp || goals.dailyLessons || goals.dailyActiveMinutes || goals.dailyAccuracy || goals.dailyMasteredUnits;
-        if (hasGoals) {
-            var goalCards = '';
-            if (goals.dailyXp) goalCards += '<div class="goal-chip"><span class="gv">' + goals.dailyXp + '</span><span class="gl">Daily XP</span></div>';
-            if (goals.dailyLessons) goalCards += '<div class="goal-chip"><span class="gv">' + goals.dailyLessons + '</span><span class="gl">Daily Lessons</span></div>';
-            if (goals.dailyActiveMinutes) goalCards += '<div class="goal-chip"><span class="gv">' + goals.dailyActiveMinutes + ' min</span><span class="gl">Active Minutes</span></div>';
-            if (goals.dailyAccuracy) goalCards += '<div class="goal-chip"><span class="gv">' + goals.dailyAccuracy + '%</span><span class="gl">Accuracy Goal</span></div>';
-            if (goals.dailyMasteredUnits) goalCards += '<div class="goal-chip"><span class="gv">' + goals.dailyMasteredUnits + '</span><span class="gl">Mastered Units</span></div>';
-            contentHTML += '<div class="goals-card"><h2><i class="fa-solid fa-bullseye"></i> Your Daily Goals</h2><div class="goals-grid">' + goalCards + '</div></div>';
-        }
-
-        // Alpha Read / Alpha Write
-        if (isAlphaRead) {
-            contentHTML += '<div class="content-card"><h2><i class="fa-solid fa-book-open-reader"></i> Alpha Read</h2>' +
-                '<p style="color:var(--color-text-secondary);margin-bottom:16px;">Improve your reading skills with guided practice and comprehension exercises.</p>' +
-                '<a href="#" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:var(--color-primary);color:#fff;border-radius:var(--radius-sm);font-weight:600;text-decoration:none;"><i class="fa-solid fa-rocket"></i> Launch Alpha Read</a></div>';
-        }
-        if (isAlphaWrite) {
-            contentHTML += '<div class="content-card"><h2><i class="fa-solid fa-pen-nib"></i> Alpha Write</h2>' +
-                '<p style="color:var(--color-text-secondary);margin-bottom:16px;">Practice writing with AI-powered feedback and guided prompts.</p>' +
-                '<a href="#" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:var(--color-primary);color:#fff;border-radius:var(--radius-sm);font-weight:600;text-decoration:none;"><i class="fa-solid fa-rocket"></i> Launch Alpha Write</a></div>';
-        }
-
-        // Lesson progress
-        if (totalLessons > 0) {
-            var lessonsDone = totalXp > 0 ? Math.min(Math.round((xpEarned / totalXp) * totalLessons), totalLessons) : 0;
-            var lessonPct = Math.min((lessonsDone / totalLessons) * 100, 100);
-            contentHTML += '<div class="content-card">' +
-                '<h2><i class="fa-solid fa-list-check"></i> Lesson Progress</h2>' +
-                '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px;">' +
-                    '<span style="font-size:2rem;font-weight:700;color:var(--color-primary);">' + lessonsDone + '</span>' +
-                    '<span style="font-size:1rem;color:var(--color-text-secondary);"> / ' + totalLessons + ' lessons completed</span></div>' +
-                '<div class="progress-bar-track"><div class="progress-bar-fill" style="width:' + lessonPct + '%;"></div></div>' +
-                '<div class="progress-sub"><span>' + Math.round(lessonPct) + '% complete</span><span>' + (totalLessons - lessonsDone) + ' remaining</span></div></div>';
-        }
 
         // Loading placeholder for course content
         contentHTML += '<div id="content-section">' +
