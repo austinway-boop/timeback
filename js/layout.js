@@ -25,9 +25,6 @@
         ? '<a href="/admin" class="view-switch-btn" title="Switch to Admin View"><i class="fa-solid fa-shield-halved"></i></a>'
         : '<a href="/dashboard" class="view-switch-btn" title="Switch to Student View"><i class="fa-solid fa-graduation-cap"></i></a>';
 
-    const userName = localStorage.getItem('alphalearn_name') || 'A';
-    const initial  = userName.charAt(0).toUpperCase();
-
     const topbar = document.createElement('header');
     topbar.className = 'topbar';
     topbar.innerHTML = `
@@ -43,9 +40,7 @@
         </div>
         <div class="topbar-right">
             ${switchBtn}
-            <button class="topbar-icon-btn" title="Notifications"><i class="fa-solid fa-bell"></i></button>
-            <button class="topbar-icon-btn" onclick="handleLogout()" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
-            <div class="avatar"><span>${initial}</span></div>
+            <button class="topbar-icon-btn" onclick="handleLogout()" title="Sign out"><i class="fa-solid fa-right-from-bracket"></i></button>
         </div>`;
     document.body.prepend(topbar);
 

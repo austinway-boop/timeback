@@ -6,8 +6,11 @@
     <title>AlphaLearn - Goals</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preload" href="/css/style.css" as="style">
     <link rel="stylesheet" href="/css/style.css">
     <style>
         .goals-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:40px}
@@ -66,7 +69,7 @@
     <main class="main-content">
         <h1 class="welcome-heading">Goals</h1>
 
-        <div class="sec-head"><i class="fa-solid fa-layer-group"></i> AP Courses</div>
+        <div class="sec-head"><i class="fa-solid fa-layer-group"></i> Course Progress</div>
         <div class="goals-grid" id="lg">
             <div class="gc" style="pointer-events:none"><div class="course-card-image skeleton" style="height:130px;border-radius:12px 12px 0 0"></div><div class="gc-b"><div class="skeleton skeleton-text" style="width:60%;margin-bottom:12px"></div><div class="skeleton skeleton-text sm" style="width:40%;margin-bottom:14px"></div><div class="skeleton skeleton-rect" style="height:38px;border-radius:8px;margin-bottom:10px"></div><div class="skeleton skeleton-rect" style="height:38px;border-radius:8px"></div></div></div>
             <div class="gc" style="pointer-events:none"><div class="course-card-image skeleton" style="height:130px;border-radius:12px 12px 0 0"></div><div class="gc-b"><div class="skeleton skeleton-text" style="width:50%;margin-bottom:12px"></div><div class="skeleton skeleton-text sm" style="width:35%;margin-bottom:14px"></div><div class="skeleton skeleton-rect" style="height:38px;border-radius:8px;margin-bottom:10px"></div><div class="skeleton skeleton-rect" style="height:38px;border-radius:8px"></div></div></div>
@@ -157,7 +160,7 @@ function isTimeback(c) {
     if (/^pp/i.test(a) || a.includes('powerpath')) return true;
     return false;
 }
-function isLesson(c) { return isAP(c.title) && isTimeback(c); }
+function isLesson(c) { return c.totalLessons > 0 || (isAP(c.title) && isTimeback(c)); }
 
 /* ---- State ------------------------------------------------------------ */
 
@@ -299,7 +302,7 @@ function lessonCard(c, i) {
     }
 
     return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
-        <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;border-radius:12px 12px 0 0;"><img src="${getCardImage(c.title, c.appName)}" alt="${c.title}" style="width:100%;height:100%;object-fit:cover;"></div>
+        <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;border-radius:12px 12px 0 0;"><img src="${getCardImage(c.title, c.appName)}" alt="${c.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;"></div>
         <div class="gc-b">
             <div class="gc-name">${c.title}</div>
             <div class="gc-progress">
@@ -344,7 +347,7 @@ function xpCard(c, i) {
     }
 
     return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
-        <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;border-radius:12px 12px 0 0;"><img src="${getCardImage(c.title, c.appName)}" alt="${c.title}" style="width:100%;height:100%;object-fit:cover;"></div>
+        <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;border-radius:12px 12px 0 0;"><img src="${getCardImage(c.title, c.appName)}" alt="${c.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;"></div>
         <div class="gc-b">
             <div class="gc-name">${c.title}</div>
             <div class="gc-progress">
@@ -440,7 +443,7 @@ function render() {
     });
     document.getElementById('lg').innerHTML = lc.length
         ? lc.map(({ c, i }) => lessonCard(c, i)).join('')
-        : '<div class="empty-s">No AP courses found.</div>';
+        : '<div class="empty-s">No courses with lesson data found.</div>';
     document.getElementById('xg').innerHTML = xc.length
         ? xc.map(({ c, i }) => xpCard(c, i)).join('')
         : '<div class="empty-s">No XP courses found.</div>';
@@ -459,8 +462,14 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     try {
-        /* 1. Look up user */
-        const lu = await (await fetch(`/api/user-lookup?email=${encodeURIComponent(email)}`)).json();
+        /* 1. Fire user-lookup AND enrollments in parallel if we have a cached userId */
+        const cachedUid = localStorage.getItem('alphalearn_userId') || '';
+        const luPromise = fetch(`/api/user-lookup?email=${encodeURIComponent(email)}`).then(r => r.json());
+        const earlyEnroll = cachedUid
+            ? fetch(`/api/enrollments?userId=${cachedUid}`).then(r => r.json())
+            : null;
+
+        const lu = await luPromise;
         if (!lu.user || !lu.user.sourcedId) {
             document.getElementById('lg').innerHTML = '<div class="empty-s">Account not found.</div>';
             document.getElementById('xg').innerHTML = '';
@@ -469,8 +478,13 @@ document.addEventListener('DOMContentLoaded', async function () {
         const uid = lu.user.sourcedId;
         localStorage.setItem('alphalearn_userId', uid);
 
-        /* 2. Fetch enrollments */
-        const ed  = await (await fetch(`/api/enrollments?userId=${uid}`)).json();
+        /* 2. Use pre-fetched enrollments or fetch now */
+        let ed;
+        if (earlyEnroll && uid === cachedUid) {
+            ed = await earlyEnroll;
+        } else {
+            ed = await (await fetch(`/api/enrollments?userId=${uid}`)).json();
+        }
         const raw = ed.data || ed.enrollments || ed.courses || (Array.isArray(ed) ? ed : []);
         const now = new Date();
         const courses = [];
@@ -495,8 +509,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
             const pA = co.primaryApp || {};
             const an = (typeof pA === 'object' ? pA.name : '') || cm.primaryApp || cm.app || '';
-            const totalLessons = mt.totalLessons || cmt.totalLessons || cm.totalLessons || 0;
-            const totalXp      = mt.totalXp || cmt.totalXp || cm.totalXp || 0;
+            const totalLessons = mt.totalLessons || cmt.totalLessons || cm.totalLessons
+                || co.totalLessons || mt.totalUnits || cmt.totalUnits || cm.totalUnits || co.totalUnits || 0;
+            const totalXp      = mt.totalXp || cmt.totalXp || cm.totalXp || co.totalXp || 0;
 
             const vendorKey = cm.primaryApp || cm.app || cm.vendor
                 || (typeof pA === 'object' && pA.id ? pA.id : '') || '';
@@ -549,7 +564,8 @@ document.addEventListener('DOMContentLoaded', async function () {
                     for (const info of Object.values(dayFacts)) {
                         const am = info.activityMetrics || {};
                         totalXp      += am.xpEarned || 0;
-                        totalMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons || 0;
+                        totalMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons
+                            || am.unitsCompleted || am.completedUnits || 0;
                     }
                 }
 
@@ -560,7 +576,8 @@ document.addEventListener('DOMContentLoaded', async function () {
                         for (const info of Object.values(apps)) {
                             const am = info.activityMetrics || {};
                             appXp      += am.xpEarned || 0;
-                            appMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons || 0;
+                            appMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons
+                                || am.unitsCompleted || am.completedUnits || 0;
                         }
                     }
                 }
@@ -568,6 +585,16 @@ document.addEventListener('DOMContentLoaded', async function () {
                 // Use whichever source has more data
                 XP[i]       = Math.max(totalXp, appXp);
                 MASTERED[i] = Math.max(totalMastered, appMastered);
+
+                // Backfill totalLessons from analytics if enrollment didn't have it
+                if (!ALL[i].totalLessons) {
+                    const enr = data.enrollment || data.course || {};
+                    const eMeta = enr.metadata || {};
+                    const eMetrics = eMeta.metrics || {};
+                    ALL[i].totalLessons = enr.totalLessons || enr.totalUnits
+                        || eMetrics.totalLessons || eMetrics.totalUnits
+                        || eMeta.totalLessons || eMeta.totalUnits || 0;
+                }
 
                 // Build cache for dashboard
                 if (ALL[i]._enrollmentId) {

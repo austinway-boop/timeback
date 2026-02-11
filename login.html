@@ -6,7 +6,9 @@
     <title>AlphaLearn – Sign In</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
@@ -196,20 +198,6 @@
         }
         .login-error i { flex-shrink: 0; }
 
-        /* Debug panel */
-        #debug-panel {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 10px 14px;
-            margin-bottom: 1.25rem;
-            font-size: 0.72rem;
-            color: var(--text-secondary);
-            font-family: 'SF Mono', 'Fira Code', monospace;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-
         /* Form fields */
         .form-group {
             margin-bottom: 1.25rem;
@@ -398,7 +386,6 @@
                 <i class="fa-solid fa-circle-exclamation"></i>
                 <span id="error-text"></span>
             </div>
-            <div id="debug-panel" style="display:none;"></div>
 
             <form id="login-form" autocomplete="on">
                 <div class="form-group">
@@ -483,19 +470,12 @@
             const resp = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, debug: true }),
+                body: JSON.stringify({ email, password }),
             });
             const data = await resp.json();
 
             if (!resp.ok || !data.success) {
                 showError(data.error || 'Invalid email or password.');
-                const debugPanel = document.getElementById('debug-panel');
-                if (data.debug) {
-                    debugPanel.textContent = JSON.stringify(data.debug, null, 2);
-                    debugPanel.style.display = 'block';
-                } else {
-                    debugPanel.style.display = 'none';
-                }
                 setLoading(loginBtn, false, 'Sign In');
                 return;
             }
