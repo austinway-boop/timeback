@@ -174,6 +174,37 @@
         powerpath:   'fa-calculator',      // Math
     };
 
+    /* Per-app dot colors — matched to the dominant color of each app image */
+    const APP_DOT_COLORS = {
+        gumpp:       '#D4A04A',  // golden amber (eGumpp)
+        runestone:   '#6366F1',  // indigo/purple (Runestone)
+        newsela:     '#7B8FA8',  // slate blue (Newsela)
+        khan:        '#4CAF50',  // green (Khan Academy)
+        readtheory:  '#9B59B6',  // purple (Read Theory)
+        commonlit:   '#C77B7B',  // dusty rose (CommonLit)
+        knewton:     '#2C4A7C',  // dark navy (Knewton Alta)
+        alta:        '#2C4A7C',  // dark navy (Knewton Alta)
+        lalilo:      '#7CB342',  // lime green (Lalilo)
+        rocketmath:  '#E74C3C',  // red-orange (Rocket Math)
+        zearn:       '#4DB6AC',  // teal (Zearn)
+        renaissance: '#F5A623',  // gold (Renaissance)
+        starreading: '#F5A623',  // gold (Star Reading)
+        starmath:    '#F5A623',  // gold (Star Math)
+        powerpath:   '#5B7FD5',  // blue (PowerPath)
+    };
+
+    /* Subject fallback dot colors — matched to subject illustration images */
+    const SUBJECT_DOT_COLORS = {
+        math:       '#4A90D9',  // blue
+        science:    '#43A047',  // green
+        language:   '#D4884A',  // warm orange
+        reading:    '#7E57C2',  // purple
+        geography:  '#8D6E63',  // brown
+        biology:    '#689F38',  // olive green
+        tech:       '#5C6BC0',  // indigo
+        default:    '#45B5AA',  // teal
+    };
+
     /** Match an app name string against the known app keys */
     function matchApp(appName) {
         const a = (appName || '').toLowerCase().replace(/[\s_-]/g, '');
@@ -724,6 +755,34 @@
                     unitsByCourseIdx[i] = unitsBySubject[c.subject] || 0;
                 }
             }
+
+            // Fetch per-enrollment analytics for AP lesson courses (accurate daily mastered units)
+            const lessonFetches = allCourses.map((c, idx) => {
+                if (!isLessonCourse(c) || !c._enrollmentId) return null;
+                return fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}`)
+                    .then(r => r.json())
+                    .then(d => {
+                        let units = 0;
+                        for (const dayFacts of Object.values(d.facts || {})) {
+                            for (const info of Object.values(dayFacts)) {
+                                const am = info.activityMetrics || {};
+                                units += am.masteredUnits || am.lessonsCompleted || am.completedLessons || am.unitsCompleted || am.completedUnits || 0;
+                            }
+                        }
+                        for (const dayData of Object.values(d.factsByApp || {})) {
+                            for (const apps of Object.values(dayData)) {
+                                for (const info of Object.values(apps)) {
+                                    const am = info.activityMetrics || {};
+                                    const u = am.masteredUnits || am.lessonsCompleted || am.completedLessons || am.unitsCompleted || am.completedUnits || 0;
+                                    if (u > units) units = u;
+                                }
+                            }
+                        }
+                        if (units > 0) unitsByCourseIdx[idx] = units;
+                    })
+                    .catch(() => null);
+            }).filter(Boolean);
+            if (lessonFetches.length) await Promise.all(lessonFetches);
         } catch (err) {
             console.warn('[AlphaLearn] Analytics unavailable:', err.message);
             xpByCourseIdx = {};
