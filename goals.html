@@ -323,9 +323,34 @@
                 <!-- Progress View -->
                 <div id="view-progress">
                     <div id="progress-content">
-                        <div style="text-align:center;padding:48px;color:var(--color-text-muted);">
-                            <div class="loading-spinner" style="margin:0 auto 12px;"></div>
-                            Loading your goals...
+                        <!-- Skeleton goal cards -->
+                        <div class="goal-card" style="pointer-events:none;">
+                            <div class="goal-card-header">
+                                <div class="skeleton skeleton-rect" style="width:44px;height:44px;border-radius:10px;flex-shrink:0;"></div>
+                                <div style="flex:1;"><div class="skeleton skeleton-text lg" style="width:60%;margin-bottom:6px;"></div><div class="skeleton skeleton-text sm" style="width:40%;"></div></div>
+                            </div>
+                            <div class="goal-stats">
+                                <div class="goal-stat"><div class="skeleton skeleton-text lg" style="width:50px;margin:0 auto 6px;"></div><div class="skeleton skeleton-text xs" style="width:70px;margin:0 auto;"></div></div>
+                                <div class="goal-stat"><div class="skeleton skeleton-text lg" style="width:40px;margin:0 auto 6px;"></div><div class="skeleton skeleton-text xs" style="width:60px;margin:0 auto;"></div></div>
+                                <div class="goal-stat"><div class="skeleton skeleton-text lg" style="width:35px;margin:0 auto 6px;"></div><div class="skeleton skeleton-text xs" style="width:75px;margin:0 auto;"></div></div>
+                                <div class="goal-stat"><div class="skeleton skeleton-text lg" style="width:30px;margin:0 auto 6px;"></div><div class="skeleton skeleton-text xs" style="width:65px;margin:0 auto;"></div></div>
+                            </div>
+                            <div class="skeleton" style="height:8px;border-radius:4px;margin-bottom:10px;"></div>
+                            <div style="display:flex;justify-content:space-between;"><div class="skeleton skeleton-text sm" style="width:80px;"></div><div class="skeleton skeleton-rect" style="width:70px;height:22px;border-radius:20px;"></div></div>
+                        </div>
+                        <div class="goal-card" style="pointer-events:none;">
+                            <div class="goal-card-header">
+                                <div class="skeleton skeleton-rect" style="width:44px;height:44px;border-radius:10px;flex-shrink:0;"></div>
+                                <div style="flex:1;"><div class="skeleton skeleton-text lg" style="width:50%;margin-bottom:6px;"></div><div class="skeleton skeleton-text sm" style="width:35%;"></div></div>
+                            </div>
+                            <div class="goal-stats">
+                                <div class="goal-stat"><div class="skeleton skeleton-text lg" style="width:45px;margin:0 auto 6px;"></div><div class="skeleton skeleton-text xs" style="width:65px;margin:0 auto;"></div></div>
+                                <div class="goal-stat"><div class="skeleton skeleton-text lg" style="width:38px;margin:0 auto 6px;"></div><div class="skeleton skeleton-text xs" style="width:55px;margin:0 auto;"></div></div>
+                                <div class="goal-stat"><div class="skeleton skeleton-text lg" style="width:32px;margin:0 auto 6px;"></div><div class="skeleton skeleton-text xs" style="width:70px;margin:0 auto;"></div></div>
+                                <div class="goal-stat"><div class="skeleton skeleton-text lg" style="width:28px;margin:0 auto 6px;"></div><div class="skeleton skeleton-text xs" style="width:60px;margin:0 auto;"></div></div>
+                            </div>
+                            <div class="skeleton" style="height:8px;border-radius:4px;margin-bottom:10px;"></div>
+                            <div style="display:flex;justify-content:space-between;"><div class="skeleton skeleton-text sm" style="width:75px;"></div><div class="skeleton skeleton-rect" style="width:65px;height:22px;border-radius:20px;"></div></div>
                         </div>
                     </div>
                 </div>
@@ -333,9 +358,30 @@
                 <!-- Set Goals View -->
                 <div id="view-set" style="display:none;">
                     <div id="set-goals-content">
-                        <div style="text-align:center;padding:48px;color:var(--color-text-muted);">
-                            <div class="loading-spinner" style="margin:0 auto 12px;"></div>
-                            Loading courses...
+                        <!-- Skeleton set-goal cards -->
+                        <div class="set-goal-card" style="pointer-events:none;">
+                            <div class="goal-card-header">
+                                <div class="skeleton skeleton-rect" style="width:44px;height:44px;border-radius:10px;flex-shrink:0;"></div>
+                                <div style="flex:1;"><div class="skeleton skeleton-text lg" style="width:55%;margin-bottom:6px;"></div><div class="skeleton skeleton-text sm" style="width:30%;"></div></div>
+                            </div>
+                            <div class="skeleton skeleton-rect" style="width:100%;height:38px;border-radius:8px;margin-bottom:18px;"></div>
+                            <div style="display:flex;gap:14px;margin-bottom:14px;">
+                                <div style="flex:1;"><div class="skeleton skeleton-text xs" style="width:70px;margin-bottom:6px;"></div><div class="skeleton skeleton-rect" style="height:40px;"></div></div>
+                                <div style="flex:1;"><div class="skeleton skeleton-text xs" style="width:55px;margin-bottom:6px;"></div><div class="skeleton skeleton-rect" style="height:40px;"></div></div>
+                            </div>
+                            <div class="skeleton skeleton-rect" style="width:120px;height:38px;border-radius:8px;"></div>
+                        </div>
+                        <div class="set-goal-card" style="pointer-events:none;">
+                            <div class="goal-card-header">
+                                <div class="skeleton skeleton-rect" style="width:44px;height:44px;border-radius:10px;flex-shrink:0;"></div>
+                                <div style="flex:1;"><div class="skeleton skeleton-text lg" style="width:65%;margin-bottom:6px;"></div><div class="skeleton skeleton-text sm" style="width:25%;"></div></div>
+                            </div>
+                            <div class="skeleton skeleton-rect" style="width:100%;height:38px;border-radius:8px;margin-bottom:18px;"></div>
+                            <div style="display:flex;gap:14px;margin-bottom:14px;">
+                                <div style="flex:1;"><div class="skeleton skeleton-text xs" style="width:65px;margin-bottom:6px;"></div><div class="skeleton skeleton-rect" style="height:40px;"></div></div>
+                                <div style="flex:1;"><div class="skeleton skeleton-text xs" style="width:50px;margin-bottom:6px;"></div><div class="skeleton skeleton-rect" style="height:40px;"></div></div>
+                            </div>
+                            <div class="skeleton skeleton-rect" style="width:120px;height:38px;border-radius:8px;"></div>
                         </div>
                     </div>
                 </div>

@@ -84,15 +84,21 @@
         }
         .signin-link a:hover { color: #38a89d; text-decoration: underline; }
 
-        /* Spinner */
-        .btn-spinner {
-            display: inline-block; width: 18px; height: 18px;
-            border: 2px solid rgba(0,0,0,0.2);
-            border-top-color: #0f172a;
-            border-radius: 50%;
-            animation: btn-spin 0.6s linear infinite;
+        /* Skeleton loading bar for buttons */
+        .skeleton-btn-bar {
+            display: block;
+            height: 16px;
+            width: 80px;
+            margin: 0 auto;
+            border-radius: 4px;
+            background: linear-gradient(90deg, rgba(15,23,42,0.1) 25%, rgba(15,23,42,0.25) 50%, rgba(15,23,42,0.1) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.5s ease-in-out infinite;
         }
-        @keyframes btn-spin { to { transform: rotate(360deg); } }
+        @keyframes skeleton-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
     </style>
 </head>
 <body class="login-body">
@@ -178,7 +184,7 @@
         if (loading) {
             btn.disabled = true;
             btn.dataset.originalText = btn.innerHTML;
-            btn.innerHTML = '<span class="btn-spinner"></span>';
+            btn.innerHTML = '<span class="skeleton-btn-bar"></span>';
         } else {
             btn.disabled = false;
             btn.innerHTML = btn.dataset.originalText || 'Create Account';

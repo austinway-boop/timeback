@@ -23,11 +23,6 @@
         .leaderboard-loading {
             text-align: center; padding: 2rem; color: var(--color-text-muted); font-size: 0.9rem;
         }
-        .leaderboard-loading .mini-spinner {
-            display: inline-block; width: 20px; height: 20px;
-            border: 2px solid var(--color-border); border-top-color: var(--color-primary);
-            border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 8px;
-        }
     </style>
 </head>
 <body data-view="admin" data-active="dashboard">
@@ -51,28 +46,28 @@
                     <div class="stat-card">
                         <div class="stat-icon stat-icon-blue"><i class="fa-solid fa-users"></i></div>
                         <div class="stat-info">
-                            <span class="stat-value" id="stat-students">--</span>
+                            <span class="stat-value" id="stat-students"><span class="skeleton" style="display:inline-block;width:48px;height:20px;vertical-align:middle;border-radius:4px;"></span></span>
                             <span class="stat-label">Total Students</span>
                         </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon stat-icon-teal"><i class="fa-solid fa-user-check"></i></div>
                         <div class="stat-info">
-                            <span class="stat-value" id="stat-active">--</span>
+                            <span class="stat-value" id="stat-active"><span class="skeleton" style="display:inline-block;width:36px;height:20px;vertical-align:middle;border-radius:4px;"></span></span>
                             <span class="stat-label">Active Today</span>
                         </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon stat-icon-purple"><i class="fa-solid fa-book-open"></i></div>
                         <div class="stat-info">
-                            <span class="stat-value" id="stat-courses">--</span>
+                            <span class="stat-value" id="stat-courses"><span class="skeleton" style="display:inline-block;width:36px;height:20px;vertical-align:middle;border-radius:4px;"></span></span>
                             <span class="stat-label">Active Courses</span>
                         </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon stat-icon-orange"><i class="fa-solid fa-bolt"></i></div>
                         <div class="stat-info">
-                            <span class="stat-value" id="stat-avg-xp">--</span>
+                            <span class="stat-value" id="stat-avg-xp"><span class="skeleton" style="display:inline-block;width:40px;height:20px;vertical-align:middle;border-radius:4px;"></span></span>
                             <span class="stat-label">Avg XP Today</span>
                         </div>
                     </div>
@@ -87,10 +82,10 @@
                             <a href="#" class="card-action">View All</a>
                         </div>
                         <div class="activity-list" id="activity-list">
-                            <div class="leaderboard-loading">
-                                <div class="mini-spinner"></div>
-                                <p>Loading activity...</p>
-                            </div>
+                            <div class="activity-item"><div class="skeleton skeleton-rect" style="width:36px;height:36px;flex-shrink:0;"></div><div class="activity-content"><div class="skeleton skeleton-text" style="width:85%;margin-bottom:6px;"></div><div class="skeleton skeleton-text sm" style="width:30%;"></div></div></div>
+                            <div class="activity-item"><div class="skeleton skeleton-rect" style="width:36px;height:36px;flex-shrink:0;"></div><div class="activity-content"><div class="skeleton skeleton-text" style="width:75%;margin-bottom:6px;"></div><div class="skeleton skeleton-text sm" style="width:25%;"></div></div></div>
+                            <div class="activity-item"><div class="skeleton skeleton-rect" style="width:36px;height:36px;flex-shrink:0;"></div><div class="activity-content"><div class="skeleton skeleton-text" style="width:90%;margin-bottom:6px;"></div><div class="skeleton skeleton-text sm" style="width:35%;"></div></div></div>
+                            <div class="activity-item"><div class="skeleton skeleton-rect" style="width:36px;height:36px;flex-shrink:0;"></div><div class="activity-content"><div class="skeleton skeleton-text" style="width:70%;margin-bottom:6px;"></div><div class="skeleton skeleton-text sm" style="width:28%;"></div></div></div>
                         </div>
                     </div>
 
@@ -101,10 +96,11 @@
                             <a href="/admin/students" class="card-action">See All</a>
                         </div>
                         <div class="leaderboard" id="leaderboard">
-                            <div class="leaderboard-loading">
-                                <div class="mini-spinner"></div>
-                                <p>Loading leaderboard...</p>
-                            </div>
+                            <div class="leader-item"><div class="skeleton skeleton-circle" style="width:28px;height:28px;"></div><div class="skeleton skeleton-circle" style="width:36px;height:36px;"></div><div class="leader-info"><div class="skeleton skeleton-text" style="width:65%;margin-bottom:4px;"></div><div class="skeleton skeleton-text sm" style="width:35%;"></div></div><div class="skeleton skeleton-text" style="width:50px;"></div></div>
+                            <div class="leader-item"><div class="skeleton skeleton-circle" style="width:28px;height:28px;"></div><div class="skeleton skeleton-circle" style="width:36px;height:36px;"></div><div class="leader-info"><div class="skeleton skeleton-text" style="width:55%;margin-bottom:4px;"></div><div class="skeleton skeleton-text sm" style="width:30%;"></div></div><div class="skeleton skeleton-text" style="width:50px;"></div></div>
+                            <div class="leader-item"><div class="skeleton skeleton-circle" style="width:28px;height:28px;"></div><div class="skeleton skeleton-circle" style="width:36px;height:36px;"></div><div class="leader-info"><div class="skeleton skeleton-text" style="width:70%;margin-bottom:4px;"></div><div class="skeleton skeleton-text sm" style="width:40%;"></div></div><div class="skeleton skeleton-text" style="width:50px;"></div></div>
+                            <div class="leader-item"><div class="skeleton skeleton-circle" style="width:28px;height:28px;"></div><div class="skeleton skeleton-circle" style="width:36px;height:36px;"></div><div class="leader-info"><div class="skeleton skeleton-text" style="width:60%;margin-bottom:4px;"></div><div class="skeleton skeleton-text sm" style="width:32%;"></div></div><div class="skeleton skeleton-text" style="width:50px;"></div></div>
+                            <div class="leader-item"><div class="skeleton skeleton-circle" style="width:28px;height:28px;"></div><div class="skeleton skeleton-circle" style="width:36px;height:36px;"></div><div class="leader-info"><div class="skeleton skeleton-text" style="width:50%;margin-bottom:4px;"></div><div class="skeleton skeleton-text sm" style="width:28%;"></div></div><div class="skeleton skeleton-text" style="width:50px;"></div></div>
                         </div>
                     </div>
                 </div>
