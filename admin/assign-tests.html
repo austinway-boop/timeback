@@ -127,7 +127,6 @@
 <script src="/js/layout.js?v=2"></script>
 <script src="/js/app.js"></script>
 <script>
-var cachedStudents = [];
 var selectedStudent = null;
 var existingAssignments = [];
 var enrolledKeys = new Set();
@@ -159,37 +158,41 @@ TEST_CATALOG.forEach(function(cat) {
 /* ── Init ──────────────────────────────────────────────────── */
 var searchInput, searchTimer;
 
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', function() {
     searchInput = document.getElementById('student-search');
     searchInput.addEventListener('input', function() {
         clearTimeout(searchTimer);
         var q = this.value.trim();
-        if (q.length < 1) { closeDD(); return; }
-        // Start showing results immediately as you type
-        searchTimer = setTimeout(function() { doSearch(q); }, 100);
+        if (q.length < 2) { closeDD(); return; }
+        searchTimer = setTimeout(function() { doSearch(q); }, 250);
     });
     document.addEventListener('click', function(e) { if (!e.target.closest('.search-wrap')) closeDD(); });
-
-    try {
-        var r = await fetch('/api/users');
-        var d = await r.json();
-        cachedStudents = (d.users || []).filter(function(u) { return (u.role || '').toLowerCase() === 'student'; });
-    } catch(e) {}
 });
 
-/* ── Search (all local, no API calls) ──────────────────────── */
+/* ── Search via API (no huge pre-fetch) ────────────────────── */
+var searchController = null;
+
 function doSearch(q) {
-    var lq = q.toLowerCase();
-    var res = cachedStudents.filter(function(u) {
-        var f = (u.givenName || '').toLowerCase();
-        var l = (u.familyName || '').toLowerCase();
-        var full = f + ' ' + l;
-        var email = (u.email || '').toLowerCase();
-        var uname = (u.username || '').toLowerCase();
-        return f.includes(lq) || l.includes(lq) || full.includes(lq)
-            || email.includes(lq) || uname.includes(lq);
-    });
-    renderDD(res.slice(0, 30));
+    // Cancel previous in-flight request
+    if (searchController) searchController.abort();
+    searchController = new AbortController();
+
+    // Show loading state
+    var dd = document.getElementById('search-dropdown');
+    dd.innerHTML = '<div class="search-empty"><i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i>Searching...</div>';
+    dd.classList.add('open');
+
+    fetch('/api/users-page?search=' + encodeURIComponent(q) + '&role=student&limit=20', { signal: searchController.signal })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var users = d.users || [];
+            renderDD(users);
+        })
+        .catch(function(e) {
+            if (e.name !== 'AbortError') {
+                dd.innerHTML = '<div class="search-empty">Search failed. Try again.</div>';
+            }
+        });
 }
 
 function renderDD(list) {
@@ -210,11 +213,16 @@ function closeDD() { document.getElementById('search-dropdown').classList.remove
 /* ── Pick Student ──────────────────────────────────────────── */
 function pickStudent(el) {
     var id = el.getAttribute('data-id');
-    var user = cachedStudents.find(function(u) { return u.sourcedId === id; });
-    if (!user) {
-        var n = el.querySelector('.search-item-name'), e = el.querySelector('.search-item-email');
-        user = { sourcedId: id, givenName: n ? n.textContent : '', familyName: '', email: e ? e.textContent : '' };
-    }
+    var n = el.querySelector('.search-item-name');
+    var e = el.querySelector('.search-item-email');
+    var fullName = n ? n.textContent.trim() : '';
+    var parts = fullName.split(' ');
+    var user = {
+        sourcedId: id,
+        givenName: parts[0] || '',
+        familyName: parts.slice(1).join(' ') || '',
+        email: e ? e.textContent.trim() : '',
+    };
 
     selectedStudent = user;
     existingAssignments = [];
