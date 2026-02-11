@@ -273,51 +273,81 @@
 
         document.getElementById('course-content').innerHTML = contentHTML;
 
-        // Fetch line items asynchronously
+        // Fetch assignments: combine line items + student results
         try {
-            var courseSourcedId = course.sourcedId || course.id || '';
-            var lineItems = [];
+            // Fetch line items AND student results in parallel
+            var [liResponse, resultsResponse] = await Promise.all([
+                fetch('/api/line-items').catch(function() { return null; }),
+                fetch('/api/results?userId=' + encodeURIComponent(userId)).catch(function() { return null; })
+            ]);
 
-            if (courseSourcedId) {
-                // Try to find classes for this course, then get their line items
-                var classResp = await fetch('/api/classes');
-                if (classResp.ok) {
-                    var classData = await classResp.json();
-                    var matchingClasses = (classData.classes || []).filter(function(cl) {
-                        return cl.courseSourcedId === courseSourcedId;
-                    });
+            var allLineItems = [];
+            var studentResults = [];
+            try { if (liResponse && liResponse.ok) { var lid = await liResponse.json(); allLineItems = lid.lineItems || []; } } catch(e) {}
+            try { if (resultsResponse && resultsResponse.ok) { var rd = await resultsResponse.json(); studentResults = rd.results || []; } } catch(e) {}
 
-                    // Fetch line items for each matching class
-                    for (var ci = 0; ci < matchingClasses.length && lineItems.length < 50; ci++) {
-                        try {
-                            var liResp = await fetch('/api/line-items?classId=' + encodeURIComponent(matchingClasses[ci].sourcedId));
-                            if (liResp.ok) {
-                                var liData = await liResp.json();
-                                lineItems = lineItems.concat(liData.lineItems || []);
+            // Build line item lookup by sourcedId
+            var liMap = {};
+            for (var j = 0; j < allLineItems.length; j++) {
+                liMap[allLineItems[j].sourcedId] = allLineItems[j];
+            }
+
+            // Build assignment list from student results (shows actual work the student has done)
+            var assignments = [];
+            for (var r = 0; r < studentResults.length; r++) {
+                var result = studentResults[r];
+                var lineItem = liMap[result.lineItemSourcedId] || {};
+                assignments.push({
+                    title: lineItem.title || 'Assignment',
+                    score: result.score || '',
+                    scoreStatus: result.scoreStatus || '',
+                    scoreDate: result.scoreDate || '',
+                    maxScore: lineItem.resultValueMax || '',
+                    dueDate: lineItem.dueDate || '',
+                });
+            }
+
+            // If no results-based assignments, try matching line items by class
+            if (assignments.length === 0) {
+                var courseSourcedId = course.sourcedId || course.id || '';
+                if (courseSourcedId) {
+                    try {
+                        var classResp = await fetch('/api/classes');
+                        if (classResp.ok) {
+                            var classData = await classResp.json();
+                            var matchingClassIds = (classData.classes || [])
+                                .filter(function(cl) { return cl.courseSourcedId === courseSourcedId; })
+                                .map(function(cl) { return cl.sourcedId; });
+
+                            if (matchingClassIds.length > 0) {
+                                assignments = allLineItems
+                                    .filter(function(li) { return matchingClassIds.indexOf(li.classSourcedId) !== -1; })
+                                    .map(function(li) { return { title: li.title, dueDate: li.dueDate, maxScore: li.resultValueMax }; });
                             }
-                        } catch(e) {}
-                    }
+                        }
+                    } catch(e) {}
                 }
             }
 
             var lessonsEl = document.getElementById('lessons-section');
             if (lessonsEl) {
-                if (lineItems.length > 0) {
-                    var liHTML = '<h2><i class="fa-solid fa-clipboard-list" style="color:var(--color-primary);margin-right:8px;"></i>Assignments (' + lineItems.length + ')</h2>';
-                    liHTML += '<div style="display:flex;flex-direction:column;gap:10px;">';
-                    for (var li = 0; li < lineItems.length; li++) {
-                        var item = lineItems[li];
-                        var dueDate = item.dueDate ? item.dueDate.split('T')[0] : '';
-                        liHTML += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
+                if (assignments.length > 0) {
+                    var aHTML = '<h2><i class="fa-solid fa-clipboard-list" style="color:var(--color-primary);margin-right:8px;"></i>Assignments (' + assignments.length + ')</h2>';
+                    aHTML += '<div style="display:flex;flex-direction:column;gap:10px;">';
+                    for (var ai = 0; ai < assignments.length; ai++) {
+                        var a = assignments[ai];
+                        var dateStr = a.scoreDate ? a.scoreDate.split('T')[0] : (a.dueDate ? 'Due: ' + a.dueDate.split('T')[0] : '');
+                        var scoreColor = a.scoreStatus === 'fullyGraded' ? '#2E7D32' : 'var(--color-primary)';
+                        aHTML += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
                             '<div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--color-primary-light);color:var(--color-primary-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-file-lines"></i></div>' +
-                            '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.9rem;">' + esc(item.title || 'Assignment') + '</div>' +
-                            (dueDate ? '<div style="font-size:0.78rem;color:var(--color-text-muted);">Due: ' + esc(dueDate) + '</div>' : '') +
+                            '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.9rem;">' + esc(a.title) + '</div>' +
+                            (dateStr ? '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + esc(dateStr) + '</div>' : '') +
                             '</div>' +
-                            (item.resultValueMax ? '<span style="font-weight:600;color:var(--color-primary);font-size:0.9rem;">' + item.resultValueMax + ' pts</span>' : '') +
+                            (a.score ? '<span style="font-weight:700;color:' + scoreColor + ';font-size:0.95rem;">' + esc(a.score) + (a.maxScore ? ' / ' + esc(a.maxScore) : '') + '</span>' : (a.maxScore ? '<span style="color:var(--color-text-muted);font-size:0.85rem;">' + esc(a.maxScore) + ' pts</span>' : '')) +
                             '</div>';
                     }
-                    liHTML += '</div>';
-                    lessonsEl.innerHTML = liHTML;
+                    aHTML += '</div>';
+                    lessonsEl.innerHTML = aHTML;
                 } else {
                     lessonsEl.innerHTML =
                         '<h2><i class="fa-solid fa-clipboard-list" style="color:var(--color-primary);margin-right:8px;"></i>Assignments</h2>' +
