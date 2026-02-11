@@ -227,13 +227,43 @@
                                 <input type="hidden" id="selected-student-id" value="">
                             </div>
                             <div class="assign-field">
-                                <label>Test / Assignment</label>
-                                <select id="assign-test">
-                                    <option value="">Loading tests...</option>
+                                <label>Subject</label>
+                                <select id="assign-subject" onchange="updateAssignBtn()">
+                                    <option value="">Select subject...</option>
+                                    <option value="Math">Math</option>
+                                    <option value="Reading">Reading</option>
+                                    <option value="Writing">Writing</option>
+                                    <option value="Science">Science</option>
+                                    <option value="Social Studies">Social Studies</option>
+                                    <option value="Language">Language</option>
+                                    <option value="Vocabulary">Vocabulary</option>
+                                </select>
+                            </div>
+                            <div class="assign-field">
+                                <label>Grade</label>
+                                <select id="assign-grade" onchange="updateAssignBtn()">
+                                    <option value="">Select grade...</option>
+                                    <option value="3">Grade 3</option>
+                                    <option value="4">Grade 4</option>
+                                    <option value="5">Grade 5</option>
+                                    <option value="6">Grade 6</option>
+                                    <option value="7">Grade 7</option>
+                                    <option value="8">Grade 8</option>
+                                    <option value="9">Grade 9</option>
+                                    <option value="10">Grade 10</option>
+                                    <option value="11">Grade 11</option>
+                                    <option value="12">Grade 12</option>
+                                </select>
+                            </div>
+                            <div class="assign-field">
+                                <label>Type</label>
+                                <select id="assign-type">
+                                    <option value="test-assignment">Test Assignment</option>
+                                    <option value="screening">Screening Test</option>
                                 </select>
                             </div>
                             <button class="assign-btn" id="assign-btn" onclick="submitAssignment()" disabled>
-                                <i class="fa-solid fa-paper-plane"></i> Assign
+                                <i class="fa-solid fa-paper-plane"></i> Assign Test
                             </button>
                         </div>
                         <div class="assign-msg" id="assign-msg"></div>
@@ -424,28 +454,7 @@
             : '<span class="status-dot-inline red"></span> Unavailable';
     }
 
-    function populateTestDropdown() {
-        var tsel = document.getElementById('assign-test');
-        if (!tsel) return;
-
-        // If line items available, use them. Otherwise fall back to courses.
-        if (allLineItems.length > 0) {
-            tsel.innerHTML = '<option value="">Select a test...</option>' +
-                allLineItems.map(function(li) {
-                    return '<option value="' + (li.sourcedId || '') + '">' + (li.title || li.sourcedId || 'Untitled') + '</option>';
-                }).join('');
-        } else if (allCourses.length > 0) {
-            tsel.innerHTML = '<option value="">Select a course to assign...</option>' +
-                allCourses.map(function(c) {
-                    var label = (c.title || c.courseCode || 'Untitled');
-                    var subjects = (c.subjects || []).join(', ');
-                    if (subjects) label += ' (' + subjects + ')';
-                    return '<option value="' + (c.sourcedId || '') + '">' + label + '</option>';
-                }).join('');
-        } else {
-            tsel.innerHTML = '<option value="">No tests or courses available</option>';
-        }
-    }
+    // Test dropdown removed — now using subject/grade selects instead
 
     /* ==================================================================== */
     /* Student search-as-you-type (max 10 results, debounced)              */
@@ -543,42 +552,54 @@
     function updateAssignBtn() {
         var btn = document.getElementById('assign-btn');
         if (!btn) return;
-        var hasTest = document.getElementById('assign-test').value !== '';
+        var hasSubject = (document.getElementById('assign-subject') || {}).value !== '';
+        var hasGrade = (document.getElementById('assign-grade') || {}).value !== '';
         var hasStudent = selectedStudentId !== '';
-        btn.disabled = !(hasStudent && hasTest);
+        btn.disabled = !(hasStudent && hasSubject && hasGrade);
     }
 
-    document.getElementById('assign-test').addEventListener('change', updateAssignBtn);
-
     async function submitAssignment() {
-        var testId = document.getElementById('assign-test').value;
-        if (!testId || !selectedStudentId) return;
+        var subject = (document.getElementById('assign-subject') || {}).value || '';
+        var grade = (document.getElementById('assign-grade') || {}).value || '';
+        var assignType = (document.getElementById('assign-type') || {}).value || 'test-assignment';
+        if (!subject || !grade || !selectedStudentId) return;
 
         var btn = document.getElementById('assign-btn');
         var msgEl = document.getElementById('assign-msg');
         btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Assigning...';
         msgEl.className = 'assign-msg'; msgEl.style.display = 'none';
 
         try {
             var resp = await fetch('/api/assign-test', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentId: selectedStudentId, lineItemId: testId }),
+                body: JSON.stringify({
+                    studentId: selectedStudentId,
+                    subject: subject,
+                    grade: grade,
+                    type: assignType,
+                }),
             });
-            if (resp.ok) {
-                msgEl.textContent = 'Test assigned successfully!';
+            var data = await resp.json().catch(function() { return {}; });
+            if (resp.ok && data.success) {
+                msgEl.textContent = data.message || 'Test assigned successfully!';
                 msgEl.className = 'assign-msg success';
+                msgEl.style.display = 'block';
                 clearSelectedStudent();
+                document.getElementById('assign-subject').value = '';
+                document.getElementById('assign-grade').value = '';
             } else {
-                var errData = await resp.json().catch(function() { return {}; });
-                msgEl.textContent = errData.error || 'Assignment failed.';
+                msgEl.textContent = data.error || data.message || 'Assignment failed.';
                 msgEl.className = 'assign-msg error';
+                msgEl.style.display = 'block';
             }
         } catch(e) {
-            msgEl.textContent = 'Assignment submitted (endpoint pending).';
-            msgEl.className = 'assign-msg success';
-            clearSelectedStudent();
+            msgEl.textContent = 'Network error. Please try again.';
+            msgEl.className = 'assign-msg error';
+            msgEl.style.display = 'block';
         }
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Assign Test';
         updateAssignBtn();
     }
 
@@ -615,7 +636,6 @@
         renderUsers();
         renderCourses();
         renderSystemInfo(apiOk);
-        populateTestDropdown();
         updateAssignBtn();
     });
     </script>

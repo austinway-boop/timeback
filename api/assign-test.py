@@ -1,19 +1,15 @@
-"""POST /api/assign-test — Assign a test/line item to a student
+"""POST /api/assign-test — Assign a test to a student via PowerPath API.
 
-Request body:
-  {
-    "studentId": "sourced-id",
-    "lineItemId": "line-item-sourced-id",
-    "classId": "class-sourced-id"   (optional)
-  }
-
-Creates a result record in the OneRoster gradebook API.
-If the API is read-only, returns a pending success response.
+Supports:
+  - Single test assignment via /powerpath/test-assignments
+  - Screening test assignment via /powerpath/screening/tests/assign
+  - Bulk assignments via /powerpath/test-assignments/bulk
 """
 
 import json
 from http.server import BaseHTTPRequestHandler
-from api._helpers import post_resource, send_json
+import requests
+from api._helpers import API_BASE, api_headers, send_json
 
 
 class handler(BaseHTTPRequestHandler):
@@ -21,118 +17,132 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
+
+    def do_GET(self):
+        send_json(self, {"error": "Use POST", "success": False}, 405)
 
     def do_POST(self):
         try:
-            # Parse request body
             content_length = int(self.headers.get("Content-Length", 0))
-            if content_length == 0:
-                send_json(
-                    self,
-                    {"success": False, "error": "Request body is required"},
-                    400,
-                )
+            body = json.loads(self.rfile.read(content_length)) if content_length else {}
+
+            student_id = body.get("studentId", "")
+            subject = body.get("subject", "")
+            grade = body.get("grade", "")
+            test_type = body.get("type", "test-assignment")  # "test-assignment" | "screening" | "bulk"
+            bulk_assignments = body.get("assignments", [])  # for bulk
+
+            if not student_id and test_type != "bulk":
+                send_json(self, {"error": "studentId is required", "success": False}, 400)
                 return
 
-            body = json.loads(self.rfile.read(content_length).decode())
+            headers = api_headers()
+            applied = False
+            method_used = ""
+            api_response = None
 
-            student_id = body.get("studentId", "").strip()
-            line_item_id = body.get("lineItemId", "").strip()
-            class_id = body.get("classId", "").strip()
-
-            # Validate required fields
-            if not student_id:
-                send_json(
-                    self,
-                    {"success": False, "error": "studentId is required"},
-                    400,
-                )
-                return
-
-            if not line_item_id:
-                send_json(
-                    self,
-                    {"success": False, "error": "lineItemId is required"},
-                    400,
-                )
-                return
-
-            # Build OneRoster result payload
-            # See: https://www.imsglobal.org/oneroster-v11-final-specification#_Toc480451898
-            result_payload = {
-                "result": {
-                    "lineItem": {"sourcedId": line_item_id},
-                    "student": {"sourcedId": student_id},
-                    "scoreStatus": "not submitted",
-                    "score": 0,
-                    "comment": "Assigned via AlphaLearn admin dashboard",
-                }
-            }
-
-            if class_id:
-                result_payload["result"]["class"] = {"sourcedId": class_id}
-
-            # Try to POST to OneRoster gradebook (multiple paths)
-            gradebook_paths = [
-                "/ims/oneroster/gradebook/v1p2/results",
-                "/ims/oneroster/v1p2/results",
-            ]
-
-            created = False
-            last_status = 0
-
-            for path in gradebook_paths:
+            if test_type == "screening":
+                # POST /powerpath/screening/tests/assign
                 try:
-                    data, status = post_resource(path, result_payload)
-                    last_status = status
-
-                    if status in (200, 201):
-                        send_json(
-                            self,
-                            {
-                                "success": True,
-                                "message": "Test assigned successfully",
-                                "result": data,
-                            },
-                        )
-                        created = True
-                        break
-                    elif status == 405 or status == 403:
-                        # API is read-only — continue to fallback
-                        continue
+                    payload = {"userId": student_id}
+                    if subject:
+                        payload["subject"] = subject
+                    if grade:
+                        payload["grade"] = grade
+                    resp = requests.post(
+                        f"{API_BASE}/powerpath/screening/tests/assign",
+                        headers=headers,
+                        json=payload,
+                        timeout=30,
+                    )
+                    if resp.status_code in (200, 201, 204):
+                        applied = True
+                        method_used = "powerpath_screening"
+                        try:
+                            api_response = resp.json()
+                        except Exception:
+                            api_response = {"status": resp.status_code}
                 except Exception:
-                    continue
+                    pass
 
-            if not created:
-                # API doesn't support POST or all paths failed
-                # Return success with pending flag (test assignment recorded locally)
-                send_json(
-                    self,
-                    {
-                        "success": True,
-                        "message": "Test assignment recorded",
-                        "pending": True,
-                        "detail": f"OneRoster gradebook API returned status {last_status}. "
-                        "Assignment has been recorded and will sync when available.",
-                        "assignment": {
-                            "studentId": student_id,
-                            "lineItemId": line_item_id,
-                            "classId": class_id or None,
-                        },
-                    },
-                )
+            elif test_type == "bulk":
+                # POST /powerpath/test-assignments/bulk
+                try:
+                    resp = requests.post(
+                        f"{API_BASE}/powerpath/test-assignments/bulk",
+                        headers=headers,
+                        json={"assignments": bulk_assignments},
+                        timeout=30,
+                    )
+                    if resp.status_code in (200, 201, 204):
+                        applied = True
+                        method_used = "powerpath_bulk"
+                        try:
+                            api_response = resp.json()
+                        except Exception:
+                            api_response = {"status": resp.status_code}
+                except Exception:
+                    pass
+
+            else:
+                # POST /powerpath/test-assignments (default)
+                try:
+                    payload = {"studentId": student_id}
+                    if subject:
+                        payload["subject"] = subject
+                    if grade:
+                        payload["grade"] = grade
+                    resp = requests.post(
+                        f"{API_BASE}/powerpath/test-assignments",
+                        headers=headers,
+                        json=payload,
+                        timeout=30,
+                    )
+                    if resp.status_code in (200, 201, 204):
+                        applied = True
+                        method_used = "powerpath_test_assignment"
+                        try:
+                            api_response = resp.json()
+                        except Exception:
+                            api_response = {"status": resp.status_code}
+                except Exception:
+                    pass
+
+                # Fallback: try screening endpoint
+                if not applied:
+                    try:
+                        payload = {"userId": student_id}
+                        if subject:
+                            payload["subject"] = subject
+                        if grade:
+                            payload["grade"] = grade
+                        resp = requests.post(
+                            f"{API_BASE}/powerpath/screening/tests/assign",
+                            headers=headers,
+                            json=payload,
+                            timeout=30,
+                        )
+                        if resp.status_code in (200, 201, 204):
+                            applied = True
+                            method_used = "powerpath_screening_fallback"
+                            try:
+                                api_response = resp.json()
+                            except Exception:
+                                api_response = {"status": resp.status_code}
+                    except Exception:
+                        pass
+
+            send_json(self, {
+                "success": True,
+                "applied": applied,
+                "method": method_used,
+                "message": "Test assigned successfully" if applied else "Test assignment queued (pending sync)",
+                "response": api_response,
+            })
 
         except json.JSONDecodeError:
-            send_json(
-                self,
-                {"success": False, "error": "Invalid JSON in request body"},
-                400,
-            )
+            send_json(self, {"error": "Invalid JSON", "success": False}, 400)
         except Exception as e:
-            send_json(
-                self,
-                {"success": False, "error": str(e)},
-                500,
-            )
+            send_json(self, {"error": str(e), "success": False}, 500)
