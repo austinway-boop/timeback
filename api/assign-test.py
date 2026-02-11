@@ -2,10 +2,10 @@
 GET  /api/assign-test?studentId=... — List test assignments for a student.
 DELETE /api/assign-test — Remove a test assignment.
 
-PowerPath field names (from API docs):
-  testAssignments.create  → { studentId, testId, dueDate }
-  screening/tests/assign  → { studentId, subject, gradeLevel }
-  testAssignments.bulk    → { assignments: [{ studentId, testId }] }
+Flow (from PowerPath API docs):
+  1. assessments.createInternalTest({ studentId, subject, gradeLevel }) → returns testId
+  2. testAssignments.create({ studentId, testId }) → creates the assignment
+  OR: screening/tests/assign({ studentId, subject, gradeLevel }) → one-shot
 """
 
 import json
@@ -33,16 +33,16 @@ class handler(BaseHTTPRequestHandler):
         ).strip()
 
         if not student_id:
-            send_json(self, {"error": "Missing studentId param", "testAssignments": []}, 400)
+            send_json(self, {"error": "Missing studentId", "testAssignments": []}, 400)
             return
 
-        headers = api_headers()
         try:
+            headers = api_headers()
             resp = requests.get(
                 f"{API_BASE}/powerpath/test-assignments",
                 headers=headers,
                 params={"studentId": student_id},
-                timeout=30,
+                timeout=15,
             )
             if resp.status_code == 200:
                 send_json(self, resp.json())
@@ -58,7 +58,7 @@ class handler(BaseHTTPRequestHandler):
             raw = self.rfile.read(content_length) if content_length else b""
             body = json.loads(raw) if raw else {}
 
-            assignment_id = body.get("assignmentId", "").strip()
+            assignment_id = (body.get("assignmentId") or "").strip()
             headers = api_headers()
             deleted = False
 
@@ -66,40 +66,31 @@ class handler(BaseHTTPRequestHandler):
                 try:
                     resp = requests.delete(
                         f"{API_BASE}/powerpath/test-assignments/{assignment_id}",
-                        headers=headers,
-                        timeout=30,
+                        headers=headers, timeout=15,
                     )
                     if resp.status_code in (200, 204):
                         deleted = True
                 except Exception:
                     pass
 
-            # Fallback: try with body params
             if not deleted:
-                student_id = body.get("studentId", body.get("student", "")).strip()
-                subject = body.get("subject", "").strip()
-                grade_level = body.get("gradeLevel", body.get("grade", "")).strip()
+                student_id = (body.get("studentId") or body.get("student") or "").strip()
+                subject = (body.get("subject") or "").strip()
+                grade_level = (body.get("gradeLevel") or body.get("grade") or "").strip()
                 if student_id and subject and grade_level:
                     try:
                         resp = requests.delete(
                             f"{API_BASE}/powerpath/test-assignments",
                             headers=headers,
-                            json={
-                                "studentId": student_id,
-                                "subject": subject,
-                                "gradeLevel": grade_level,
-                            },
-                            timeout=30,
+                            json={"studentId": student_id, "subject": subject, "gradeLevel": grade_level},
+                            timeout=15,
                         )
                         if resp.status_code in (200, 204):
                             deleted = True
                     except Exception:
                         pass
 
-            send_json(
-                self,
-                {"success": deleted, "message": "Removed" if deleted else "Could not remove"},
-            )
+            send_json(self, {"success": deleted, "message": "Removed" if deleted else "Could not remove"})
         except Exception as e:
             send_json(self, {"success": False, "error": str(e)}, 500)
 
@@ -114,18 +105,11 @@ class handler(BaseHTTPRequestHandler):
 
             body = json.loads(raw)
 
-            # Normalize: accept multiple field name conventions from frontends
-            student_id = (
-                body.get("studentId")
-                or body.get("student")
-                or body.get("userId")
-                or ""
-            ).strip()
-            subject = body.get("subject", "").strip()
-            grade_level = body.get("gradeLevel", body.get("grade", "")).strip()
-            test_id = body.get("testId", body.get("lineItemId", "")).strip()
-            test_type = body.get("type", "").strip()
-            due_date = body.get("dueDate", "").strip()
+            student_id = (body.get("studentId") or body.get("student") or body.get("userId") or "").strip()
+            subject = (body.get("subject") or "").strip()
+            grade_level = (body.get("gradeLevel") or body.get("grade") or "").strip()
+            test_id = (body.get("testId") or body.get("lineItemId") or "").strip()
+            due_date = (body.get("dueDate") or "").strip()
             bulk = body.get("assignments", [])
 
             if not student_id and not bulk:
@@ -133,71 +117,102 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             headers = api_headers()
+            errors = []
 
-            # ── Bulk assignment ───────────────────────────────
+            # ── Bulk ─────────────────────────────────────────
             if bulk:
-                normalized = [
-                    {"studentId": a.get("studentId", ""), "testId": a.get("testId", "")}
-                    for a in bulk
-                ]
-                ok, method, resp_data, err = _post(
-                    headers,
-                    f"{API_BASE}/powerpath/test-assignments/bulk",
-                    {"assignments": normalized},
-                    "bulk",
-                )
-                return _respond(self, ok, method, resp_data, err, subject, grade_level)
+                normalized = [{"studentId": a.get("studentId", ""), "testId": a.get("testId", "")} for a in bulk]
+                ok, data, err = _post(headers, f"{API_BASE}/powerpath/test-assignments/bulk", {"assignments": normalized})
+                if ok:
+                    send_json(self, {"success": True, "message": "Bulk assignment complete", "response": data})
+                else:
+                    errors.append(err)
+                    send_json(self, {"success": False, "error": "; ".join(errors), "response": data}, 422)
+                return
 
-            # ── Assignment by testId (from students.html) ─────
+            # ── By testId ────────────────────────────────────
             if test_id:
                 payload = {"studentId": student_id, "testId": test_id}
                 if due_date:
                     payload["dueDate"] = due_date
-
-                ok, method, resp_data, err = _post(
-                    headers,
-                    f"{API_BASE}/powerpath/test-assignments",
-                    payload,
-                    "test_assignment_by_id",
-                )
-                return _respond(self, ok, method, resp_data, err, subject, grade_level)
-
-            # ── Assignment by subject + gradeLevel ────────────
-            if not subject or not grade_level:
-                send_json(
-                    self,
-                    {"error": "subject and grade are required (or provide testId)", "success": False},
-                    400,
-                )
+                ok, data, err = _post(headers, f"{API_BASE}/powerpath/test-assignments", payload)
+                if ok:
+                    send_json(self, {"success": True, "message": "Test assigned", "response": data})
+                else:
+                    send_json(self, {"success": False, "error": err, "response": data}, 422)
                 return
 
-            # Primary: screening/tests/assign (creates + assigns in one call)
-            ok, method, resp_data, err = _post(
+            # ── By subject + gradeLevel ──────────────────────
+            if not subject or not grade_level:
+                send_json(self, {"error": "Need subject and grade (or testId)", "success": False}, 400)
+                return
+
+            # Strategy 1: screening/tests/assign (all-in-one)
+            ok, data, err = _post(
                 headers,
                 f"{API_BASE}/powerpath/screening/tests/assign",
                 {"studentId": student_id, "subject": subject, "gradeLevel": grade_level},
-                "screening",
             )
+            if ok:
+                send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data})
+                return
+            errors.append(f"screening: {err}")
 
-            # Fallback 1: try with different field names
-            if not ok:
-                ok, method, resp_data, err = _post(
-                    headers,
-                    f"{API_BASE}/powerpath/screening/tests/assign",
-                    {"userId": student_id, "subject": subject, "grade": grade_level},
-                    "screening_alt",
-                )
+            # Strategy 2: createInternalTest → then assign with returned testId
+            ok2, data2, err2 = _post(
+                headers,
+                f"{API_BASE}/powerpath/assessments/internal-test",
+                {"studentId": student_id, "subject": subject, "gradeLevel": grade_level},
+            )
+            if ok2:
+                new_test_id = ""
+                if isinstance(data2, dict):
+                    new_test_id = data2.get("testId") or data2.get("id") or data2.get("test_id") or ""
+                if new_test_id:
+                    ok3, data3, err3 = _post(
+                        headers,
+                        f"{API_BASE}/powerpath/test-assignments",
+                        {"studentId": student_id, "testId": str(new_test_id)},
+                    )
+                    if ok3:
+                        send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data3})
+                        return
+                    errors.append(f"assign after create: {err3}")
+                else:
+                    # createInternalTest succeeded but returned no testId — that IS the assignment
+                    send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data2})
+                    return
+            else:
+                errors.append(f"createInternalTest: {err2}")
 
-            # Fallback 2: create internal test + assign
-            if not ok:
-                ok, method, resp_data, err = _post(
-                    headers,
-                    f"{API_BASE}/powerpath/test-assignments",
-                    {"studentId": student_id, "subject": subject, "gradeLevel": grade_level},
-                    "test_assignment_subject",
-                )
+            # Strategy 3: try test-assignments with subject/grade directly
+            ok4, data4, err4 = _post(
+                headers,
+                f"{API_BASE}/powerpath/test-assignments",
+                {"studentId": student_id, "subject": subject, "gradeLevel": grade_level},
+            )
+            if ok4:
+                send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data4})
+                return
+            errors.append(f"test-assignments: {err4}")
 
-            return _respond(self, ok, method, resp_data, err, subject, grade_level)
+            # Strategy 4: try alternate field names
+            ok5, data5, err5 = _post(
+                headers,
+                f"{API_BASE}/powerpath/screening/tests/assign",
+                {"userId": student_id, "subject": subject, "grade": grade_level},
+            )
+            if ok5:
+                send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data5})
+                return
+            errors.append(f"screening alt: {err5}")
+
+            # All strategies failed — return 422 (not 502!)
+            send_json(self, {
+                "success": False,
+                "error": errors[0] if errors else "Assignment failed",
+                "details": errors,
+            }, 422)
 
         except json.JSONDecodeError:
             send_json(self, {"error": "Invalid JSON", "success": False}, 400)
@@ -205,58 +220,30 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": str(e), "success": False}, 500)
 
 
-# ── Helpers ───────────────────────────────────────────────────
-
-def _post(headers, url, payload, method_name):
-    """POST to PowerPath. Returns (ok, method, response_data, error).
-    Retries once on timeout. Checks both HTTP status and response body."""
-    for attempt in range(2):
+def _post(headers, url, payload):
+    """POST to PowerPath. Returns (ok, response_data, error_string).
+    Short timeout to avoid Vercel 10s function limit."""
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=8)
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=60)
-            try:
-                data = resp.json()
-            except Exception:
-                data = {"status": resp.status_code}
+            data = resp.json()
+        except Exception:
+            data = {"status": resp.status_code, "body": resp.text[:200]}
 
-            if resp.status_code not in (200, 201, 204):
-                err = data.get("error", data.get("message",
-                    data.get("imsx_description", f"Status {resp.status_code}")))
-                return False, method_name, data, err
+        if resp.status_code not in (200, 201, 204):
+            err = ""
+            if isinstance(data, dict):
+                err = data.get("error") or data.get("message") or data.get("imsx_description") or ""
+            return False, data, err or f"HTTP {resp.status_code}"
 
-            # PowerPath can return 200 with {"success": false}
-            if isinstance(data, dict) and data.get("success") is False:
-                err = data.get("error", data.get("message", "API returned success=false"))
-                return False, method_name, data, err
+        if isinstance(data, dict) and data.get("success") is False:
+            err = data.get("error") or data.get("message") or "success=false"
+            return False, data, err
 
-            return True, method_name, data, None
-        except requests.exceptions.Timeout:
-            if attempt == 0:
-                continue
-            return False, method_name, None, "Request timed out"
-        except Exception as e:
-            return False, method_name, None, str(e)
-    return False, method_name, None, "Unexpected error"
-
-
-def _respond(handler, ok, method, resp_data, err, subject, grade_level):
-    """Send the final response back to the frontend."""
-    if ok:
-        msg = "Test assigned successfully"
-        if subject and grade_level:
-            msg = f"Test assigned ({subject} Grade {grade_level})"
-        send_json(handler, {
-            "success": True,
-            "method": method,
-            "message": msg,
-            "response": resp_data,
-        })
-    else:
-        error_msg = err or "Assignment failed"
-        status = 400 if "not enrolled" in (error_msg or "").lower() else 502
-        send_json(handler, {
-            "success": False,
-            "method": method,
-            "message": error_msg,
-            "error": error_msg,
-            "response": resp_data,
-        }, status)
+        return True, data, None
+    except requests.exceptions.Timeout:
+        return False, None, "Timed out"
+    except requests.exceptions.ConnectionError:
+        return False, None, "Connection failed"
+    except Exception as e:
+        return False, None, str(e)
