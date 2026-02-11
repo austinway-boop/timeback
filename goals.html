@@ -152,25 +152,28 @@ function lessonCard(c,i){
     const xpPer=tL>0?tXp/tL:0;
     const done=tL>0?Math.min(Math.round((xpE/tXp)*tL),tL):0;
     const rem=Math.max(tL-done,0),pct=tL>0?Math.min((done/tL)*100,100):0;
-    let sCls='none',sLbl=rem+' remaining',paceH='',savedH='';
+
+    let goalHtml='';
     if(has){
         const excl=g.excludeNonSchoolDays!==false,d=cntDays(g.endDate,excl),eff=d.school||1;
-        const lpd=rem>0?(rem/eff):0,xpd=Math.round(lpd*xpPer),dayT=excl?'school day':'day';
-        if(rem<=0){sCls='on-track';sLbl='Complete';}else if(d.school<=0){sCls='at-risk';sLbl='Past due';}else if(lpd<=1.5){sCls='on-track';sLbl='On track';}else if(lpd<=3){sCls='behind';sLbl='Behind';}else{sCls='at-risk';sLbl='At risk';}
-        savedH=`<div class="gc-saved"><i class="fa-solid fa-circle-check"></i> Goal: finish by ${fmtNice(g.endDate)}${excl?' (school days)':''}</div>`;
-        if(rem>0&&d.school>0)paceH=`<div class="gc-pace"><i class="fa-solid fa-calculator"></i><span>~${lpd.toFixed(1)} lessons/${dayT} (~${xpd} XP/day) &middot; ${d.school} ${dayT}s left</span></div>`;
+        const lpd=rem>0?(rem/eff):0,dayT=excl?'school day':'day';
+        let sCls='on-track';if(lpd>3)sCls='at-risk';else if(lpd>1.5)sCls='behind';
+        goalHtml=`<div class="gc-saved"><i class="fa-solid fa-circle-check"></i> Finish by ${fmtNice(g.endDate)} &middot; ~${lpd.toFixed(1)} lessons/${dayT}</div>`;
     }
+
     return `<div class="gc" data-i="${i}" data-k="${c._goalKey}" data-tl="${tL}" data-xpu="${Math.round(xpPer)}" data-rem="${rem}">
         <div class="course-card-image ${TBG[th]}"><div class="course-card-illustration"><i class="fa-solid ${ic(c.title)}"></i></div></div>
-        <div class="gc-b"><div class="gc-n">${c.title}</div><div class="gc-s">${c.subject} &middot; ${tL} lessons</div>
-        <div class="gc-row"><span class="gc-p">${done} / ${tL} lessons</span><span class="gc-badge ${has?sCls:'none'}">${sLbl}</span></div>
-        <div class="gc-bar"><div class="gc-fill ${has?sCls:'on-track'}" style="width:${pct}%"></div></div>
-        ${savedH}${paceH}
-        <div class="gc-fld"><label class="gc-lbl">Complete by</label><input type="date" class="gc-inp gd" value="${g.endDate||''}" min="${fmtD(new Date())}" onchange="pickD(${i})"></div>
-        <label class="gc-chk"><input type="checkbox" class="gs" ${(g.excludeNonSchoolDays!==false)?'checked':''} onchange="pickD(${i})"> School days only</label>
-        <div id="pv-${i}" style="display:none" class="gc-pace"><i class="fa-solid fa-calculator"></i><span id="pvt-${i}"></span></div>
-        <button class="btn-c" id="cb-${i}" style="display:none" onclick="confirmL(${i})"><i class="fa-solid fa-check"></i> Confirm Goal</button>
-        ${has?`<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear Goal</button>`:''}</div></div>`;
+        <div class="gc-b">
+            <div class="gc-n">${c.title}</div>
+            <div class="gc-row" style="margin-top:12px"><span class="gc-p">${done} / ${tL} lessons</span><span class="gc-badge ${has?'on-track':'none'}">${rem} left</span></div>
+            <div class="gc-bar"><div class="gc-fill on-track" style="width:${pct}%"></div></div>
+            ${goalHtml}
+            <div class="gc-fld"><label class="gc-lbl">Complete by</label><input type="date" class="gc-inp gd" value="${g.endDate||''}" min="${fmtD(new Date())}" onchange="pickD(${i})"></div>
+            <label class="gc-chk"><input type="checkbox" class="gs" ${(g.excludeNonSchoolDays!==false)?'checked':''} onchange="pickD(${i})"> School days only</label>
+            <div id="pv-${i}" style="display:none" class="gc-pace"><i class="fa-solid fa-calculator"></i><span id="pvt-${i}"></span></div>
+            <button class="btn-c" id="cb-${i}" style="${has?'':'display:none'}" onclick="confirmL(${i})"><i class="fa-solid fa-check"></i> ${has?'Update':'Confirm'} Goal</button>
+            ${has?`<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear</button>`:''}
+        </div></div>`;
 }
 
 /* ==== XP CARD (Set Goals) ==== */
@@ -178,19 +181,22 @@ function xpCard(c,i){
     const th=THEMES[i%4],g=ld()[c._goalKey]||{},has=!!g.type;
     const xpE=Math.round(XP[i]||0),tgt=g.target||0;
     const pct=tgt>0?Math.min((xpE/tgt)*100,100):0;
-    let sCls='none',sLbl='No goal',pH='';
-    if(has&&g.endDate){const excl=g.excludeNonSchoolDays!==false,d=cntDays(g.endDate,excl),eff=d.school||1,rem=Math.max(tgt-xpE,0),xpd=rem>0?Math.round(rem/eff):0,dayT=excl?'school day':'day';if(rem<=0){sCls='on-track';sLbl='Done';}else if(d.school<=0){sCls='at-risk';sLbl='Past due';}else{sCls='on-track';sLbl='On track';}pH=`<div class="gc-pace"><i class="fa-solid fa-calculator"></i><span>~${xpd} XP/${dayT} &middot; ${d.school} ${dayT}s left</span></div>`;}
+    let goalHtml='';
+    if(has&&g.endDate){const excl=g.excludeNonSchoolDays!==false,d=cntDays(g.endDate,excl),eff=d.school||1,rem=Math.max(tgt-xpE,0),xpd=rem>0?Math.round(rem/eff):0,dayT=excl?'school day':'day';
+        goalHtml=`<div class="gc-saved"><i class="fa-solid fa-circle-check"></i> ${tgt} XP by ${fmtNice(g.endDate)} &middot; ~${xpd} XP/${dayT}</div>`;}
     return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
         <div class="course-card-image ${TBG[th]}"><div class="course-card-illustration"><i class="fa-solid ${ic(c.title)}"></i></div></div>
-        <div class="gc-b"><div class="gc-n">${c.title}</div><div class="gc-s">${c.subject} &middot; XP Goal</div>
-        <div class="gc-row"><span class="gc-p">${xpE}${tgt?' / '+tgt:''} XP</span><span class="gc-badge ${sCls}">${sLbl}</span></div>
-        <div class="gc-bar"><div class="gc-fill ${has?sCls:'none'}" style="width:${pct}%"></div></div>
-        ${pH}
-        <div class="gc-2"><div class="gc-fld"><label class="gc-lbl">Target XP</label><input type="number" class="gc-inp gt" min="1" value="${g.target||''}" placeholder="e.g. 500"></div>
-        <div class="gc-fld"><label class="gc-lbl">End Date</label><input type="date" class="gc-inp gd" value="${g.endDate||''}" min="${fmtD(new Date())}"></div></div>
-        <label class="gc-chk"><input type="checkbox" class="gs" ${(g.excludeNonSchoolDays!==false)?'checked':''} > School days only</label>
-        <button class="btn-c" onclick="saveXP(${i})"><i class="fa-solid fa-check"></i> ${has?'Update':'Save'} Goal</button>
-        ${has?`<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear</button>`:''}</div></div>`;
+        <div class="gc-b">
+            <div class="gc-n">${c.title}</div>
+            <div class="gc-row" style="margin-top:12px"><span class="gc-p">${xpE}${tgt?' / '+tgt:''} XP</span></div>
+            <div class="gc-bar"><div class="gc-fill ${has?'on-track':'none'}" style="width:${pct}%"></div></div>
+            ${goalHtml}
+            <div class="gc-2"><div class="gc-fld"><label class="gc-lbl">Target XP</label><input type="number" class="gc-inp gt" min="1" value="${g.target||''}" placeholder="e.g. 500"></div>
+            <div class="gc-fld"><label class="gc-lbl">End Date</label><input type="date" class="gc-inp gd" value="${g.endDate||''}" min="${fmtD(new Date())}"></div></div>
+            <label class="gc-chk"><input type="checkbox" class="gs" ${(g.excludeNonSchoolDays!==false)?'checked':''} > School days only</label>
+            <button class="btn-c" onclick="saveXP(${i})"><i class="fa-solid fa-check"></i> ${has?'Update':'Save'} Goal</button>
+            ${has?`<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear</button>`:''}
+        </div></div>`;
 }
 
 /* ==== ACTIONS ==== */
@@ -347,7 +353,11 @@ document.addEventListener('DOMContentLoaded',async function(){
             const xs={};for(const df of Object.values(fa))for(const[s,info]of Object.entries(df))xs[s]=(xs[s]||0)+((info.activityMetrics||{}).xpEarned||0);
             for(let i=0;i<ALL.length;i++){const c=ALL[i],sa=xm[c.subject]||{},an=(c.appName||'').toLowerCase();
                 if(an&&Object.keys(sa).length){let m=sa[an]||0;if(!m){const n=an.replace(/_/g,' ');for(const[k,x]of Object.entries(sa))if(k===n||k.includes(n)||n.includes(k)){m=x;break;}}XP[i]=m;}
-                else if(!an&&Object.keys(sa).length){let nx=0;for(const[k,x]of Object.entries(sa))if(NATIVE_APPS.some(n=>k.includes(n)||n.includes(k)))nx+=x;XP[i]=nx;}
+                else if(!an&&Object.keys(sa).length){
+                    // No app: sum ALL XP for the subject (not just native apps)
+                    let total=0;for(const x of Object.values(sa))total+=x;
+                    XP[i]=total||xs[c.subject]||0;
+                }
                 else XP[i]=xs[c.subject]||0;}
         }catch(e){console.warn('[AlphaLearn] Analytics unavailable:',e.message);}
         renderSet();

@@ -512,14 +512,10 @@
                     }
                     xpByCourseIdx[i] = matched;
                 } else if (!appName && Object.keys(subjApps).length) {
-                    // No app — Timeback-native course: sum XP from native apps
-                    let nativeXp = 0;
-                    for (const [key, xp] of Object.entries(subjApps)) {
-                        if (NATIVE_APPS.some(n => key.includes(n) || n.includes(key))) {
-                            nativeXp += xp;
-                        }
-                    }
-                    xpByCourseIdx[i] = nativeXp;
+                    // No app — sum ALL XP for this subject
+                    let totalSubjXp = 0;
+                    for (const xp of Object.values(subjApps)) totalSubjXp += xp;
+                    xpByCourseIdx[i] = totalSubjXp || xpBySubject[c.subject] || 0;
                 } else {
                     // Fallback: use subject-level XP if factsByApp had nothing
                     xpByCourseIdx[i] = xpBySubject[c.subject] || 0;
@@ -582,11 +578,10 @@
                     }
                     fullYearXpIdx[i] = matched;
                 } else if (!appName && Object.keys(subjApps).length) {
-                    let nativeXp = 0;
-                    for (const [key, xp] of Object.entries(subjApps)) {
-                        if (NATIVE_APPS.some(n => key.includes(n) || n.includes(key))) nativeXp += xp;
-                    }
-                    fullYearXpIdx[i] = nativeXp;
+                    // No app — sum ALL XP for this subject
+                    let total = 0;
+                    for (const xp of Object.values(subjApps)) total += xp;
+                    fullYearXpIdx[i] = total || xpBySubject[c.subject] || 0;
                 } else {
                     fullYearXpIdx[i] = xpBySubject[c.subject] || 0;
                 }
