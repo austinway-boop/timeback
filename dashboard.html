@@ -125,16 +125,21 @@
     function isAPCourse(title) {
         return /\bAP\b/.test((title || '').trim()) || (title || '').toLowerCase().includes('advanced placement');
     }
+    /* Extract lesson count from PP suffix: "AP US History - PP100" → 100 */
+    function ppLessons(title) {
+        const m = (title || '').match(/PP(\d+)/i);
+        return m ? parseInt(m[1]) : 0;
+    }
+    function getLessons(c) { return c.totalLessons || ppLessons(c.title); }
     function isLessonCourse(c) {
-        // Must be AP + Timeback-native (no external app) + have lesson data
         if (!isAPCourse(c.title)) return false;
-        if ((c.totalLessons || 0) <= 0) return false;
+        const lessons = getLessons(c);
+        if (lessons <= 0) return false;
         const app = (c.appName || '').toLowerCase().trim();
-        if (!app) return true; // no external app = Timeback-hosted
+        if (!app) return true;
         if (NATIVE_APPS.some(n => app.includes(n) || n.includes(app))) return true;
-        // PowerPath apps (PP100, PP200, etc.)
-        if (app.includes('powerpath') || app.includes('power path') || /^pp\d*$/i.test(app) || app.startsWith('pp')) return true;
-        return false; // has external app = remote (e.g. CS AP)
+        if (app.includes('powerpath') || app.includes('power path') || /^pp/i.test(app)) return true;
+        return false;
     }
 
     /* ---- State ------------------------------------------------------------ */
@@ -193,7 +198,7 @@
             if (lessonBased) {
                 // Lesson-based course: show daily lesson goal progress
                 const totalXp = c.totalXp || 1;
-                const totalLessons = c.totalLessons;
+                const totalLessons = getLessons(c);
                 const yearXp = fullYearXpIdx[i] || 0;
                 const totalDone = Math.min(Math.round((yearXp / totalXp) * totalLessons), totalLessons);
 
@@ -400,6 +405,7 @@
             // Fetch full-year XP (for lesson course progress estimation)
             const hasLessonCourses = courses.some(c => isLessonCourse(c));
             if (hasLessonCourses) {
+                // NOTE: getLessons() parses PP suffix if API totalLessons is 0
                 await loadFullYearXp(email);
             }
 

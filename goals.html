@@ -106,16 +106,24 @@ const TFCLR={teal:'var(--color-primary-dark)',purple:'#6C5CE7',pink:'#AD1457',or
 function ic(t){t=(t||'').toLowerCase();if(t.includes('math')||t.includes('algebra'))return'fa-calculator';if(t.includes('chem')||t.includes('physics'))return'fa-atom';if(t.includes('bio'))return'fa-dna';if(t.includes('history')||t.includes('social')||t.includes('geo'))return'fa-globe-americas';if(t.includes('read')||t.includes('ela')||t.includes('english'))return'fa-book-open-reader';if(t.includes('code')||t.includes('tech'))return'fa-laptop-code';return'fa-graduation-cap';}
 
 function isAP(t){return /\bAP\b/.test((t||'').trim())||(t||'').toLowerCase().includes('advanced placement');}
+
+/* Extract lesson count from PP suffix: "AP US History - PP100" → 100 */
+function ppLessons(title){const m=(title||'').match(/PP(\d+)/i);return m?parseInt(m[1]):0;}
+
 function isLesson(c){
     if(!isAP(c.title))return false;
-    if((c.totalLessons||0)<=0)return false;
+    // totalLessons from API, or parsed from PP suffix in title
+    const lessons=c.totalLessons||ppLessons(c.title);
+    if(lessons<=0)return false;
     const a=(c.appName||'').toLowerCase().trim();
-    if(!a)return true;
-    // Timeback-native or PowerPath apps
+    if(!a)return true; // no external app = Timeback-hosted
     if(NATIVE_APPS.some(n=>a.includes(n)||n.includes(a)))return true;
-    if(a.includes('powerpath')||a.includes('power path')||/^pp\d*$/i.test(a)||a.startsWith('pp'))return true;
+    if(a.includes('powerpath')||a.includes('power path')||/^pp/i.test(a))return true;
     return false;
 }
+
+/* Get effective lesson count for a course (API or title-parsed) */
+function getLessons(c){return c.totalLessons||ppLessons(c.title);}
 
 let ALL=[],XP={};
 function ld(){try{return JSON.parse(localStorage.getItem(SKEY))||{};}catch{return{};}}
@@ -140,7 +148,7 @@ document.querySelectorAll('#tabs .toggle-btn').forEach(b=>b.addEventListener('cl
 /* ==== LESSON CARD (Set Goals) ==== */
 function lessonCard(c,i){
     const th=THEMES[i%4],g=ld()[c._goalKey]||{},has=!!g.endDate;
-    const tXp=c.totalXp||1,tL=c.totalLessons,xpE=XP[i]||0;
+    const tXp=c.totalXp||1,tL=getLessons(c),xpE=XP[i]||0;
     const xpPer=tL>0?tXp/tL:0;
     const done=tL>0?Math.min(Math.round((xpE/tXp)*tL),tL):0;
     const rem=Math.max(tL-done,0),pct=tL>0?Math.min((done/tL)*100,100):0;
@@ -224,7 +232,7 @@ function renderProgress(){
 
     el.innerHTML=items.map(({c,i,g})=>{
         const th=THEMES[i%4],lesson=isLesson(c);
-        const tXp=c.totalXp||1,tL=c.totalLessons||0,xpE=XP[i]||0;
+        const tXp=c.totalXp||1,tL=getLessons(c),xpE=XP[i]||0;
         const excl=g.excludeNonSchoolDays!==false,d=cntDays(g.endDate,excl);
 
         if(lesson){
@@ -317,9 +325,6 @@ document.addEventListener('DOMContentLoaded',async function(){
         const ed=await(await fetch(`/api/enrollments?userId=${uid}`)).json();
         const raw=ed.data||ed.enrollments||ed.courses||(Array.isArray(ed)?ed:[]);
         const now=new Date(),courses=[];
-        // DEBUG: dump raw enrollments to find history course
-        console.log('[DEBUG] Raw enrollment count:', raw.length);
-        for(const _e of raw){const _t=(_e.course||{}).title||'';if(_t.toLowerCase().includes('histor')||_t.toLowerCase().includes('pp'))console.log('[DEBUG RAW]',_t,JSON.stringify({appName:((_e.course||{}).primaryApp||{}),cMeta_primaryApp:(_e.course||{}).metadata?.primaryApp,cMeta_app:(_e.course||{}).metadata?.app,eMeta_metrics:_e.metadata?.metrics,cMeta_metrics:(_e.course||{}).metadata?.metrics,cMeta_totalLessons:(_e.course||{}).metadata?.totalLessons,subjects:(_e.course||{}).subjects},null,2));}
         for(const e of raw){
             const co=e.course||{},cm=co.metadata||{},gl=(e.metadata&&e.metadata.goals)||{};
             const mt=(e.metadata&&e.metadata.metrics)||{};
@@ -333,8 +338,6 @@ document.addEventListener('DOMContentLoaded',async function(){
             courses.push({title:ti,subject:su[0]||'',appName:an,totalXp,totalLessons,dailyXpGoal:gl.dailyXp||0,_goalKey:e.sourcedId||co.sourcedId||ti,_raw:e,_course:co});
         }
         ALL=courses;
-        // DEBUG: log all courses with detection results
-        console.table(courses.map(c=>({title:c.title,appName:c.appName,totalLessons:c.totalLessons,totalXp:c.totalXp,isAP:isAP(c.title),isLesson:isLesson(c)})));
         const soy=new Date(now.getFullYear(),7,1);if(soy>now)soy.setFullYear(soy.getFullYear()-1);
         const sd=localDS(soy)+'T00:00:00Z',edS=localDS(now)+'T23:59:59Z';
         try{
