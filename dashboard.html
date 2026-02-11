@@ -661,6 +661,13 @@
             let metaDetailsHTML = '';
             const displayMeta = {};
             try {
+                // Include primaryApp fields in metadata display
+                if (pAppObj && typeof pAppObj === 'object') {
+                    for (const [pk, pv] of Object.entries(pAppObj)) {
+                        if (pv === null || pv === undefined || pv === '' || typeof pv === 'object') continue;
+                        displayMeta[`primaryApp.${pk}`] = String(pv);
+                    }
+                }
                 for (const [k, v] of Object.entries(meta)) {
                     if (v === null || v === undefined || v === '') continue;
                     if (typeof v !== 'object') {
@@ -734,7 +741,7 @@
 
                 <div style="display:flex;gap:10px;margin-top:20px;">
                     ${loginUrl ? `<a href="${loginUrlEsc}" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#45B5AA;color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;text-decoration:none;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#389E94'" onmouseout="this.style.background='#45B5AA'">
-                        Next <i class="fa-solid fa-arrow-right"></i>
+                        Go to Course <i class="fa-solid fa-arrow-right"></i>
                     </a>` : `<button disabled style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#E8ECF1;color:#718096;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;cursor:not-allowed;">
                         No external link available
                     </button>`}
