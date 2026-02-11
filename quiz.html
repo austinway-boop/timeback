@@ -142,7 +142,13 @@
                 var startResp = await fetch('/api/quiz-session?action=start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ studentId: userId, testId: testId }),
+                    body: JSON.stringify({
+                        studentId: userId,
+                        testId: testId,
+                        subject: params.get('subject') || '',
+                        grade: params.get('grade') || '',
+                        courseId: params.get('courseId') || '',
+                    }),
                 });
                 var startData = await startResp.json();
                 if (startData.attemptId || startData.id) {

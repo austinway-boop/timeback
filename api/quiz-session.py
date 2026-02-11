@@ -119,6 +119,9 @@ class handler(BaseHTTPRequestHandler):
         if action == "start":
             student_id = body.get("studentId", "")
             test_id = body.get("testId", "")
+            subject = body.get("subject", "")
+            grade = body.get("grade", "")
+            course_id = body.get("courseId", "")
             if not student_id:
                 send_json(self, {"error": "Need studentId"}, 400)
                 return
@@ -128,12 +131,14 @@ class handler(BaseHTTPRequestHandler):
 
             headers = powerpath_headers()
 
-            # Try both payload formats per URL (field names differ per API version)
+            # Try multiple payload formats — the API needs "lesson" and "student"
             payloads = [
                 {"student": student_id, "lesson": test_id},
-                {"studentId": student_id, "testId": test_id},
+                {"student": student_id, "lesson": test_id, "subject": subject, "grade": grade},
+                {"student": student_id, "lesson": test_id, "courseId": course_id},
                 {"studentId": student_id, "lesson": test_id},
-                {"student": student_id, "testId": test_id},
+                {"studentId": student_id, "testId": test_id, "lesson": test_id},
+                {"studentId": student_id, "testId": test_id},
             ]
 
             # createNewAttempt — try each URL with each payload format
