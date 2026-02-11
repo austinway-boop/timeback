@@ -13,9 +13,8 @@
     <link rel="preload" href="/css/style.css" as="style">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .course-info-icon {
-            position: absolute; top: 10px; right: 10px;
-            width: 28px; height: 28px;
+        .course-info-icon-unused {
+            display: none; /* removed — whole card is clickable now */
             background: rgba(255,255,255,0.95); border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             font-size: 0.78rem; color: #718096; cursor: pointer; z-index: 5;
@@ -363,13 +362,7 @@
             const launchUrl = profile.launchUrl || '';
             const platformName = profile.appName || c.appName || '';
 
-            // Build launch icon — click goes straight to the course
-            let infoIconHTML = '';
-            if (isExternal && launchUrl) {
-                infoIconHTML = `<a href="${esc(launchUrl)}" target="_blank" rel="noopener" class="course-info-icon" onclick="event.stopPropagation();" title="Open ${esc(platformName || 'course')}">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>`;
-            }
+            // No separate icon — the whole card is clickable
 
             // Combine all possible app identifiers for image/icon matching
             const appId = [c.appName, platformName, c._vendorKey].filter(Boolean).join(' ');
@@ -378,8 +371,7 @@
             console.log(`[Card ${i}] title="${name}" appId="${appId}" matched=${matchApp(appId)||matchApp(name)||'none'} img=${subjectImg}`);
 
             return `
-                <div class="course-card" data-course-index="${i}" ${isExternal && launchUrl ? `data-launch-url="${esc(launchUrl)}"` : ''} style="cursor:pointer;position:relative;">
-                    ${infoIconHTML}
+                <div class="course-card" data-course-index="${i}" style="cursor:pointer;position:relative;">
                     <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;">
                         <img src="${subjectImg}" alt="${esc(name)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
                     </div>
@@ -406,15 +398,18 @@
                 if (isNaN(idx)) return;
                 var c = allCourses[idx];
                 if (!c) return;
-                // Internal courses (no vendor key / external app) → navigate to course viewer
                 var vKey = c._vendorKey || '';
-                if (!vKey) {
+                var profile = vKey ? (userProfilesMap[vKey] || {}) : {};
+                var launchUrl = profile.launchUrl || '';
+                if (vKey && launchUrl) {
+                    // External course → go straight to the login page
+                    var loginUrl = launchUrl.replace(/\/+$/, '') + '/login';
+                    window.open(loginUrl, '_blank');
+                } else {
+                    // Internal course → navigate to course viewer
                     var rawId = (c._raw || {}).id || (c._raw || {}).sourcedId || '';
                     window.location.href = '/course?id=' + encodeURIComponent(rawId) + '&title=' + encodeURIComponent(c.title || '');
-                    return;
                 }
-                // External courses → open modal
-                openCourseModal(idx);
             });
         });
     }
