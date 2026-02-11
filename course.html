@@ -218,56 +218,90 @@
             '<div class="progress-stats">' +
                 '<div class="progress-stat"><span class="progress-stat-value">' + xpEarned + '</span><span class="progress-stat-label">XP Earned</span></div>' +
                 '<div class="progress-stat"><span class="progress-stat-value">' + totalXp + '</span><span class="progress-stat-label">Total XP</span></div>' +
-                '<div class="progress-stat"><span class="progress-stat-value">' + dailyGoal + '</span><span class="progress-stat-label">Daily Goal</span></div>' +
+                '<div class="progress-stat"><span class="progress-stat-value">' + dailyGoal + '</span><span class="progress-stat-label">Daily XP Goal</span></div>' +
             '</div>' +
             '<div class="progress-bar-lg"><div class="progress-fill-lg" style="width:' + pct + '%;"></div></div>' +
             '<div class="progress-label"><span>' + Math.round(pct) + '% complete</span><span>' + xpEarned + ' / ' + totalXp + ' XP</span></div>';
 
-        // Render content area
+        // ── Build content sections ──
         var contentHTML = '';
 
+        // ── Daily Goals Section ──
+        var hasGoals = goals.dailyXp || goals.dailyLessons || goals.dailyActiveMinutes || goals.dailyAccuracy || goals.dailyMasteredUnits;
+        if (hasGoals) {
+            var goalCards = '';
+            if (goals.dailyXp) goalCards += '<div class="progress-stat"><span class="progress-stat-value">' + goals.dailyXp + '</span><span class="progress-stat-label">Daily XP</span></div>';
+            if (goals.dailyLessons) goalCards += '<div class="progress-stat"><span class="progress-stat-value">' + goals.dailyLessons + '</span><span class="progress-stat-label">Daily Lessons</span></div>';
+            if (goals.dailyActiveMinutes) goalCards += '<div class="progress-stat"><span class="progress-stat-value">' + goals.dailyActiveMinutes + ' min</span><span class="progress-stat-label">Active Minutes</span></div>';
+            if (goals.dailyAccuracy) goalCards += '<div class="progress-stat"><span class="progress-stat-value">' + goals.dailyAccuracy + '%</span><span class="progress-stat-label">Accuracy Goal</span></div>';
+            if (goals.dailyMasteredUnits) goalCards += '<div class="progress-stat"><span class="progress-stat-value">' + goals.dailyMasteredUnits + '</span><span class="progress-stat-label">Mastered Units</span></div>';
+            contentHTML += '<div class="content-card"><h2><i class="fa-solid fa-bullseye" style="color:var(--color-primary);margin-right:8px;"></i>Daily Goals</h2><div class="progress-stats" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));">' + goalCards + '</div></div>';
+        }
+
+        // ── Scoring Scheme Section (quiz/test multipliers) ──
+        var quizMeta = meta.quiz || (course.metadata || {}).quiz;
+        var testMeta = meta.test || (course.metadata || {}).test;
+
+        function renderMultiplierTable(label, data) {
+            if (!data || !data.multipliers || !data.multipliers.length) return '';
+            var rows = data.multipliers.map(function(m) {
+                var range = m.start === m.end ? m.start + '%' : m.start + '% – ' + m.end + '%';
+                var mult = m.xpMultiplier + 'x';
+                var color = m.xpMultiplier === 0 ? '#E53E3E' : m.xpMultiplier >= 1.25 ? '#2E7D32' : m.xpMultiplier >= 1 ? '#45B5AA' : '#E65100';
+                return '<tr><td style="padding:8px 14px;">' + range + '</td><td style="padding:8px 14px;font-weight:700;color:' + color + ';">' + mult + '</td></tr>';
+            }).join('');
+            return '<div style="margin-bottom:16px;"><h3 style="font-size:0.9rem;font-weight:600;margin-bottom:8px;">' + label + '</h3>' +
+                '<table style="width:100%;border-collapse:collapse;font-size:0.88rem;"><thead><tr style="background:var(--color-bg);"><th style="padding:8px 14px;text-align:left;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--color-text-secondary);">Score Range</th><th style="padding:8px 14px;text-align:left;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--color-text-secondary);">XP Multiplier</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+        }
+
+        if (quizMeta || testMeta) {
+            var scoringHTML = '';
+            if (quizMeta) scoringHTML += renderMultiplierTable('Quiz Scoring', quizMeta);
+            if (testMeta) scoringHTML += renderMultiplierTable('Test Scoring', testMeta);
+            contentHTML += '<div class="content-card"><h2><i class="fa-solid fa-chart-bar" style="color:var(--color-primary);margin-right:8px;"></i>Scoring & Grading</h2>' + scoringHTML + '</div>';
+        }
+
+        // ── Alpha Read / Alpha Write launch ──
         if (isAlphaRead) {
-            contentHTML =
-                '<h2><i class="fa-solid fa-book-open-reader" style="color:var(--color-primary);margin-right:8px;"></i>Alpha Read</h2>' +
-                '<div class="content-placeholder">' +
-                    '<i class="fa-solid fa-book-open-reader"></i>' +
-                    '<p>This is an Alpha Read course. Improve your reading skills with guided practice and comprehension exercises.</p>' +
-                    '<a href="#" class="launch-btn"><i class="fa-solid fa-rocket"></i> Launch Alpha Read</a>' +
-                '</div>';
-        } else if (isAlphaWrite) {
-            contentHTML =
-                '<h2><i class="fa-solid fa-pen-nib" style="color:var(--color-primary);margin-right:8px;"></i>Alpha Write</h2>' +
-                '<div class="content-placeholder">' +
-                    '<i class="fa-solid fa-pen-nib"></i>' +
-                    '<p>This is an Alpha Write course. Practice writing with AI-powered feedback and guided prompts.</p>' +
-                    '<a href="#" class="launch-btn"><i class="fa-solid fa-rocket"></i> Launch Alpha Write</a>' +
-                '</div>';
-        } else {
-            // General internal course
-            var metaHTML = '';
-            var displayMeta = {};
-            try {
-                for (var k in meta) {
-                    var v = meta[k];
-                    if (v === null || v === undefined || v === '') continue;
-                    if (typeof v !== 'object') displayMeta[k] = String(v);
+            contentHTML +=
+                '<div class="content-card"><h2><i class="fa-solid fa-book-open-reader" style="color:var(--color-primary);margin-right:8px;"></i>Alpha Read</h2>' +
+                '<p style="color:var(--color-text-secondary);margin-bottom:16px;">Improve your reading skills with guided practice and comprehension exercises.</p>' +
+                '<a href="#" class="launch-btn"><i class="fa-solid fa-rocket"></i> Launch Alpha Read</a></div>';
+        }
+        if (isAlphaWrite) {
+            contentHTML +=
+                '<div class="content-card"><h2><i class="fa-solid fa-pen-nib" style="color:var(--color-primary);margin-right:8px;"></i>Alpha Write</h2>' +
+                '<p style="color:var(--color-text-secondary);margin-bottom:16px;">Practice writing with AI-powered feedback and guided prompts.</p>' +
+                '<a href="#" class="launch-btn"><i class="fa-solid fa-rocket"></i> Launch Alpha Write</a></div>';
+        }
+
+        // ── Course Details Metadata ──
+        var displayMeta = {};
+        try {
+            // Flat metadata values
+            var metaKeys = ['courseType', 'isSupplemental', 'schoolYear', 'publishStatus', 'contactEmail', 'description'];
+            for (var i = 0; i < metaKeys.length; i++) {
+                var mk = metaKeys[i];
+                if (meta[mk] !== null && meta[mk] !== undefined && meta[mk] !== '' && typeof meta[mk] !== 'object') {
+                    displayMeta[mk] = String(meta[mk]);
                 }
-            } catch(e) {}
-
-            if (Object.keys(displayMeta).length > 0) {
-                metaHTML = '<h2>Course Details</h2><div class="metadata-grid">' +
-                    Object.keys(displayMeta).map(function(k) {
-                        return '<div class="metadata-item"><span class="metadata-key">' + esc(k) + '</span><span class="metadata-val">' + esc(displayMeta[k]) + '</span></div>';
-                    }).join('') + '</div>';
             }
+            // Course-level fields
+            if ((course.grades || []).length) displayMeta['Grade Level'] = course.grades.join(', ');
+            if (enrollment.school && enrollment.school.name) displayMeta['School'] = enrollment.school.name;
+            if (meta.primaryApp) displayMeta['Primary App'] = meta.primaryApp;
+        } catch(e) {}
 
-            contentHTML =
-                '<h2><i class="fa-solid fa-graduation-cap" style="color:var(--color-primary);margin-right:8px;"></i>Course Content</h2>' +
-                '<div class="content-placeholder">' +
-                    '<i class="fa-solid fa-graduation-cap"></i>' +
-                    '<p>This AlphaLearn course tracks your progress through XP and daily goals. Keep learning to earn more XP!</p>' +
-                '</div>' +
-                metaHTML;
+        if (Object.keys(displayMeta).length > 0) {
+            contentHTML += '<div class="content-card"><h2><i class="fa-solid fa-info-circle" style="color:var(--color-primary);margin-right:8px;"></i>Course Details</h2><div class="metadata-grid">' +
+                Object.keys(displayMeta).map(function(k) {
+                    return '<div class="metadata-item"><span class="metadata-key">' + esc(k) + '</span><span class="metadata-val">' + esc(displayMeta[k]) + '</span></div>';
+                }).join('') + '</div></div>';
+        }
+
+        // Fallback if no content sections were built
+        if (!contentHTML) {
+            contentHTML = '<div class="content-card"><div class="content-placeholder"><i class="fa-solid fa-graduation-cap"></i><p>This course is part of your AlphaLearn curriculum. Keep learning to earn XP!</p></div></div>';
         }
 
         document.getElementById('course-content').innerHTML = contentHTML;
