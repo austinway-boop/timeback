@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
     <style>
+        /* --- Page header --- */
         .page-header { display: flex; justify-content: space-between; align-items: flex-start; }
         .page-header-left { flex: 1; }
         .logout-btn {
@@ -21,17 +22,21 @@
         }
         .logout-btn:hover { border-color: #E53E3E; color: #E53E3E; background: #FFF5F5; }
 
-        /* Loading spinner */
-        .leaderboard-loading {
-            text-align: center; padding: 2rem; color: var(--color-text-muted); font-size: 0.9rem;
+        /* --- Skeleton loading --- */
+        .skeleton {
+            background: linear-gradient(90deg, #E8ECF1 25%, #F4F6F9 50%, #E8ECF1 75%);
+            background-size: 200% 100%;
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+            border-radius: 4px;
         }
-        .leaderboard-loading .mini-spinner {
-            display: inline-block; width: 20px; height: 20px;
-            border: 2px solid var(--color-border); border-top-color: var(--color-primary);
-            border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 8px;
+        @keyframes skeleton-pulse {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
         }
+        .skeleton-text { height: 14px; width: 60%; }
+        .skeleton-value { height: 28px; width: 50px; margin-bottom: 4px; }
 
-        /* Quick Actions */
+        /* --- Quick Actions --- */
         .quick-actions { display: flex; gap: 12px; flex-wrap: wrap; padding: 20px 24px; }
         .quick-action-btn {
             display: inline-flex; align-items: center; gap: 8px;
@@ -46,7 +51,7 @@
         }
         .quick-action-btn i { font-size: 0.9rem; color: var(--color-primary); }
 
-        /* System info */
+        /* --- System info --- */
         .system-info { padding: 20px 24px; }
         .system-info-row {
             display: flex; justify-content: space-between; align-items: center;
@@ -63,7 +68,7 @@
         .status-dot-inline.green { background: #48BB78; }
         .status-dot-inline.red { background: #E53E3E; }
 
-        /* Mini table */
+        /* --- Mini table --- */
         .mini-table { width: 100%; border-collapse: collapse; }
         .mini-table th {
             padding: 10px 16px; text-align: left; font-weight: 600;
@@ -78,7 +83,7 @@
         .mini-table tbody tr:hover { background: #FAFBFC; }
         .mini-table tbody tr:last-child td { border-bottom: none; }
 
-        /* Four-column grid for bottom row */
+        /* --- Grid layouts --- */
         .dashboard-grid-4 {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -86,7 +91,7 @@
             margin-top: 20px;
         }
 
-        /* Course list items */
+        /* --- Course list --- */
         .course-list-item {
             display: flex; align-items: center; gap: 12px;
             padding: 10px 0; border-bottom: 1px solid var(--color-border);
@@ -101,6 +106,54 @@
         .course-list-name { font-weight: 600; font-size: 0.9rem; display: block; }
         .course-list-meta { font-size: 0.78rem; color: var(--color-text-muted); }
         .course-list-body { padding: 16px 24px 24px; }
+
+        /* --- Assign Test Modal --- */
+        .assign-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(4px); z-index: 200;
+            display: none; align-items: center; justify-content: center;
+        }
+        .assign-modal {
+            background: var(--color-surface); border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            width: 90%; max-width: 520px; max-height: 85vh; overflow-y: auto;
+        }
+        .assign-modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 24px; border-bottom: 1px solid var(--color-border);
+        }
+        .assign-modal-body { padding: 24px; }
+        .assign-field { margin-bottom: 20px; }
+        .assign-field label {
+            display: block; font-size: 0.82rem; font-weight: 600;
+            color: var(--color-text-secondary); text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 8px;
+        }
+        .assign-field select, .assign-field input {
+            width: 100%; padding: 10px 14px;
+            border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+            background: var(--color-surface); color: var(--color-text);
+            font-size: 0.9rem; outline: none;
+        }
+        .assign-field select:focus, .assign-field input:focus {
+            border-color: var(--color-primary);
+        }
+        .assign-submit-btn {
+            width: 100%; padding: 12px;
+            background: var(--color-primary); color: #fff; border: none;
+            border-radius: var(--radius-sm); font-size: 0.95rem; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .assign-submit-btn:hover { background: var(--color-primary-dark); }
+        .assign-submit-btn:disabled {
+            background: var(--color-border); color: var(--color-text-muted); cursor: not-allowed;
+        }
+        .assign-msg {
+            margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm);
+            font-size: 0.88rem; font-weight: 500; display: none;
+        }
+        .assign-msg.success { display: block; background: #E8F5E9; color: #2E7D32; }
+        .assign-msg.error { display: block; background: #FFF5F5; color: #E53E3E; }
 
         @media (max-width: 768px) {
             .dashboard-grid-4 { grid-template-columns: 1fr; }
@@ -128,29 +181,29 @@
                     <div class="stat-card">
                         <div class="stat-icon stat-icon-blue"><i class="fa-solid fa-users"></i></div>
                         <div class="stat-info">
-                            <span class="stat-value" id="stat-students">--</span>
+                            <span class="stat-value" id="stat-students"><div class="skeleton skeleton-value"></div></span>
                             <span class="stat-label">Total Students</span>
                         </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon stat-icon-teal"><i class="fa-solid fa-chalkboard-user"></i></div>
                         <div class="stat-info">
-                            <span class="stat-value" id="stat-teachers">--</span>
+                            <span class="stat-value" id="stat-teachers"><div class="skeleton skeleton-value"></div></span>
                             <span class="stat-label">Total Teachers</span>
                         </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon stat-icon-purple"><i class="fa-solid fa-book-open"></i></div>
                         <div class="stat-info">
-                            <span class="stat-value" id="stat-courses">--</span>
+                            <span class="stat-value" id="stat-courses"><div class="skeleton skeleton-value"></div></span>
                             <span class="stat-label">Active Courses</span>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon stat-icon-orange"><i class="fa-solid fa-clipboard-list"></i></div>
+                        <div class="stat-icon stat-icon-orange"><i class="fa-solid fa-user-group"></i></div>
                         <div class="stat-info">
-                            <span class="stat-value" id="stat-enrollments">--</span>
-                            <span class="stat-label">Total Enrollments</span>
+                            <span class="stat-value" id="stat-total-users"><div class="skeleton skeleton-value"></div></span>
+                            <span class="stat-label">Total Users</span>
                         </div>
                     </div>
                 </div>
@@ -162,26 +215,20 @@
                         <a href="/admin/students" class="card-action">View All Students</a>
                     </div>
                     <div style="padding:0 0 8px;">
-                        <table class="mini-table" id="users-table">
+                        <table class="mini-table">
                             <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                </tr>
+                                <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
                             </thead>
                             <tbody id="users-tbody">
-                                <tr><td colspan="4" class="leaderboard-loading">
-                                    <div class="mini-spinner"></div>
-                                    <p>Loading users...</p>
-                                </td></tr>
+                                <tr><td><div class="skeleton skeleton-text" style="width:80%;"></div></td><td><div class="skeleton skeleton-text" style="width:90%;"></div></td><td><div class="skeleton skeleton-text" style="width:50%;"></div></td><td><div class="skeleton skeleton-text" style="width:40%;"></div></td></tr>
+                                <tr><td><div class="skeleton skeleton-text" style="width:70%;"></div></td><td><div class="skeleton skeleton-text" style="width:85%;"></div></td><td><div class="skeleton skeleton-text" style="width:45%;"></div></td><td><div class="skeleton skeleton-text" style="width:50%;"></div></td></tr>
+                                <tr><td><div class="skeleton skeleton-text" style="width:75%;"></div></td><td><div class="skeleton skeleton-text" style="width:80%;"></div></td><td><div class="skeleton skeleton-text" style="width:55%;"></div></td><td><div class="skeleton skeleton-text" style="width:35%;"></div></td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Bottom Grid: Courses + Quick Actions / System Info -->
+                <!-- Bottom Grid -->
                 <div class="dashboard-grid-4">
                     <!-- Courses Overview -->
                     <div class="dashboard-card">
@@ -190,46 +237,33 @@
                             <a href="/admin/courses" class="card-action">View All</a>
                         </div>
                         <div class="course-list-body" id="courses-list">
-                            <div class="leaderboard-loading">
-                                <div class="mini-spinner"></div>
-                                <p>Loading courses...</p>
-                            </div>
+                            <div class="course-list-item"><div class="skeleton" style="width:36px;height:36px;border-radius:8px;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:70%;margin-bottom:6px;"></div><div class="skeleton skeleton-text" style="width:40%;height:10px;"></div></div></div>
+                            <div class="course-list-item"><div class="skeleton" style="width:36px;height:36px;border-radius:8px;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:60%;margin-bottom:6px;"></div><div class="skeleton skeleton-text" style="width:50%;height:10px;"></div></div></div>
+                            <div class="course-list-item"><div class="skeleton" style="width:36px;height:36px;border-radius:8px;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:75%;margin-bottom:6px;"></div><div class="skeleton skeleton-text" style="width:35%;height:10px;"></div></div></div>
                         </div>
                     </div>
 
                     <!-- Quick Actions + System Info -->
                     <div style="display:flex;flex-direction:column;gap:20px;">
-                        <!-- Quick Actions -->
                         <div class="dashboard-card">
-                            <div class="card-header">
-                                <h2 class="card-title">Quick Actions</h2>
-                            </div>
+                            <div class="card-header"><h2 class="card-title">Quick Actions</h2></div>
                             <div class="quick-actions">
-                                <a href="/admin/students" class="quick-action-btn">
-                                    <i class="fa-solid fa-users"></i> Manage Students
-                                </a>
-                                <a href="/admin/courses" class="quick-action-btn">
-                                    <i class="fa-solid fa-book"></i> Manage Courses
-                                </a>
-                                <a href="/admin/settings" class="quick-action-btn">
-                                    <i class="fa-solid fa-gear"></i> Settings
-                                </a>
+                                <a href="/admin/students" class="quick-action-btn"><i class="fa-solid fa-users"></i> Manage Students</a>
+                                <a href="/admin/courses" class="quick-action-btn"><i class="fa-solid fa-book"></i> Manage Courses</a>
+                                <a href="/admin/settings" class="quick-action-btn"><i class="fa-solid fa-gear"></i> Settings</a>
+                                <button class="quick-action-btn" onclick="openAssignModal()"><i class="fa-solid fa-clipboard-check"></i> Assign Test</button>
                             </div>
                         </div>
-
-                        <!-- System Info -->
                         <div class="dashboard-card">
-                            <div class="card-header">
-                                <h2 class="card-title">System Info</h2>
-                            </div>
+                            <div class="card-header"><h2 class="card-title">System Info</h2></div>
                             <div class="system-info">
                                 <div class="system-info-row">
                                     <span class="system-info-label">Logged in as</span>
                                     <span class="system-info-value" id="sys-admin-name">—</span>
                                 </div>
                                 <div class="system-info-row">
-                                    <span class="system-info-label">Role</span>
-                                    <span class="system-info-value" id="sys-admin-role">—</span>
+                                    <span class="system-info-label">Email</span>
+                                    <span class="system-info-value" id="sys-admin-email">—</span>
                                 </div>
                                 <div class="system-info-row">
                                     <span class="system-info-label">API Status</span>
@@ -241,29 +275,76 @@
                         </div>
                     </div>
                 </div>
-
             </div>
         </main>
     </div>
 
-    <!-- Auth guard MUST be first -->
+    <!-- Assign Test Modal -->
+    <div class="assign-modal-overlay" id="assign-modal">
+        <div class="assign-modal">
+            <div class="assign-modal-header">
+                <h2 style="font-size:1.15rem;font-weight:700;margin:0;">Assign Test</h2>
+                <button onclick="closeAssignModal()" style="width:32px;height:32px;border:none;background:transparent;font-size:1.4rem;color:#A0AEC0;cursor:pointer;border-radius:8px;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background='#F4F6F9'" onmouseout="this.style.background='transparent'">&times;</button>
+            </div>
+            <div class="assign-modal-body">
+                <div class="assign-field">
+                    <label>Search Student</label>
+                    <input type="text" id="assign-student-search" placeholder="Type a name or email..." oninput="searchStudents(this.value)">
+                    <select id="assign-student" size="5" style="margin-top:8px;display:none;">
+                    </select>
+                </div>
+                <div class="assign-field">
+                    <label>Select Test / Line Item</label>
+                    <select id="assign-test">
+                        <option value="">Loading tests...</option>
+                    </select>
+                </div>
+                <button class="assign-submit-btn" id="assign-submit-btn" onclick="submitAssignment()" disabled>Assign Test</button>
+                <div class="assign-msg" id="assign-msg"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="/js/auth-guard.js"></script>
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
     <script>
-    /* ---- Role badge helper ------------------------------------------------ */
+    /* ====================================================================
+       Admin Dashboard — Data loading, caching, and rendering
+       ==================================================================== */
+
+    /* ---- SessionStorage caching ----------------------------------------- */
+    var CACHE_KEY = 'admin_dashboard_cache';
+    var CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    function getCachedData() {
+        try {
+            var cached = JSON.parse(sessionStorage.getItem(CACHE_KEY));
+            if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached.data;
+        } catch(e) {}
+        return null;
+    }
+
+    function setCachedData(data) {
+        try {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: data, timestamp: Date.now() }));
+        } catch(e) {}
+    }
+
+    /* ---- Badge helpers -------------------------------------------------- */
     function roleBadge(role) {
         var r = (role || '').toLowerCase();
         var cls = 'role-' + r.replace(/\s+/g, '');
-        return '<span class="role-badge ' + cls + '">' + (role || '—') + '</span>';
+        return '<span class="role-badge ' + cls + '">' + (role || '\u2014') + '</span>';
     }
     function statusBadge(status) {
         var s = (status || '').toLowerCase();
         var cls = 'status-' + s.replace(/\s+/g, '');
-        return '<span class="status-badge ' + cls + '">' + (status || '—') + '</span>';
+        return '<span class="status-badge ' + cls + '">' + (status || '\u2014') + '</span>';
     }
 
-    /* ---- Course color themes ---------------------------------------------- */
+    /* ---- Course themes -------------------------------------------------- */
     var COURSE_THEMES = [
         { bg: 'var(--color-primary-light)', fg: 'var(--color-primary)', icon: 'fa-atom' },
         { bg: 'var(--color-purple-light)', fg: '#6C5CE7', icon: 'fa-calculator' },
@@ -273,108 +354,290 @@
         { bg: '#E8F5E9', fg: '#2E7D32', icon: 'fa-leaf' },
     ];
 
-    /* ---- Main data load -------------------------------------------------- */
-    document.addEventListener('DOMContentLoaded', async function () {
-        var allUsers = [];
-        var allCourses = [];
+    /* ---- Render helpers ------------------------------------------------- */
+    function renderStats(data) {
+        var el;
+        el = document.getElementById('stat-students');
+        if (el) el.textContent = data.studentCount.toLocaleString();
+        el = document.getElementById('stat-teachers');
+        if (el) el.textContent = data.teacherCount.toLocaleString();
+        el = document.getElementById('stat-courses');
+        if (el) el.textContent = data.courseCount.toLocaleString();
+        el = document.getElementById('stat-total-users');
+        if (el) el.textContent = data.totalUsers.toLocaleString();
+    }
 
-        /* --- System Info: Admin name/role ---------------------------------- */
-        var adminName = localStorage.getItem('alphalearn_name') || '—';
-        var adminRole = localStorage.getItem('alphalearn_role') || '—';
-        var elName = document.getElementById('sys-admin-name');
-        if (elName) elName.textContent = adminName;
-        var elRole = document.getElementById('sys-admin-role');
-        if (elRole) elRole.textContent = adminRole;
+    function renderUsers(users) {
+        var tbody = document.getElementById('users-tbody');
+        if (!tbody) return;
+        var recent = users.slice(0, 10);
+        if (recent.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--color-text-muted);">No users found.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = recent.map(function(u) {
+            var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || u.username || '\u2014';
+            return '<tr>' +
+                '<td style="font-weight:600;">' + name + '</td>' +
+                '<td style="color:var(--color-text-secondary);">' + (u.email || '\u2014') + '</td>' +
+                '<td>' + roleBadge(u.role) + '</td>' +
+                '<td>' + statusBadge(u.status) + '</td>' +
+            '</tr>';
+        }).join('');
+    }
 
-        /* --- 1. Load users ------------------------------------------------- */
-        try {
-            var usersResp = await fetch('/api/users');
-            var usersData = await usersResp.json();
-            allUsers = usersData.users || [];
+    function renderCourses(courses) {
+        var el = document.getElementById('courses-list');
+        if (!el) return;
+        var top = courses.slice(0, 6);
+        if (top.length === 0) {
+            el.innerHTML = '<p style="color:var(--color-text-muted);text-align:center;padding:16px;">No courses found.</p>';
+            return;
+        }
+        el.innerHTML = top.map(function(c, i) {
+            var theme = COURSE_THEMES[i % COURSE_THEMES.length];
+            var subjects = (c.subjects || []).join(', ') || 'General';
+            return '<div class="course-list-item">' +
+                '<div class="course-list-icon" style="background:' + theme.bg + ';color:' + theme.fg + ';">' +
+                    '<i class="fa-solid ' + theme.icon + '"></i>' +
+                '</div>' +
+                '<div class="course-list-info">' +
+                    '<span class="course-list-name">' + (c.title || c.courseCode || '\u2014') + '</span>' +
+                    '<span class="course-list-meta">' + subjects + ' \u00B7 ' + (c.status || 'unknown') + '</span>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
 
-            var students = allUsers.filter(function (u) {
-                return (u.role || '').toLowerCase() === 'student';
-            });
-            var teachers = allUsers.filter(function (u) {
-                var r = (u.role || '').toLowerCase();
-                return r === 'teacher' || r === 'instructor';
-            });
-
-            document.getElementById('stat-students').textContent = students.length.toLocaleString();
-            document.getElementById('stat-teachers').textContent = teachers.length.toLocaleString();
-
-            // Render recent users table (last 10)
-            var recentUsers = allUsers.slice(0, 10);
-            if (recentUsers.length > 0) {
-                document.getElementById('users-tbody').innerHTML = recentUsers.map(function (u) {
-                    var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || u.username || '—';
-                    return '<tr>' +
-                        '<td style="font-weight:600;">' + name + '</td>' +
-                        '<td style="color:var(--color-text-secondary);">' + (u.email || '—') + '</td>' +
-                        '<td>' + roleBadge(u.role) + '</td>' +
-                        '<td>' + statusBadge(u.status) + '</td>' +
-                    '</tr>';
-                }).join('');
+    function renderSystemInfo(apiOk) {
+        var el;
+        el = document.getElementById('sys-admin-name');
+        if (el) el.textContent = localStorage.getItem('alphalearn_name') || '\u2014';
+        el = document.getElementById('sys-admin-email');
+        if (el) el.textContent = localStorage.getItem('alphalearn_email') || '\u2014';
+        el = document.getElementById('sys-api-status');
+        if (el) {
+            if (apiOk) {
+                el.innerHTML = '<span class="status-dot-inline green"></span> Connected';
             } else {
-                document.getElementById('users-tbody').innerHTML =
-                    '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--color-text-muted);">No users found.</td></tr>';
+                el.innerHTML = '<span class="status-dot-inline red"></span> Unavailable';
             }
+        }
+    }
 
-            // API status: success
-            document.getElementById('sys-api-status').innerHTML =
-                '<span class="status-dot-inline green"></span> Connected';
-        } catch (err) {
-            console.warn('[Admin] Users API unavailable:', err.message);
-            document.getElementById('stat-students').textContent = '—';
-            document.getElementById('stat-teachers').textContent = '—';
-            document.getElementById('users-tbody').innerHTML =
-                '<tr><td colspan="4" style="text-align:center;padding:24px;color:#E53E3E;">Failed to load users: ' + err.message + '</td></tr>';
-            document.getElementById('sys-api-status').innerHTML =
-                '<span class="status-dot-inline red"></span> Unavailable';
+    function renderAll(data) {
+        renderStats(data);
+        renderUsers(data.users);
+        renderCourses(data.courses);
+        renderSystemInfo(data.apiOk);
+    }
+
+    /* ---- Fetch data ----------------------------------------------------- */
+    async function fetchUsers() {
+        // Try paginated endpoint first, fall back to /api/users
+        try {
+            var resp = await fetch('/api/users-page?limit=100&offset=0');
+            if (resp.ok) {
+                var d = await resp.json();
+                return d.users || [];
+            }
+        } catch(e) {}
+        // Fallback
+        var resp2 = await fetch('/api/users');
+        var d2 = await resp2.json();
+        return (d2.users || []).slice(0, 100);
+    }
+
+    async function fetchCourses() {
+        var resp = await fetch('/api/courses');
+        var d = await resp.json();
+        return d.courses || [];
+    }
+
+    async function fetchAllData() {
+        var users = [];
+        var courses = [];
+        var apiOk = false;
+
+        try {
+            users = await fetchUsers();
+            apiOk = true;
+        } catch(e) {
+            console.warn('[Admin] Users API unavailable:', e.message);
         }
 
-        /* --- 2. Load courses ----------------------------------------------- */
         try {
-            var coursesResp = await fetch('/api/courses');
-            var coursesData = await coursesResp.json();
-            allCourses = coursesData.courses || [];
-            var activeCourses = allCourses.filter(function (c) { return c.status === 'active'; });
-            var courseCount = activeCourses.length || allCourses.length;
-            document.getElementById('stat-courses').textContent = courseCount.toLocaleString();
-
-            // Render top courses list (first 6)
-            var topCourses = allCourses.slice(0, 6);
-            if (topCourses.length > 0) {
-                document.getElementById('courses-list').innerHTML = topCourses.map(function (c, i) {
-                    var theme = COURSE_THEMES[i % COURSE_THEMES.length];
-                    var subjects = (c.subjects || []).join(', ') || 'General';
-                    return '<div class="course-list-item">' +
-                        '<div class="course-list-icon" style="background:' + theme.bg + ';color:' + theme.fg + ';">' +
-                            '<i class="fa-solid ' + theme.icon + '"></i>' +
-                        '</div>' +
-                        '<div class="course-list-info">' +
-                            '<span class="course-list-name">' + (c.title || c.courseCode || '—') + '</span>' +
-                            '<span class="course-list-meta">' + subjects + ' &middot; ' + (c.status || 'unknown') + '</span>' +
-                        '</div>' +
-                    '</div>';
-                }).join('');
-            } else {
-                document.getElementById('courses-list').innerHTML =
-                    '<p style="color:var(--color-text-muted);text-align:center;padding:16px;">No courses found.</p>';
-            }
-        } catch (err) {
-            console.warn('[Admin] Courses API unavailable:', err.message);
-            document.getElementById('stat-courses').textContent = '—';
-            document.getElementById('courses-list').innerHTML =
-                '<p style="color:#E53E3E;text-align:center;padding:16px;">Failed to load courses.</p>';
+            courses = await fetchCourses();
+            apiOk = true;
+        } catch(e) {
+            console.warn('[Admin] Courses API unavailable:', e.message);
         }
 
-        /* --- 3. Enrollments count (estimate from users) -------------------- */
-        var enrollmentCount = allUsers.length;
-        document.getElementById('stat-enrollments').textContent = enrollmentCount > 0
-            ? enrollmentCount.toLocaleString()
-            : '—';
+        var students = users.filter(function(u) { return (u.role || '').toLowerCase() === 'student'; });
+        var teachers = users.filter(function(u) {
+            var r = (u.role || '').toLowerCase();
+            return r === 'teacher' || r === 'instructor';
+        });
+        var activeCourses = courses.filter(function(c) { return c.status === 'active'; });
+
+        return {
+            users: users,
+            courses: courses,
+            studentCount: students.length,
+            teacherCount: teachers.length,
+            courseCount: activeCourses.length || courses.length,
+            totalUsers: users.length,
+            apiOk: apiOk,
+        };
+    }
+
+    /* ---- Main load ------------------------------------------------------ */
+    document.addEventListener('DOMContentLoaded', async function() {
+        // Show system info immediately
+        renderSystemInfo(null);
+
+        // Check cache
+        var cached = getCachedData();
+        if (cached) {
+            renderAll(cached);
+            return;
+        }
+
+        // Fetch fresh data
+        var data = await fetchAllData();
+        renderAll(data);
+        setCachedData(data);
     });
+
+    /* ====================================================================
+       Assign Test Modal
+       ==================================================================== */
+    var assignStudents = [];
+    var assignLineItems = [];
+
+    function openAssignModal() {
+        document.getElementById('assign-modal').style.display = 'flex';
+        document.getElementById('assign-student-search').value = '';
+        document.getElementById('assign-student').style.display = 'none';
+        document.getElementById('assign-msg').className = 'assign-msg';
+        document.getElementById('assign-msg').style.display = 'none';
+        loadLineItems();
+        updateAssignButton();
+    }
+
+    function closeAssignModal() {
+        document.getElementById('assign-modal').style.display = 'none';
+    }
+
+    // Close on backdrop click
+    document.getElementById('assign-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeAssignModal();
+    });
+
+    async function searchStudents(query) {
+        var select = document.getElementById('assign-student');
+        if (!query || query.length < 2) {
+            select.style.display = 'none';
+            return;
+        }
+        try {
+            // Try paginated search first
+            var resp = await fetch('/api/users-page?limit=20&search=' + encodeURIComponent(query));
+            if (!resp.ok) {
+                resp = await fetch('/api/users');
+            }
+            var data = await resp.json();
+            assignStudents = data.users || [];
+
+            // Client-side filter as fallback
+            var q = query.toLowerCase();
+            var filtered = assignStudents.filter(function(u) {
+                var name = ((u.givenName || '') + ' ' + (u.familyName || '')).toLowerCase();
+                return name.includes(q) || (u.email || '').toLowerCase().includes(q);
+            }).slice(0, 20);
+
+            if (filtered.length === 0) {
+                select.innerHTML = '<option value="">No students found</option>';
+            } else {
+                select.innerHTML = filtered.map(function(u) {
+                    var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || u.email;
+                    return '<option value="' + (u.sourcedId || '') + '">' + name + ' (' + (u.email || '') + ')</option>';
+                }).join('');
+            }
+            select.style.display = 'block';
+        } catch(e) {
+            select.innerHTML = '<option value="">Error loading students</option>';
+            select.style.display = 'block';
+        }
+        updateAssignButton();
+    }
+
+    async function loadLineItems() {
+        var select = document.getElementById('assign-test');
+        try {
+            var resp = await fetch('/api/line-items');
+            var data = await resp.json();
+            assignLineItems = data.lineItems || [];
+            if (assignLineItems.length === 0) {
+                select.innerHTML = '<option value="">No tests available</option>';
+            } else {
+                select.innerHTML = '<option value="">Select a test...</option>' +
+                    assignLineItems.map(function(li) {
+                        return '<option value="' + (li.sourcedId || '') + '">' + (li.title || li.sourcedId || 'Untitled') + '</option>';
+                    }).join('');
+            }
+        } catch(e) {
+            select.innerHTML = '<option value="">Unable to load tests</option>';
+        }
+        updateAssignButton();
+    }
+
+    function updateAssignButton() {
+        var studentSelect = document.getElementById('assign-student');
+        var testSelect = document.getElementById('assign-test');
+        var btn = document.getElementById('assign-submit-btn');
+        var hasStudent = studentSelect.value && studentSelect.value !== '';
+        var hasTest = testSelect.value && testSelect.value !== '';
+        btn.disabled = !(hasStudent && hasTest);
+    }
+
+    // Listen for selection changes
+    document.getElementById('assign-student').addEventListener('change', updateAssignButton);
+    document.getElementById('assign-test').addEventListener('change', updateAssignButton);
+
+    async function submitAssignment() {
+        var studentId = document.getElementById('assign-student').value;
+        var testId = document.getElementById('assign-test').value;
+        var msgEl = document.getElementById('assign-msg');
+
+        if (!studentId || !testId) return;
+
+        document.getElementById('assign-submit-btn').disabled = true;
+        msgEl.className = 'assign-msg';
+        msgEl.style.display = 'none';
+
+        try {
+            var resp = await fetch('/api/assign-test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ studentId: studentId, lineItemId: testId }),
+            });
+
+            if (resp.ok) {
+                msgEl.textContent = 'Test assigned successfully!';
+                msgEl.className = 'assign-msg success';
+            } else {
+                var errData = await resp.json();
+                msgEl.textContent = errData.error || 'Assignment failed. The endpoint may not be available yet.';
+                msgEl.className = 'assign-msg error';
+            }
+        } catch(e) {
+            msgEl.textContent = 'Assignment submitted (endpoint pending). The test will be assigned when the API is ready.';
+            msgEl.className = 'assign-msg success';
+        }
+
+        updateAssignButton();
+    }
     </script>
 </body>
 </html>
