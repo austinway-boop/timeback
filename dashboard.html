@@ -123,7 +123,7 @@
     </div>
 
     <script src="/js/layout.js"></script>
-    <script src="/js/app.js"></script>
+    <script src="/js/app.js?v=2"></script>
     <script>
     /* ---- Color + icon mappings for courses -------------------------------- */
     const COURSE_THEMES = ['teal', 'purple', 'pink', 'orange'];
@@ -241,7 +241,7 @@
     let masteredIdx = {};      // { 0: 25, ... } — mastered units from analytics (for lesson courses)
     let currentPeriod = 'today';
     let userProfilesMap = {};  // { vendorId: { username, credentialId, appName, domain, launchUrl } }
-    var credentialsMap = window.credentialsMap || {};   // { vendorId/platform: { username, password } }
+    var _appCredentials = {};   // { vendorId/platform: { username, password } }
     let currentUserId = '';    // user's sourcedId for credential decryption
 
     // Timeback-native app names (XP reported here for courses without their own app)
@@ -368,7 +368,7 @@
 
             // Check if external course with credentials
             const vKey = c._vendorKey || '';
-            const creds = vKey ? (credentialsMap[vKey] || {}) : {};
+            const creds = vKey ? (_appCredentials[vKey] || {}) : {};
             const profile = vKey ? (userProfilesMap[vKey] || {}) : {};
             const isExternal = !!vKey;
             const launchUrl = profile.launchUrl || '';
@@ -481,11 +481,11 @@
                 if (!type || !identifier) continue;
                 if (type.endsWith('_password')) {
                     const platform = type.replace('_password', '');
-                    if (!credentialsMap[platform]) credentialsMap[platform] = {};
-                    credentialsMap[platform].password = identifier;
+                    if (!_appCredentials[platform]) _appCredentials[platform] = {};
+                    _appCredentials[platform].password = identifier;
                 } else {
-                    if (!credentialsMap[type]) credentialsMap[type] = {};
-                    credentialsMap[type].username = identifier;
+                    if (!_appCredentials[type]) _appCredentials[type] = {};
+                    _appCredentials[type].username = identifier;
                 }
             }
 
