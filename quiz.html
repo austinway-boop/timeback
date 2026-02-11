@@ -162,9 +162,9 @@
             }
         }
 
-        // ── 2. QTI direct fetch (for direct QTI URLs only) ──
-        if (qtiUrl) {
-            var loaded = await loadAllQuestions(qtiUrl, '', subject, gradeLevel);
+        // ── 2. QTI content fetch (direct URL or search catalog by ID/subject) ──
+        if (qtiUrl || testId) {
+            var loaded = await loadAllQuestions(qtiUrl, testId, subject, gradeLevel);
             if (loaded) return;
         }
 
