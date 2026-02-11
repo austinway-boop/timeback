@@ -132,6 +132,8 @@
         const app = (c.appName || '').toLowerCase().trim();
         if (!app) return true; // no external app = Timeback-hosted
         if (NATIVE_APPS.some(n => app.includes(n) || n.includes(app))) return true;
+        // PowerPath apps (PP100, PP200, etc.)
+        if (app.includes('powerpath') || app.includes('power path') || /^pp\d*$/i.test(app) || app.startsWith('pp')) return true;
         return false; // has external app = remote (e.g. CS AP)
     }
 
@@ -189,23 +191,31 @@
             let progressText, progressLabel, pct;
 
             if (lessonBased) {
-                // Lesson-based course: show lesson progress + daily pace from goal
+                // Lesson-based course: show daily lesson goal progress
                 const totalXp = c.totalXp || 1;
                 const totalLessons = c.totalLessons;
                 const yearXp = fullYearXpIdx[i] || 0;
-                const done = Math.min(Math.round((yearXp / totalXp) * totalLessons), totalLessons);
-                pct = totalLessons > 0 ? Math.min((done / totalLessons) * 100, 100) : 0;
+                const totalDone = Math.min(Math.round((yearXp / totalXp) * totalLessons), totalLessons);
 
-                // If a goal is set, show lessons/day needed
                 if (savedGoal && savedGoal.endDate) {
-                    const rem = Math.max(totalLessons - done, 0);
+                    // Has a goal: show today's lessons vs daily target
+                    const rem = Math.max(totalLessons - totalDone, 0);
                     const excl = savedGoal.excludeNonSchoolDays !== false;
                     const days = countSchoolDays(savedGoal.endDate, excl);
-                    const lpd = days > 0 && rem > 0 ? (rem / days).toFixed(1) : 0;
-                    progressText = `${done} / ${totalLessons} lessons`;
-                    progressLabel = lpd > 0 ? `${lpd}/DAY` : 'PROGRESS';
+                    const dailyTarget = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
+
+                    // Estimate today's lessons from today's XP
+                    const xpPerLesson = totalLessons > 0 ? totalXp / totalLessons : 1;
+                    const todayXp = xpByCourseIdx[i] || 0;
+                    const todayLessons = Math.min(Math.round(todayXp / xpPerLesson), dailyTarget);
+
+                    pct = dailyTarget > 0 ? Math.min((todayLessons / dailyTarget) * 100, 100) : 0;
+                    progressText = `${todayLessons} / ${dailyTarget} lessons`;
+                    progressLabel = 'TODAY';
                 } else {
-                    progressText = `${done} / ${totalLessons} lessons`;
+                    // No goal: show overall progress
+                    pct = totalLessons > 0 ? Math.min((totalDone / totalLessons) * 100, 100) : 0;
+                    progressText = `${totalDone} / ${totalLessons} lessons`;
                     progressLabel = 'PROGRESS';
                 }
             } else {

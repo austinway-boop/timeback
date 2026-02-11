@@ -74,14 +74,22 @@
         <!-- SET GOALS TAB -->
         <div id="v-set">
             <div class="sec-head"><i class="fa-solid fa-layer-group"></i> Lesson Goals</div>
-            <div class="goals-grid" id="lg"><div class="empty-s"><div class="loading-spinner" style="margin:0 auto 12px"></div>Loading...</div></div>
+            <div class="goals-grid" id="lg">
+                <div class="gc" style="pointer-events:none"><div class="course-card-image skeleton" style="height:140px;border-radius:12px 12px 0 0"></div><div class="gc-b"><div class="skeleton skeleton-text" style="width:60%;margin-bottom:8px"></div><div class="skeleton skeleton-text sm" style="width:40%;margin-bottom:14px"></div><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div class="skeleton skeleton-text" style="width:45%"></div><div class="skeleton skeleton-rect" style="width:60px;height:18px;border-radius:12px"></div></div><div class="skeleton" style="height:6px;border-radius:3px;margin-bottom:14px"></div><div class="skeleton skeleton-rect" style="height:38px;border-radius:6px;margin-bottom:10px"></div><div class="skeleton skeleton-rect" style="height:36px;border-radius:8px"></div></div></div>
+                <div class="gc" style="pointer-events:none"><div class="course-card-image skeleton" style="height:140px;border-radius:12px 12px 0 0"></div><div class="gc-b"><div class="skeleton skeleton-text" style="width:55%;margin-bottom:8px"></div><div class="skeleton skeleton-text sm" style="width:35%;margin-bottom:14px"></div><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div class="skeleton skeleton-text" style="width:50%"></div><div class="skeleton skeleton-rect" style="width:55px;height:18px;border-radius:12px"></div></div><div class="skeleton" style="height:6px;border-radius:3px;margin-bottom:14px"></div><div class="skeleton skeleton-rect" style="height:38px;border-radius:6px;margin-bottom:10px"></div><div class="skeleton skeleton-rect" style="height:36px;border-radius:8px"></div></div></div>
+            </div>
             <div class="sec-head"><i class="fa-solid fa-bolt"></i> XP Goals</div>
-            <div class="goals-grid" id="xg"><div class="empty-s"><div class="loading-spinner" style="margin:0 auto 12px"></div>Loading...</div></div>
+            <div class="goals-grid" id="xg">
+                <div class="gc" style="pointer-events:none"><div class="course-card-image skeleton" style="height:140px;border-radius:12px 12px 0 0"></div><div class="gc-b"><div class="skeleton skeleton-text" style="width:65%;margin-bottom:8px"></div><div class="skeleton skeleton-text sm" style="width:30%;margin-bottom:14px"></div><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div class="skeleton skeleton-text" style="width:40%"></div><div class="skeleton skeleton-rect" style="width:55px;height:18px;border-radius:12px"></div></div><div class="skeleton" style="height:6px;border-radius:3px;margin-bottom:14px"></div><div style="display:flex;gap:10px;margin-bottom:10px"><div class="skeleton skeleton-rect" style="flex:1;height:38px;border-radius:6px"></div><div class="skeleton skeleton-rect" style="flex:1;height:38px;border-radius:6px"></div></div><div class="skeleton skeleton-rect" style="height:36px;border-radius:8px"></div></div></div>
+                <div class="gc" style="pointer-events:none"><div class="course-card-image skeleton" style="height:140px;border-radius:12px 12px 0 0"></div><div class="gc-b"><div class="skeleton skeleton-text" style="width:50%;margin-bottom:8px"></div><div class="skeleton skeleton-text sm" style="width:35%;margin-bottom:14px"></div><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div class="skeleton skeleton-text" style="width:45%"></div><div class="skeleton skeleton-rect" style="width:50px;height:18px;border-radius:12px"></div></div><div class="skeleton" style="height:6px;border-radius:3px;margin-bottom:14px"></div><div style="display:flex;gap:10px;margin-bottom:10px"><div class="skeleton skeleton-rect" style="flex:1;height:38px;border-radius:6px"></div><div class="skeleton skeleton-rect" style="flex:1;height:38px;border-radius:6px"></div></div><div class="skeleton skeleton-rect" style="height:36px;border-radius:8px"></div></div></div>
+            </div>
         </div>
 
         <!-- PROGRESS TAB -->
         <div id="v-prog" style="display:none">
-            <div id="prog-content"><div class="empty-s"><div class="loading-spinner" style="margin:0 auto 12px"></div>Loading...</div></div>
+            <div id="prog-content">
+                <div class="prog-card" style="pointer-events:none"><div style="display:flex;align-items:center;gap:12px;margin-bottom:16px"><div class="skeleton skeleton-rect" style="width:40px;height:40px;border-radius:10px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton skeleton-text" style="width:50%;margin-bottom:6px"></div><div class="skeleton skeleton-text sm" style="width:70%"></div></div></div><div style="display:flex;gap:12px;margin-bottom:16px"><div class="skeleton skeleton-rect" style="flex:1;height:60px;border-radius:10px"></div><div class="skeleton skeleton-rect" style="flex:1;height:60px;border-radius:10px"></div><div class="skeleton skeleton-rect" style="flex:1;height:60px;border-radius:10px"></div><div class="skeleton skeleton-rect" style="flex:1;height:60px;border-radius:10px"></div></div><div class="skeleton" style="height:8px;border-radius:4px;margin-bottom:16px"></div><div class="skeleton skeleton-rect" style="height:140px;border-radius:10px"></div></div>
+            </div>
         </div>
     </main>
 </div>
@@ -103,7 +111,9 @@ function isLesson(c){
     if((c.totalLessons||0)<=0)return false;
     const a=(c.appName||'').toLowerCase().trim();
     if(!a)return true;
+    // Timeback-native or PowerPath apps
     if(NATIVE_APPS.some(n=>a.includes(n)||n.includes(a)))return true;
+    if(a.includes('powerpath')||a.includes('power path')||/^pp\d*$/i.test(a)||a.startsWith('pp'))return true;
     return false;
 }
 
