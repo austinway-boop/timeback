@@ -10,49 +10,55 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .section-heading { display:flex; align-items:center; gap:10px; font-size:1.15rem; font-weight:700; color:var(--color-text); margin-bottom:20px; }
-        .section-heading i { color:var(--color-primary); }
-        .section-heading .cnt { font-size:0.82rem; font-weight:500; color:var(--color-text-muted); }
-        .goals-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-bottom:40px; }
-        .goal-card { background:var(--color-surface); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); transition:all var(--transition); }
-        .goal-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
-        .gc-body { padding:18px; }
-        .gc-name { font-weight:600; font-size:0.95rem; color:var(--color-text); margin-bottom:2px; }
-        .gc-sub { font-size:0.8rem; color:var(--color-text-secondary); margin-bottom:14px; }
-        .gc-row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
-        .gc-prog { font-weight:700; font-size:0.95rem; color:var(--color-text); }
-        .gc-badge { font-size:0.72rem; font-weight:600; padding:2px 8px; border-radius:12px; }
-        .gc-badge.on-track { background:#E8F5E9; color:#2E7D32; }
-        .gc-badge.behind { background:var(--color-orange-light); color:#E65100; }
-        .gc-badge.at-risk { background:#FFEBEE; color:#C62828; }
-        .gc-badge.none { background:var(--color-bg); color:var(--color-text-muted); }
-        .gc-bar { height:6px; background:var(--color-bg); border-radius:3px; overflow:hidden; margin-bottom:14px; }
-        .gc-fill { height:100%; border-radius:3px; transition:width .5s ease; }
-        .gc-fill.on-track { background:var(--color-primary); }
-        .gc-fill.behind { background:var(--color-orange); }
-        .gc-fill.at-risk { background:#E53E3E; }
-        .gc-fill.none { background:var(--color-border); }
-        .gc-pace { background:var(--color-primary-light); border-radius:8px; padding:10px 14px; font-size:0.85rem; color:var(--color-primary-dark); font-weight:500; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
-        .gc-pace i { font-size:.95rem; flex-shrink:0; }
-        .gc-label { display:block; font-size:0.72rem; font-weight:600; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
-        .gc-input { width:100%; padding:8px 12px; border:1px solid var(--color-border); border-radius:6px; background:var(--color-surface); color:var(--color-text); font-size:.88rem; outline:none; transition:border-color var(--transition); }
-        .gc-input:focus { border-color:var(--color-primary); }
-        .gc-check { display:flex; align-items:center; gap:8px; margin:10px 0 12px; font-size:.82rem; color:var(--color-text-secondary); cursor:pointer; }
-        .gc-check input { width:16px; height:16px; accent-color:var(--color-primary); cursor:pointer; }
-        .gc-field { margin-bottom:10px; }
-        .gc-2col { display:flex; gap:10px; }
-        .gc-2col .gc-field { flex:1; }
-        .btn-confirm { width:100%; padding:10px; background:var(--color-primary); color:#fff; border:none; border-radius:8px; font-weight:600; font-size:.9rem; cursor:pointer; transition:background var(--transition); display:flex; align-items:center; justify-content:center; gap:8px; }
-        .btn-confirm:hover { background:var(--color-primary-dark); }
-        .btn-clear { width:100%; padding:8px; background:transparent; color:var(--color-text-muted); border:1px solid var(--color-border); border-radius:8px; font-weight:500; font-size:.82rem; cursor:pointer; margin-top:6px; transition:all var(--transition); }
-        .btn-clear:hover { background:#FFEBEE; color:#C62828; border-color:#FFCDD2; }
-        .gc-saved { background:#E8F5E9; border-radius:8px; padding:10px 14px; font-size:.85rem; color:#2E7D32; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
-        .gc-saved i { font-size:.95rem; }
-        .empty-s { grid-column:1/-1; text-align:center; padding:40px 20px; color:var(--color-text-muted); font-size:.9rem; }
-        .toast { position:fixed; bottom:24px; right:24px; background:var(--color-text); color:#fff; padding:14px 24px; border-radius:var(--radius-sm); font-size:.9rem; font-weight:500; box-shadow:var(--shadow-lg); z-index:300; transform:translateY(100px); opacity:0; transition:all .3s ease; }
-        .toast.show { transform:translateY(0); opacity:1; }
-        @media (max-width:1200px) { .goals-grid { grid-template-columns:repeat(2,1fr); } }
-        @media (max-width:768px) { .goals-grid { grid-template-columns:1fr; } }
+        .goals-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:40px}
+        .gc{background:var(--color-surface);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);transition:all var(--transition)}
+        .gc:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+        .gc-b{padding:18px}
+        .gc-n{font-weight:600;font-size:.95rem;color:var(--color-text);margin-bottom:2px}
+        .gc-s{font-size:.8rem;color:var(--color-text-secondary);margin-bottom:14px}
+        .gc-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+        .gc-p{font-weight:700;font-size:.95rem;color:var(--color-text)}
+        .gc-badge{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:12px}
+        .gc-badge.on-track{background:#E8F5E9;color:#2E7D32}.gc-badge.behind{background:var(--color-orange-light);color:#E65100}.gc-badge.at-risk{background:#FFEBEE;color:#C62828}.gc-badge.none{background:var(--color-bg);color:var(--color-text-muted)}
+        .gc-bar{height:6px;background:var(--color-bg);border-radius:3px;overflow:hidden;margin-bottom:14px}
+        .gc-fill{height:100%;border-radius:3px;transition:width .5s ease}
+        .gc-fill.on-track{background:var(--color-primary)}.gc-fill.behind{background:var(--color-orange)}.gc-fill.at-risk{background:#E53E3E}.gc-fill.none{background:var(--color-border)}
+        .gc-pace{background:var(--color-primary-light);border-radius:8px;padding:10px 14px;font-size:.85rem;color:var(--color-primary-dark);font-weight:500;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+        .gc-pace i{font-size:.95rem;flex-shrink:0}
+        .gc-saved{background:#E8F5E9;border-radius:8px;padding:10px 14px;font-size:.85rem;color:#2E7D32;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+        .gc-lbl{display:block;font-size:.72rem;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+        .gc-inp{width:100%;padding:8px 12px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-surface);color:var(--color-text);font-size:.88rem;outline:none;transition:border-color var(--transition)}
+        .gc-inp:focus{border-color:var(--color-primary)}
+        .gc-chk{display:flex;align-items:center;gap:8px;margin:10px 0 12px;font-size:.82rem;color:var(--color-text-secondary);cursor:pointer}
+        .gc-chk input{width:16px;height:16px;accent-color:var(--color-primary);cursor:pointer}
+        .gc-fld{margin-bottom:10px}
+        .gc-2{display:flex;gap:10px}.gc-2 .gc-fld{flex:1}
+        .btn-c{width:100%;padding:10px;background:var(--color-primary);color:#fff;border:none;border-radius:8px;font-weight:600;font-size:.9rem;cursor:pointer;transition:background var(--transition);display:flex;align-items:center;justify-content:center;gap:8px}
+        .btn-c:hover{background:var(--color-primary-dark)}
+        .btn-x{width:100%;padding:8px;background:transparent;color:var(--color-text-muted);border:1px solid var(--color-border);border-radius:8px;font-weight:500;font-size:.82rem;cursor:pointer;margin-top:6px;transition:all var(--transition)}
+        .btn-x:hover{background:#FFEBEE;color:#C62828;border-color:#FFCDD2}
+        .empty-s{grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--color-text-muted);font-size:.9rem}
+        .toast{position:fixed;bottom:24px;right:24px;background:var(--color-text);color:#fff;padding:14px 24px;border-radius:var(--radius-sm);font-size:.9rem;font-weight:500;box-shadow:var(--shadow-lg);z-index:300;transform:translateY(100px);opacity:0;transition:all .3s ease}
+        .toast.show{transform:translateY(0);opacity:1}
+        /* Chart card */
+        .prog-card{background:var(--color-surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:20px}
+        .prog-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+        .prog-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+        .prog-title{font-weight:600;font-size:1rem;color:var(--color-text)}
+        .prog-sub{font-size:.82rem;color:var(--color-text-secondary)}
+        .prog-stats{display:flex;gap:12px;margin-bottom:16px}
+        .prog-stat{flex:1;background:var(--color-bg);border-radius:10px;padding:12px;text-align:center}
+        .prog-val{font-size:1.2rem;font-weight:700;color:var(--color-primary)}
+        .prog-val.warn{color:var(--color-orange)}.prog-val.bad{color:#E53E3E}
+        .prog-lbl{font-size:.7rem;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+        .chart-box{background:var(--color-bg);border-radius:10px;padding:16px;margin-bottom:12px}
+        .chart-legend{display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:.75rem;color:var(--color-text-secondary)}
+        .chart-legend span{display:flex;align-items:center;gap:5px}
+        .chart-legend .dot{width:10px;height:3px;border-radius:2px}
+        .sec-head{display:flex;align-items:center;gap:10px;font-size:1.1rem;font-weight:700;color:var(--color-text);margin-bottom:16px}
+        .sec-head i{color:var(--color-primary)}
+        @media(max-width:1200px){.goals-grid{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:768px){.goals-grid{grid-template-columns:1fr}}
     </style>
 </head>
 <body data-view="student" data-active="goals">
@@ -60,13 +66,22 @@
     <nav class="sidebar" id="sidebar"></nav>
     <main class="main-content">
         <h1 class="welcome-heading">Goals</h1>
-        <div id="lesson-section">
-            <div class="section-heading"><i class="fa-solid fa-layer-group"></i> Lesson Courses <span class="cnt" id="lc"></span></div>
-            <div class="goals-grid" id="lg"><div class="empty-s"><div class="loading-spinner" style="margin:0 auto 12px;"></div>Loading courses...</div></div>
+        <div class="time-toggle" id="tabs" style="margin-bottom:28px">
+            <button class="toggle-btn active" data-tab="set">Set Goals</button>
+            <button class="toggle-btn" data-tab="progress">Progress</button>
         </div>
-        <div id="xp-section">
-            <div class="section-heading"><i class="fa-solid fa-bolt"></i> XP Courses <span class="cnt" id="xc"></span></div>
-            <div class="goals-grid" id="xg"><div class="empty-s"><div class="loading-spinner" style="margin:0 auto 12px;"></div>Loading courses...</div></div>
+
+        <!-- SET GOALS TAB -->
+        <div id="v-set">
+            <div class="sec-head"><i class="fa-solid fa-layer-group"></i> Lesson Goals</div>
+            <div class="goals-grid" id="lg"><div class="empty-s"><div class="loading-spinner" style="margin:0 auto 12px"></div>Loading...</div></div>
+            <div class="sec-head"><i class="fa-solid fa-bolt"></i> XP Goals</div>
+            <div class="goals-grid" id="xg"><div class="empty-s"><div class="loading-spinner" style="margin:0 auto 12px"></div>Loading...</div></div>
+        </div>
+
+        <!-- PROGRESS TAB -->
+        <div id="v-prog" style="display:none">
+            <div id="prog-content"><div class="empty-s"><div class="loading-spinner" style="margin:0 auto 12px"></div>Loading...</div></div>
         </div>
     </main>
 </div>
@@ -74,158 +89,214 @@
 <script src="/js/layout.js"></script>
 <script src="/js/app.js"></script>
 <script>
-const THEMES=['teal','purple','pink','orange'];
-const TBG={teal:'card-theme-teal',purple:'card-theme-purple',pink:'card-theme-pink',orange:'card-theme-orange'};
+const THEMES=['teal','purple','pink','orange'],SKEY='alphalearn_goals';
 const NATIVE_APPS=['timeback dash','alpha timeback','alphalearn','timeback'];
-const SKEY='alphalearn_goals';
+const TBG={teal:'card-theme-teal',purple:'card-theme-purple',pink:'card-theme-pink',orange:'card-theme-orange'};
+const TCLR={teal:'var(--color-primary-light)',purple:'var(--color-purple-light)',pink:'var(--color-pink-light)',orange:'var(--color-orange-light)'};
+const TFCLR={teal:'var(--color-primary-dark)',purple:'#6C5CE7',pink:'#AD1457',orange:'#E65100'};
 
-function icon(t){t=(t||'').toLowerCase();if(t.includes('math')||t.includes('algebra')||t.includes('calculus'))return'fa-calculator';if(t.includes('chem')||t.includes('physics'))return'fa-atom';if(t.includes('bio'))return'fa-dna';if(t.includes('read')||t.includes('ela')||t.includes('english'))return'fa-book-open-reader';if(t.includes('lang')||t.includes('composition')||t.includes('writing'))return'fa-book-open';if(t.includes('geo')||t.includes('history')||t.includes('social'))return'fa-globe-americas';if(t.includes('code')||t.includes('tech')||t.includes('gumpp'))return'fa-laptop-code';return'fa-graduation-cap';}
+function ic(t){t=(t||'').toLowerCase();if(t.includes('math')||t.includes('algebra'))return'fa-calculator';if(t.includes('chem')||t.includes('physics'))return'fa-atom';if(t.includes('bio'))return'fa-dna';if(t.includes('history')||t.includes('social')||t.includes('geo'))return'fa-globe-americas';if(t.includes('read')||t.includes('ela')||t.includes('english'))return'fa-book-open-reader';if(t.includes('code')||t.includes('tech'))return'fa-laptop-code';return'fa-graduation-cap';}
 
-/* Course with totalLessons > 0 = lesson-based goal. Period. */
-function isLessonCourse(c){ return (c.totalLessons||0)>0; }
+function isAP(t){return /\bAP\b/.test((t||'').trim())||(t||'').toLowerCase().includes('advanced placement');}
+function isLesson(c){
+    if(!isAP(c.title))return false;
+    if((c.totalLessons||0)<=0)return false;
+    const a=(c.appName||'').toLowerCase().trim();
+    if(!a)return true;
+    if(NATIVE_APPS.some(n=>a.includes(n)||n.includes(a)))return true;
+    return false;
+}
 
-let ALL=[], XP={};
+let ALL=[],XP={};
 function ld(){try{return JSON.parse(localStorage.getItem(SKEY))||{};}catch{return{};}}
 function sv(g){localStorage.setItem(SKEY,JSON.stringify(g));}
 function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2500);}
-
 function fmtD(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function fmtNice(s){const d=new Date(s+'T00:00:00');return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+function fmtNice(s){return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 
 function holidays(y){const h=[];const s1=new Date(y,8,1);h.push(fmtD(new Date(y,8,1+((8-s1.getDay())%7))));h.push(`${y}-11-11`);const n1=new Date(y,10,1);const th=new Date(y,10,1+((11-n1.getDay())%7)+21);h.push(fmtD(th));const tf=new Date(th);tf.setDate(tf.getDate()+1);h.push(fmtD(tf));for(let d=23;d<=31;d++)h.push(`${y}-12-${String(d).padStart(2,'0')}`);for(let d=1;d<=3;d++)h.push(`${y+1}-01-${String(d).padStart(2,'0')}`);const j1=new Date(y+1,0,1);h.push(fmtD(new Date(y+1,0,1+((8-j1.getDay())%7)+14)));const f1=new Date(y+1,1,1);h.push(fmtD(new Date(y+1,1,1+((8-f1.getDay())%7)+14)));const m1=new Date(y+1,2,1);const sb=new Date(y+1,2,1+((8-m1.getDay())%7)+14);for(let i=0;i<5;i++){const dd=new Date(sb);dd.setDate(dd.getDate()+i);h.push(fmtD(dd));}const may31=new Date(y+1,4,31);h.push(fmtD(new Date(y+1,4,31-((may31.getDay()+6)%7))));return new Set(h);}
 
 function cntDays(end,excl){const t=new Date();t.setHours(0,0,0,0);const e=new Date(end+'T00:00:00');if(e<=t)return{total:0,school:0};const hs=new Set();if(excl){for(let y=t.getFullYear()-1;y<=e.getFullYear();y++)for(const h of holidays(y))hs.add(h);}let tot=0,sch=0;const c=new Date(t);c.setDate(c.getDate()+1);while(c<=e){tot++;const dow=c.getDay();if(excl){if(dow!==0&&dow!==6&&!hs.has(fmtD(c)))sch++;}else sch=tot;c.setDate(c.getDate()+1);}return{total:tot,school:sch};}
 
-/* ---- Lesson card ---------------------------------------------------- */
+/* ==== TAB SWITCHING ==== */
+document.querySelectorAll('#tabs .toggle-btn').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#tabs .toggle-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    document.getElementById('v-set').style.display=b.dataset.tab==='set'?'':'none';
+    document.getElementById('v-prog').style.display=b.dataset.tab==='progress'?'':'none';
+    if(b.dataset.tab==='progress')renderProgress();
+    history.replaceState(null,'','#'+b.dataset.tab);
+}));
+
+/* ==== LESSON CARD (Set Goals) ==== */
 function lessonCard(c,i){
-    const th=THEMES[i%4],ic=icon(c.title),g=ld()[c._goalKey]||{},has=!!g.endDate;
+    const th=THEMES[i%4],g=ld()[c._goalKey]||{},has=!!g.endDate;
     const tXp=c.totalXp||1,tL=c.totalLessons,xpE=XP[i]||0;
     const xpPer=tL>0?tXp/tL:0;
     const done=tL>0?Math.min(Math.round((xpE/tXp)*tL),tL):0;
-    const rem=Math.max(tL-done,0);
-    const pct=tL>0?Math.min((done/tL)*100,100):0;
-
-    let statusCls='none',statusLbl='',paceHtml='',savedHtml='';
+    const rem=Math.max(tL-done,0),pct=tL>0?Math.min((done/tL)*100,100):0;
+    let sCls='none',sLbl=rem+' remaining',paceH='',savedH='';
     if(has){
-        const excl=g.excludeNonSchoolDays!==false;
-        const d=cntDays(g.endDate,excl);
-        const eff=d.school||1;
-        const lpd=rem>0?(rem/eff):0;
-        const xpd=Math.round(lpd*xpPer);
-        const dayT=excl?'school day':'day';
-        if(rem<=0){statusCls='on-track';statusLbl='Complete';}
-        else if(d.school<=0){statusCls='at-risk';statusLbl='Past due';}
-        else if(lpd<=1.5){statusCls='on-track';statusLbl='On track';}
-        else if(lpd<=3){statusCls='behind';statusLbl='Behind';}
-        else{statusCls='at-risk';statusLbl='At risk';}
-        const pTxt=rem>0&&d.school>0?`~${lpd.toFixed(1)} lessons/${dayT} (~${xpd} XP/day) &middot; ${d.school} ${dayT}s left`:(rem<=0?'All lessons complete!':'End date has passed.');
-        savedHtml=`<div class="gc-saved"><i class="fa-solid fa-circle-check"></i> Goal: finish by ${fmtNice(g.endDate)}${excl?' (school days)':''}</div>`;
-        paceHtml=`<div class="gc-pace"><i class="fa-solid fa-calculator"></i><span>${pTxt}</span></div>`;
+        const excl=g.excludeNonSchoolDays!==false,d=cntDays(g.endDate,excl),eff=d.school||1;
+        const lpd=rem>0?(rem/eff):0,xpd=Math.round(lpd*xpPer),dayT=excl?'school day':'day';
+        if(rem<=0){sCls='on-track';sLbl='Complete';}else if(d.school<=0){sCls='at-risk';sLbl='Past due';}else if(lpd<=1.5){sCls='on-track';sLbl='On track';}else if(lpd<=3){sCls='behind';sLbl='Behind';}else{sCls='at-risk';sLbl='At risk';}
+        savedH=`<div class="gc-saved"><i class="fa-solid fa-circle-check"></i> Goal: finish by ${fmtNice(g.endDate)}${excl?' (school days)':''}</div>`;
+        if(rem>0&&d.school>0)paceH=`<div class="gc-pace"><i class="fa-solid fa-calculator"></i><span>~${lpd.toFixed(1)} lessons/${dayT} (~${xpd} XP/day) &middot; ${d.school} ${dayT}s left</span></div>`;
     }
-
-    return `<div class="goal-card" data-i="${i}" data-k="${c._goalKey}" data-tl="${tL}" data-xpu="${Math.round(xpPer)}" data-rem="${rem}">
-        <div class="course-card-image ${TBG[th]}"><div class="course-card-illustration"><i class="fa-solid ${ic}"></i></div></div>
-        <div class="gc-body">
-            <div class="gc-name">${c.title}</div>
-            <div class="gc-sub">${c.subject} &middot; ${tL} lessons</div>
-            <div class="gc-row"><span class="gc-prog">${done} / ${tL} lessons</span><span class="gc-badge ${has?statusCls:'none'}">${has?statusLbl:rem+' remaining'}</span></div>
-            <div class="gc-bar"><div class="gc-fill ${has?statusCls:'on-track'}" style="width:${pct}%"></div></div>
-            ${savedHtml}${paceHtml}
-            <div class="gc-field"><label class="gc-label">Complete by</label><input type="date" class="gc-input gd" value="${g.endDate||''}" min="${fmtD(new Date())}" onchange="pickDate(${i})"></div>
-            <label class="gc-check"><input type="checkbox" class="gs" ${(g.excludeNonSchoolDays!==false)?'checked':''} onchange="pickDate(${i})"> School days only</label>
-            <div id="pv-${i}" style="display:none" class="gc-pace"><i class="fa-solid fa-calculator"></i><span id="pvt-${i}"></span></div>
-            <button class="btn-confirm" id="cb-${i}" style="display:none" onclick="confirmL(${i})"><i class="fa-solid fa-check"></i> Confirm Goal</button>
-            ${has?`<button class="btn-clear" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear Goal</button>`:''}
-        </div></div>`;
+    return `<div class="gc" data-i="${i}" data-k="${c._goalKey}" data-tl="${tL}" data-xpu="${Math.round(xpPer)}" data-rem="${rem}">
+        <div class="course-card-image ${TBG[th]}"><div class="course-card-illustration"><i class="fa-solid ${ic(c.title)}"></i></div></div>
+        <div class="gc-b"><div class="gc-n">${c.title}</div><div class="gc-s">${c.subject} &middot; ${tL} lessons</div>
+        <div class="gc-row"><span class="gc-p">${done} / ${tL} lessons</span><span class="gc-badge ${has?sCls:'none'}">${sLbl}</span></div>
+        <div class="gc-bar"><div class="gc-fill ${has?sCls:'on-track'}" style="width:${pct}%"></div></div>
+        ${savedH}${paceH}
+        <div class="gc-fld"><label class="gc-lbl">Complete by</label><input type="date" class="gc-inp gd" value="${g.endDate||''}" min="${fmtD(new Date())}" onchange="pickD(${i})"></div>
+        <label class="gc-chk"><input type="checkbox" class="gs" ${(g.excludeNonSchoolDays!==false)?'checked':''} onchange="pickD(${i})"> School days only</label>
+        <div id="pv-${i}" style="display:none" class="gc-pace"><i class="fa-solid fa-calculator"></i><span id="pvt-${i}"></span></div>
+        <button class="btn-c" id="cb-${i}" style="display:none" onclick="confirmL(${i})"><i class="fa-solid fa-check"></i> Confirm Goal</button>
+        ${has?`<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear Goal</button>`:''}</div></div>`;
 }
 
-/* ---- XP card -------------------------------------------------------- */
+/* ==== XP CARD (Set Goals) ==== */
 function xpCard(c,i){
-    const th=THEMES[i%4],ic=icon(c.title),g=ld()[c._goalKey]||{},has=!!g.type;
+    const th=THEMES[i%4],g=ld()[c._goalKey]||{},has=!!g.type;
     const xpE=Math.round(XP[i]||0),tgt=g.target||0;
     const pct=tgt>0?Math.min((xpE/tgt)*100,100):0;
-    const rem=Math.max(tgt-xpE,0);
-    let sCls='none',sLbl='No goal',pHtml='';
-    if(has&&g.endDate){
-        const excl=g.excludeNonSchoolDays!==false;
-        const d=cntDays(g.endDate,excl);
-        const eff=d.school||1;const xpd=rem>0?Math.round(rem/eff):0;
-        const dayT=excl?'school day':'day';
-        if(rem<=0){sCls='on-track';sLbl='Done';}
-        else if(d.school<=0){sCls='at-risk';sLbl='Past due';}
-        else if(xpd<=100){sCls='on-track';sLbl='On track';}
-        else if(xpd<=200){sCls='behind';sLbl='Behind';}
-        else{sCls='at-risk';sLbl='At risk';}
-        pHtml=`<div class="gc-pace"><i class="fa-solid fa-calculator"></i><span>${rem>0&&d.school>0?'~'+xpd+' XP/'+dayT+' &middot; '+d.school+' '+dayT+'s left':(rem<=0?'Goal reached!':'Past due.')}</span></div>`;
-    }
-    return `<div class="goal-card" data-i="${i}" data-k="${c._goalKey}">
-        <div class="course-card-image ${TBG[th]}"><div class="course-card-illustration"><i class="fa-solid ${ic}"></i></div></div>
-        <div class="gc-body">
-            <div class="gc-name">${c.title}</div>
-            <div class="gc-sub">${c.subject} &middot; XP Goal</div>
-            <div class="gc-row"><span class="gc-prog">${xpE}${tgt?' / '+tgt:''} XP</span><span class="gc-badge ${sCls}">${sLbl}</span></div>
-            <div class="gc-bar"><div class="gc-fill ${has?sCls:'none'}" style="width:${pct}%"></div></div>
-            ${pHtml}
-            <div class="gc-2col"><div class="gc-field"><label class="gc-label">Target XP</label><input type="number" class="gc-input gt" min="1" value="${g.target||''}" placeholder="e.g. 500" oninput="pvXP(${i})"></div>
-            <div class="gc-field"><label class="gc-label">End Date</label><input type="date" class="gc-input gd" value="${g.endDate||''}" min="${fmtD(new Date())}" onchange="pvXP(${i})"></div></div>
-            <label class="gc-check"><input type="checkbox" class="gs" ${(g.excludeNonSchoolDays!==false)?'checked':''} onchange="pvXP(${i})"> School days only</label>
-            <button class="btn-confirm" onclick="saveXP(${i})"><i class="fa-solid fa-check"></i> ${has?'Update Goal':'Save Goal'}</button>
-            ${has?`<button class="btn-clear" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear Goal</button>`:''}
-        </div></div>`;
+    let sCls='none',sLbl='No goal',pH='';
+    if(has&&g.endDate){const excl=g.excludeNonSchoolDays!==false,d=cntDays(g.endDate,excl),eff=d.school||1,rem=Math.max(tgt-xpE,0),xpd=rem>0?Math.round(rem/eff):0,dayT=excl?'school day':'day';if(rem<=0){sCls='on-track';sLbl='Done';}else if(d.school<=0){sCls='at-risk';sLbl='Past due';}else{sCls='on-track';sLbl='On track';}pH=`<div class="gc-pace"><i class="fa-solid fa-calculator"></i><span>~${xpd} XP/${dayT} &middot; ${d.school} ${dayT}s left</span></div>`;}
+    return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
+        <div class="course-card-image ${TBG[th]}"><div class="course-card-illustration"><i class="fa-solid ${ic(c.title)}"></i></div></div>
+        <div class="gc-b"><div class="gc-n">${c.title}</div><div class="gc-s">${c.subject} &middot; XP Goal</div>
+        <div class="gc-row"><span class="gc-p">${xpE}${tgt?' / '+tgt:''} XP</span><span class="gc-badge ${sCls}">${sLbl}</span></div>
+        <div class="gc-bar"><div class="gc-fill ${has?sCls:'none'}" style="width:${pct}%"></div></div>
+        ${pH}
+        <div class="gc-2"><div class="gc-fld"><label class="gc-lbl">Target XP</label><input type="number" class="gc-inp gt" min="1" value="${g.target||''}" placeholder="e.g. 500"></div>
+        <div class="gc-fld"><label class="gc-lbl">End Date</label><input type="date" class="gc-inp gd" value="${g.endDate||''}" min="${fmtD(new Date())}"></div></div>
+        <label class="gc-chk"><input type="checkbox" class="gs" ${(g.excludeNonSchoolDays!==false)?'checked':''} > School days only</label>
+        <button class="btn-c" onclick="saveXP(${i})"><i class="fa-solid fa-check"></i> ${has?'Update':'Save'} Goal</button>
+        ${has?`<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear</button>`:''}</div></div>`;
 }
 
-/* ---- Lesson date pick → preview + confirm --------------------------- */
-function pickDate(i){
-    const card=document.querySelector(`.goal-card[data-i="${i}"]`);
-    const dt=card.querySelector('.gd').value,excl=card.querySelector('.gs').checked;
+/* ==== ACTIONS ==== */
+function pickD(i){
+    const card=document.querySelector(`.gc[data-i="${i}"]`),dt=card.querySelector('.gd').value,excl=card.querySelector('.gs').checked;
     const pv=document.getElementById('pv-'+i),pvt=document.getElementById('pvt-'+i),btn=document.getElementById('cb-'+i);
     const rem=+card.dataset.rem,xpu=+card.dataset.xpu;
     if(!dt){pv.style.display='none';btn.style.display='none';return;}
     const d=cntDays(dt,excl),dayT=excl?'school day':'day';
-    if(d.school<=0)pvt.textContent='That date has already passed.';
+    if(d.school<=0)pvt.textContent='That date has passed.';
     else if(rem<=0)pvt.textContent='All lessons complete!';
     else{const lpd=(rem/d.school).toFixed(1),xpd=Math.round(lpd*xpu);pvt.innerHTML=`~${lpd} lessons/${dayT} (~${xpd} XP/day) &middot; ${d.school} ${dayT}s left`;}
     pv.style.display='flex';btn.style.display='';
 }
-
 function confirmL(i){
-    const card=document.querySelector(`.goal-card[data-i="${i}"]`);
-    const dt=card.querySelector('.gd').value;if(!dt){toast('Pick a date first.');return;}
+    const card=document.querySelector(`.gc[data-i="${i}"]`),dt=card.querySelector('.gd').value;if(!dt){toast('Pick a date.');return;}
     const excl=card.querySelector('.gs').checked,tl=+card.dataset.tl;
-    const g=ld();g[card.dataset.k]={type:'lessons',target:tl,endDate:dt,excludeNonSchoolDays:excl};sv(g);
-    toast('Goal confirmed!');render();
+    const g=ld();g[card.dataset.k]={type:'lessons',target:tl,endDate:dt,excludeNonSchoolDays:excl};sv(g);toast('Goal confirmed!');renderSet();
 }
-
-function pvXP(i){
-    const card=document.querySelector(`.goal-card[data-i="${i}"]`);
-    /* no separate preview for XP — just inline on save */
-}
-
 function saveXP(i){
-    const card=document.querySelector(`.goal-card[data-i="${i}"]`);
-    const tgt=parseInt(card.querySelector('.gt').value)||0,dt=card.querySelector('.gd').value,excl=card.querySelector('.gs').checked;
-    if(!tgt||tgt<=0){toast('Enter a target XP.');return;}
-    if(!dt){toast('Pick an end date.');return;}
-    const g=ld();g[card.dataset.k]={type:'xp',target:tgt,endDate:dt,excludeNonSchoolDays:excl};sv(g);
-    toast('Goal saved!');render();
+    const card=document.querySelector(`.gc[data-i="${i}"]`),tgt=parseInt(card.querySelector('.gt').value)||0,dt=card.querySelector('.gd').value,excl=card.querySelector('.gs').checked;
+    if(!tgt){toast('Enter target XP.');return;}if(!dt){toast('Pick a date.');return;}
+    const g=ld();g[card.dataset.k]={type:'xp',target:tgt,endDate:dt,excludeNonSchoolDays:excl};sv(g);toast('Goal saved!');renderSet();
+}
+function clearG(i){const card=document.querySelector(`.gc[data-i="${i}"]`),g=ld();delete g[card.dataset.k];sv(g);toast('Cleared.');renderSet();}
+
+/* ==== RENDER SET GOALS ==== */
+function renderSet(){
+    const lc=[],xc=[];ALL.forEach((c,i)=>{if(isLesson(c))lc.push({c,i});else xc.push({c,i});});
+    document.getElementById('lg').innerHTML=lc.length?lc.map(({c,i})=>lessonCard(c,i)).join(''):'<div class="empty-s">No lesson-based AP courses found.</div>';
+    document.getElementById('xg').innerHTML=xc.length?xc.map(({c,i})=>xpCard(c,i)).join(''):'<div class="empty-s">No XP courses found.</div>';
 }
 
-function clearG(i){
-    const card=document.querySelector(`.goal-card[data-i="${i}"]`);
-    const g=ld();delete g[card.dataset.k];sv(g);toast('Goal cleared.');render();
+/* ==== RENDER PROGRESS ==== */
+function renderProgress(){
+    const goals=ld(),el=document.getElementById('prog-content');
+    const items=ALL.map((c,i)=>({c,i,g:goals[c._goalKey]})).filter(x=>x.g&&x.g.endDate);
+    if(!items.length){el.innerHTML='<div class="empty-s" style="padding:60px"><i class="fa-solid fa-bullseye" style="font-size:2.5rem;opacity:.3;display:block;margin-bottom:12px"></i>No goals set yet. Switch to "Set Goals" to get started.</div>';return;}
+
+    el.innerHTML=items.map(({c,i,g})=>{
+        const th=THEMES[i%4],lesson=isLesson(c);
+        const tXp=c.totalXp||1,tL=c.totalLessons||0,xpE=XP[i]||0;
+        const excl=g.excludeNonSchoolDays!==false,d=cntDays(g.endDate,excl);
+
+        if(lesson){
+            const xpPer=tL>0?tXp/tL:0;
+            const done=tL>0?Math.min(Math.round((xpE/tXp)*tL),tL):0;
+            const rem=Math.max(tL-done,0),pct=tL>0?Math.min((done/tL)*100,100):0;
+            const eff=d.school||1,lpd=rem>0?(rem/eff):0,xpd=Math.round(lpd*xpPer);
+            let sCls='on-track';if(lpd>3)sCls='at-risk';else if(lpd>1.5)sCls='behind';
+            if(rem<=0)sCls='on-track';
+            const valCls=sCls==='on-track'?'':(sCls==='behind'?'warn':'bad');
+            // SVG chart: expected vs actual line
+            const chartSvg=buildLessonChart(done,tL,g.endDate,excl);
+            return `<div class="prog-card">
+                <div class="prog-header"><div class="prog-icon" style="background:${TCLR[th]};color:${TFCLR[th]}"><i class="fa-solid ${ic(c.title)}"></i></div>
+                <div><div class="prog-title">${c.title}</div><div class="prog-sub">${c.subject} &middot; Lesson Goal &middot; Due ${fmtNice(g.endDate)}</div></div></div>
+                <div class="prog-stats"><div class="prog-stat"><div class="prog-val">${done}</div><div class="prog-lbl">Completed</div></div>
+                <div class="prog-stat"><div class="prog-val" style="color:var(--color-text)">${rem}</div><div class="prog-lbl">Remaining</div></div>
+                <div class="prog-stat"><div class="prog-val ${valCls}">${rem>0&&d.school>0?lpd.toFixed(1):'0'}</div><div class="prog-lbl">Lessons/Day</div></div>
+                <div class="prog-stat"><div class="prog-val" style="color:var(--color-text)">${d.school}</div><div class="prog-lbl">${excl?'School':'Total'} Days Left</div></div></div>
+                <div class="gc-bar" style="height:8px;margin-bottom:16px"><div class="gc-fill ${sCls}" style="width:${pct}%"></div></div>
+                <div class="chart-box">${chartSvg}<div class="chart-legend"><span><span class="dot" style="background:var(--color-primary)"></span> Actual</span><span><span class="dot" style="background:var(--color-text-muted)"></span> Expected pace</span></div></div>
+            </div>`;
+        } else {
+            // XP goal progress
+            const tgt=g.target||0,rem=Math.max(tgt-xpE,0),pct=tgt>0?Math.min((xpE/tgt)*100,100):0;
+            const eff=d.school||1,xpd=rem>0?Math.round(rem/eff):0;
+            let sCls='on-track';if(xpd>200)sCls='at-risk';else if(xpd>100)sCls='behind';
+            return `<div class="prog-card">
+                <div class="prog-header"><div class="prog-icon" style="background:${TCLR[th]};color:${TFCLR[th]}"><i class="fa-solid ${ic(c.title)}"></i></div>
+                <div><div class="prog-title">${c.title}</div><div class="prog-sub">${c.subject} &middot; XP Goal &middot; Due ${fmtNice(g.endDate)}</div></div></div>
+                <div class="prog-stats"><div class="prog-stat"><div class="prog-val">${xpE}</div><div class="prog-lbl">XP Earned</div></div>
+                <div class="prog-stat"><div class="prog-val" style="color:var(--color-text)">${tgt}</div><div class="prog-lbl">Target</div></div>
+                <div class="prog-stat"><div class="prog-val">${xpd}</div><div class="prog-lbl">XP/Day Needed</div></div>
+                <div class="prog-stat"><div class="prog-val" style="color:var(--color-text)">${d.school}</div><div class="prog-lbl">Days Left</div></div></div>
+                <div class="gc-bar" style="height:8px"><div class="gc-fill ${sCls}" style="width:${pct}%"></div></div>
+            </div>`;
+        }
+    }).join('');
 }
 
-function render(){
-    const lc=[],xc=[];
-    ALL.forEach((c,i)=>{if(isLessonCourse(c))lc.push({c,i});else xc.push({c,i});});
-    document.getElementById('lc').textContent=lc.length?`(${lc.length})`:'';
-    document.getElementById('lg').innerHTML=lc.length?lc.map(({c,i})=>lessonCard(c,i)).join(''):'<div class="empty-s">No lesson-based courses found.</div>';
-    document.getElementById('xc').textContent=xc.length?`(${xc.length})`:'';
-    document.getElementById('xg').innerHTML=xc.length?xc.map(({c,i})=>xpCard(c,i)).join(''):'<div class="empty-s">No XP-based courses found.</div>';
+/* ==== SVG CHART for lesson goals ==== */
+function buildLessonChart(done,total,endDate,excl){
+    const W=500,H=160,pad=30;
+    const today=new Date();today.setHours(0,0,0,0);
+    const end=new Date(endDate+'T00:00:00');
+    const totalDaysSpan=Math.max(Math.round((end-today)/(1000*60*60*24)),1);
+
+    // Expected line: straight from (today, done) to (endDate, total)
+    const x0=pad,x1=W-pad,y0=H-pad,y1=pad;
+    const yScale=(v)=>y0-((v/total)*(y0-y1));
+    const xScale=(dayIdx)=>x0+((dayIdx/totalDaysSpan)*(x1-x0));
+
+    const expectedStart=`${x0},${yScale(done)}`;
+    const expectedEnd=`${x1},${yScale(total)}`;
+
+    // Actual: just current point
+    const actualY=yScale(done);
+
+    // Grid lines
+    let grid='';
+    for(let v=0;v<=total;v+=Math.max(Math.round(total/4),1)){
+        const y=yScale(v);
+        grid+=`<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="var(--color-border)" stroke-width="1"/>`;
+        grid+=`<text x="${x0-4}" y="${y+4}" text-anchor="end" font-size="10" fill="var(--color-text-muted)">${v}</text>`;
+    }
+
+    // Date labels
+    const midDate=new Date(today.getTime()+(end.getTime()-today.getTime())/2);
+    grid+=`<text x="${x0}" y="${H-4}" font-size="10" fill="var(--color-text-muted)">Today</text>`;
+    grid+=`<text x="${x1}" y="${H-4}" text-anchor="end" font-size="10" fill="var(--color-text-muted)">${fmtNice(endDate)}</text>`;
+
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
+        ${grid}
+        <line x1="${expectedStart.split(',')[0]}" y1="${expectedStart.split(',')[1]}" x2="${expectedEnd.split(',')[0]}" y2="${expectedEnd.split(',')[1]}" stroke="var(--color-text-muted)" stroke-width="2" stroke-dasharray="6,4" opacity="0.6"/>
+        <circle cx="${x0}" cy="${actualY}" r="5" fill="var(--color-primary)"/>
+        <line x1="${x0}" y1="${actualY}" x2="${x0+2}" y2="${actualY}" stroke="var(--color-primary)" stroke-width="3"/>
+        <text x="${x0+10}" y="${actualY+4}" font-size="11" font-weight="600" fill="var(--color-primary)">${done} done</text>
+    </svg>`;
 }
 
+/* ==== DATA LOADING ==== */
 function localDS(d){return fmtD(d);}
-
 document.addEventListener('DOMContentLoaded',async function(){
     const email=localStorage.getItem('alphalearn_email')||'';
     if(!email){document.getElementById('lg').innerHTML='<div class="empty-s">Please <a href="/login" style="color:var(--color-primary)">sign in</a>.</div>';document.getElementById('xg').innerHTML='';return;}
@@ -237,12 +308,16 @@ document.addEventListener('DOMContentLoaded',async function(){
         const raw=ed.data||ed.enrollments||ed.courses||(Array.isArray(ed)?ed:[]);
         const now=new Date(),courses=[];
         for(const e of raw){
-            const co=e.course||{},cm=co.metadata||{},gl=(e.metadata&&e.metadata.goals)||{},mt=(e.metadata&&e.metadata.metrics)||{};
+            const co=e.course||{},cm=co.metadata||{},gl=(e.metadata&&e.metadata.goals)||{};
+            const mt=(e.metadata&&e.metadata.metrics)||{};
+            const cmt=cm.metrics||{};
             const ti=(co.title||'').trim(),su=co.subjects||[],eD=e.endDate?new Date(e.endDate):null;
             if(eD&&eD<now)continue;if(!ti||ti.startsWith('Manual XP')||ti.includes('Hole-Filling')||!su.length)continue;
             if(mt.courseType==='mastery_test'||mt.courseType==='mastery-test'||mt.courseType==='masteryTest'||(ti.toLowerCase().includes('mastery')&&ti.toLowerCase().includes('test')))continue;
             const pA=co.primaryApp||{},an=(typeof pA==='object'?pA.name:'')||cm.primaryApp||cm.app||'';
-            courses.push({title:ti,subject:su[0]||'',appName:an,totalXp:mt.totalXp||0,totalLessons:mt.totalLessons||0,dailyXpGoal:gl.dailyXp||0,_goalKey:e.sourcedId||co.sourcedId||ti,_raw:e,_course:co});
+            const totalLessons=mt.totalLessons||cmt.totalLessons||cm.totalLessons||0;
+            const totalXp=mt.totalXp||cmt.totalXp||cm.totalXp||0;
+            courses.push({title:ti,subject:su[0]||'',appName:an,totalXp,totalLessons,dailyXpGoal:gl.dailyXp||0,_goalKey:e.sourcedId||co.sourcedId||ti,_raw:e,_course:co});
         }
         ALL=courses;
         const soy=new Date(now.getFullYear(),7,1);if(soy>now)soy.setFullYear(soy.getFullYear()-1);
@@ -257,7 +332,9 @@ document.addEventListener('DOMContentLoaded',async function(){
                 else if(!an&&Object.keys(sa).length){let nx=0;for(const[k,x]of Object.entries(sa))if(NATIVE_APPS.some(n=>k.includes(n)||n.includes(k)))nx+=x;XP[i]=nx;}
                 else XP[i]=xs[c.subject]||0;}
         }catch(e){console.warn('[AlphaLearn] Analytics unavailable:',e.message);}
-        render();
+        renderSet();
+        const hash=location.hash.replace('#','');
+        if(hash==='progress'){document.querySelectorAll('#tabs .toggle-btn').forEach(b=>{b.classList.toggle('active',b.dataset.tab==='progress');});document.getElementById('v-set').style.display='none';document.getElementById('v-prog').style.display='';renderProgress();}
     }catch(e){document.getElementById('lg').innerHTML='<div class="empty-s">Unable to load data.</div>';document.getElementById('xg').innerHTML='';console.error(e);}
 });
 </script>

@@ -121,8 +121,19 @@
         return COURSE_ICONS.default;
     }
 
-    /* ---- Lesson-based course detection (has totalLessons from API) ------- */
-    function isLessonCourse(c) { return (c.totalLessons || 0) > 0; }
+    /* ---- AP Timeback-hosted lesson course detection ---------------------- */
+    function isAPCourse(title) {
+        return /\bAP\b/.test((title || '').trim()) || (title || '').toLowerCase().includes('advanced placement');
+    }
+    function isLessonCourse(c) {
+        // Must be AP + Timeback-native (no external app) + have lesson data
+        if (!isAPCourse(c.title)) return false;
+        if ((c.totalLessons || 0) <= 0) return false;
+        const app = (c.appName || '').toLowerCase().trim();
+        if (!app) return true; // no external app = Timeback-hosted
+        if (NATIVE_APPS.some(n => app.includes(n) || n.includes(app))) return true;
+        return false; // has external app = remote (e.g. CS AP)
+    }
 
     /* ---- State ------------------------------------------------------------ */
     let allCourses = [];       // set once after enrollment fetch
@@ -314,12 +325,17 @@
                 const appName = (typeof pApp === 'object' ? pApp.name : '')
                     || cMeta.primaryApp || cMeta.app || '';
 
+                // Check both enrollment metadata AND course metadata for metrics
+                const cMetrics = (cMeta.metrics) || {};
+                const totalLessons = metrics.totalLessons || cMetrics.totalLessons || cMeta.totalLessons || 0;
+                const totalXp = metrics.totalXp || cMetrics.totalXp || cMeta.totalXp || 0;
+
                 const item = {
                     title,
                     subject:      subjects[0] || '',
                     appName,
-                    totalXp:      metrics.totalXp || 0,
-                    totalLessons: metrics.totalLessons || 0,
+                    totalXp,
+                    totalLessons,
                     dailyXpGoal:  goals.dailyXp || 0,
                     _goalKey:     e.sourcedId || course.sourcedId || title,
                     // Store full enrollment + course data for credential display
