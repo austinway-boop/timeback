@@ -81,15 +81,12 @@
         .unit-card {
             background: var(--color-surface); border-radius: var(--radius);
             border: 1px solid var(--color-border);
-            border-left: 4px solid var(--color-primary);
-            overflow: hidden; transition: box-shadow var(--transition);
+            overflow: hidden; transition: all var(--transition);
         }
         .unit-card + .unit-card { margin-top: 12px; }
         .unit-card:hover { box-shadow: var(--shadow-md); }
-        .unit-card.complete { border-left-color: #16A34A; }
-        .unit-card.locked {
-            border-left-color: #A0AEC0; opacity: 0.55;
-        }
+        .unit-card.expanded { border: 2px solid var(--color-orange); }
+        .unit-card.locked { opacity: 0.55; }
         .unit-card.locked:hover { box-shadow: none; }
 
         .unit-header {
@@ -101,14 +98,7 @@
         .unit-card.locked .unit-header { cursor: default; }
         .unit-card.locked .unit-header:hover { background: transparent; }
 
-        .unit-num {
-            width: 42px; height: 42px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 1rem; color: #fff; flex-shrink: 0;
-            background: var(--color-primary);
-        }
-        .unit-card.complete .unit-num { background: #16A34A; }
-        .unit-card.locked .unit-num { background: #A0AEC0; }
+        .unit-num { display: none; /* removed — cleaner header without number circle */ }
 
         .unit-info { flex: 1; min-width: 0; }
         .unit-info .u-label {
@@ -160,23 +150,23 @@
         .timeline::before {
             content: ''; position: absolute;
             left: 33px; top: 0; bottom: 16px;
-            width: 2px; background: var(--color-border);
+            width: 2.5px; background: var(--color-orange);
         }
 
         .tl-item { position: relative; }
         .tl-item + .tl-item { margin-top: 2px; }
 
         .tl-dot {
-            position: absolute; left: -26px; top: 16px;
-            width: 20px; height: 20px; border-radius: 50%;
+            position: absolute; left: -27px; top: 14px;
+            width: 22px; height: 22px; border-radius: 50%;
             background: var(--color-surface);
-            border: 2.5px solid var(--color-border);
+            border: 2.5px solid var(--color-orange);
             display: flex; align-items: center; justify-content: center;
-            z-index: 1; font-size: 0.5rem;
+            z-index: 1; font-size: 0.55rem;
             transition: all var(--transition);
         }
         .tl-dot.done { background: #16A34A; border-color: #16A34A; color: #fff; }
-        .tl-dot.active { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary); }
+        .tl-dot.active { border-color: var(--color-orange); background: var(--color-orange-light); color: var(--color-orange); }
         .tl-dot.locked { background: #F4F6F9; border-color: #E2E8F0; color: #CBD5E0; }
 
         /* ── Lesson Row ──────────────────────────────────────────── */
@@ -190,13 +180,12 @@
 
         .lesson-info { flex: 1; min-width: 0; }
         .lesson-title { font-weight: 600; font-size: 0.9rem; }
-        .lesson-type-tag {
-            display: inline-flex; align-items: center; gap: 4px;
-            font-size: 0.7rem; font-weight: 600; margin-top: 3px;
+        .xp-text {
+            font-size: 0.76rem; font-weight: 500; color: var(--color-text-muted);
+            white-space: nowrap;
         }
-        .lesson-type-tag.video { color: #DC2626; }
-        .lesson-type-tag.reading { color: var(--color-primary-dark); }
-        .lesson-type-tag.quiz { color: #7C3AED; }
+        .act-text.complete { color: #16A34A; }
+        .act-text.complete i { color: #16A34A; }
 
         .lesson-stats { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
@@ -422,9 +411,11 @@
     function toggleUnit(id) {
         var body = document.getElementById(id);
         var chev = document.getElementById(id + '-chev');
+        var card = body ? body.parentElement : null;
         if (!body) return;
         body.classList.toggle('open');
         if (chev) chev.classList.toggle('open');
+        if (card) card.classList.toggle('expanded');
     }
 
     function toggleLesson(id) {
@@ -726,16 +717,15 @@
                     var unitClass = 'unit-card';
                     if (unitComplete) unitClass += ' complete';
                     if (unitLocked) unitClass += ' locked';
+                    if (autoExpand) unitClass += ' expanded';
 
                     html += '<div class="' + unitClass + '">';
 
-                    // Unit header
+                    // Unit header — clean: label + title + status + chevron
                     html += '<div class="unit-header" onclick="' + (unitLocked ? '' : "toggleUnit('" + unitId + "')") + '">' +
-                        '<div class="unit-num">' + (unitLocked ? '<i class="fa-solid fa-lock" style="font-size:0.75rem;"></i>' : (mi + 1)) + '</div>' +
                         '<div class="unit-info">' +
                             '<div class="u-label">Unit ' + (mi + 1) + '</div>' +
                             '<h3>' + esc(modTitle) + '</h3>' +
-                            '<div class="u-sub">' + modLessons.length + ' lessons · ' + unitDone + ' completed' + (unitLocked ? ' · <i class="fa-solid fa-lock" style="font-size:0.6rem;"></i> Complete previous unit first' : '') + '</div>' +
                         '</div>' +
                         '<div class="unit-status">';
 
@@ -874,16 +864,26 @@
                             else html += '<i class="fa-solid ' + typeIcon + '"></i>';
                             html += '</div>';
 
-                            // Lesson row
+                            // XP display from progress data
+                            var xpHtml = '';
+                            if (prog && prog.score !== undefined && prog.score !== null) {
+                                xpHtml = '<span class="xp-text">' + prog.score + ' XP</span>';
+                            }
+
+                            // Activity completion indicator
+                            var actAllDone = (doneRes === totalRes && totalRes > 0);
+                            var actCls = 'act-text' + (actAllDone ? ' complete' : '');
+                            var actIcon = actAllDone ? 'fa-circle-check' : 'fa-circle';
+
+                            // Lesson row — clean: title + stats (%, XP, activities)
                             html += '<div class="lesson-row" onclick="toggleLesson(\'' + lessonId + '\')">' +
                                 '<div class="lesson-info">' +
                                     '<div class="lesson-title">' + esc(lTitle) + '</div>' +
-                                    '<div class="lesson-type-tag ' + typeClass + '"><i class="fa-solid ' + typeIcon + '"></i> ' + typeLabel + '</div>' +
                                 '</div>' +
                                 '<div class="lesson-stats">' +
-                                    '<span class="pct-badge ' + pctBadgeClass(lessonPctVal) + '">' + lessonPctVal + '%</span>' +
-                                    '<span class="act-text"><i class="fa-solid fa-layer-group"></i> ' + doneRes + '/' + totalRes + ' Activities</span>' +
-                                    (isDone ? '<span class="done-pill"><i class="fa-solid fa-check"></i> Done</span>' : '') +
+                                    '<span class="pct-badge ' + pctBadgeClass(lessonPctVal) + '"><i class="fa-solid fa-circle" style="font-size:0.35rem;vertical-align:middle;margin-right:3px;"></i>' + lessonPctVal + '%</span>' +
+                                    xpHtml +
+                                    '<span class="' + actCls + '"><i class="fa-solid ' + actIcon + '"></i> ' + doneRes + '/' + totalRes + ' Activities</span>' +
                                 '</div>' +
                                 '<i class="fa-solid fa-chevron-down lesson-chev" id="' + lessonId + '-chev"></i>' +
                             '</div>';
