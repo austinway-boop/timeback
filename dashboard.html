@@ -121,15 +121,8 @@
         return COURSE_ICONS.default;
     }
 
-    /* ---- Timeback-native course detection (unit tracking) ---------------- */
-    function isUnitCourse(c) {
-        const app = (c.appName || '').toLowerCase().trim();
-        // No external app = Timeback-native/PowerPath — use units if available
-        if (!app) return c.totalLessons > 0;
-        // Also treat native app names as Timeback courses
-        if (NATIVE_APPS.some(n => app.includes(n) || n.includes(app))) return c.totalLessons > 0;
-        return false;
-    }
+    /* ---- Lesson-based course detection (has totalLessons from API) ------- */
+    function isLessonCourse(c) { return (c.totalLessons || 0) > 0; }
 
     /* ---- State ------------------------------------------------------------ */
     let allCourses = [];       // set once after enrollment fetch
@@ -145,6 +138,22 @@
     function loadSavedGoals() {
         try { return JSON.parse(localStorage.getItem(GOALS_KEY)) || {}; }
         catch (e) { return {}; }
+    }
+
+    // Quick school-day counter for dashboard pacing display
+    function countSchoolDays(endDateStr, excludeNonSchool) {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const end = new Date(endDateStr + 'T00:00:00');
+        if (end <= today) return 0;
+        let count = 0;
+        const c = new Date(today); c.setDate(c.getDate() + 1);
+        while (c <= end) {
+            const dow = c.getDay();
+            if (excludeNonSchool) { if (dow !== 0 && dow !== 6) count++; }
+            else count++;
+            c.setDate(c.getDate() + 1);
+        }
+        return count;
     }
 
     /* ---- Render ----------------------------------------------------------- */
@@ -164,19 +173,30 @@
             const name      = c.title || 'Untitled Course';
             const goalKey   = c._goalKey || '';
             const savedGoal = savedGoals[goalKey] || null;
-            const unitBased = isUnitCourse(c);
+            const lessonBased = isLessonCourse(c);
 
             let progressText, progressLabel, pct;
 
-            if (unitBased) {
-                // AP course: show unit progress (estimated from full-year XP)
+            if (lessonBased) {
+                // Lesson-based course: show lesson progress + daily pace from goal
                 const totalXp = c.totalXp || 1;
-                const totalUnits = c.totalLessons;
+                const totalLessons = c.totalLessons;
                 const yearXp = fullYearXpIdx[i] || 0;
-                const unitsCompleted = Math.min(Math.round((yearXp / totalXp) * totalUnits), totalUnits);
-                pct = totalUnits > 0 ? Math.min((unitsCompleted / totalUnits) * 100, 100) : 0;
-                progressText = `${unitsCompleted} / ${totalUnits} units`;
-                progressLabel = 'PROGRESS';
+                const done = Math.min(Math.round((yearXp / totalXp) * totalLessons), totalLessons);
+                pct = totalLessons > 0 ? Math.min((done / totalLessons) * 100, 100) : 0;
+
+                // If a goal is set, show lessons/day needed
+                if (savedGoal && savedGoal.endDate) {
+                    const rem = Math.max(totalLessons - done, 0);
+                    const excl = savedGoal.excludeNonSchoolDays !== false;
+                    const days = countSchoolDays(savedGoal.endDate, excl);
+                    const lpd = days > 0 && rem > 0 ? (rem / days).toFixed(1) : 0;
+                    progressText = `${done} / ${totalLessons} lessons`;
+                    progressLabel = lpd > 0 ? `${lpd}/DAY` : 'PROGRESS';
+                } else {
+                    progressText = `${done} / ${totalLessons} lessons`;
+                    progressLabel = 'PROGRESS';
+                }
             } else {
                 // Non-AP: show daily/weekly XP
                 const dailyGoal = c.dailyXpGoal || 0;
@@ -343,9 +363,9 @@
             /* 5. Store courses globally, fetch full-year XP for AP unit tracking, then daily XP */
             allCourses = courses;
 
-            // Fetch full-year XP (for unit course progress estimation)
-            const hasUnitCourses = courses.some(c => isUnitCourse(c));
-            if (hasUnitCourses) {
+            // Fetch full-year XP (for lesson course progress estimation)
+            const hasLessonCourses = courses.some(c => isLessonCourse(c));
+            if (hasLessonCourses) {
                 await loadFullYearXp(email);
             }
 
@@ -491,7 +511,7 @@
             fullYearXpIdx = {};
             for (let i = 0; i < allCourses.length; i++) {
                 const c = allCourses[i];
-                if (!isUnitCourse(c)) continue; // only needed for unit courses
+                if (!isLessonCourse(c)) continue; // only needed for lesson courses
                 const subjApps = xpMap[c.subject] || {};
                 const appName = (c.appName || '').toLowerCase();
                 if (appName && Object.keys(subjApps).length) {
