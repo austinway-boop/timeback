@@ -11,55 +11,34 @@
     <link rel="stylesheet" href="/css/style.css">
     <style>
         .quiz-container { max-width: 760px; margin: 0 auto; padding: 20px; }
-        .quiz-header { margin-bottom: 24px; }
         .quiz-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
-        .quiz-meta { font-size: 0.85rem; color: var(--color-text-secondary); }
+        .quiz-meta { font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 20px; }
         .quiz-loading { text-align: center; padding: 60px 20px; color: var(--color-text-muted); }
         .quiz-loading .loading-spinner { margin: 0 auto 12px; }
-        .question-card {
-            background: var(--color-surface); border: 1px solid var(--color-border);
-            border-radius: var(--radius); padding: 24px; margin-bottom: 16px;
-        }
+        .question-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
         .question-number { font-size: 0.78rem; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-        .question-prompt { font-size: 1rem; font-weight: 500; line-height: 1.6; margin-bottom: 16px; color: var(--color-text); }
+        .question-prompt { font-size: 1rem; font-weight: 500; line-height: 1.6; margin-bottom: 16px; }
         .question-prompt img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
         .choice-list { display: flex; flex-direction: column; gap: 8px; }
-        .choice-item {
-            display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px;
-            border: 2px solid var(--color-border); border-radius: var(--radius-sm);
-            cursor: pointer; transition: all 0.15s; font-size: 0.92rem;
-        }
+        .choice-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border: 2px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
         .choice-item:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
         .choice-item.selected { border-color: var(--color-primary); background: var(--color-primary-light); }
-        .choice-item.correct { border-color: #2E7D32; background: #E8F5E9; }
-        .choice-item.incorrect { border-color: #E53E3E; background: #FFF5F5; }
-        .choice-letter {
-            width: 28px; height: 28px; border-radius: 50%; background: var(--color-bg);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 0.82rem; flex-shrink: 0; color: var(--color-text-secondary);
-        }
+        .choice-letter { width: 28px; height: 28px; border-radius: 50%; background: var(--color-bg); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; flex-shrink: 0; }
         .choice-item.selected .choice-letter { background: var(--color-primary); color: #fff; }
-        .choice-item.correct .choice-letter { background: #2E7D32; color: #fff; }
-        .choice-item.incorrect .choice-letter { background: #E53E3E; color: #fff; }
         .choice-text { flex: 1; line-height: 1.5; }
         .choice-text img { max-width: 100%; border-radius: 4px; margin-top: 4px; }
+        .stimulus-content { background: var(--color-bg); border-radius: var(--radius-sm); padding: 20px; margin-bottom: 20px; line-height: 1.7; font-size: 0.95rem; }
+        .stimulus-content p { margin: 0 0 12px; }
         .quiz-actions { display: flex; gap: 12px; margin-top: 24px; }
-        .quiz-btn {
-            padding: 12px 24px; border: none; border-radius: var(--radius-sm);
-            font-weight: 600; font-size: 0.92rem; cursor: pointer; transition: all 0.2s;
-        }
+        .quiz-btn { padding: 12px 24px; border: none; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.92rem; cursor: pointer; }
         .quiz-btn-primary { background: var(--color-primary); color: #fff; }
         .quiz-btn-primary:hover { background: var(--color-primary-dark); }
         .quiz-btn-secondary { background: var(--color-bg); color: var(--color-text-secondary); }
-        .quiz-btn-secondary:hover { background: var(--color-border); }
-        .quiz-score { text-align: center; padding: 40px; background: var(--color-surface); border-radius: var(--radius); border: 1px solid var(--color-border); }
-        .quiz-score-value { font-size: 3rem; font-weight: 800; color: var(--color-primary); }
-        .quiz-score-label { font-size: 1rem; color: var(--color-text-secondary); margin-top: 4px; }
-        .stimulus-content { background: var(--color-bg); border-radius: var(--radius-sm); padding: 20px; margin-bottom: 20px; line-height: 1.7; font-size: 0.95rem; }
-        .stimulus-content p { margin: 0 0 12px; }
         .back-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--color-text-secondary); font-size: 0.88rem; font-weight: 500; text-decoration: none; margin-bottom: 16px; }
         .back-btn:hover { color: var(--color-primary); }
-        .raw-display { background: var(--color-bg); padding: 16px; border-radius: var(--radius-sm); font-size: 0.78rem; overflow-x: auto; max-height: 500px; white-space: pre-wrap; word-break: break-all; }
+        .error-box { background: #FFF5F5; border: 1px solid #FED7D7; border-radius: var(--radius-sm); padding: 16px; color: #C53030; font-size: 0.88rem; margin-top: 12px; }
+        .raw-content { background: var(--color-bg); padding: 20px; border-radius: var(--radius-sm); line-height: 1.7; font-size: 0.95rem; }
+        .raw-content img { max-width: 100%; }
     </style>
 </head>
 <body data-view="student" data-active="home">
@@ -71,7 +50,7 @@
                 <div id="quiz-area">
                     <div class="quiz-loading">
                         <div class="loading-spinner"></div>
-                        Loading quiz...
+                        Loading content...
                     </div>
                 </div>
             </div>
@@ -87,111 +66,166 @@
         var itemId = params.get('id') || '';
         var itemType = params.get('type') || 'item';
         var itemUrl = params.get('url') || '';
-        var title = params.get('title') || 'Quiz';
+        var title = params.get('title') || 'Content';
         var area = document.getElementById('quiz-area');
 
         if (!itemId && !itemUrl) {
-            area.innerHTML = '<div class="quiz-loading"><p>No quiz ID or URL provided.</p></div>';
+            area.innerHTML = '<div class="quiz-loading"><p>No content ID provided.</p></div>';
             return;
         }
 
+        var data = null;
+        var errors = [];
+
+        // Method 1: Try our backend proxy (uses Cognito client credentials)
         try {
             var apiUrl = '/api/qti-item?';
             if (itemUrl) apiUrl += 'url=' + encodeURIComponent(itemUrl);
             else apiUrl += 'id=' + encodeURIComponent(itemId) + '&type=' + encodeURIComponent(itemType);
+
             var resp = await fetch(apiUrl);
             var result = await resp.json();
-
-            if (!result.success || !result.data) {
-                area.innerHTML = '<div class="quiz-loading"><i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:#E53E3E;margin-bottom:12px;display:block;"></i><p>Could not load quiz: ' + esc(result.error || 'Unknown error') + '</p></div>';
-                return;
-            }
-
-            var data = result.data;
-            var questions = data.questions || data.items || data.assessmentItems || [];
-            var stimulus = data.stimulus || data.passage || data.content || data.body || '';
-
-            // If data has a different structure, try to extract questions
-            if (!questions.length && data.qtiMetadata) {
-                questions = data.qtiMetadata.items || [];
-            }
-            if (!questions.length && Array.isArray(data)) {
-                questions = data;
-            }
-
-            var qTitle = data.title || data.identifier || title;
-            var html = '<div class="quiz-header"><h1 class="quiz-title">' + esc(qTitle) + '</h1><div class="quiz-meta">' + questions.length + ' questions</div></div>';
-
-            // Show stimulus/passage if present
-            if (stimulus) {
-                var stimHTML = typeof stimulus === 'string' ? stimulus : (stimulus.body || stimulus.content || JSON.stringify(stimulus));
-                html += '<div class="stimulus-content">' + stimHTML + '</div>';
-            }
-
-            if (questions.length > 0) {
-                var letters = 'ABCDEFGHIJ';
-                for (var qi = 0; qi < questions.length; qi++) {
-                    var q = questions[qi];
-                    var prompt = q.prompt || q.question || q.body || q.text || q.itemBody || '';
-                    var choices = q.choices || q.options || q.simpleChoices || q.responseDeclaration || [];
-                    var qType = q.type || q.interactionType || '';
-
-                    html += '<div class="question-card">';
-                    html += '<div class="question-number">Question ' + (qi + 1) + (qType ? ' · ' + esc(qType) : '') + '</div>';
-                    html += '<div class="question-prompt">' + (prompt || 'No prompt available') + '</div>';
-
-                    if (choices.length > 0) {
-                        html += '<div class="choice-list">';
-                        for (var ci = 0; ci < choices.length; ci++) {
-                            var c = choices[ci];
-                            var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : JSON.stringify(c));
-                            var cId = c.id || c.identifier || letters[ci] || ci;
-                            html += '<div class="choice-item" data-q="' + qi + '" data-c="' + ci + '" onclick="selectChoice(this,' + qi + ',' + ci + ')">';
-                            html += '<span class="choice-letter">' + (letters[ci] || ci) + '</span>';
-                            html += '<span class="choice-text">' + cText + '</span>';
-                            html += '</div>';
-                        }
-                        html += '</div>';
-                    }
-                    html += '</div>';
-                }
-
-                html += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-primary" onclick="submitQuiz()"><i class="fa-solid fa-check" style="margin-right:6px;"></i>Submit</button><button class="quiz-btn quiz-btn-secondary" onclick="history.back()">Cancel</button></div>';
+            if (result.success && result.data) {
+                data = result.data;
             } else {
-                // No parseable questions - show raw data nicely
-                html += '<div class="question-card"><div class="question-number">Content</div>';
-                if (typeof data === 'object') {
-                    // Try to render any HTML content
-                    var body = data.body || data.content || data.itemBody || data.stimulus || '';
-                    if (body) {
-                        html += '<div class="stimulus-content">' + (typeof body === 'string' ? body : JSON.stringify(body, null, 2)) + '</div>';
-                    } else {
-                        html += '<div class="raw-display">' + esc(JSON.stringify(data, null, 2)) + '</div>';
-                    }
+                errors.push('Backend: ' + (result.error || resp.status));
+            }
+        } catch(e) {
+            errors.push('Backend: ' + e.message);
+        }
+
+        // Method 2: If backend failed, try calling Timeback server function directly
+        // (works if user is logged into alpha.timeback.com in the same browser)
+        if (!data) {
+            try {
+                var tbPayload = JSON.stringify({ data: { itemId: itemId, itemType: itemType } });
+                var tbResp = await fetch(
+                    'https://alpha.timeback.com/_serverFn/src_features_qti_actions_getQtiItem_ts--getQtiItem_createServerFn_handler?payload=' + encodeURIComponent(tbPayload) + '&createServerFn',
+                    { credentials: 'include', headers: { 'Accept': 'application/json' } }
+                );
+                if (tbResp.ok) {
+                    data = await tbResp.json();
+                } else {
+                    errors.push('Timeback serverFn: ' + tbResp.status);
+                }
+            } catch(e) {
+                errors.push('Timeback serverFn: ' + e.message);
+            }
+        }
+
+        // Method 3: Try the QTI URL directly from the browser (CORS may block)
+        if (!data && itemUrl) {
+            try {
+                var directResp = await fetch(itemUrl, { credentials: 'include' });
+                if (directResp.ok) {
+                    data = await directResp.json();
+                } else {
+                    errors.push('Direct QTI: ' + directResp.status);
+                }
+            } catch(e) {
+                errors.push('Direct QTI: CORS blocked');
+            }
+        }
+
+        // Render content
+        if (!data) {
+            area.innerHTML = '<h1 class="quiz-title">' + esc(title) + '</h1>' +
+                '<div class="error-box"><strong>Could not load content</strong><br>' +
+                '<div style="margin-top:8px;font-size:0.82rem;">' + errors.map(esc).join('<br>') + '</div>' +
+                '<div style="margin-top:12px;">This content requires authentication with the Timeback platform. ' +
+                '<a href="https://alpha.timeback.com/app" target="_blank" style="color:var(--color-primary);font-weight:600;">Open on Timeback</a></div>' +
+                '</div>';
+            return;
+        }
+
+        // Parse and render the QTI content
+        var html = '<h1 class="quiz-title">' + esc(data.title || data.identifier || title) + '</h1>';
+
+        // Check for body/content/stimulus text
+        var body = data.body || data.content || data.stimulus || data.itemBody || data.passage || '';
+        if (typeof body === 'object') body = body.content || body.body || JSON.stringify(body);
+
+        // Check for questions
+        var questions = data.questions || data.items || data.assessmentItems || data.interactions || [];
+        if (!questions.length && data.qtiMetadata) questions = data.qtiMetadata.items || [];
+
+        // Check for choices in a single-question format
+        var choices = data.choices || data.options || data.simpleChoices || [];
+        var prompt = data.prompt || data.question || '';
+
+        if (body) {
+            html += '<div class="stimulus-content">' + body + '</div>';
+        }
+
+        if (prompt || choices.length) {
+            // Single question format
+            html += '<div class="question-card">';
+            if (prompt) html += '<div class="question-prompt">' + prompt + '</div>';
+            if (choices.length) {
+                var letters = 'ABCDEFGHIJ';
+                html += '<div class="choice-list">';
+                for (var ci = 0; ci < choices.length; ci++) {
+                    var c = choices[ci];
+                    var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : JSON.stringify(c));
+                    html += '<div class="choice-item" onclick="this.classList.toggle(\'selected\')">' +
+                        '<span class="choice-letter">' + (letters[ci] || ci) + '</span>' +
+                        '<span class="choice-text">' + cText + '</span></div>';
                 }
                 html += '</div>';
             }
-
-            area.innerHTML = html;
-
-        } catch(e) {
-            area.innerHTML = '<div class="quiz-loading"><i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:#E53E3E;margin-bottom:12px;display:block;"></i><p>Error: ' + esc(e.message) + '</p></div>';
+            html += '</div>';
         }
+
+        if (questions.length) {
+            var letters = 'ABCDEFGHIJ';
+            html += '<div class="quiz-meta">' + questions.length + ' questions</div>';
+            for (var qi = 0; qi < questions.length; qi++) {
+                var q = questions[qi];
+                var qPrompt = q.prompt || q.question || q.body || q.text || q.itemBody || '';
+                var qChoices = q.choices || q.options || q.simpleChoices || [];
+                html += '<div class="question-card"><div class="question-number">Question ' + (qi+1) + '</div>';
+                html += '<div class="question-prompt">' + (qPrompt || 'No prompt') + '</div>';
+                if (qChoices.length) {
+                    html += '<div class="choice-list">';
+                    for (var ci = 0; ci < qChoices.length; ci++) {
+                        var c = qChoices[ci];
+                        var cText = c.text || c.label || c.value || (typeof c === 'string' ? c : JSON.stringify(c));
+                        html += '<div class="choice-item" onclick="this.classList.toggle(\'selected\')">' +
+                            '<span class="choice-letter">' + (letters[ci] || ci) + '</span>' +
+                            '<span class="choice-text">' + cText + '</span></div>';
+                    }
+                    html += '</div>';
+                }
+                html += '</div>';
+            }
+        }
+
+        // If we got data but couldn't parse questions, show the raw content
+        if (!body && !questions.length && !prompt) {
+            html += '<div class="raw-content">';
+            if (typeof data === 'string') {
+                html += data;
+            } else {
+                // Try to show something useful
+                var keys = Object.keys(data);
+                for (var ki = 0; ki < keys.length; ki++) {
+                    var k = keys[ki];
+                    var v = data[k];
+                    if (typeof v === 'string' && v.length > 10) {
+                        html += '<div style="margin-bottom:12px;"><strong>' + esc(k) + ':</strong><div>' + v + '</div></div>';
+                    }
+                }
+                if (!html.includes('<div style="margin-bottom')) {
+                    html += '<pre style="font-size:0.8rem;overflow-x:auto;">' + esc(JSON.stringify(data, null, 2)) + '</pre>';
+                }
+            }
+            html += '</div>';
+        }
+
+        html += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left" style="margin-right:6px;"></i>Back to Course</button></div>';
+
+        area.innerHTML = html;
     });
-
-    var selections = {};
-    function selectChoice(el, qi, ci) {
-        // Deselect others in same question
-        el.parentNode.querySelectorAll('.choice-item').forEach(function(c) { c.classList.remove('selected'); });
-        el.classList.add('selected');
-        selections[qi] = ci;
-    }
-
-    function submitQuiz() {
-        var total = document.querySelectorAll('.question-card').length;
-        var answered = Object.keys(selections).length;
-        alert('Submitted ' + answered + ' of ' + total + ' answers. (Scoring handled by the platform)');
-    }
     </script>
 </body>
 </html>
