@@ -379,6 +379,22 @@
                     var modLessons = mod.subComponents || [];
                     modLessons.sort(function(a, b) { return (a.sortOrder || '').localeCompare(b.sortOrder || ''); });
 
+                    // Handle units with componentResources but no subComponent lessons
+                    // (e.g. APS assessment sections that contain resources directly)
+                    var unitRes = mod.componentResources || [];
+                    if (modLessons.length === 0 && unitRes.length > 0) {
+                        for (var uri = 0; uri < unitRes.length; uri++) {
+                            var uRes = unitRes[uri].resource || unitRes[uri] || {};
+                            modLessons.push({
+                                title: uRes.title || ('Assessment ' + (uri + 1)),
+                                id: uRes.id || uRes.sourcedId || '',
+                                sourcedId: uRes.sourcedId || uRes.id || '',
+                                sortOrder: uRes.sortOrder || String(uri),
+                                componentResources: [unitRes[uri]],
+                            });
+                        }
+                    }
+
                     var unitDone = 0;
                     for (var lc = 0; lc < modLessons.length; lc++) {
                         var lcTitle = (modLessons[lc].title || '').trim();
@@ -416,39 +432,48 @@
                             var lessonLocked = !prevLessonDone;
                             var resources = lesson.componentResources || [];
 
-                            // Determine lesson type from resources
-                            var lessonType = 'reading';
+                            // Detect assessment type from lesson title (APS, Quiz, Test, etc.)
+                            var isAssessmentTitle = /assess|aps[\s:\-]|quiz|final\s*test|unit\s*test|exam/i.test(lTitle);
+
+                            // Determine lesson type from resources + title
+                            var lessonType = isAssessmentTitle ? 'quiz' : 'reading';
                             var openUrl = '';
                             var resDetails = [];
                             for (var ri = 0; ri < resources.length; ri++) {
-                                var res = resources[ri].resource || {};
+                                var resObj = resources[ri];
+                                var res = resObj.resource || resObj || {};
                                 var rmeta = (typeof res === 'object' ? res.metadata : null) || {};
-                                var rtype = (rmeta.type || '').toLowerCase();
-                                var rurl = rmeta.url || res.url || '';
+                                var rtype = (rmeta.type || res.type || '').toLowerCase();
+                                var rurl = rmeta.url || res.url || rmeta.href || res.href || '';
                                 var rTitle2 = (typeof res === 'object' ? (res.title || '') : '').substring(0, 60);
+                                var resId = res.id || res.sourcedId || resObj.id || resObj.sourcedId || '';
 
                                 if (rtype === 'video') lessonType = 'video';
-                                else if (rtype.includes('assessment')) lessonType = 'quiz';
+                                else if (rtype.includes('assess') || rtype.includes('quiz') || rtype.includes('test')) lessonType = 'quiz';
 
                                 var pillUrl = '';
                                 if (rtype === 'video' && rurl) { pillUrl = rurl; }
                                 else if (rurl && !rurl.includes('flashcard.com')) { pillUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(lTitle); }
+                                else if (resId) { pillUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=' + encodeURIComponent(rtype || 'assessment') + '&title=' + encodeURIComponent(lTitle); }
 
-                                resDetails.push({ type: rtype, url: rurl, pillUrl: pillUrl, title: rTitle2, label: resLabel(rtype, rurl) });
+                                var effectiveType = rtype || (isAssessmentTitle ? 'assessment' : '');
+                                resDetails.push({ type: effectiveType, url: rurl, pillUrl: pillUrl, title: rTitle2, label: resLabel(effectiveType, rurl) });
 
                                 if (!openUrl && pillUrl) openUrl = pillUrl;
                             }
-                            if (!openUrl && resources.length > 0) {
-                                // Default: first resource with URL
-                                for (var ri = 0; ri < resources.length; ri++) {
-                                    var r2 = resources[ri].resource || {};
-                                    var rm2 = (typeof r2 === 'object' ? r2.metadata : null) || {};
-                                    var ru2 = rm2.url || r2.url || '';
-                                    if (ru2 && !ru2.includes('flashcard.com')) {
-                                        openUrl = '/quiz?url=' + encodeURIComponent(ru2) + '&title=' + encodeURIComponent(lTitle);
-                                        break;
-                                    }
+                            // Fallback: use lesson-level properties if no resource URL found
+                            if (!openUrl) {
+                                var lessonMetaUrl = (lesson.metadata || {}).url || lesson.url || '';
+                                var lessonResId = lesson.id || lesson.sourcedId || '';
+                                if (lessonMetaUrl) {
+                                    openUrl = '/quiz?url=' + encodeURIComponent(lessonMetaUrl) + '&title=' + encodeURIComponent(lTitle);
+                                } else if (lessonResId && (lessonType === 'quiz' || isAssessmentTitle)) {
+                                    openUrl = '/quiz?id=' + encodeURIComponent(lessonResId) + '&type=assessment&title=' + encodeURIComponent(lTitle);
                                 }
+                            }
+                            // If we have an openUrl but no resource details, add a synthetic entry so the pill renders
+                            if (resDetails.length === 0 && openUrl) {
+                                resDetails.push({ type: 'assessment', url: '', pillUrl: openUrl, title: lTitle, label: 'Quiz' });
                             }
 
                             var typeIcon = lessonType === 'video' ? 'fa-play-circle' : lessonType === 'quiz' ? 'fa-clipboard-check' : 'fa-book-open';
