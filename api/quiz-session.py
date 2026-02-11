@@ -127,24 +127,48 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             headers = api_headers()
-            # PowerPath API requires field names: "student" and "lesson" (not studentId/testId)
-            payload = {"student": student_id, "lesson": test_id}
 
-            # createNewAttempt — try multiple path patterns
-            urls = []
+            # Try both payload formats per URL (field names differ per API version)
+            payloads = [
+                {"student": student_id, "lesson": test_id},
+                {"studentId": student_id, "testId": test_id},
+                {"studentId": student_id, "lesson": test_id},
+                {"student": student_id, "testId": test_id},
+            ]
+
+            # createNewAttempt — try each URL with each payload format
+            paths = []
             for base in _BASES:
-                urls.extend([
+                paths.extend([
                     f"{base}/create-new-attempt",
                     f"{base}/createNewAttempt",
                     f"{base}/new-attempt",
                     f"{base}/attempts",
                 ])
-            data, st = _try_post(headers, urls, payload)
 
-            # If "student"/"lesson" failed, retry with alternate field names
-            if not data or st >= 400:
-                alt_payload = {"studentId": student_id, "testId": test_id}
-                data, st = _try_post(headers, urls, alt_payload)
+            data, st = None, 0
+            for url in paths:
+                for payload in payloads:
+                    try:
+                        resp = requests.post(url, headers=headers, json=payload, timeout=6)
+                        try:
+                            rdata = resp.json()
+                        except Exception:
+                            rdata = {"status": resp.status_code}
+                        if resp.status_code in (200, 201, 204):
+                            data, st = rdata, resp.status_code
+                            break
+                        if resp.status_code == 422 or resp.status_code == 400:
+                            # Validation error — try next payload format on same URL
+                            data, st = rdata, resp.status_code
+                            continue
+                        if resp.status_code != 404:
+                            data, st = rdata, resp.status_code
+                            break
+                    except Exception:
+                        continue
+                if data and st < 400:
+                    break
 
             if data and st < 400:
                 send_json(self, data, st)
