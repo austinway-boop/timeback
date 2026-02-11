@@ -339,21 +339,30 @@
                     '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.8rem;color:var(--color-text-muted);"><span>' + totalCompleted + ' of ' + totalLessons + ' completed</span><span>' + units.length + ' units</span></div>' +
                 '</div>';
 
-                // Resource type icons
+                // Resource type helpers
                 function resIcon(type) {
                     var t = (type || '').toLowerCase();
                     if (t === 'video') return 'fa-play-circle';
-                    if (t === 'qti') return 'fa-pen-to-square';
                     if (t.includes('assessment')) return 'fa-clipboard-check';
-                    return 'fa-file-lines';
+                    return 'fa-book-open'; // reading/stimulus
+                }
+                function resLabel(type, url) {
+                    var t = (type || '').toLowerCase();
+                    if (t === 'video') return 'Video';
+                    if (t.includes('assessment')) return 'Quiz';
+                    if (url && url.includes('stimuli')) return 'Reading';
+                    if (url && url.includes('assessment')) return 'Quiz';
+                    return 'Reading';
                 }
                 function resColor(type) {
                     var t = (type || '').toLowerCase();
                     if (t === 'video') return '#E53E3E';
-                    if (t === 'qti') return 'var(--color-primary-dark)';
                     if (t.includes('assessment')) return '#6C5CE7';
-                    return 'var(--color-text-muted)';
+                    return 'var(--color-primary-dark)';
                 }
+
+                // Track which units are unlocked (sequential progression)
+                var prevUnitComplete = true; // first unit always unlocked
 
                 for (var mi = 0; mi < units.length; mi++) {
                     var mod = units[mi];
@@ -366,87 +375,126 @@
                         if (progressByTitle[(modLessons[lc].title || '').trim()]) unitDone++;
                     }
                     var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
+                    var unitLocked = !prevUnitComplete;
+                    var unitId = 'unit-' + mi;
 
-                    // Unit header
-                    html += '<div style="background:#fff;border-radius:var(--radius);margin-top:' + (mi > 0 ? '12' : '0') + 'px;border:1px solid var(--color-border);border-left:4px solid var(--color-primary);overflow:hidden;">' +
-                        '<div style="display:flex;align-items:center;gap:12px;padding:16px 20px;">' +
-                            '<div style="width:40px;height:40px;border-radius:50%;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">' + (mi + 1) + '</div>' +
-                            '<div style="flex:1;"><div style="font-weight:700;font-size:0.95rem;">' + esc(modTitle) + '</div><div style="font-size:0.78rem;color:var(--color-text-muted);">' + modLessons.length + ' lessons · ' + unitDone + ' done</div></div>' +
+                    // Unit header (clickable to expand/collapse)
+                    html += '<div style="background:#fff;border-radius:var(--radius);margin-top:' + (mi > 0 ? '12' : '0') + 'px;border:1px solid var(--color-border);border-left:4px solid ' + (unitLocked ? '#A0AEC0' : 'var(--color-primary)') + ';overflow:hidden;' + (unitLocked ? 'opacity:0.6;' : '') + '">' +
+                        '<div style="display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;" onclick="toggleUnit(\'' + unitId + '\')">' +
+                            '<div style="width:40px;height:40px;border-radius:50%;background:' + (unitLocked ? '#A0AEC0' : 'var(--color-primary)') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">' + (unitLocked ? '<i class="fa-solid fa-lock" style="font-size:0.8rem;"></i>' : (mi + 1)) + '</div>' +
+                            '<div style="flex:1;"><div style="font-weight:700;font-size:0.95rem;">' + esc(modTitle) + '</div><div style="font-size:0.78rem;color:var(--color-text-muted);">' + modLessons.length + ' lessons · ' + unitDone + ' done' + (unitLocked ? ' · Complete previous unit first' : '') + '</div></div>' +
                             '<div style="display:flex;align-items:center;gap:8px;"><div style="width:80px;height:6px;background:#E8ECF1;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + unitPct + '%;background:var(--color-primary);border-radius:3px;"></div></div><span style="font-size:0.82rem;font-weight:700;color:var(--color-primary);min-width:36px;text-align:right;">' + unitPct + '%</span></div>' +
+                            '<i class="fa-solid fa-chevron-down" id="' + unitId + '-chevron" style="font-size:0.75rem;color:var(--color-text-muted);transition:transform 0.2s;"></i>' +
                         '</div>';
 
-                    // Lessons
-                    for (var li = 0; li < modLessons.length; li++) {
-                        var lesson = modLessons[li];
-                        var lTitle = lesson.title || 'Lesson ' + (li + 1);
-                        var prog = progressByTitle[lTitle.trim()] || null;
-                        var isDone = prog && (prog.scoreStatus === 'fully graded' || prog.textScore === 'Completed');
-                        var resources = lesson.componentResources || [];
+                    // Lessons container (collapsible)
+                    html += '<div id="' + unitId + '" style="display:none;">';
 
-                        // Find the best openable URL for this lesson
-                        var openUrl = '';
-                        for (var ri = 0; ri < resources.length; ri++) {
-                            var res = resources[ri].resource || {};
-                            var rmeta = (typeof res === 'object' ? res.metadata : null) || {};
-                            var rtype = (rmeta.type || '').toLowerCase();
-                            var rurl = rmeta.url || res.url || '';
-                            var resId = res.sourcedId || res.id || '';
+                    if (!unitLocked) {
+                        var prevLessonDone = true; // first lesson always unlocked
 
-                            if (rtype === 'video' && rurl) {
-                                openUrl = rurl;
-                                break;
-                            } else if ((rtype === 'qti' || rtype.includes('assessment')) && rurl) {
-                                // QTI: pass the actual metadata URL to our quiz page
-                                openUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(lTitle);
-                                break;
-                            } else if (rurl && !rurl.includes('flashcard.com')) {
-                                openUrl = rurl;
-                                break;
-                            }
-                        }
+                        for (var li = 0; li < modLessons.length; li++) {
+                            var lesson = modLessons[li];
+                            var lTitle = lesson.title || 'Lesson ' + (li + 1);
+                            var prog = progressByTitle[lTitle.trim()] || null;
+                            var isDone = prog && (prog.scoreStatus === 'fully graded' || prog.textScore === 'Completed');
+                            // Also check localStorage for manually completed
+                            var localKey = 'completed_' + (lesson.id || lesson.sourcedId || lTitle);
+                            var isLocalDone = localStorage.getItem(localKey) === 'true';
+                            isDone = isDone || isLocalDone;
+                            var lessonLocked = !prevLessonDone;
+                            var resources = lesson.componentResources || [];
 
-                        html += '<div style="padding:10px 20px 10px 40px;border-top:1px solid #F4F6F9;' + (openUrl ? 'cursor:pointer;' : '') + '" ' + (openUrl ? 'onclick="' + (openUrl.startsWith('/') ? 'window.location.href' : 'window.open') + '(\'' + esc(openUrl) + '\'' + (openUrl.startsWith('/') ? '' : ',\'_blank\'') + ')" onmouseover="this.style.background=\'#F8FAFC\'" onmouseout="this.style.background=\'transparent\'"' : '') + '>' +
-                            '<div style="display:flex;align-items:center;gap:10px;">' +
-                                '<div style="width:26px;height:26px;border-radius:6px;background:' + (isDone ? '#E8F5E9' : '#F4F6F9') + ';color:' + (isDone ? '#2E7D32' : '#A0AEC0') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;flex-shrink:0;"><i class="fa-solid ' + (isDone ? 'fa-check' : 'fa-file-lines') + '"></i></div>' +
-                                '<div style="flex:1;min-width:0;font-weight:500;font-size:0.88rem;">' + esc(lTitle) + '</div>' +
-                                (isDone ? '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:#E8F5E9;color:#2E7D32;">Done</span>' : (openUrl ? '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:var(--color-primary-light);color:var(--color-primary-dark);">Open</span>' : '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:#F4F6F9;color:#A0AEC0;">To do</span>')) +
-                            '</div>';
-
-                        // Show resource items inside the lesson
-                        if (resources.length > 0) {
-                            html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;margin-left:36px;">';
+                            // Determine lesson type from resources
+                            var lessonType = 'reading';
+                            var openUrl = '';
+                            var resDetails = [];
                             for (var ri = 0; ri < resources.length; ri++) {
-                                var cr = resources[ri];
-                                var res = cr.resource || {};
-                                var rTitle = (typeof res === 'object' ? (res.title || cr.title || '') : String(res)).substring(0, 40);
+                                var res = resources[ri].resource || {};
                                 var rmeta = (typeof res === 'object' ? res.metadata : null) || {};
                                 var rtype = (rmeta.type || '').toLowerCase();
                                 var rurl = rmeta.url || res.url || '';
-                                var resId = (typeof res === 'object' ? (res.sourcedId || res.id) : '') || '';
+                                var rTitle2 = (typeof res === 'object' ? (res.title || '') : '').substring(0, 60);
 
-                                // Build proper link: QTI → quiz page, video → direct, placeholder → skip
+                                if (rtype === 'video') lessonType = 'video';
+                                else if (rtype.includes('assessment')) lessonType = 'quiz';
+
                                 var pillUrl = '';
-                                if (rtype === 'video' && rurl) {
-                                    pillUrl = rurl;
-                                } else if ((rtype === 'qti' || rtype.includes('assessment')) && rurl) {
-                                    pillUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(rTitle);
-                                } else if (rurl && !rurl.includes('flashcard.com')) {
-                                    pillUrl = rurl;
-                                }
+                                if (rtype === 'video' && rurl) { pillUrl = rurl; }
+                                else if (rurl && !rurl.includes('flashcard.com')) { pillUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(lTitle); }
 
-                                var isInternal = pillUrl.startsWith('/');
-                                html += '<a ' + (pillUrl ? (isInternal ? 'href="' + esc(pillUrl) + '"' : 'href="' + esc(pillUrl) + '" target="_blank"') : '') + ' style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#F4F6F9;font-size:0.72rem;font-weight:500;color:' + resColor(rtype) + ';text-decoration:none;transition:background 0.15s;' + (pillUrl ? 'cursor:pointer;' : 'opacity:0.5;cursor:default;') + '" onmouseover="this.style.background=\'#E8ECF1\'" onmouseout="this.style.background=\'#F4F6F9\'" onclick="event.stopPropagation()">' +
-                                    '<i class="fa-solid ' + resIcon(rtype) + '" style="font-size:0.65rem;"></i>' +
-                                    esc(rtype || 'resource') +
+                                resDetails.push({ type: rtype, url: rurl, pillUrl: pillUrl, title: rTitle2, label: resLabel(rtype, rurl) });
+
+                                if (!openUrl && pillUrl) openUrl = pillUrl;
+                            }
+                            if (!openUrl && resources.length > 0) {
+                                // Default: first resource with URL
+                                for (var ri = 0; ri < resources.length; ri++) {
+                                    var r2 = resources[ri].resource || {};
+                                    var rm2 = (typeof r2 === 'object' ? r2.metadata : null) || {};
+                                    var ru2 = rm2.url || r2.url || '';
+                                    if (ru2 && !ru2.includes('flashcard.com')) {
+                                        openUrl = '/quiz?url=' + encodeURIComponent(ru2) + '&title=' + encodeURIComponent(lTitle);
+                                        break;
+                                    }
+                                }
+                            }
+
+                            var typeIcon = lessonType === 'video' ? 'fa-play-circle' : lessonType === 'quiz' ? 'fa-clipboard-check' : 'fa-book-open';
+                            var typeColor = lessonType === 'video' ? '#E53E3E' : lessonType === 'quiz' ? '#6C5CE7' : 'var(--color-primary-dark)';
+                            var typeLabel = lessonType === 'video' ? 'Video' : lessonType === 'quiz' ? 'Quiz' : 'Reading';
+                            var lessonId = 'lesson-' + mi + '-' + li;
+
+                            // Lesson row (expandable)
+                            html += '<div style="border-top:1px solid #F4F6F9;' + (lessonLocked ? 'opacity:0.5;pointer-events:none;' : '') + '">' +
+                                '<div style="display:flex;align-items:center;gap:10px;padding:12px 20px 12px 40px;cursor:pointer;" onclick="toggleLesson(\'' + lessonId + '\')">' +
+                                    '<div style="width:30px;height:30px;border-radius:8px;background:' + (isDone ? '#E8F5E9' : lessonLocked ? '#F4F6F9' : '#F4F6F9') + ';color:' + (isDone ? '#2E7D32' : lessonLocked ? '#CBD5E0' : typeColor) + ';display:flex;align-items:center;justify-content:center;font-size:0.75rem;flex-shrink:0;"><i class="fa-solid ' + (isDone ? 'fa-check' : lessonLocked ? 'fa-lock' : typeIcon) + '"></i></div>' +
+                                    '<div style="flex:1;min-width:0;">' +
+                                        '<div style="font-weight:500;font-size:0.88rem;">' + esc(lTitle) + '</div>' +
+                                        '<div style="font-size:0.72rem;color:var(--color-text-muted);margin-top:2px;">' +
+                                            '<span style="color:' + typeColor + ';font-weight:600;">' + typeLabel + '</span>' +
+                                            (resDetails.length > 1 ? ' · ' + resDetails.length + ' items' : '') +
+                                        '</div>' +
+                                    '</div>' +
+                                    (isDone ? '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:#E8F5E9;color:#2E7D32;">Done</span>' : '') +
+                                    '<i class="fa-solid fa-chevron-down" id="' + lessonId + '-chevron" style="font-size:0.6rem;color:var(--color-text-muted);transition:transform 0.2s;"></i>' +
+                                '</div>';
+
+                            // Expanded lesson details
+                            html += '<div id="' + lessonId + '" style="display:none;padding:0 20px 14px 80px;">';
+
+                            // Resource items
+                            for (var rd = 0; rd < resDetails.length; rd++) {
+                                var d = resDetails[rd];
+                                var isInt = d.pillUrl && d.pillUrl.startsWith('/');
+                                html += '<a ' + (d.pillUrl ? (isInt ? 'href="' + esc(d.pillUrl) + '"' : 'href="' + esc(d.pillUrl) + '" target="_blank"') : '') + ' style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px;background:#F8FAFC;border:1px solid #E8ECF1;border-radius:8px;text-decoration:none;color:var(--color-text);transition:all 0.15s;' + (d.pillUrl ? 'cursor:pointer;' : 'opacity:0.5;') + '" onmouseover="this.style.borderColor=\'var(--color-primary)\';this.style.background=\'var(--color-primary-light)\'" onmouseout="this.style.borderColor=\'#E8ECF1\';this.style.background=\'#F8FAFC\'">' +
+                                    '<div style="width:32px;height:32px;border-radius:8px;background:' + (d.label === 'Video' ? '#FFF5F5' : d.label === 'Quiz' ? '#F3F0FF' : 'var(--color-primary-light)') + ';color:' + resColor(d.type) + ';display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;"><i class="fa-solid ' + resIcon(d.type) + '"></i></div>' +
+                                    '<div style="flex:1;min-width:0;">' +
+                                        '<div style="font-weight:600;font-size:0.85rem;">' + esc(d.title || d.label) + '</div>' +
+                                        '<div style="font-size:0.72rem;color:var(--color-text-muted);">' + d.label + '</div>' +
+                                    '</div>' +
+                                    (d.pillUrl ? '<i class="fa-solid fa-arrow-right" style="font-size:0.7rem;color:var(--color-primary);"></i>' : '') +
                                 '</a>';
                             }
-                            html += '</div>';
-                        }
 
-                        html += '</div>';
+                            // Mark as complete button (for videos and readings, not quizzes which auto-complete)
+                            if (!isDone && lessonType !== 'quiz') {
+                                html += '<button onclick="event.stopPropagation(); markComplete(\'' + esc(localKey) + '\', this)" style="display:flex;align-items:center;gap:6px;padding:8px 16px;margin-top:8px;background:var(--color-primary);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'var(--color-primary-dark)\'" onmouseout="this.style.background=\'var(--color-primary)\'">' +
+                                    '<i class="fa-solid fa-check"></i> Mark as Completed' +
+                                '</button>';
+                            }
+
+                            html += '</div></div>'; // close expanded + lesson wrapper
+
+                            prevLessonDone = isDone;
+                        }
+                    } else {
+                        html += '<div style="padding:16px 40px;color:var(--color-text-muted);font-size:0.85rem;"><i class="fa-solid fa-lock" style="margin-right:6px;"></i>Complete the previous unit to unlock this one.</div>';
                     }
 
-                    html += '</div>';
+                    html += '</div></div>'; // close lessons container + unit
+
+                    prevUnitComplete = (unitDone === modLessons.length && modLessons.length > 0);
                 }
             }
 
@@ -468,6 +516,42 @@
             }
         }
     });
+
+    // Toggle unit expand/collapse
+    function toggleUnit(id) {
+        var el = document.getElementById(id);
+        var chev = document.getElementById(id + '-chevron');
+        if (!el) return;
+        if (el.style.display === 'none') {
+            el.style.display = 'block';
+            if (chev) chev.style.transform = 'rotate(180deg)';
+        } else {
+            el.style.display = 'none';
+            if (chev) chev.style.transform = 'rotate(0)';
+        }
+    }
+
+    // Toggle lesson expand/collapse
+    function toggleLesson(id) {
+        var el = document.getElementById(id);
+        var chev = document.getElementById(id + '-chevron');
+        if (!el) return;
+        if (el.style.display === 'none') {
+            el.style.display = 'block';
+            if (chev) chev.style.transform = 'rotate(180deg)';
+        } else {
+            el.style.display = 'none';
+            if (chev) chev.style.transform = 'rotate(0)';
+        }
+    }
+
+    // Mark a lesson as completed (stored in localStorage)
+    function markComplete(key, btn) {
+        localStorage.setItem(key, 'true');
+        btn.outerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#E8F5E9;color:#2E7D32;border-radius:8px;font-size:0.82rem;font-weight:600;"><i class="fa-solid fa-check"></i> Completed!</span>';
+        // Refresh the page after a short delay to update progress
+        setTimeout(function() { location.reload(); }, 1000);
+    }
     </script>
 </body>
 </html>
