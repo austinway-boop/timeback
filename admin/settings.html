@@ -268,20 +268,28 @@
     };
 
     /* ==== Admin Users ==================================================== */
+    let allUsersForPromotion = null;
+
     async function openAdminUsers() {
         openSettingsModal('Admin Users', '<div style="text-align:center;padding:24px;"><div class="loading-spinner" style="margin:0 auto 12px;"></div>Loading admins...</div>');
 
-        if (!adminUsers) {
+        if (!adminUsers || !allUsersForPromotion) {
             try {
                 const resp = await fetch('/api/users');
                 const data = await resp.json();
-                adminUsers = (data.users || []).filter(u => u.role === 'administrator');
+                const users = data.users || [];
+                adminUsers = users.filter(u => u.role === 'administrator');
+                allUsersForPromotion = users;
             } catch (e) {
                 document.getElementById('settings-modal-body').innerHTML = '<p class="error-text">Failed to load users.</p>';
                 return;
             }
         }
 
+        renderAdminUsersModal();
+    }
+
+    function renderAdminUsersModal() {
         const list = adminUsers.length
             ? adminUsers.map(u => `
                 <div class="admin-user-row">
@@ -300,12 +308,76 @@
             </p>
             ${list}
             <div style="margin-top:16px;border-top:1px solid var(--color-border);padding-top:16px;">
-                <button class="btn-save" style="opacity:0.5;cursor:not-allowed;" disabled>
-                    <i class="fa-solid fa-plus"></i> Add Admin (Coming Soon)
+                <button class="btn-save" onclick="showPromoteUserUI()">
+                    <i class="fa-solid fa-user-plus"></i> Promote User to Admin
                 </button>
+                <span class="save-toast" id="promote-toast"><i class="fa-solid fa-circle-check"></i> Promoted!</span>
             </div>
+            <div id="promote-section" style="display:none;margin-top:16px;"></div>
         `;
     }
+
+    window.showPromoteUserUI = function () {
+        const nonAdmins = (allUsersForPromotion || []).filter(u => u.role !== 'administrator');
+        const section = document.getElementById('promote-section');
+        section.style.display = '';
+        section.innerHTML = `
+            <div class="form-group">
+                <label class="form-label">Search for a user to promote</label>
+                <input type="text" class="form-input" id="promote-search" placeholder="Search by name or email..." oninput="filterPromoteList()">
+            </div>
+            <div id="promote-list" style="max-height:200px;overflow-y:auto;"></div>
+        `;
+        window._promoteUsers = nonAdmins;
+        filterPromoteList();
+    };
+
+    window.filterPromoteList = function () {
+        const query = (document.getElementById('promote-search')?.value || '').toLowerCase();
+        const list = document.getElementById('promote-list');
+        const filtered = (window._promoteUsers || []).filter(u => {
+            const name = `${u.givenName || ''} ${u.familyName || ''}`.toLowerCase();
+            return !query || name.includes(query) || (u.email || '').toLowerCase().includes(query);
+        });
+        if (!filtered.length) { list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--color-text-muted);font-size:0.88rem;">No users found.</div>'; return; }
+        list.innerHTML = filtered.slice(0, 20).map(u => {
+            const name = `${u.givenName || ''} ${u.familyName || ''}`.trim();
+            return `
+                <div class="admin-user-row" style="cursor:pointer;" onclick="promoteUser('${esc(u.sourcedId)}','${esc(u.email)}')">
+                    <div class="user-cell-avatar">${esc((u.givenName||'?')[0].toUpperCase())}</div>
+                    <div style="flex:1;">
+                        <div class="user-cell-name">${esc(name)}</div>
+                        <div class="user-cell-username">${esc(u.email || u.username || '')} &middot; <span class="role-badge role-${esc(u.role)}">${esc(u.role)}</span></div>
+                    </div>
+                    <button class="btn-save" style="padding:6px 14px;font-size:0.78rem;" onclick="event.stopPropagation();promoteUser('${esc(u.sourcedId)}','${esc(u.email)}')">Promote</button>
+                </div>`;
+        }).join('');
+    };
+
+    window.promoteUser = async function (userId, email) {
+        if (!confirm(`Promote this user to administrator?`)) return;
+        const section = document.getElementById('promote-section');
+        section.innerHTML = '<div style="text-align:center;padding:16px;"><div class="loading-spinner" style="margin:0 auto 12px;"></div>Promoting...</div>';
+        try {
+            const resp = await fetch('/api/update-role', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, newRole: 'administrator', email }),
+            });
+            const data = await resp.json();
+            if (data.success) {
+                // Refresh admin list
+                adminUsers = null;
+                allUsersForPromotion = null;
+                showSaveToast('promote-toast');
+                await openAdminUsers();
+            } else {
+                section.innerHTML = `<p class="error-text">${esc(data.message)}</p>`;
+            }
+        } catch (e) {
+            section.innerHTML = '<p class="error-text">Failed to promote user.</p>';
+        }
+    };
 
     /* ==== Permissions ==================================================== */
     function openPermissions() {
