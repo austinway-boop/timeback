@@ -9,6 +9,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .api-status {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 8px; font-size: 0.78rem; font-weight: 600;
+            padding: 3px 10px; border-radius: 20px;
+        }
+        .api-status.connected { background: #E8F5E9; color: #2E7D32; }
+        .api-status.error { background: #FFF3E0; color: #E65100; }
+        .api-status.checking { background: var(--color-bg); color: var(--color-text-muted); }
+    </style>
 </head>
 <body data-view="admin" data-active="settings">
 
@@ -42,10 +52,13 @@
                         <h3>Notifications</h3>
                         <p>Set up email and in-app notification preferences</p>
                     </div>
-                    <div class="settings-card">
+                    <div class="settings-card" id="integrations-card">
                         <div class="settings-card-icon"><i class="fa-solid fa-plug"></i></div>
                         <h3>Integrations</h3>
                         <p>Connect external tools and LTI providers</p>
+                        <div id="api-status-indicator">
+                            <span class="api-status checking"><i class="fa-solid fa-spinner fa-spin"></i> Checking API...</span>
+                        </div>
                     </div>
                     <div class="settings-card">
                         <div class="settings-card-icon"><i class="fa-solid fa-palette"></i></div>
@@ -60,5 +73,23 @@
     <script src="/js/auth-guard.js"></script>
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
+    <script>
+    // Check Timeback API connectivity
+    document.addEventListener('DOMContentLoaded', async function () {
+        const indicator = document.getElementById('api-status-indicator');
+        try {
+            const resp = await fetch('/api/users');
+            if (resp.ok) {
+                const data = await resp.json();
+                const count = data.count || (data.users || []).length;
+                indicator.innerHTML = `<span class="api-status connected"><i class="fa-solid fa-circle-check"></i> API Connected (${count} users)</span>`;
+            } else {
+                indicator.innerHTML = `<span class="api-status error"><i class="fa-solid fa-triangle-exclamation"></i> API Error (${resp.status})</span>`;
+            }
+        } catch (e) {
+            indicator.innerHTML = `<span class="api-status error"><i class="fa-solid fa-triangle-exclamation"></i> API Unreachable</span>`;
+        }
+    });
+    </script>
 </body>
 </html>
