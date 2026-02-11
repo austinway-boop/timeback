@@ -345,13 +345,14 @@
                     progressLabel = '<a href="/goals" style="color:var(--color-primary);text-decoration:none;font-weight:600;font-size:0.78rem;" onclick="event.stopPropagation()">Set Goal &rarr;</a>';
                 }
             } else {
-                // Non-lesson course: show daily/weekly XP only
-                const dailyGoal = c.dailyXpGoal || 0;
+                // Non-lesson course: show daily/weekly XP
+                const kvGoal = savedGoals[c._enrollmentId] || {};
+                const dailyGoal = kvGoal.dailyXp || c.dailyXpGoal || 0;
                 const xpEarned = Math.round(xpByCourseIdx[i] || 0);
                 const goal = currentPeriod === 'today' ? dailyGoal : dailyGoal * 5;
                 pct = goal > 0 ? Math.min((xpEarned / goal) * 100, 100) : 0;
-                progressText = `${xpEarned} / ${goal} XP`;
-                progressLabel = periodLabel;
+                progressText = goal > 0 ? `${xpEarned} / ${goal} XP` : `${xpEarned} XP`;
+                progressLabel = goal > 0 ? periodLabel : '<a href="/goals" style="color:var(--color-primary);text-decoration:none;font-weight:600;font-size:0.78rem;" onclick="event.stopPropagation()">Set Goal &rarr;</a>';
             }
 
             // Check if external course

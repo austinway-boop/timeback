@@ -345,40 +345,26 @@ function lessonCard(c, i) {
    =================================================================== */
 
 function xpCard(c, i) {
-    const g   = GOALS[c._enrollmentId] || {};
-    const has = !!g.target;
-
-    const xpE       = Math.round(XP[i] || 0);
-    const totalXp   = c.totalXp || 0;
-    const tgt       = g.target || 0;
-    const denom     = tgt || totalXp;
-    const remaining = denom > 0 ? Math.max(denom - xpE, 0) : 0;
-    const pct       = denom > 0 ? Math.min((xpE / denom) * 100, 100) : 0;
-    const circum    = 2 * Math.PI * 23;
-    const offset    = circum - (pct / 100) * circum;
-
-    let statusHtml = '';
-    if (has && tgt > 0 && remaining <= 0) {
-        statusHtml = '<div class="gc-pace gc-pace-done"><i class="fa-solid fa-circle-check"></i> Goal reached!</div>';
-    }
+    const g      = GOALS[c._enrollmentId] || {};
+    const dailyG = g.dailyXp || c.dailyXpGoal || 0;
+    const has    = dailyG > 0;
+    const xpE    = Math.round(XP[i] || 0);
 
     return `<div class="gc" data-i="${i}" data-eid="${c._enrollmentId}">
         <div class="gc-img"><img src="${getCardImage(c.title, c.appName)}" alt="${c.title}" loading="lazy"></div>
         <div class="gc-b">
             <div class="gc-name">${c.title}</div>
             <div class="gc-stats">
-                <div class="gc-ring">
-                    <svg viewBox="0 0 56 56"><circle class="gc-ring-bg" cx="28" cy="28" r="23"/><circle class="gc-ring-fg" cx="28" cy="28" r="23" stroke-dasharray="${circum.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"/></svg>
-                    <div class="gc-ring-pct">${Math.round(pct)}%</div>
+                <div style="width:48px;height:48px;border-radius:12px;background:var(--color-primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <i class="fa-solid fa-bolt" style="font-size:1.2rem;color:var(--color-primary)"></i>
                 </div>
                 <div class="gc-detail">
-                    <div class="gc-detail-big">${xpE} <span>/ ${denom || '?'} XP</span></div>
-                    <div class="gc-detail-sub">${remaining > 0 ? remaining + ' XP left' : 'Complete!'}</div>
+                    <div class="gc-detail-big">${xpE.toLocaleString()} <span>XP earned</span></div>
+                    <div class="gc-detail-sub">${has ? dailyG + ' XP / day goal' : 'No daily goal set'}</div>
                 </div>
             </div>
-            ${statusHtml}
             <div class="gc-form">
-                <div class="gc-fld"><label class="gc-lbl">Target XP</label><input type="number" class="gc-inp gx-tgt" min="1" value="${tgt || ''}" placeholder="${totalXp || 'e.g. 500'}"></div>
+                <div class="gc-fld"><label class="gc-lbl">Daily XP Goal</label><input type="number" class="gc-inp gx-tgt" min="1" value="${dailyG || ''}" placeholder="e.g. 30"></div>
             </div>
             <button class="btn-c" onclick="saveXP(${i})" style="margin-top:8px"><i class="fa-solid fa-${has ? 'arrows-rotate' : 'bullseye'}"></i> ${has ? 'Update' : 'Set'} Goal</button>
             ${has ? `<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear</button>` : ''}
@@ -435,14 +421,14 @@ async function saveL(i) {
 
 async function saveXP(i) {
     const card = document.querySelector(`.gc[data-i="${i}"]`);
-    const tgt  = parseInt(card.querySelector('.gx-tgt').value) || 0;
-    if (!tgt) { toast('Enter target XP.'); return; }
+    const daily = parseInt(card.querySelector('.gx-tgt').value) || 0;
+    if (!daily) { toast('Enter a daily XP goal.'); return; }
     const eid  = card.dataset.eid;
 
     const btn = card.querySelector('.btn-c');
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
 
-    const ok = await apiSaveGoal(eid, { target: tgt });
+    const ok = await apiSaveGoal(eid, { dailyXp: daily });
     btn.disabled = false;
     toast(ok ? 'Goal saved!' : 'Failed to save goal.');
     render();
