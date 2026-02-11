@@ -1,108 +1,177 @@
-"""GET /api/debug?email=... — Debug endpoint to trace the full API pipeline.
+"""GET /api/debug?action=...&userId=... — Debug endpoint to test PowerPath API responses.
 
-Shows raw responses from each step so we can see exactly what Timeback returns.
+Actions:
+  list-tests         — GET /powerpath/tests
+  list-assignments   — GET /powerpath/test-assignments?userId=...
+  user-assignments   — GET /powerpath/test-assignments/user/{userId}
+  screening-tests    — GET /powerpath/screening/tests
+  user-screenings    — GET /powerpath/screening/tests/user/{userId}
+  enrollments        — GET /edubridge/enrollments/user/{userId}
 """
 
-import json
 from http.server import BaseHTTPRequestHandler
-from api._helpers import (
-    fetch_with_params, fetch_one, parse_user,
-    send_json, get_query_params, api_headers, API_BASE,
-)
+from urllib.parse import urlparse, parse_qs
+
 import requests
+from api._helpers import API_BASE, api_headers, send_json
 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        params = get_query_params(self)
-        email = params.get("email", "").strip()
+        params = parse_qs(urlparse(self.path).query)
+        action = params.get("action", [""])[0]
+        user_id = params.get("userId", [""])[0]
 
-        if not email:
-            send_json(self, {"error": "Missing 'email' query param"}, 400)
+        if not action:
+            send_json(self, {"error": "Missing action param", "actions": [
+                "list-tests", "list-assignments", "user-assignments",
+                "screening-tests", "user-screenings", "enrollments",
+            ]})
             return
 
-        result = {"email": email, "steps": {}}
+        headers = api_headers()
+        results = {}
 
-        # Step 1: User lookup
         try:
-            data, status = fetch_with_params(
-                "/ims/oneroster/rostering/v1p2/users",
-                {"filter": f"email='{email}'", "limit": 5},
-            )
-            result["steps"]["1_user_lookup"] = {
-                "status": status,
-                "raw_keys": list(data.keys()) if data else None,
-                "raw_response": data,
-            }
+            if action == "list-tests":
+                # Try multiple paths for listing available tests
+                for path in [
+                    "/powerpath/tests",
+                    "/powerpath/assessments",
+                    "/powerpath/test-assignments/available",
+                ]:
+                    try:
+                        resp = requests.get(f"{API_BASE}{path}", headers=headers, timeout=30)
+                        results[path] = {"status": resp.status_code}
+                        if resp.status_code == 200:
+                            results[path]["data"] = resp.json()
+                        else:
+                            try:
+                                results[path]["body"] = resp.text[:500]
+                            except:
+                                pass
+                    except Exception as e:
+                        results[path] = {"error": str(e)}
 
-            # Extract user
-            user = None
-            if data:
-                users_list = data.get("users", [])
-                if not users_list:
-                    for key in data:
-                        if isinstance(data[key], list) and data[key]:
-                            users_list = data[key]
-                            break
-                if users_list:
-                    user = users_list[0]
-                    result["steps"]["1_user_parsed"] = parse_user(user)
+            elif action == "list-assignments" and user_id:
+                for field in ["userId", "studentId", "userSourcedId"]:
+                    path = f"/powerpath/test-assignments?{field}={user_id}"
+                    try:
+                        resp = requests.get(
+                            f"{API_BASE}/powerpath/test-assignments",
+                            headers=headers,
+                            params={field: user_id},
+                            timeout=30,
+                        )
+                        results[f"?{field}"] = {"status": resp.status_code}
+                        if resp.status_code == 200:
+                            results[f"?{field}"]["data"] = resp.json()
+                        else:
+                            try:
+                                results[f"?{field}"]["body"] = resp.text[:500]
+                            except:
+                                pass
+                    except Exception as e:
+                        results[f"?{field}"] = {"error": str(e)}
+
+            elif action == "user-assignments" and user_id:
+                for path in [
+                    f"/powerpath/test-assignments/user/{user_id}",
+                    f"/powerpath/users/{user_id}/test-assignments",
+                    f"/powerpath/test-assignments/student/{user_id}",
+                ]:
+                    try:
+                        resp = requests.get(f"{API_BASE}{path}", headers=headers, timeout=30)
+                        results[path] = {"status": resp.status_code}
+                        if resp.status_code == 200:
+                            results[path]["data"] = resp.json()
+                        else:
+                            try:
+                                results[path]["body"] = resp.text[:500]
+                            except:
+                                pass
+                    except Exception as e:
+                        results[path] = {"error": str(e)}
+
+            elif action == "screening-tests":
+                for path in [
+                    "/powerpath/screening/tests",
+                    "/powerpath/screening/tests/available",
+                    "/powerpath/screening",
+                ]:
+                    try:
+                        resp = requests.get(f"{API_BASE}{path}", headers=headers, timeout=30)
+                        results[path] = {"status": resp.status_code}
+                        if resp.status_code == 200:
+                            results[path]["data"] = resp.json()
+                        else:
+                            try:
+                                results[path]["body"] = resp.text[:500]
+                            except:
+                                pass
+                    except Exception as e:
+                        results[path] = {"error": str(e)}
+
+            elif action == "user-screenings" and user_id:
+                for path in [
+                    f"/powerpath/screening/tests/user/{user_id}",
+                    f"/powerpath/screening/user/{user_id}",
+                ]:
+                    try:
+                        resp = requests.get(f"{API_BASE}{path}", headers=headers, timeout=30)
+                        results[path] = {"status": resp.status_code}
+                        if resp.status_code == 200:
+                            results[path]["data"] = resp.json()
+                        else:
+                            try:
+                                results[path]["body"] = resp.text[:500]
+                            except:
+                                pass
+                    except Exception as e:
+                        results[path] = {"error": str(e)}
+
+            elif action == "enrollments" and user_id:
+                try:
+                    resp = requests.get(
+                        f"{API_BASE}/edubridge/enrollments/user/{user_id}",
+                        headers=headers, timeout=30,
+                    )
+                    results["enrollments"] = {"status": resp.status_code}
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        # Extract just mastery test enrollments
+                        raw = data.get("data", data.get("enrollments", []))
+                        if isinstance(raw, list):
+                            mastery = []
+                            for e in raw:
+                                course = e.get("course", {})
+                                meta = (e.get("metadata", {}).get("metrics", {}))
+                                cmeta = course.get("metadata", {}).get("metrics", {})
+                                title = (course.get("title") or "").lower()
+                                is_m = meta.get("courseType") in ("mastery_test", "mastery-test", "masteryTest") \
+                                    or cmeta.get("courseType") in ("mastery_test", "mastery-test", "masteryTest") \
+                                    or ("mastery" in title and "test" in title)
+                                if is_m:
+                                    mastery.append({
+                                        "enrollmentId": e.get("id") or e.get("sourcedId", ""),
+                                        "title": course.get("title", ""),
+                                        "subjects": course.get("subjects", []),
+                                        "grades": course.get("grades", []),
+                                        "status": e.get("status", ""),
+                                        "metadata": e.get("metadata", {}),
+                                    })
+                            results["mastery_tests"] = mastery
+                            results["total_enrollments"] = len(raw)
+                        else:
+                            results["enrollments"]["data"] = data
+                except Exception as e:
+                    results["enrollments"] = {"error": str(e)}
+
+            else:
+                send_json(self, {"error": f"Unknown action or missing userId: {action}"})
+                return
 
         except Exception as e:
-            result["steps"]["1_user_lookup"] = {"error": str(e)}
+            results["fatal_error"] = str(e)
 
-        if not user:
-            result["conclusion"] = "User not found by email filter"
-            send_json(self, result)
-            return
-
-        sourced_id = user.get("sourcedId", "")
-        result["sourcedId"] = sourced_id
-
-        # Step 2: EduBridge enrollments
-        try:
-            headers = api_headers()
-            url = f"{API_BASE}/edubridge/enrollments/user/{sourced_id}"
-            resp = requests.get(url, headers=headers, timeout=30)
-
-            raw_text = resp.text[:5000]  # First 5KB
-            try:
-                raw_json = resp.json()
-            except Exception:
-                raw_json = None
-
-            result["steps"]["2_enrollments"] = {
-                "status": resp.status_code,
-                "raw_type": type(raw_json).__name__ if raw_json is not None else "parse_error",
-                "raw_keys": list(raw_json.keys()) if isinstance(raw_json, dict) else None,
-                "raw_length": len(raw_json) if isinstance(raw_json, list) else None,
-                "raw_response": raw_json,
-                "raw_text_preview": raw_text[:500] if not raw_json else None,
-            }
-        except Exception as e:
-            result["steps"]["2_enrollments"] = {"error": str(e)}
-
-        # Step 3: OneRoster enrollments as fallback check
-        try:
-            data3, status3 = fetch_with_params(
-                "/ims/oneroster/rostering/v1p2/enrollments",
-                {"filter": f"user.sourcedId='{sourced_id}'", "limit": 50},
-            )
-            enrollments_list = []
-            if data3:
-                enrollments_list = data3.get("enrollments", [])
-                if not enrollments_list:
-                    for key in data3:
-                        if isinstance(data3[key], list):
-                            enrollments_list = data3[key]
-                            break
-
-            result["steps"]["3_oneroster_enrollments"] = {
-                "status": status3,
-                "count": len(enrollments_list),
-                "sample": enrollments_list[:3] if enrollments_list else [],
-            }
-        except Exception as e:
-            result["steps"]["3_oneroster_enrollments"] = {"error": str(e)}
-
-        send_json(self, result)
+        send_json(self, {"action": action, "userId": user_id, "results": results})
