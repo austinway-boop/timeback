@@ -239,10 +239,11 @@
                 contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-video"></i><p>Video</p><p class="sub"><a href="' + esc(url) + '" target="_blank" style="color:var(--color-primary);">Open video in new tab</a></p></div>';
             }
         } else if (step.type === 'Article') {
-            // Fetch article content through our API proxy (PowerPath URLs need auth)
-            if (url) {
+            // Fetch article content through our API proxy (PowerPath/QTI URLs need auth)
+            var resId = step.resource.resId || '';
+            if (url || resId) {
                 contentEl.innerHTML = '<div class="article-loading"><i class="fa-solid fa-spinner fa-spin"></i><span>Loading article...</span></div>';
-                fetchArticle(url, contentEl);
+                fetchArticle(url, resId, contentEl);
             } else {
                 contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content</p><p class="sub">No article URL available for this lesson.</p></div>';
             }
@@ -257,17 +258,36 @@
         }
     }
 
-    function fetchArticle(url, contentEl) {
-        fetch('/api/article-proxy?url=' + encodeURIComponent(url))
+    function fetchArticle(url, resId, contentEl) {
+        // Build the proxy URL — pass both url and id so the proxy can try multiple strategies
+        var proxyUrl = '/api/article-proxy?';
+        var params = [];
+        if (url) params.push('url=' + encodeURIComponent(url));
+        if (resId) params.push('id=' + encodeURIComponent(resId));
+        proxyUrl += params.join('&');
+
+        fetch(proxyUrl)
             .then(function(resp) {
-                if (!resp.ok) throw new Error('Failed to load article');
+                if (!resp.ok) {
+                    return resp.text().then(function(body) {
+                        var detail = '';
+                        try { detail = JSON.parse(body).error || ''; } catch(e) {}
+                        throw new Error(detail || 'Failed to load article (status ' + resp.status + ')');
+                    });
+                }
+                var ct = resp.headers.get('content-type') || '';
+                if (ct.includes('application/json')) {
+                    return resp.json().then(function(data) {
+                        return data.html || data.body || data.content || data.text || '';
+                    });
+                }
                 return resp.text();
             })
             .then(function(html) {
                 if (html && html.trim().length > 0) {
                     contentEl.innerHTML = '<div class="article-wrap">' + html + '</div>';
                 } else {
-                    contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content is empty.</p><p class="sub"><a href="' + esc(url) + '" target="_blank" style="color:var(--color-primary);">Try opening in new tab</a></p></div>';
+                    contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content is empty.</p><p class="sub"><a href="' + esc(url || '') + '" target="_blank" style="color:var(--color-primary);">Try opening in new tab</a></p></div>';
                 }
             })
             .catch(function(err) {
@@ -275,7 +295,8 @@
                 contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i>' +
                     '<p style="font-weight:600;color:var(--color-text);">Article</p>' +
                     '<p class="sub">Could not load article content.</p>' +
-                    '<a href="' + esc(url) + '" target="_blank" style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:10px 20px;background:var(--color-primary);color:#fff;border-radius:var(--radius-sm);font-weight:600;text-decoration:none;font-size:0.88rem;"><i class="fa-solid fa-external-link"></i> Open Article</a></div>';
+                    (url ? '<a href="' + esc(url) + '" target="_blank" style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:10px 20px;background:var(--color-primary);color:#fff;border-radius:var(--radius-sm);font-weight:600;text-decoration:none;font-size:0.88rem;"><i class="fa-solid fa-external-link"></i> Open Article</a>' : '') +
+                    '</div>';
             });
     }
 

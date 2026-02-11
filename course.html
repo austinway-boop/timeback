@@ -701,7 +701,7 @@
                                 else if (rurl && !rurl.includes('flashcard.com')) { pillUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(lTitle) + quizExtra; }
                                 else if (resId) { pillUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=' + encodeURIComponent(rtype || 'assessment') + '&title=' + encodeURIComponent(lTitle) + quizExtra; }
                                 var lbl = resLabel(rtype, rurl);
-                                resDetails.push({ type: rtype, url: rurl, pillUrl: pillUrl, title: rTitle2, label: lbl });
+                                resDetails.push({ type: rtype, url: rurl, pillUrl: pillUrl, title: rTitle2, label: lbl, resId: resId });
                                 if (!openUrl && pillUrl) openUrl = pillUrl;
                             }
 
@@ -752,7 +752,7 @@
                             var lessonDataKey = 'lesson_' + mi + '_' + li;
                             window._lessonData[lessonDataKey] = {
                                 title: lTitle,
-                                resources: sortedRes.map(function(r) { return { type: r.type, url: r.url, pillUrl: r.pillUrl, title: r.title, label: r.label }; }),
+                                resources: sortedRes.map(function(r) { return { type: r.type, url: r.url, pillUrl: r.pillUrl, title: r.title, label: r.label, resId: r.resId || '' }; }),
                                 courseTitle: courseTitle,
                                 quizExtra: quizExtra
                             };
