@@ -86,16 +86,20 @@
         var params = new URLSearchParams(window.location.search);
         var itemId = params.get('id') || '';
         var itemType = params.get('type') || 'item';
+        var itemUrl = params.get('url') || '';
         var title = params.get('title') || 'Quiz';
         var area = document.getElementById('quiz-area');
 
-        if (!itemId) {
-            area.innerHTML = '<div class="quiz-loading"><p>No quiz ID provided.</p></div>';
+        if (!itemId && !itemUrl) {
+            area.innerHTML = '<div class="quiz-loading"><p>No quiz ID or URL provided.</p></div>';
             return;
         }
 
         try {
-            var resp = await fetch('/api/qti-item?id=' + encodeURIComponent(itemId) + '&type=' + encodeURIComponent(itemType));
+            var apiUrl = '/api/qti-item?';
+            if (itemUrl) apiUrl += 'url=' + encodeURIComponent(itemUrl);
+            else apiUrl += 'id=' + encodeURIComponent(itemId) + '&type=' + encodeURIComponent(itemType);
+            var resp = await fetch(apiUrl);
             var result = await resp.json();
 
             if (!result.success || !result.data) {

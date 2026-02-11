@@ -64,46 +64,54 @@ class handler(BaseHTTPRequestHandler):
         params = get_query_params(self)
         item_id = params.get("id", "").strip()
         item_type = params.get("type", "items").strip().lower()
+        direct_url = params.get("url", "").strip()  # The actual QTI URL from resource metadata
 
-        if not item_id:
-            send_json(self, {"error": "Missing id parameter"}, 400)
+        if not item_id and not direct_url:
+            send_json(self, {"error": "Need id or url param"}, 400)
             return
 
         try:
             token = _get_token()
             headers = {"Authorization": f"Bearer {token}"}
 
-            # Map type to API path segment
-            path_segment = TYPE_MAP.get(item_type, "items")
-
-            # Primary path: /qti/v3/{type}/{id}
-            url = f"{QTI_API}/qti/v3/{path_segment}/{item_id}"
-            resp = requests.get(url, headers=headers, timeout=30)
-
-            if resp.status_code == 200:
-                send_json(self, {"data": resp.json(), "success": True})
+            # If we have the direct URL from the resource metadata, use it
+            if direct_url:
+                resp = requests.get(direct_url, headers=headers, timeout=30)
+                if resp.status_code == 200:
+                    send_json(self, {"data": resp.json(), "success": True})
+                    return
+                # Try adding auth as query param
+                resp2 = requests.get(direct_url, headers=headers, timeout=30)
+                send_json(self, {
+                    "error": f"QTI API returned {resp.status_code}",
+                    "success": False,
+                    "url": direct_url,
+                    "detail": resp.text[:500],
+                }, resp.status_code)
                 return
 
-            # If primary fails, try alternate paths
-            alternates = [
-                f"{QTI_API}/ims/qti3p0/{path_segment}/{item_id}",
+            # Otherwise try constructing the path from id + type
+            path_segment = TYPE_MAP.get(item_type, "items")
+            urls_to_try = [
+                f"{QTI_API}/qti/v3/{path_segment}/{item_id}",
+                f"https://qti.alpha-1edtech.ai/api/{path_segment}/{item_id}",
                 f"{QTI_API}/qti/v3/items/{item_id}",
+                f"https://qti.alpha-1edtech.ai/api/items/{item_id}",
             ]
-            for alt_url in alternates:
+
+            for url in urls_to_try:
                 try:
-                    alt_resp = requests.get(alt_url, headers=headers, timeout=15)
-                    if alt_resp.status_code == 200:
-                        send_json(self, {"data": alt_resp.json(), "success": True})
+                    resp = requests.get(url, headers=headers, timeout=15)
+                    if resp.status_code == 200:
+                        send_json(self, {"data": resp.json(), "success": True})
                         return
                 except Exception:
                     continue
 
             send_json(self, {
-                "error": f"QTI API returned {resp.status_code}",
+                "error": "QTI item not found",
                 "success": False,
-                "url": url,
-                "detail": resp.text[:300],
-            }, resp.status_code)
+            }, 404)
 
         except Exception as e:
             send_json(self, {"error": str(e), "success": False}, 500)
