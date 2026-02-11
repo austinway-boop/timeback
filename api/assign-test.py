@@ -2,10 +2,8 @@
 GET  /api/assign-test?student=... — List test assignments for a student.
 DELETE /api/assign-test — Remove a test assignment.
 
-Per the OpenAPI spec at /powerpath/openapi.yaml:
-  POST /powerpath/test-assignments requires: { student, subject, grade, testName? }
-  GET  /powerpath/test-assignments requires: ?student=sourcedId
-  DELETE /powerpath/test-assignments/{id}
+PowerPath base: https://api.alpha-1edtech.ai/powerpath
+Auth: existing Cognito creds work (no separate PowerPath token needed)
 """
 
 import json
@@ -13,6 +11,8 @@ from http.server import BaseHTTPRequestHandler
 
 import requests
 from api._helpers import API_BASE, api_headers, send_json
+
+PP = f"{API_BASE}/powerpath"
 
 
 class handler(BaseHTTPRequestHandler):
@@ -25,6 +25,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         from urllib.parse import urlparse, parse_qs
+
         params = parse_qs(urlparse(self.path).query)
         sid = (params.get("student", params.get("studentId", params.get("userId", [""])))[0]).strip()
 
@@ -34,12 +35,12 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             headers = api_headers()
-            resp = requests.get(
-                f"{API_BASE}/powerpath/test-assignments",
-                headers=headers,
-                params={"student": sid},
-                timeout=10,
-            )
+            # Try both field names for the query param
+            resp = requests.get(f"{PP}/test-assignments", headers=headers, params={"student": sid}, timeout=10)
+            if resp.status_code == 200:
+                send_json(self, resp.json())
+                return
+            resp = requests.get(f"{PP}/test-assignments", headers=headers, params={"studentId": sid}, timeout=10)
             if resp.status_code == 200:
                 send_json(self, resp.json())
             else:
@@ -57,7 +58,7 @@ class handler(BaseHTTPRequestHandler):
 
             if aid:
                 try:
-                    resp = requests.delete(f"{API_BASE}/powerpath/test-assignments/{aid}", headers=headers, timeout=10)
+                    resp = requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=10)
                     if resp.status_code in (200, 204):
                         deleted = True
                 except Exception:
@@ -75,72 +76,109 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             body = json.loads(raw)
-            sid = (body.get("student") or body.get("studentId") or body.get("userId") or "").strip()
+            sid = (body.get("studentId") or body.get("student") or body.get("userId") or "").strip()
             subject = (body.get("subject") or "").strip()
-            grade = (body.get("grade") or body.get("gradeLevel") or "").strip()
-            test_name = (body.get("testName") or "").strip()
+            grade = (body.get("gradeLevel") or body.get("grade") or "").strip()
 
             if not sid:
-                send_json(self, {"error": "student is required", "success": False}, 400)
+                send_json(self, {"error": "studentId is required", "success": False}, 400)
                 return
             if not subject or not grade:
                 send_json(self, {"error": "subject and grade are required", "success": False}, 400)
                 return
 
             headers = api_headers()
+            errors = []
 
-            # Try multiple URLs and field name combos
-            urls = [
-                f"{API_BASE}/powerpath/test-assignments",
-            ]
-            payloads = [
+            # Try multiple field name combos on test-assignments endpoint
+            # (API may want student/grade or studentId/gradeLevel)
+            for payload in [
                 {"student": sid, "subject": subject, "grade": grade},
                 {"studentId": sid, "subject": subject, "gradeLevel": grade},
                 {"student": sid, "subject": subject, "gradeLevel": grade},
                 {"studentId": sid, "subject": subject, "grade": grade},
-            ]
-            if test_name:
-                for p in payloads:
-                    p["testName"] = test_name
-
-            data, ok = None, False
-            for url in urls:
-                for payload in payloads:
-                    try:
-                        resp = requests.post(url, headers=headers, json=payload, timeout=6)
-                        try:
-                            data = resp.json()
-                        except Exception:
-                            data = {"status": resp.status_code}
-                        if resp.status_code in (200, 201, 204):
-                            if isinstance(data, dict) and data.get("success") is False:
-                                continue
-                            ok = True
-                            break
-                        if resp.status_code in (422, 400):
-                            continue  # validation error — try next payload
-                        if resp.status_code != 404:
-                            break
-                    except Exception:
-                        continue
-                if ok:
+            ]:
+                try:
+                    resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=8)
+                    if resp.status_code in (200, 201, 204):
+                        data = resp.json()
+                        if not (isinstance(data, dict) and data.get("success") is False):
+                            send_json(self, {
+                                "success": True,
+                                "message": f"Test assigned ({subject} Grade {grade})",
+                                "response": data,
+                            })
+                            return
+                    if resp.status_code not in (422, 400):
+                        # Non-validation error — record and stop trying this endpoint
+                        errors.append(f"test-assignments: HTTP {resp.status_code}")
+                        break
+                except Exception as e:
+                    errors.append(f"test-assignments: {e}")
                     break
 
-            if ok:
-                send_json(self, {
-                    "success": True,
-                    "message": f"Test assigned ({subject} Grade {grade})",
-                    "response": data,
-                })
-            else:
-                err = ""
-                if isinstance(data, dict):
-                    err = data.get("error") or data.get("message") or data.get("imsx_description") or ""
-                send_json(self, {
-                    "success": False,
-                    "error": err or "Assignment failed",
-                    "response": data,
-                }, 422)
+            # Strategy 2: screening endpoint (same field name combos)
+            for payload in [
+                {"student": sid, "subject": subject, "grade": grade},
+                {"studentId": sid, "subject": subject, "gradeLevel": grade},
+            ]:
+                try:
+                    resp = requests.post(f"{PP}/screening/tests/assign", headers=headers, json=payload, timeout=8)
+                    if resp.status_code in (200, 201, 204):
+                        data = resp.json()
+                        if not (isinstance(data, dict) and data.get("success") is False):
+                            send_json(self, {
+                                "success": True,
+                                "message": f"Test assigned ({subject} Grade {grade})",
+                                "response": data,
+                            })
+                            return
+                    if resp.status_code not in (422, 400):
+                        errors.append(f"screening: HTTP {resp.status_code}")
+                        break
+                except Exception as e:
+                    errors.append(f"screening: {e}")
+                    break
+
+            # Strategy 3: two-step (createInternalTest → assign)
+            for payload in [
+                {"studentId": sid, "subject": subject, "gradeLevel": grade},
+                {"student": sid, "subject": subject, "grade": grade},
+            ]:
+                try:
+                    resp = requests.post(f"{PP}/assessments/create-internal-test", headers=headers, json=payload, timeout=8)
+                    if resp.status_code in (200, 201):
+                        create_data = resp.json()
+                        new_id = create_data.get("testId") or create_data.get("id") or ""
+                        if new_id:
+                            resp2 = requests.post(f"{PP}/test-assignments", headers=headers, json={"studentId": sid, "testId": str(new_id)}, timeout=8)
+                            if resp2.status_code in (200, 201, 204):
+                                send_json(self, {
+                                    "success": True,
+                                    "message": f"Test assigned ({subject} Grade {grade})",
+                                    "response": resp2.json(),
+                                })
+                                return
+                        elif create_data.get("attemptId") or create_data.get("id"):
+                            # createInternalTest itself created the assignment
+                            send_json(self, {
+                                "success": True,
+                                "message": f"Test assigned ({subject} Grade {grade})",
+                                "response": create_data,
+                            })
+                            return
+                    if resp.status_code not in (422, 400):
+                        errors.append(f"create-internal-test: HTTP {resp.status_code}")
+                        break
+                except Exception as e:
+                    errors.append(f"create-internal-test: {e}")
+                    break
+
+            send_json(self, {
+                "success": False,
+                "error": errors[0] if errors else "All assignment strategies failed",
+                "details": errors,
+            }, 422)
 
         except json.JSONDecodeError:
             send_json(self, {"error": "Invalid JSON", "success": False}, 400)
