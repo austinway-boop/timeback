@@ -315,7 +315,16 @@
                     }
                 }
             }
+            // Count total completed: API progress + localStorage
             var totalCompleted = Object.keys(progressByTitle).length;
+            // Also count locally completed lessons not in API
+            for (var k in localStorage) {
+                if (k.startsWith('completed_') && localStorage.getItem(k) === 'true') {
+                    // Check it's not already counted from API
+                    var lName = k.replace('completed_', '');
+                    if (!progressByTitle[lName]) totalCompleted++;
+                }
+            }
 
             // ── Parse lesson plan: subComponents = units → subComponents = lessons → componentResources = content ──
             var plan = contentData.lessonPlan;
@@ -372,7 +381,9 @@
 
                     var unitDone = 0;
                     for (var lc = 0; lc < modLessons.length; lc++) {
-                        if (progressByTitle[(modLessons[lc].title || '').trim()]) unitDone++;
+                        var lcTitle = (modLessons[lc].title || '').trim();
+                        var lcLocalKey = 'completed_' + (modLessons[lc].id || modLessons[lc].sourcedId || lcTitle);
+                        if (progressByTitle[lcTitle] || localStorage.getItem(lcLocalKey) === 'true') unitDone++;
                     }
                     var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
                     var unitLocked = !prevUnitComplete;
