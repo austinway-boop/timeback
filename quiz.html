@@ -113,6 +113,7 @@
         total: 0,
         xpEarned: 0,
         ppScore: 0, // PowerPath 100 score (0-100)
+        streak: 0, // consecutive correct answers
         currentQuestion: null,
         selectedChoice: null,
         answered: false,
@@ -292,19 +293,27 @@
             } catch(e) {}
         }
 
+        var pointsChange = 0;
         if (isCorrect) {
             quizState.correct++;
-            quizState.ppScore = Math.min(100, quizState.ppScore + 8); // +8 per correct
+            quizState.streak++;
+            // Streak multiplier: 1x, 1.5x, 2x, 2.5x, 3x
+            var multiplier = Math.min(3, 1 + (quizState.streak - 1) * 0.5);
+            pointsChange = Math.round(8 * multiplier);
+            quizState.ppScore = Math.min(100, quizState.ppScore + pointsChange);
             quizState.xpEarned += 1;
         } else {
-            quizState.ppScore = Math.max(0, quizState.ppScore - 4); // -4 per incorrect
+            quizState.streak = 0;
+            pointsChange = -4;
+            quizState.ppScore = Math.max(0, quizState.ppScore + pointsChange);
         }
 
-        // Show feedback
+        // Show feedback with points and streak
         var feedbackEl = document.getElementById('feedback');
         if (feedbackEl) {
             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +8</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect -4</strong>') +
+            var streakText = isCorrect && quizState.streak > 1 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (Math.min(3, 1 + (quizState.streak - 1) * 0.5)).toFixed(1) + ')</span>' : '';
+            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong>' + streakText : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong> <span style="font-size:0.85rem;">Streak reset</span>') +
                 (feedback ? '<p style="margin-top:8px;">' + feedback + '</p>' : '');
         }
 
@@ -528,12 +537,18 @@
                         } else {
                             isCorrect = quizState.selectedChoice === q.correctId;
                         }
+                        var pointsChange = 0;
                         if (isCorrect) {
                             quizState.correct++;
-                            quizState.ppScore = Math.min(100, quizState.ppScore + 8);
+                            quizState.streak++;
+                            var multiplier = Math.min(3, 1 + (quizState.streak - 1) * 0.5);
+                            pointsChange = Math.round(8 * multiplier);
+                            quizState.ppScore = Math.min(100, quizState.ppScore + pointsChange);
                             quizState.xpEarned += q.isFRQ ? 2 : 1;
                         } else {
-                            quizState.ppScore = Math.max(0, quizState.ppScore - 4);
+                            quizState.streak = 0;
+                            pointsChange = -4;
+                            quizState.ppScore = Math.max(0, quizState.ppScore + pointsChange);
                         }
                         var fb = q.isFRQ ? '' : (q.feedbackMap[quizState.selectedChoice] || '');
 
@@ -553,7 +568,8 @@
                             });
                             var feedbackEl = document.getElementById('feedback');
                             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-                            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
+                            var streakText = isCorrect && quizState.streak > 1 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (Math.min(3, 1 + (quizState.streak - 1) * 0.5)).toFixed(1) + ')</span>' : '';
+                            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong>' + streakText : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
                         }
 
                         // Update PowerPath scoreboard
