@@ -54,8 +54,7 @@ class handler(BaseHTTPRequestHandler):
                         results[path] = {"error": str(e)}
 
             elif action == "list-assignments" and user_id:
-                for field in ["userId", "studentId", "userSourcedId"]:
-                    path = f"/powerpath/test-assignments?{field}={user_id}"
+                for field in ["student", "userId", "studentId", "userSourcedId"]:
                     try:
                         resp = requests.get(
                             f"{API_BASE}/powerpath/test-assignments",
@@ -63,16 +62,34 @@ class handler(BaseHTTPRequestHandler):
                             params={field: user_id},
                             timeout=30,
                         )
-                        results[f"?{field}"] = {"status": resp.status_code}
+                        results[f"GET?{field}"] = {"status": resp.status_code}
                         if resp.status_code == 200:
-                            results[f"?{field}"]["data"] = resp.json()
+                            results[f"GET?{field}"]["data"] = resp.json()
                         else:
                             try:
-                                results[f"?{field}"]["body"] = resp.text[:500]
+                                results[f"GET?{field}"]["body"] = resp.text[:500]
                             except:
                                 pass
                     except Exception as e:
-                        results[f"?{field}"] = {"error": str(e)}
+                        results[f"GET?{field}"] = {"error": str(e)}
+
+                # Also try POST with different field names to see what the API says
+                for field in ["student", "userId", "studentId"]:
+                    try:
+                        payload = {field: user_id, "subject": "Math", "grade": "6"}
+                        resp = requests.post(
+                            f"{API_BASE}/powerpath/test-assignments",
+                            headers=headers,
+                            json=payload,
+                            timeout=30,
+                        )
+                        results[f"POST.{field}"] = {"status": resp.status_code, "payload": payload}
+                        try:
+                            results[f"POST.{field}"]["data"] = resp.json()
+                        except:
+                            results[f"POST.{field}"]["body"] = resp.text[:500]
+                    except Exception as e:
+                        results[f"POST.{field}"] = {"error": str(e)}
 
             elif action == "user-assignments" and user_id:
                 for path in [
