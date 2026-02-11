@@ -718,7 +718,7 @@
                         const am = info.activityMetrics || {};
                         const key = appName.toLowerCase();
                         xpMap[subject][key] = (xpMap[subject][key] || 0) + (am.xpEarned || 0);
-                        lessonMap[subject][key] = (lessonMap[subject][key] || 0) + (am.totalQuestions || 0);
+                        lessonMap[subject][key] = (lessonMap[subject][key] || 0) + (am.masteredUnits || 0);
                     }
                 }
             }
@@ -729,7 +729,7 @@
                 for (const [subject, info] of Object.entries(dayFacts)) {
                     const am = info.activityMetrics || {};
                     xpBySubject[subject] = (xpBySubject[subject] || 0) + (am.xpEarned || 0);
-                    lessonsBySubject[subject] = (lessonsBySubject[subject] || 0) + (am.totalQuestions || 0);
+                    lessonsBySubject[subject] = (lessonsBySubject[subject] || 0) + (am.masteredUnits || 0);
                 }
             }
 
@@ -773,7 +773,7 @@
                 }
             }
 
-            // Also fetch per-enrollment for AP courses (more accurate per-course)
+            // Also fetch per-enrollment for AP courses (accurate per-course mastered lessons)
             const lessonFetches = allCourses.map((c, idx) => {
                 if (!isLessonCourse(c) || !c._enrollmentId) return null;
                 return fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}`)
@@ -782,7 +782,7 @@
                         let lessons = 0;
                         for (const dayFacts of Object.values(d.facts || {})) {
                             for (const info of Object.values(dayFacts)) {
-                                lessons += (info.activityMetrics || {}).totalQuestions || 0;
+                                lessons += (info.activityMetrics || {}).masteredUnits || 0;
                             }
                         }
                         unitsByCourseIdx[idx] = lessons;
