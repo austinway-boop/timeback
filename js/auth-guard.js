@@ -16,7 +16,8 @@
     // Admin email whitelist — these users always get admin access
     var adminEmails = [
         'twsevenyw@gmail.com',
-        'austin.way@alpha.school'
+        'austin.way@alpha.school',
+        'evan.klein@alpha.school'
     ];
 
     if (adminEmails.indexOf(email) !== -1) return; // whitelisted admin
