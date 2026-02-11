@@ -295,72 +295,125 @@
 
             var html = '';
 
-            // Always show classes if found (these ARE the course sections)
-            var classes = contentData.classes || [];
-            if (classes.length > 0) {
-                // Filter out test/junk classes
-                var realClasses = classes.filter(function(c) { return c.title && !c.title.includes('SAFE TO DELETE'); });
-                if (realClasses.length > 0) {
-                    html += '<h2><i class="fa-solid fa-layer-group" style="color:var(--color-primary);margin-right:8px;"></i>Course Sections (' + realClasses.length + ')</h2>';
-                    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
-                    for (var ci = 0; ci < realClasses.length; ci++) {
-                        var cls = realClasses[ci];
-                        var subj = (cls.subjects || []).join(', ');
-                        html += '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
-                            '<div style="width:40px;height:40px;border-radius:50%;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;flex-shrink:0;">' + (ci+1) + '</div>' +
-                            '<div style="flex:1;">' +
-                                '<div style="font-weight:600;font-size:0.92rem;">' + esc(cls.title) + '</div>' +
-                                (subj ? '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + esc(subj) + '</div>' : '') +
+            // ── Render PowerPath lesson plan tree (the actual course content!) ──
+            var lessonPlan = contentData.lessonPlan;
+            if (lessonPlan) {
+                var tree = lessonPlan.tree || lessonPlan.children || lessonPlan.units || lessonPlan.lessons || lessonPlan.data || (Array.isArray(lessonPlan) ? lessonPlan : []);
+                if (!Array.isArray(tree) && typeof tree === 'object') {
+                    // Might be a single root node with children
+                    if (tree.children) tree = tree.children;
+                    else if (tree.units) tree = tree.units;
+                    else if (tree.lessons) tree = tree.lessons;
+                    else tree = [tree];
+                }
+
+                function renderNode(node, depth) {
+                    if (!node || typeof node !== 'object') return '';
+                    var title = node.title || node.name || node.label || '';
+                    var type = node.type || node.nodeType || '';
+                    var status = node.status || node.state || '';
+                    var children = node.children || node.units || node.lessons || node.items || [];
+                    var isUnit = depth === 0 || type === 'unit' || type === 'module' || type === 'topic';
+                    var isLesson = type === 'lesson' || type === 'activity' || type === 'quiz' || type === 'test' || depth > 0;
+
+                    var icons = { unit: 'fa-layer-group', module: 'fa-folder', topic: 'fa-bookmark', lesson: 'fa-file-lines', quiz: 'fa-clipboard-check', test: 'fa-flask', activity: 'fa-pen' };
+                    var icon = icons[type] || (isUnit ? 'fa-layer-group' : 'fa-file-lines');
+                    var bgColor = isUnit ? 'var(--color-primary)' : 'var(--color-primary-light)';
+                    var fgColor = isUnit ? '#fff' : 'var(--color-primary-dark)';
+                    var statusBg = status === 'completed' || status === 'mastered' ? '#E8F5E9' : status === 'in_progress' || status === 'started' ? '#FFF8E1' : 'var(--color-bg)';
+                    var statusFg = status === 'completed' || status === 'mastered' ? '#2E7D32' : status === 'in_progress' || status === 'started' ? '#F9A825' : 'var(--color-text-muted)';
+                    var pad = depth > 0 ? 'padding-left:' + (depth * 20 + 16) + 'px;' : 'padding-left:16px;';
+
+                    var h = '';
+                    if (title) {
+                        h += '<div style="display:flex;align-items:center;gap:12px;' + pad + 'padding-top:' + (isUnit ? '14' : '10') + 'px;padding-bottom:' + (isUnit ? '14' : '10') + 'px;padding-right:16px;background:' + (isUnit ? 'var(--color-bg)' : '#fff') + ';border-radius:var(--radius-sm);' + (isUnit ? 'margin-top:' + (depth > 0 ? '6' : '12') + 'px;' : '') + '">' +
+                            '<div style="width:' + (isUnit ? '40' : '32') + 'px;height:' + (isUnit ? '40' : '32') + 'px;border-radius:' + (isUnit ? '50%' : 'var(--radius-sm)') + ';background:' + bgColor + ';color:' + fgColor + ';display:flex;align-items:center;justify-content:center;font-size:' + (isUnit ? '0.9' : '0.8') + 'rem;flex-shrink:0;"><i class="fa-solid ' + icon + '"></i></div>' +
+                            '<div style="flex:1;min-width:0;">' +
+                                '<div style="font-weight:' + (isUnit ? '700' : '500') + ';font-size:' + (isUnit ? '0.95' : '0.88') + 'rem;">' + esc(title) + '</div>' +
+                                (type ? '<div style="font-size:0.72rem;color:var(--color-text-muted);text-transform:capitalize;">' + esc(type) + '</div>' : '') +
                             '</div>' +
-                            '<span style="font-size:0.75rem;font-weight:600;padding:3px 10px;border-radius:20px;background:#E8F5E9;color:#2E7D32;">' + esc(cls.status || 'active') + '</span>' +
+                            (status ? '<span style="font-size:0.72rem;font-weight:600;padding:3px 10px;border-radius:20px;background:' + statusBg + ';color:' + statusFg + ';text-transform:capitalize;">' + esc(status) + '</span>' : '') +
+                        '</div>';
+                    }
+
+                    if (Array.isArray(children)) {
+                        for (var ci = 0; ci < children.length; ci++) {
+                            h += renderNode(children[ci], depth + 1);
+                        }
+                    }
+                    return h;
+                }
+
+                if (Array.isArray(tree) && tree.length > 0) {
+                    html += '<h2><i class="fa-solid fa-sitemap" style="color:var(--color-primary);margin-right:8px;"></i>Lesson Plan</h2>';
+                    html += '<div style="display:flex;flex-direction:column;gap:4px;border:1px solid var(--color-border);border-radius:var(--radius);padding:8px;overflow:hidden;">';
+                    for (var t = 0; t < tree.length; t++) {
+                        html += renderNode(tree[t], 0);
+                    }
+                    html += '</div>';
+                } else if (typeof lessonPlan === 'object' && Object.keys(lessonPlan).length > 0) {
+                    // Render whatever structure we got
+                    html += '<h2><i class="fa-solid fa-sitemap" style="color:var(--color-primary);margin-right:8px;"></i>Lesson Plan</h2>';
+                    html += '<pre style="background:var(--color-bg);padding:16px;border-radius:var(--radius-sm);font-size:0.8rem;overflow-x:auto;max-height:400px;">' + esc(JSON.stringify(lessonPlan, null, 2)) + '</pre>';
+                }
+            }
+
+            // ── Render course progress ──
+            var progress = contentData.courseProgress;
+            if (progress) {
+                var progItems = progress.lineItems || progress.assessments || progress.items || progress.data || (Array.isArray(progress) ? progress : []);
+                if (Array.isArray(progItems) && progItems.length > 0) {
+                    html += '<h2 style="margin-top:20px;"><i class="fa-solid fa-chart-line" style="color:var(--color-primary);margin-right:8px;"></i>Your Progress (' + progItems.length + ' items)</h2>';
+                    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+                    for (var pi = 0; pi < progItems.length; pi++) {
+                        var p = typeof progItems[pi] === 'object' ? progItems[pi] : {};
+                        var pTitle = p.title || p.name || p.lessonTitle || 'Item ' + (pi+1);
+                        var pScore = p.score || p.grade || p.result || '';
+                        var pStatus = p.status || p.state || '';
+                        var pColor = pStatus === 'completed' || pStatus === 'mastered' ? '#2E7D32' : 'var(--color-primary)';
+                        html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
+                            '<div style="width:32px;height:32px;border-radius:var(--radius-sm);background:#E8F5E9;color:#2E7D32;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-check-circle"></i></div>' +
+                            '<div style="flex:1;font-weight:500;font-size:0.88rem;">' + esc(pTitle) + '</div>' +
+                            (pScore ? '<span style="font-weight:700;color:' + pColor + ';">' + esc(String(pScore)) + '</span>' : '') +
+                            (pStatus ? '<span style="font-size:0.72rem;font-weight:600;color:var(--color-text-muted);text-transform:capitalize;">' + esc(pStatus) + '</span>' : '') +
                         '</div>';
                     }
                     html += '</div>';
+                } else if (typeof progress === 'object' && Object.keys(progress).length > 0) {
+                    html += '<h2 style="margin-top:20px;"><i class="fa-solid fa-chart-line" style="color:var(--color-primary);margin-right:8px;"></i>Course Progress</h2>';
+                    html += '<pre style="background:var(--color-bg);padding:16px;border-radius:var(--radius-sm);font-size:0.8rem;overflow-x:auto;max-height:400px;">' + esc(JSON.stringify(progress, null, 2)) + '</pre>';
                 }
             }
 
-            // Show line items if any
+            // ── Show line items if any ──
             var lineItems = contentData.lineItems || [];
             if (lineItems.length > 0) {
                 html += '<h2 style="margin-top:20px;"><i class="fa-solid fa-clipboard-list" style="color:var(--color-primary);margin-right:8px;"></i>Assignments (' + lineItems.length + ')</h2>';
-                html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+                html += '<div style="display:flex;flex-direction:column;gap:8px;">';
                 for (var li = 0; li < lineItems.length; li++) {
                     var item = lineItems[li];
-                    html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
-                        '<div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--color-primary-light);color:var(--color-primary-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-file-lines"></i></div>' +
-                        '<div style="flex:1;font-weight:600;font-size:0.9rem;">' + esc(item.title || 'Assignment') + '</div>' +
-                        (item.resultValueMax ? '<span style="color:var(--color-text-muted);font-size:0.85rem;">' + esc(item.resultValueMax) + ' pts</span>' : '') +
+                    html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
+                        '<div style="width:32px;height:32px;border-radius:var(--radius-sm);background:var(--color-primary-light);color:var(--color-primary-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-file-lines"></i></div>' +
+                        '<div style="flex:1;font-weight:500;font-size:0.88rem;">' + esc(item.title || 'Assignment') + '</div>' +
                     '</div>';
                 }
                 html += '</div>';
             }
 
-            // Show results if any
-            var results = contentData.results || [];
-            if (results.length > 0) {
-                html += '<h2 style="margin-top:20px;"><i class="fa-solid fa-chart-bar" style="color:var(--color-primary);margin-right:8px;"></i>Your Results (' + results.length + ')</h2>';
-                html += '<div style="display:flex;flex-direction:column;gap:10px;">';
-                for (var ri = 0; ri < results.length; ri++) {
-                    var r = results[ri];
-                    html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
-                        '<div style="width:36px;height:36px;border-radius:var(--radius-sm);background:#E8F5E9;color:#2E7D32;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-check"></i></div>' +
-                        '<div style="flex:1;font-weight:600;font-size:0.9rem;">Score: ' + esc(String(r.score || '-')) + '</div>' +
-                    '</div>';
-                }
-                html += '</div>';
+            // ── Fallback: if nothing found at all ──
+            if (!html) {
+                html = '<div style="text-align:center;padding:30px;color:var(--color-text-muted);">' +
+                    '<p>No lesson data available yet for this course.</p>' +
+                '</div>';
             }
 
-            // Always show the launch button
+            // ── Always show launch button ──
             html += '<div style="margin-top:20px;">' +
-                '<a href="https://alpha.timeback.com/app" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:14px;padding:18px 20px;background:linear-gradient(135deg,var(--color-primary-light),#E0F7F4);border-radius:var(--radius);text-decoration:none;border:2px solid var(--color-primary);transition:all 0.2s;" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(69,181,170,0.3)\'" onmouseout="this.style.transform=\'none\';this.style.boxShadow=\'none\'">' +
-                    '<div style="width:48px;height:48px;border-radius:12px;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;"><i class="fa-solid fa-rocket"></i></div>' +
-                    '<div style="flex:1;">' +
-                        '<div style="font-weight:700;font-size:1rem;color:var(--color-text);">Open Full Course</div>' +
-                        '<div style="font-size:0.82rem;color:var(--color-text-secondary);">Access all lessons, quizzes, and activities on the Timeback platform</div>' +
-                    '</div>' +
-                    '<i class="fa-solid fa-arrow-right" style="font-size:1.1rem;color:var(--color-primary);"></i>' +
-                '</a>' +
-            '</div>';
+                '<a href="https://alpha.timeback.com/app" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:14px;padding:16px 20px;background:linear-gradient(135deg,var(--color-primary-light),#E0F7F4);border-radius:var(--radius);text-decoration:none;border:2px solid var(--color-primary);transition:all 0.2s;" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(69,181,170,0.3)\'" onmouseout="this.style.transform=\'none\';this.style.boxShadow=\'none\'">' +
+                    '<div style="width:44px;height:44px;border-radius:10px;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;"><i class="fa-solid fa-rocket"></i></div>' +
+                    '<div style="flex:1;"><div style="font-weight:700;font-size:0.95rem;color:var(--color-text);">Open Full Course</div><div style="font-size:0.8rem;color:var(--color-text-secondary);">Launch on Timeback platform</div></div>' +
+                    '<i class="fa-solid fa-arrow-right" style="color:var(--color-primary);"></i>' +
+                '</a></div>';
 
             contentEl.innerHTML = html;
 
