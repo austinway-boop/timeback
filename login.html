@@ -8,239 +8,299 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="/css/style.css">
     <style>
+        :root {
+            --primary: #45B5AA;
+            --primary-dark: #389E94;
+            --primary-glow: rgba(69, 181, 170, 0.15);
+            --text: #1a202c;
+            --text-secondary: #718096;
+            --text-muted: #a0aec0;
+            --border: #e2e8f0;
+            --surface: #ffffff;
+            --bg: #f7f8fc;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100%;
+            font-family: var(--font);
+            -webkit-font-smoothing: antialiased;
+        }
+
         body {
-            margin: 0;
-            min-height: 100vh;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--color-bg);
-            position: relative;
+            min-height: 100vh;
+            background: var(--surface);
             overflow: hidden;
         }
 
-        /* Subtle decorative background shapes */
-        body::before,
-        body::after {
-            content: '';
-            position: fixed;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 0;
-        }
-        body::before {
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(69,181,170,0.07) 0%, transparent 70%);
-            top: -200px;
-            right: -150px;
-        }
-        body::after {
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(184,175,248,0.06) 0%, transparent 70%);
-            bottom: -180px;
-            left: -100px;
-        }
-
-        .login-wrapper {
+        /* ====================================================================
+           LEFT PANEL – Visual / Brand
+           ==================================================================== */
+        .panel-left {
+            flex: 1;
+            background: linear-gradient(160deg, #0d3b38 0%, #14605a 30%, #45B5AA 65%, #7dd3c8 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             position: relative;
-            z-index: 1;
-            width: 100%;
-            max-width: 420px;
-            padding: 2rem;
+            overflow: hidden;
+            padding: 3rem;
         }
 
-        /* Logo area */
-        .login-logo {
+        /* Abstract wave layers */
+        .wave-layer {
+            position: absolute;
+            width: 200%;
+            left: -50%;
+            pointer-events: none;
+        }
+        .wave-1 {
+            bottom: -5%;
+            opacity: 0.12;
+            animation: wave-drift 18s ease-in-out infinite alternate;
+        }
+        .wave-2 {
+            bottom: 2%;
+            opacity: 0.08;
+            animation: wave-drift 22s ease-in-out infinite alternate-reverse;
+        }
+        .wave-3 {
+            top: -8%;
+            opacity: 0.06;
+            transform: rotate(180deg);
+            animation: wave-drift 25s ease-in-out infinite alternate;
+        }
+
+        @keyframes wave-drift {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(5%); }
+        }
+        .wave-3 {
+            animation-name: wave-drift-flip;
+        }
+        @keyframes wave-drift-flip {
+            0%   { transform: rotate(180deg) translateX(0); }
+            100% { transform: rotate(180deg) translateX(5%); }
+        }
+
+        /* Floating orbs */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            pointer-events: none;
+        }
+        .orb-1 { width: 300px; height: 300px; top: -80px; left: -60px; animation: float-1 20s ease-in-out infinite; }
+        .orb-2 { width: 200px; height: 200px; bottom: 10%; right: -40px; animation: float-2 16s ease-in-out infinite; }
+        .orb-3 { width: 120px; height: 120px; top: 40%; left: 15%; background: rgba(255,255,255,0.04); animation: float-3 12s ease-in-out infinite; }
+
+        @keyframes float-1 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(20px, 30px); } }
+        @keyframes float-2 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-15px, -25px); } }
+        @keyframes float-3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(10px, -15px); } }
+
+        /* Brand content on left */
+        .brand-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            max-width: 380px;
+        }
+
+        .brand-logo {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            margin-bottom: 2.5rem;
+            gap: 14px;
+            margin-bottom: 2rem;
         }
-        .login-logo .logo-text {
-            font-size: 1.5rem;
+        .brand-logo svg {
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
+        }
+        .brand-logo-text {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: white;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .brand-slogan {
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.92);
+            line-height: 1.5;
+            letter-spacing: -0.2px;
+        }
+
+        .brand-accent {
+            width: 48px;
+            height: 3px;
+            background: rgba(255,255,255,0.4);
+            border-radius: 2px;
+            margin: 1.5rem auto 0;
+        }
+
+        /* ====================================================================
+           RIGHT PANEL – Login Form
+           ==================================================================== */
+        .panel-right {
+            width: 480px;
+            min-width: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            background: var(--surface);
+            position: relative;
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .form-heading {
+            font-size: 1.6rem;
             font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.5rem;
             letter-spacing: -0.3px;
         }
-        .login-logo .logo-alpha { color: var(--color-text); }
-        .login-logo .logo-learn { color: var(--color-primary); }
-
-        /* Card */
-        .login-card {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius);
-            padding: 2.25rem 2rem;
-            box-shadow: var(--shadow);
+        .form-subheading {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
         }
 
-        .login-heading {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: var(--color-text);
-            margin-bottom: 4px;
+        /* Error */
+        .login-error {
+            background: #FFF5F5;
+            border: 1px solid #FED7D7;
+            color: #C53030;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8125rem;
+            margin-bottom: 1.25rem;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            line-height: 1.4;
         }
-        .login-subheading {
-            font-size: 0.9rem;
-            color: var(--color-text-secondary);
-            margin-bottom: 1.75rem;
+        .login-error i { flex-shrink: 0; }
+
+        /* Debug panel */
+        #debug-panel {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            margin-bottom: 1.25rem;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
 
-        /* Form */
+        /* Form fields */
         .form-group {
-            margin-bottom: 1.125rem;
+            margin-bottom: 1.25rem;
         }
         .form-group label {
             display: block;
             font-size: 0.8125rem;
             font-weight: 600;
-            color: var(--color-text);
+            color: var(--text);
             margin-bottom: 6px;
+        }
+        .input-wrap {
+            position: relative;
         }
         .form-input {
             width: 100%;
-            padding: 10px 14px;
-            border: 1px solid var(--color-border);
+            padding: 11px 14px 11px 42px;
+            border: 1.5px solid var(--border);
             border-radius: var(--radius-sm);
-            background: var(--color-surface);
-            color: var(--color-text);
+            background: var(--surface);
+            color: var(--text);
             font-size: 0.9375rem;
             font-family: var(--font);
-            transition: border-color var(--transition), box-shadow var(--transition);
+            transition: border-color 0.2s, box-shadow 0.2s;
             outline: none;
-            box-sizing: border-box;
         }
         .form-input:focus {
-            border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px rgba(69, 181, 170, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
         }
-        .form-input::placeholder {
-            color: var(--color-text-muted);
-        }
+        .form-input::placeholder { color: var(--text-muted); }
 
-        /* Input with icon */
-        .input-wrapper {
-            position: relative;
-        }
-        .input-wrapper .input-icon {
+        .input-icon {
             position: absolute;
             left: 14px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--color-text-muted);
-            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-size: 0.88rem;
             pointer-events: none;
-            transition: color var(--transition);
+            transition: color 0.2s;
         }
-        .input-wrapper .form-input {
-            padding-left: 40px;
-        }
-        .input-wrapper .form-input:focus + .input-icon,
-        .input-wrapper:focus-within .input-icon {
-            color: var(--color-primary);
+        .input-wrap:focus-within .input-icon {
+            color: var(--primary);
         }
 
-        /* Submit button */
+        /* Button */
         .login-btn {
             width: 100%;
-            padding: 11px 20px;
-            background: var(--color-primary);
+            padding: 12px 20px;
+            background: var(--primary);
             color: white;
             border: none;
             border-radius: var(--radius-sm);
-            font-size: 0.9375rem;
+            font-size: 0.95rem;
             font-weight: 600;
             font-family: var(--font);
             cursor: pointer;
-            transition: background var(--transition), transform 0.1s ease, box-shadow var(--transition);
-            margin-top: 0.5rem;
+            transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+            margin-top: 0.25rem;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
         }
         .login-btn:hover {
-            background: var(--color-primary-dark);
-            box-shadow: 0 4px 12px rgba(69, 181, 170, 0.25);
+            background: var(--primary-dark);
+            box-shadow: 0 6px 20px rgba(69,181,170,0.3);
         }
-        .login-btn:active {
-            transform: scale(0.98);
-        }
-        .login-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
+        .login-btn:active { transform: scale(0.98); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
 
-        /* Error message */
-        .login-error {
-            background: rgba(229, 62, 62, 0.06);
-            border: 1px solid rgba(229, 62, 62, 0.15);
-            color: #C53030;
-            padding: 10px 14px;
-            border-radius: var(--radius-sm);
-            font-size: 0.8125rem;
-            margin-bottom: 1.125rem;
-            display: none;
-            align-items: center;
-            gap: 8px;
-        }
-        .login-error i {
-            flex-shrink: 0;
-        }
-
-        /* Footer link */
-        .login-footer-link {
+        /* Create account link */
+        .signup-link {
             text-align: center;
-            margin-top: 1.5rem;
+            margin-top: 1.75rem;
             font-size: 0.875rem;
-            color: var(--color-text-secondary);
+            color: var(--text-secondary);
         }
-        .login-footer-link a {
-            color: var(--color-primary);
+        .signup-link a {
+            color: var(--primary);
             font-weight: 600;
             text-decoration: none;
-            transition: color var(--transition);
+            transition: color 0.2s;
         }
-        .login-footer-link a:hover {
-            color: var(--color-primary-dark);
+        .signup-link a:hover {
+            color: var(--primary-dark);
             text-decoration: underline;
         }
 
-        /* Divider */
-        .login-divider {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 1.25rem 0;
-            color: var(--color-text-muted);
-            font-size: 0.75rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .login-divider::before,
-        .login-divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--color-border);
-        }
-
-        /* Footer text */
-        .login-brand-footer {
-            text-align: center;
-            margin-top: 2rem;
-            font-size: 0.78rem;
-            color: var(--color-text-muted);
-            letter-spacing: 0.3px;
-        }
-
-        /* Skeleton loading bar for buttons */
+        /* Skeleton loading */
         .skeleton-btn-bar {
             display: block;
             height: 16px;
@@ -249,73 +309,110 @@
             border-radius: 4px;
             background: linear-gradient(90deg, rgba(255,255,255,0.15) 25%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.15) 75%);
             background-size: 200% 100%;
-            animation: skeleton-shimmer 1.5s ease-in-out infinite;
+            animation: shimmer 1.5s ease-in-out infinite;
         }
-        @keyframes skeleton-shimmer {
+        @keyframes shimmer {
             0% { background-position: -200% 0; }
             100% { background-position: 200% 0; }
         }
 
-        /* Debug panel */
-        #debug-panel {
-            background: var(--color-bg);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
-            padding: 10px 14px;
-            margin-bottom: 1.125rem;
-            font-size: 0.75rem;
-            color: var(--color-text-secondary);
-            font-family: 'SF Mono', 'Fira Code', monospace;
-            white-space: pre-wrap;
-            word-break: break-all;
+        /* ====================================================================
+           Responsive
+           ==================================================================== */
+        @media (max-width: 900px) {
+            body { flex-direction: column; overflow: auto; }
+            .panel-left {
+                min-height: 280px;
+                flex: none;
+                padding: 2.5rem 2rem;
+            }
+            .brand-logo-text { font-size: 1.6rem; }
+            .brand-slogan { font-size: 1.1rem; }
+            .panel-right {
+                width: 100%;
+                min-width: unset;
+                flex: 1;
+                padding: 2rem 1.5rem;
+            }
+            .form-container { max-width: 400px; }
         }
 
-        /* Responsive */
         @media (max-width: 480px) {
-            .login-wrapper {
-                padding: 1.25rem;
-            }
-            .login-card {
-                padding: 1.75rem 1.5rem;
-            }
+            .panel-left { padding: 2rem 1.5rem; min-height: 220px; }
+            .brand-logo svg { width: 40px; height: 40px; }
+            .brand-logo-text { font-size: 1.4rem; }
+            .brand-slogan { font-size: 1rem; }
+            .panel-right { padding: 1.5rem 1.25rem; }
+            .form-heading { font-size: 1.3rem; }
         }
     </style>
 </head>
 <body>
-    <div class="login-wrapper">
-        <div class="login-logo">
-            <svg class="logo-bird" width="36" height="36" viewBox="0 0 40 40" fill="none">
-                <path d="M8 28C8 28 12 20 20 16C28 12 36 8 36 8C36 8 34 16 28 22C22 28 16 30 16 30L8 28Z" fill="#45B5AA"/>
-                <path d="M4 32C4 32 8 28 16 30C16 30 12 34 4 32Z" fill="#45B5AA" opacity="0.7"/>
-                <path d="M20 16C20 16 18 24 16 30" stroke="#45B5AA" stroke-width="1.5" fill="none" opacity="0.5"/>
-            </svg>
-            <span class="logo-text"><span class="logo-alpha">Alpha</span><span class="logo-learn">Learn</span></span>
-        </div>
 
-        <div class="login-card">
-            <h1 class="login-heading">Welcome back</h1>
-            <p class="login-subheading">Sign in to continue to AlphaLearn</p>
+    <!-- ================================================================
+         LEFT – Brand Visual
+         ================================================================ -->
+    <div class="panel-left">
+        <!-- Abstract wave SVGs -->
+        <svg class="wave-layer wave-1" viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <path fill="rgba(255,255,255,1)" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,218.7C672,235,768,245,864,229.3C960,213,1056,171,1152,154.7C1248,139,1344,149,1392,154.7L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"/>
+        </svg>
+        <svg class="wave-layer wave-2" viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <path fill="rgba(255,255,255,1)" d="M0,288L48,272C96,256,192,224,288,197.3C384,171,480,149,576,165.3C672,181,768,235,864,250.7C960,267,1056,245,1152,218.7C1248,192,1344,160,1392,144L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"/>
+        </svg>
+        <svg class="wave-layer wave-3" viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <path fill="rgba(255,255,255,1)" d="M0,160L48,176C96,192,192,224,288,218.7C384,213,480,171,576,154.7C672,139,768,149,864,170.7C960,192,1056,224,1152,218.7C1248,213,1344,171,1392,149.3L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"/>
+        </svg>
+
+        <!-- Floating orbs -->
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+
+        <!-- Brand content -->
+        <div class="brand-content">
+            <div class="brand-logo">
+                <svg width="52" height="52" viewBox="0 0 40 40" fill="none">
+                    <path d="M8 28C8 28 12 20 20 16C28 12 36 8 36 8C36 8 34 16 28 22C22 28 16 30 16 30L8 28Z" fill="white"/>
+                    <path d="M4 32C4 32 8 28 16 30C16 30 12 34 4 32Z" fill="white" opacity="0.7"/>
+                    <path d="M20 16C20 16 18 24 16 30" stroke="white" stroke-width="1.5" fill="none" opacity="0.5"/>
+                </svg>
+                <span class="brand-logo-text">AlphaLearn</span>
+            </div>
+
+            <p class="brand-slogan">Made by students,<br>for students.</p>
+
+            <div class="brand-accent"></div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         RIGHT – Login Form
+         ================================================================ -->
+    <div class="panel-right">
+        <div class="form-container">
+            <h1 class="form-heading">Welcome back</h1>
+            <p class="form-subheading">Sign in to your account</p>
 
             <div class="login-error" id="login-error">
                 <i class="fa-solid fa-circle-exclamation"></i>
                 <span id="error-text"></span>
             </div>
-
             <div id="debug-panel" style="display:none;"></div>
 
             <form id="login-form" autocomplete="on">
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <div class="input-wrapper">
-                        <input type="email" id="email" name="email" class="form-input" placeholder="you@alpha.school" required autofocus>
+                    <div class="input-wrap">
                         <i class="fa-solid fa-envelope input-icon"></i>
+                        <input type="email" id="email" name="email" class="form-input" placeholder="you@alpha.school" required autofocus>
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="password" name="password" class="form-input" placeholder="Enter your password" required>
+                    <div class="input-wrap">
                         <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" id="password" name="password" class="form-input" placeholder="Enter your password" required>
                     </div>
                 </div>
                 <button type="submit" class="login-btn" id="login-btn">
@@ -324,12 +421,10 @@
                 </button>
             </form>
 
-            <div class="login-footer-link">
-                Don't have an account? <a href="/signup">Create Account</a>
+            <div class="signup-link">
+                Don't have an account? <a href="/signup">Create one</a>
             </div>
         </div>
-
-        <p class="login-brand-footer">Alpha School Learning Platform</p>
     </div>
 
     <script>
@@ -371,7 +466,7 @@
         }
     }
 
-    /* ---- Email / Password Login via direct API call ---------------------- */
+    /* ---- Email / Password Login ------------------------------------------ */
     document.getElementById('login-form').addEventListener('submit', async function (e) {
         e.preventDefault();
         hideError();
@@ -397,7 +492,6 @@
 
             if (!resp.ok || !data.success) {
                 showError(data.error || 'Invalid email or password.');
-                // Show debug info if returned
                 const debugPanel = document.getElementById('debug-panel');
                 if (data.debug) {
                     debugPanel.textContent = JSON.stringify(data.debug, null, 2);
