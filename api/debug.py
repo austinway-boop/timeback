@@ -110,6 +110,30 @@ class handler(BaseHTTPRequestHandler):
                     except Exception as e:
                         results[path] = {"error": str(e)}
 
+            elif action == "admin-list":
+                # GET /powerpath/test-assignments/admin — list ALL test assignments
+                try:
+                    resp = requests.get(f"{API_BASE}/powerpath/test-assignments/admin", headers=headers, timeout=30)
+                    results["admin"] = {"status": resp.status_code}
+                    if resp.status_code == 200:
+                        results["admin"]["data"] = resp.json()
+                    else:
+                        try: results["admin"]["body"] = resp.text[:1000]
+                        except: pass
+                except Exception as e:
+                    results["admin"] = {"error": str(e)}
+
+            elif action == "test-with-name" and user_id:
+                # Try POST with testName included
+                payload = {"student": user_id, "subject": "Reading", "grade": "6", "testName": "Reading Grade 6 Test"}
+                try:
+                    resp = requests.post(f"{API_BASE}/powerpath/test-assignments", headers=headers, json=payload, timeout=60)
+                    results["POST_with_name"] = {"status": resp.status_code, "payload": payload}
+                    try: results["POST_with_name"]["data"] = resp.json()
+                    except: results["POST_with_name"]["body"] = resp.text[:500]
+                except Exception as e:
+                    results["POST_with_name"] = {"error": str(e)}
+
             elif action == "screening-tests":
                 for path in [
                     "/powerpath/screening/tests",
