@@ -344,13 +344,8 @@ function xpCard(c, i) {
         <div class="gc-img"><img src="${getCardImage(c.title, c.appName)}" alt="${c.title}" loading="lazy"></div>
         <div class="gc-b">
             <div class="gc-name">${c.title}</div>
-            <div class="gc-stats">
-                <div style="width:48px;height:48px;border-radius:12px;background:var(--color-primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                    <i class="fa-solid fa-bolt" style="font-size:1.2rem;color:var(--color-primary)"></i>
-                </div>
-                <div class="gc-detail">
-                    <div class="gc-detail-big">${xpE.toLocaleString()} <span>XP earned</span></div>
-                </div>
+            <div class="gc-detail" style="margin-bottom:14px">
+                <div class="gc-detail-big">${xpE.toLocaleString()} <span>XP earned this year</span></div>
             </div>
             <div class="gc-form">
                 <div class="gc-fld"><label class="gc-lbl">Daily XP Goal</label><input type="number" class="gc-inp gx-tgt" min="1" value="${dailyG || ''}" placeholder="e.g. 30"></div>
