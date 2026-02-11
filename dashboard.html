@@ -134,6 +134,18 @@
         default:    'fa-graduation-cap',
     };
 
+    /* Subject illustration images */
+    const COURSE_IMAGES = {
+        math:       '/img/subjects/math.png',
+        science:    '/img/subjects/science.png',
+        language:   '/img/subjects/language.png',
+        reading:    '/img/subjects/reading.png',
+        geography:  '/img/subjects/geography.png',
+        biology:    '/img/subjects/biology.png',
+        tech:       '/img/subjects/tech.png',
+        default:    '/img/subjects/default.png',
+    };
+
     function guessIcon(title) {
         const t = (title || '').toLowerCase();
         if (t.includes('math') || t.includes('algebra') || t.includes('calculus')) return COURSE_ICONS.math;
@@ -144,6 +156,18 @@
         if (t.includes('geo') || t.includes('history') || t.includes('social'))   return COURSE_ICONS.geography;
         if (t.includes('code') || t.includes('tech') || t.includes('gumpp'))      return COURSE_ICONS.tech;
         return COURSE_ICONS.default;
+    }
+
+    function guessSubjectImage(title) {
+        const t = (title || '').toLowerCase();
+        if (t.includes('math') || t.includes('algebra') || t.includes('calculus')) return COURSE_IMAGES.math;
+        if (t.includes('chem') || t.includes('physics'))                          return COURSE_IMAGES.science;
+        if (t.includes('bio'))                                                     return COURSE_IMAGES.biology;
+        if (t.includes('read') || t.includes('ela') || t.includes('english'))     return COURSE_IMAGES.reading;
+        if (t.includes('lang') || t.includes('composition') || t.includes('writing')) return COURSE_IMAGES.language;
+        if (t.includes('geo') || t.includes('history') || t.includes('social'))   return COURSE_IMAGES.geography;
+        if (t.includes('code') || t.includes('tech') || t.includes('gumpp'))      return COURSE_IMAGES.tech;
+        return COURSE_IMAGES.default;
     }
 
     /* ---- AP Timeback-hosted lesson course detection ---------------------- */
@@ -269,11 +293,13 @@
                 </div>`;
             }
 
+            const subjectImg = guessSubjectImage(c.title || '');
+
             return `
                 <div class="course-card" data-course-index="${i}" ${isExternal && launchUrl ? `data-launch-url="${esc(launchUrl)}"` : ''} style="cursor:pointer;position:relative;">
                     ${infoIconHTML}
-                    <div class="course-card-image card-theme-${color}">
-                        <div class="course-card-illustration"><i class="fa-solid ${icon}"></i></div>
+                    <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                        <img src="${subjectImg}" alt="${esc(name)}" style="width:100%;height:100%;object-fit:cover;">
                     </div>
                     <div class="course-card-body">
                         <div class="course-card-header">
