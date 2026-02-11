@@ -205,6 +205,53 @@
         default:    '#45B5AA',  // teal
     };
 
+    /* ---- External vs Internal course detection ----------------------------- */
+    /* App keys that are EXTERNAL (not hosted in-house on Timeback/AlphaLearn).
+     * 'powerpath' is intentionally excluded — it IS in-house. */
+    const EXTERNAL_APP_KEYS = new Set([
+        'gumpp', 'runestone', 'newsela', 'khan', 'readtheory', 'commonlit',
+        'knewton', 'alta', 'lalilo', 'rocketmath', 'zearn',
+        'renaissance', 'starreading', 'starmath',
+    ]);
+
+    /* Fallback base URLs for each known external app — used when
+     * userProfiles don't provide a launchUrl for the course. */
+    const KNOWN_APP_URLS = {
+        gumpp:       'https://www.egumpp.com',
+        runestone:   'https://runestone.academy',
+        newsela:     'https://newsela.com',
+        khan:        'https://www.khanacademy.org',
+        readtheory:  'https://readtheory.org',
+        commonlit:   'https://www.commonlit.org',
+        knewton:     'https://www.knewtonalta.com',
+        alta:        'https://www.knewtonalta.com',
+        lalilo:      'https://app.lalilo.com',
+        rocketmath:  'https://www.rocketmath.com',
+        zearn:       'https://www.zearn.org',
+        renaissance: 'https://global-zone08.renaissance-go.com',
+        starreading: 'https://global-zone08.renaissance-go.com',
+        starmath:    'https://global-zone08.renaissance-go.com',
+    };
+
+    /** Determine if a course is external based on its app/title/vendor identifiers */
+    function isExternalCourse(c) {
+        var appId = [c.appName, c._vendorKey, c.title].filter(Boolean).join(' ');
+        var appKey = matchApp(appId) || matchApp(c.title || '');
+        return appKey && EXTERNAL_APP_KEYS.has(appKey);
+    }
+
+    /** Get the best available external URL for a course */
+    function getExternalUrl(c) {
+        // 1. Try the userProfiles launch URL (most accurate — comes from the API)
+        var vKey = c._vendorKey || '';
+        var profile = vKey ? (userProfilesMap[vKey] || {}) : {};
+        if (profile.launchUrl) return profile.launchUrl.replace(/\/+$/, '');
+        // 2. Fall back to known app URL
+        var appId = [c.appName, c._vendorKey, c.title].filter(Boolean).join(' ');
+        var appKey = matchApp(appId) || matchApp(c.title || '');
+        return (appKey && KNOWN_APP_URLS[appKey]) || '';
+    }
+
     /** Match an app name string against the known app keys */
     function matchApp(appName) {
         const a = (appName || '').toLowerCase().replace(/[\s_-]/g, '');
@@ -457,13 +504,13 @@
                 if (isNaN(idx)) return;
                 var c = allCourses[idx];
                 if (!c) return;
-                var vKey = c._vendorKey || '';
-                var profile = vKey ? (userProfilesMap[vKey] || {}) : {};
-                var launchUrl = profile.launchUrl || '';
-                if (vKey && launchUrl) {
-                    // External course → go straight to the login page
-                    var loginUrl = launchUrl.replace(/\/+$/, '') + '/login';
-                    window.open(loginUrl, '_blank');
+
+                if (isExternalCourse(c)) {
+                    // External course → open the app's site in a new tab
+                    var url = getExternalUrl(c);
+                    if (url) {
+                        window.open(url, '_blank');
+                    }
                 } else {
                     // Internal course → navigate to course viewer
                     var rawId = (c._raw || {}).id || (c._raw || {}).sourcedId || '';
@@ -763,23 +810,25 @@
                 }
             }
 
-            // Fetch per-enrollment analytics for AP courses: get masteredUnits for the period
-            const lessonFetches = allCourses.map((c, idx) => {
-                if (!isLessonCourse(c) || !c._enrollmentId) return null;
-                return fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}`)
-                    .then(r => r.json())
-                    .then(d => {
-                        let lessons = 0;
-                        for (const dayFacts of Object.values(d.facts || {})) {
-                            for (const info of Object.values(dayFacts)) {
-                                lessons += (info.activityMetrics || {}).masteredUnits || 0;
-                            }
+            // Fetch actual lesson counts for AP courses (quizzes/FRQs/tests, not individual questions)
+            const hasLesson = allCourses.some(c => isLessonCourse(c));
+            if (hasLesson) {
+                try {
+                    const lcResp = await fetch(`/api/lesson-count?userId=${encodeURIComponent(userId)}&startDate=${startDate}&endDate=${endDate}`);
+                    const lcData = await lcResp.json();
+                    const courseLessons = lcData.courses || {};
+                    for (let idx = 0; idx < allCourses.length; idx++) {
+                        const c = allCourses[idx];
+                        if (!isLessonCourse(c)) continue;
+                        const cid = (c._course && (c._course.sourcedId || c._course.id)) || '';
+                        if (cid && courseLessons[cid] !== undefined) {
+                            unitsByCourseIdx[idx] = courseLessons[cid];
                         }
-                        unitsByCourseIdx[idx] = lessons;
-                    })
-                    .catch(() => null);
-            }).filter(Boolean);
-            if (lessonFetches.length) await Promise.all(lessonFetches);
+                    }
+                } catch (e) {
+                    console.warn('[AlphaLearn] Lesson count unavailable:', e.message);
+                }
+            }
         } catch (err) {
             console.warn('[AlphaLearn] Analytics unavailable:', err.message);
             xpByCourseIdx = {};
