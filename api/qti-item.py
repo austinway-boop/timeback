@@ -1,20 +1,43 @@
-"""GET /api/qti-item?id=...&type=item|assessment|stimulus
+"""GET /api/qti-item?id=...&type=stimulus|item|assessment
 
-Fetch a QTI quiz/assessment/stimulus from the QTI API.
-Tries multiple auth approaches and API paths.
+Fetch a QTI item from https://api.alpha-1edtech.ai/qti/v3/{type}/{id}
+Uses Cognito token with qti/v3/scope/admin scope.
 """
 
 from http.server import BaseHTTPRequestHandler
 import requests
-from api._helpers import CLIENT_ID, CLIENT_SECRET, API_BASE, api_headers, get_token, send_json, get_query_params
+from api._helpers import CLIENT_ID, CLIENT_SECRET, send_json, get_query_params
 
 COGNITO_URL = "https://prod-beyond-timeback-api-2-idp.auth.us-east-1.amazoncognito.com/oauth2/token"
+QTI_API = "https://api.alpha-1edtech.ai"
+
+# Map type param to QTI API path segment
+TYPE_MAP = {
+    "stimulus": "stimuli",
+    "stimuli": "stimuli",
+    "item": "items",
+    "items": "items",
+    "assessment": "assessments",
+    "assessments": "assessments",
+    "assessment-item": "assessment-items",
+}
 
 
-def _get_qti_token():
-    """Try to get a Cognito token with QTI scope. Falls back to regular token."""
-    # Try with QTI scope
-    try:
+def _get_token():
+    """Get Cognito token with QTI scope."""
+    resp = requests.post(
+        COGNITO_URL,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        data={
+            "grant_type": "client_credentials",
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "scope": "qti/v3/scope/admin",
+        },
+        timeout=15,
+    )
+    if resp.status_code != 200:
+        # Fallback: try without scope
         resp = requests.post(
             COGNITO_URL,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -22,17 +45,11 @@ def _get_qti_token():
                 "grant_type": "client_credentials",
                 "client_id": CLIENT_ID,
                 "client_secret": CLIENT_SECRET,
-                "scope": "qti/v3/scope/admin",
             },
             timeout=15,
         )
-        if resp.status_code == 200:
-            return resp.json()["access_token"]
-    except Exception:
-        pass
-
-    # Fall back to regular token (no scope)
-    return get_token()
+    resp.raise_for_status()
+    return resp.json()["access_token"]
 
 
 class handler(BaseHTTPRequestHandler):
@@ -46,72 +63,47 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         params = get_query_params(self)
         item_id = params.get("id", "").strip()
-        item_type = params.get("type", "item").strip()
+        item_type = params.get("type", "items").strip().lower()
 
         if not item_id:
-            send_json(self, {"error": "Need id param"}, 400)
+            send_json(self, {"error": "Missing id parameter"}, 400)
             return
 
         try:
-            token = _get_qti_token()
-            headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+            token = _get_token()
+            headers = {"Authorization": f"Bearer {token}"}
 
-            # Build paths to try based on type
-            paths = []
-            if item_type == "stimulus":
-                paths = [
-                    f"/qti/v3/stimuli/{item_id}",
-                    f"/api/stimuli/{item_id}",
-                    f"/qti/v3/items/{item_id}",
-                ]
-            elif item_type == "assessment":
-                paths = [
-                    f"/qti/v3/assessments/{item_id}",
-                    f"/api/assessments/{item_id}",
-                    f"/qti/v3/items/{item_id}",
-                ]
-            else:
-                paths = [
-                    f"/qti/v3/items/{item_id}",
-                    f"/api/items/{item_id}",
-                    f"/qti/v3/assessments/{item_id}",
-                    f"/qti/v3/stimuli/{item_id}",
-                ]
+            # Map type to API path segment
+            path_segment = TYPE_MAP.get(item_type, "items")
 
-            # Also try the paths the resources reference directly
-            # e.g. https://qti.alpha-1edtech.ai/api/stimuli/...
-            qti_paths = [
-                f"/api/stimuli/{item_id}",
-                f"/api/assessment-items/{item_id}",
-                f"/api/assessments/{item_id}",
-                f"/api/items/{item_id}",
+            # Primary path: /qti/v3/{type}/{id}
+            url = f"{QTI_API}/qti/v3/{path_segment}/{item_id}"
+            resp = requests.get(url, headers=headers, timeout=30)
+
+            if resp.status_code == 200:
+                send_json(self, {"data": resp.json(), "success": True})
+                return
+
+            # If primary fails, try alternate paths
+            alternates = [
+                f"{QTI_API}/ims/qti3p0/{path_segment}/{item_id}",
+                f"{QTI_API}/qti/v3/items/{item_id}",
             ]
-            paths.extend(qti_paths)
-
-            errors = []
-            for path in paths:
+            for alt_url in alternates:
                 try:
-                    # Try on the main API
-                    resp = requests.get(f"{API_BASE}{path}", headers=headers, timeout=15)
-                    if resp.status_code == 200:
-                        send_json(self, {"data": resp.json(), "success": True, "path": path})
+                    alt_resp = requests.get(alt_url, headers=headers, timeout=15)
+                    if alt_resp.status_code == 200:
+                        send_json(self, {"data": alt_resp.json(), "success": True})
                         return
-                    errors.append(f"{path}: {resp.status_code}")
-
-                    # Also try on the QTI-specific domain
-                    resp2 = requests.get(f"https://qti.alpha-1edtech.ai{path}", headers=headers, timeout=15)
-                    if resp2.status_code == 200:
-                        send_json(self, {"data": resp2.json(), "success": True, "path": f"qti.alpha-1edtech.ai{path}"})
-                        return
-                    errors.append(f"qti:{path}: {resp2.status_code}")
-                except Exception as e:
-                    errors.append(f"{path}: {str(e)}")
+                except Exception:
+                    continue
 
             send_json(self, {
-                "error": "QTI item not found",
+                "error": f"QTI API returned {resp.status_code}",
                 "success": False,
-                "tried": errors[:10],
-            }, 404)
+                "url": url,
+                "detail": resp.text[:300],
+            }, resp.status_code)
 
         except Exception as e:
             send_json(self, {"error": str(e), "success": False}, 500)
