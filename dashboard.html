@@ -214,23 +214,24 @@
         'renaissance', 'starreading', 'starmath',
     ]);
 
-    /* Fallback base URLs for each known external app — used when
-     * userProfiles don't provide a launchUrl for the course. */
+    /* Fallback LOGIN PAGE URLs for each known external app — used when
+     * userProfiles don't provide a launchUrl for the course.
+     * Each URL points directly to the app's login/sign-in page. */
     const KNOWN_APP_URLS = {
-        gumpp:       'https://www.egumpp.com',
-        runestone:   'https://runestone.academy',
-        newsela:     'https://newsela.com',
-        khan:        'https://www.khanacademy.org',
-        readtheory:  'https://readtheory.org',
-        commonlit:   'https://www.commonlit.org',
-        knewton:     'https://www.knewtonalta.com',
-        alta:        'https://www.knewtonalta.com',
-        lalilo:      'https://app.lalilo.com',
-        rocketmath:  'https://www.rocketmath.com',
-        zearn:       'https://www.zearn.org',
-        renaissance: 'https://global-zone08.renaissance-go.com',
-        starreading: 'https://global-zone08.renaissance-go.com',
-        starmath:    'https://global-zone08.renaissance-go.com',
+        gumpp:       'https://elearning.egumpp.com',              // student portal + sign-in
+        runestone:   'https://runestone.academy/user/login',      // direct login page
+        newsela:     'https://newsela.com/signin',                // sign-in page
+        khan:        'https://www.khanacademy.org/login',         // login page
+        readtheory:  'https://readtheory.org/auth/login',         // login page
+        commonlit:   'https://www.commonlit.org/user/login',      // login page
+        knewton:     'https://www.knewton.com/login',             // student login
+        alta:        'https://www.knewton.com/login',             // Knewton Alta = same login
+        lalilo:      'https://student.lalilo.com',                // student login portal
+        rocketmath:  'https://play.rocketmath.com',               // student game login
+        zearn:       'https://www.zearn.org',                     // login is on the homepage
+        renaissance: 'https://schools.renaissance.com',           // school login portal
+        starreading: 'https://schools.renaissance.com',           // Star Reading = Renaissance
+        starmath:    'https://schools.renaissance.com',           // Star Math    = Renaissance
     };
 
     /** Determine if a course is external based on its app/title/vendor identifiers.
@@ -366,6 +367,10 @@
         return false;
     }
     function isLessonCourse(c) { return isAPCourse(c.title) && isTimeback(c); }
+
+    /** True when a course is an internal (Timeback-hosted) app — NOT an external third-party.
+     *  Internal apps report lessons via EduBridge enrollment analytics (masteredUnits). */
+    function isInternalCourse(c) { return !isExternalCourse(c); }
 
     /* ---- State ------------------------------------------------------------ */
     let allCourses = [];       // set once after enrollment fetch
