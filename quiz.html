@@ -323,17 +323,16 @@
 
         // Parse QTI 3.0 assessment items using renderNode for proper HTML
         function parseQtiItem(item) {
-            // Find the assessment item in multiple possible locations
+            // Find the assessment item content in multiple locations
             var qi = item['qti-assessment-item']
                 || (item.content && item.content['qti-assessment-item'])
                 || item;
             var attrs = qi['_attributes'] || {};
             var itemBody = qi['qti-item-body'] || qi['itemBody'] || {};
 
-            // If itemBody is empty, try to extract prompt/choices directly from the interaction
+            // If itemBody empty, check alternative locations
             if (!itemBody || Object.keys(itemBody).length === 0) {
-                // Maybe the interaction is at a different level
-                var ci = qi['qti-choice-interaction'] || (qi['qti-item-body'] || {})['qti-choice-interaction'];
+                var ci = qi['qti-choice-interaction'];
                 if (ci) itemBody = { 'qti-choice-interaction': ci };
             }
 
@@ -347,19 +346,32 @@
                     if (!Array.isArray(sc)) sc = [sc];
                     return sc.map(function(c, i) {
                         var ca = c['_attributes'] || {};
-                        // Extract just the choice text (from p._ or p), not the feedback
                         var cText = '';
+
+                        // Method 1: p._ (most common)
                         if (c.p) {
-                            cText = typeof c.p === 'string' ? c.p : (c.p['_'] || c.p['_text'] || c.p['#text'] || '');
+                            if (typeof c.p === 'string') cText = c.p;
+                            else if (c.p['_']) cText = c.p['_'];
+                            else if (c.p['_text']) cText = c.p['_text'];
+                            else cText = renderNode(c.p);
                         }
+                        // Method 2: direct text content
+                        if (!cText && c['_']) cText = c['_'];
+                        if (!cText && c['_text']) cText = c['_text'];
+                        // Method 3: span or div inside
+                        if (!cText && c.span) cText = typeof c.span === 'string' ? c.span : renderNode(c.span);
+                        if (!cText && c.div) cText = typeof c.div === 'string' ? c.div : renderNode(c.div);
+                        // Method 4: render everything except feedback
                         if (!cText) {
-                            // Try rendering without feedback nodes
-                            var cClone = JSON.parse(JSON.stringify(c));
-                            delete cClone['qti-feedback-inline'];
-                            delete cClone['_attributes'];
-                            cText = renderNode(cClone);
+                            try {
+                                var cClone = JSON.parse(JSON.stringify(c));
+                                delete cClone['qti-feedback-inline'];
+                                delete cClone['_attributes'];
+                                cText = renderNode(cClone);
+                            } catch(e) {}
                         }
-                        return { id: ca['identifier'] || String(i), html: cText || 'Choice ' + (i+1) };
+
+                        return { id: ca['identifier'] || String(i), html: cText || 'Option ' + ca['identifier'] || (i+1) };
                     });
                 }
                 // Recurse into children
@@ -379,24 +391,49 @@
 
             var choices = findChoices(itemBody, 0);
 
-            // Extract prompt text directly from the known path
+            // Extract prompt from multiple possible locations
             var promptHtml = '';
             var ci = itemBody['qti-choice-interaction'] || {};
             var prompt = ci['qti-prompt'] || ci['prompt'] || {};
-            if (prompt) {
-                if (prompt.p) {
-                    var pVal = prompt.p;
-                    promptHtml = typeof pVal === 'string' ? pVal : (pVal['_'] || pVal['_text'] || renderNode(pVal));
-                } else {
-                    promptHtml = renderNode(prompt);
+
+            // Method 1: qti-prompt.p._
+            if (prompt && prompt.p) {
+                var pVal = prompt.p;
+                if (typeof pVal === 'string') promptHtml = '<p>' + pVal + '</p>';
+                else if (pVal['_']) promptHtml = '<p>' + pVal['_'] + '</p>';
+                else promptHtml = renderNode(pVal);
+            }
+            // Method 2: qti-prompt has direct text or HTML
+            if (!promptHtml && prompt) {
+                if (typeof prompt === 'string') promptHtml = prompt;
+                else if (prompt['_']) promptHtml = prompt['_'];
+                else {
+                    var pClone = JSON.parse(JSON.stringify(prompt));
+                    delete pClone['_attributes'];
+                    var rendered = renderNode(pClone);
+                    if (rendered && rendered !== '<p></p>') promptHtml = rendered;
                 }
             }
-            // Fallback: render the body without choice interaction
+            // Method 3: content before the interaction (div, p at itemBody level)
             if (!promptHtml) {
-                var bodyClone = JSON.parse(JSON.stringify(itemBody));
-                delete bodyClone['qti-choice-interaction'];
-                delete bodyClone['choiceInteraction'];
-                promptHtml = renderNode(bodyClone);
+                try {
+                    var bodyClone = JSON.parse(JSON.stringify(itemBody));
+                    delete bodyClone['qti-choice-interaction'];
+                    delete bodyClone['choiceInteraction'];
+                    delete bodyClone['_attributes'];
+                    promptHtml = renderNode(bodyClone);
+                } catch(e) {}
+            }
+            // Method 4: check if there's an image/figure in the prompt
+            if (prompt && prompt.figure) promptHtml += renderNode({figure: prompt.figure});
+            if (prompt && prompt.img) {
+                var imgA = prompt.img['_attributes'] || prompt.img;
+                promptHtml += '<img src="' + esc(imgA.src || '') + '" alt="' + esc(imgA.alt || '') + '" style="max-width:100%;border-radius:8px;margin:8px 0;">';
+            }
+            // Method 5: title from the item itself
+            if (!promptHtml) {
+                var iTitle = item.title || attrs.title || '';
+                if (iTitle && iTitle !== 'Question') promptHtml = '<p>' + esc(iTitle) + '</p>';
             }
 
             return {

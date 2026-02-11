@@ -163,9 +163,9 @@ class handler(BaseHTTPRequestHandler):
                     if href:
                         hrefs.append(href)
 
-        # Fetch individual questions (limit to 20 to avoid Vercel timeout)
+        # Fetch individual questions (all of them)
         questions = []
-        for href in hrefs[:20]:
+        for href in hrefs:
             data, st = _fetch(href, headers)
             if data:
                 questions.append(data)
