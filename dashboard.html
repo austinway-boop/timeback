@@ -285,7 +285,7 @@
                     <div class="course-info-tooltip">
                         ${platformName ? `<div><span class="tip-label">Platform</span><br><strong>${esc(platformName)}</strong></div>` : ''}
                         ${credUsername ? `<div style="margin-top:6px;"><span class="tip-label">Username</span><br><code>${esc(credUsername)}</code></div>` : ''}
-                        ${credPassword ? `<div style="margin-top:6px;"><span class="tip-label">Password</span><br><code>${esc(credPassword)}</code></div>` : `<div style="margin-top:6px;font-size:0.78rem;color:#718096;"><i class="fa-solid fa-shield-halved" style="margin-right:4px;"></i>SSO — no separate password needed</div>`}
+                        <div style="margin-top:6px;"><span class="tip-label">Password</span><br>${credPassword ? `<code>${esc(credPassword)}</code>` : `<span style="color:#A0AEC0;font-style:italic;">Not available from API</span>`}</div>
                         ${launchUrl ? `<div style="margin-top:8px;"><a href="${esc(launchUrl)}" target="_blank">${esc(launchUrl)}</a></div>` : ''}
                     </div>
                 </div>`;
@@ -356,7 +356,7 @@
             // Cache the sourcedId so future page loads can skip the lookup
             localStorage.setItem('alphalearn_userId', userId);
 
-            // Build userProfiles map for credential/launch URL lookup
+            // Build userProfiles map from initial lookup data
             const profiles = lookupData.user.userProfiles || [];
             for (const p of profiles) {
                 const vendorId = p.vendorId || p.applicationId || '';
@@ -365,11 +365,34 @@
                 const cred = (p.credentials && p.credentials[0]) || {};
                 userProfilesMap[vendorId] = {
                     username: cred.username || '',
-                    password: cred.password || '',
+                    password: cred.password || cred.secret || cred.passphrase || cred.credential || '',
                     appName: (p.app && p.app.name) || p.description || '',
                     domain: appDomains[0] || '',
                     launchUrl: appDomains[0] ? 'https://' + appDomains[0] : '',
                 };
+            }
+
+            // Also fetch from dedicated credentials endpoint for more thorough extraction
+            try {
+                const credResp = await fetch(`/api/user-credentials?email=${encodeURIComponent(email)}`);
+                if (credResp.ok) {
+                    const credData = await credResp.json();
+                    for (const cp of (credData.profiles || [])) {
+                        const vId = cp.vendorId || '';
+                        if (!vId) continue;
+                        // Merge: prefer values from dedicated endpoint, fill in gaps
+                        const existing = userProfilesMap[vId] || {};
+                        userProfilesMap[vId] = {
+                            username: cp.username || existing.username || '',
+                            password: cp.password || existing.password || '',
+                            appName: cp.appName || existing.appName || '',
+                            domain: cp.domain || existing.domain || '',
+                            launchUrl: cp.launchUrl || existing.launchUrl || '',
+                        };
+                    }
+                }
+            } catch (e) {
+                // Credentials endpoint not available - continue with what we have
             }
 
             /* 2. Fetch enrolled courses via EduBridge */
