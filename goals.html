@@ -317,6 +317,9 @@ document.addEventListener('DOMContentLoaded',async function(){
         const ed=await(await fetch(`/api/enrollments?userId=${uid}`)).json();
         const raw=ed.data||ed.enrollments||ed.courses||(Array.isArray(ed)?ed:[]);
         const now=new Date(),courses=[];
+        // DEBUG: dump raw enrollments to find history course
+        console.log('[DEBUG] Raw enrollment count:', raw.length);
+        for(const _e of raw){const _t=(_e.course||{}).title||'';if(_t.toLowerCase().includes('histor')||_t.toLowerCase().includes('pp'))console.log('[DEBUG RAW]',_t,JSON.stringify({appName:((_e.course||{}).primaryApp||{}),cMeta_primaryApp:(_e.course||{}).metadata?.primaryApp,cMeta_app:(_e.course||{}).metadata?.app,eMeta_metrics:_e.metadata?.metrics,cMeta_metrics:(_e.course||{}).metadata?.metrics,cMeta_totalLessons:(_e.course||{}).metadata?.totalLessons,subjects:(_e.course||{}).subjects},null,2));}
         for(const e of raw){
             const co=e.course||{},cm=co.metadata||{},gl=(e.metadata&&e.metadata.goals)||{};
             const mt=(e.metadata&&e.metadata.metrics)||{};
@@ -330,6 +333,8 @@ document.addEventListener('DOMContentLoaded',async function(){
             courses.push({title:ti,subject:su[0]||'',appName:an,totalXp,totalLessons,dailyXpGoal:gl.dailyXp||0,_goalKey:e.sourcedId||co.sourcedId||ti,_raw:e,_course:co});
         }
         ALL=courses;
+        // DEBUG: log all courses with detection results
+        console.table(courses.map(c=>({title:c.title,appName:c.appName,totalLessons:c.totalLessons,totalXp:c.totalXp,isAP:isAP(c.title),isLesson:isLesson(c)})));
         const soy=new Date(now.getFullYear(),7,1);if(soy>now)soy.setFullYear(soy.getFullYear()-1);
         const sd=localDS(soy)+'T00:00:00Z',edS=localDS(now)+'T23:59:59Z';
         try{
