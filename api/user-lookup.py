@@ -35,7 +35,10 @@ class handler(BaseHTTPRequestHandler):
                             break
 
                 if users_list:
-                    send_json(self, {"user": parse_user(users_list[0])})
+                    user_data = parse_user(users_list[0])
+                    # Include userProfiles for credential/app lookup
+                    user_data['userProfiles'] = users_list[0].get('userProfiles', [])
+                    send_json(self, {"user": user_data})
                     return
 
             send_json(self, {"error": "User not found"}, 404)

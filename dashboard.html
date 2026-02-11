@@ -147,6 +147,7 @@
     let xpByCourseIdx = {};    // { 0: 13, 1: 25, ... } — XP per course index (daily/weekly)
     let fullYearXpIdx = {};    // { 0: 500, 1: 1200, ... } — full-year XP for unit estimation
     let currentPeriod = 'today';
+    let userProfilesMap = {};  // { vendorId: { username, appName, domain, launchUrl } }
 
     // Timeback-native app names (XP reported here for courses without their own app)
     const NATIVE_APPS = ['timeback dash', 'alpha timeback', 'alphalearn', 'timeback'];
@@ -295,6 +296,21 @@
             // Cache the sourcedId so future page loads can skip the lookup
             localStorage.setItem('alphalearn_userId', userId);
 
+            // Build userProfiles map for credential/launch URL lookup
+            const profiles = lookupData.user.userProfiles || [];
+            for (const p of profiles) {
+                const vendorId = p.vendorId || p.applicationId || '';
+                if (!vendorId) continue;
+                const appDomains = (p.app && p.app.domain) || [];
+                const cred = (p.credentials && p.credentials[0]) || {};
+                userProfilesMap[vendorId] = {
+                    username: cred.username || '',
+                    appName: (p.app && p.app.name) || p.description || '',
+                    domain: appDomains[0] || '',
+                    launchUrl: appDomains[0] ? 'https://' + appDomains[0] : '',
+                };
+            }
+
             /* 2. Fetch enrolled courses via EduBridge */
             const enrollResp = await fetch(`/api/enrollments?userId=${userId}`);
             const enrollData = await enrollResp.json();
@@ -345,6 +361,11 @@
                 const totalLessons = metrics.totalLessons || cMetrics.totalLessons || cMeta.totalLessons || 0;
                 const totalXp = metrics.totalXp || cMetrics.totalXp || cMeta.totalXp || 0;
 
+                // Vendor key for matching to userProfiles
+                const vendorKey = cMeta.primaryApp
+                    || (typeof pApp === 'object' && pApp.id ? pApp.id : '')
+                    || '';
+
                 const item = {
                     title,
                     subject:      subjects[0] || '',
@@ -353,12 +374,9 @@
                     totalLessons,
                     dailyXpGoal:  goals.dailyXp || 0,
                     _goalKey:     e.sourcedId || course.sourcedId || title,
-                    // Store full enrollment + course data for credential display
+                    _vendorKey:   vendorKey,
                     _raw: e,
                     _course: course,
-                    _credentials: e.credentials || (e.metadata && e.metadata.credentials) || course.metadata?.credentials || null,
-                    _loginUrl: e.loginUrl || e.url || course.metadata?.loginUrl || course.metadata?.url || course.metadata?.primaryAppUrl || null,
-                    _primaryApp: course.metadata?.primaryApp || '',
                     _metadata: { ...course.metadata, ...e.metadata },
                 };
 
@@ -596,102 +614,68 @@
 
     /* ---- Course detail modal --------------------------------------------- */
     function openCourseModal(index) {
-        console.log('[AlphaLearn] openCourseModal called with index:', index);
         const modal = document.getElementById('course-modal');
-        if (!modal) { alert('Error: course-modal element not found'); return; }
+        if (!modal) return;
         try {
             const c = allCourses[index];
-            if (!c) { console.warn('[AlphaLearn] No course at index', index); return; }
+            if (!c) return;
 
             const body  = document.getElementById('course-modal-body');
             document.getElementById('course-modal-title').textContent = c.title || 'Course Details';
 
-            const meta   = c._metadata || {};
-            const creds  = c._credentials;
-            const url    = c._loginUrl;
-            const app    = safeStr(c._primaryApp);
-            const raw    = c._raw || {};
-            const course = c._course || {};
+            const meta = c._metadata || {};
 
-            // Try to extract credentials from various possible locations
-            let username = '', password = '', loginUrl = safeStr(url);
+            // Look up credentials and launch URL from userProfiles
+            const vendorKey = c._vendorKey || '';
+            const profile = vendorKey ? (userProfilesMap[vendorKey] || null) : null;
+            const hasExternalApp = profile && profile.launchUrl;
+            const isInternal = !vendorKey || !profile;
 
-            if (creds && typeof creds === 'object') {
-                username = safeStr(creds.username || creds.user || creds.login || creds.email || '');
-                password = safeStr(creds.password || creds.pass || creds.secret || '');
-                loginUrl = loginUrl || safeStr(creds.url || creds.loginUrl || '');
-            }
+            const username = profile ? profile.username : '';
+            const appName = profile ? profile.appName : (c.appName || '');
+            const loginUrl = profile ? profile.launchUrl : '';
 
-            // Also check deeper in metadata
-            if (!username && meta.username) username = safeStr(meta.username);
-            if (!username && meta.login) username = safeStr(meta.login);
-            if (!password && meta.password) password = safeStr(meta.password);
-            if (!loginUrl && meta.loginUrl) loginUrl = safeStr(meta.loginUrl);
-            if (!loginUrl && meta.url) loginUrl = safeStr(meta.url);
-            if (!loginUrl && meta.primaryAppUrl) loginUrl = safeStr(meta.primaryAppUrl);
-            if (!loginUrl && meta.launchUrl) loginUrl = safeStr(meta.launchUrl);
-
-            // Check raw enrollment fields
-            if (!loginUrl && raw.launchUrl) loginUrl = safeStr(raw.launchUrl);
-            if (!loginUrl && raw.url) loginUrl = safeStr(raw.url);
-
-            // Build credential rows
+            // Build credential / access section
             let credentialsHTML = '';
-            if (username || password || loginUrl || app) {
+            if (hasExternalApp) {
                 credentialsHTML = `
                     <div style="margin-bottom:20px;">
                         <h3 style="font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#A0AEC0;margin-bottom:12px;">
                             <i class="fa-solid fa-key" style="margin-right:6px;"></i>Course Credentials
                         </h3>
                         <div style="background:#F4F6F9;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;">
-                            ${app ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Platform</span><span style="font-size:0.95rem;color:#2D3748;font-weight:500;">${esc(app)}</span></div>` : ''}
+                            ${appName ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Platform</span><span style="font-size:0.95rem;color:#2D3748;font-weight:500;">${esc(appName)}</span></div>` : ''}
                             ${username ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Username</span><span style="font-family:'SF Mono','Fira Code',monospace;font-size:0.9rem;color:#2D3748;background:#fff;padding:4px 10px;border-radius:6px;border:1px solid #E8ECF1;display:inline-block;">${esc(username)}</span></div>` : ''}
-                            ${password ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Password</span><span style="font-family:'SF Mono','Fira Code',monospace;font-size:0.9rem;color:#2D3748;background:#fff;padding:4px 10px;border-radius:6px;border:1px solid #E8ECF1;display:inline-block;" id="cred-pw">${esc(password)}</span> <button onclick="navigator.clipboard.writeText(document.getElementById('cred-pw').textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" style="border:none;background:#45B5AA;color:#fff;padding:3px 10px;border-radius:5px;font-size:0.75rem;font-weight:600;cursor:pointer;margin-left:6px;">Copy</button></div>` : ''}
                             ${loginUrl ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Course URL</span><a href="${esc(loginUrl)}" target="_blank" style="font-size:0.88rem;color:#45B5AA;word-break:break-all;">${esc(loginUrl)}</a></div>` : ''}
                         </div>
                     </div>`;
-            } else {
-                credentialsHTML = `
-                    <div style="margin-bottom:20px;">
-                        <h3 style="font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#A0AEC0;margin-bottom:12px;">
-                            <i class="fa-solid fa-key" style="margin-right:6px;"></i>Course Credentials
-                        </h3>
-                        <div style="background:#F4F6F9;border-radius:10px;padding:20px;text-align:center;color:#718096;font-size:0.88rem;">
-                            <i class="fa-solid fa-lock" style="font-size:1.2rem;margin-bottom:8px;display:block;opacity:0.5;"></i>
-                            No separate credentials needed — this course uses your AlphaLearn account.
-                        </div>
-                    </div>`;
             }
+            // Internal courses: no credentials section shown
 
-            // Build all raw metadata display for debugging/transparency
+            // Build metadata display
             let metaDetailsHTML = '';
             const displayMeta = {};
             try {
-                // Include primaryApp fields in metadata display
-                if (pAppObj && typeof pAppObj === 'object') {
-                    for (const [pk, pv] of Object.entries(pAppObj)) {
-                        if (pv === null || pv === undefined || pv === '' || typeof pv === 'object') continue;
-                        displayMeta[`primaryApp.${pk}`] = String(pv);
-                    }
+                // Include profile info if available
+                if (profile) {
+                    if (profile.appName) displayMeta['App'] = profile.appName;
+                    if (profile.domain) displayMeta['Domain'] = profile.domain;
                 }
                 for (const [k, v] of Object.entries(meta)) {
                     if (v === null || v === undefined || v === '') continue;
                     if (typeof v !== 'object') {
                         displayMeta[k] = String(v);
-                    } else if (v !== null && !Array.isArray(v)) {
-                        // One level of nesting only — skip deeper objects
+                    } else if (!Array.isArray(v)) {
                         for (const [k2, v2] of Object.entries(v)) {
-                            if (v2 === null || v2 === undefined || v2 === '') continue;
-                            if (typeof v2 === 'object') continue;  // skip nested objects/arrays
+                            if (v2 === null || v2 === undefined || v2 === '' || typeof v2 === 'object') continue;
                             displayMeta[`${k}.${k2}`] = String(v2);
                         }
-                    } else if (Array.isArray(v)) {
-                        // Render arrays as comma-separated string
+                    } else {
                         displayMeta[k] = v.filter(x => x !== null && x !== undefined && typeof x !== 'object').join(', ');
                     }
                 }
             } catch (metaErr) {
-                console.warn('[AlphaLearn] Error parsing course metadata:', metaErr);
+                // Silently skip metadata errors
             }
 
             if (Object.keys(displayMeta).length > 0) {
@@ -714,7 +698,32 @@
             const goal = currentPeriod === 'today' ? (c.dailyXpGoal || 0) : (c.dailyXpGoal || 0) * 5;
             const titleEsc = esc(c.title || 'Untitled Course');
             const subjectEsc = esc(c.subject || '');
-            const loginUrlEsc = esc(loginUrl);
+
+            // Build bottom action buttons
+            let actionButtonsHTML = '';
+            if (hasExternalApp) {
+                actionButtonsHTML = `
+                    <div style="display:flex;gap:10px;margin-top:20px;">
+                        <a href="${esc(loginUrl)}" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#45B5AA;color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;text-decoration:none;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#389E94'" onmouseout="this.style.background='#45B5AA'">
+                            Go to Course <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                        <button onclick="closeCourseModal()" style="padding:12px 20px;background:#F4F6F9;color:#718096;border:none;border-radius:10px;font-size:0.95rem;font-weight:500;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#E8ECF1'" onmouseout="this.style.background='#F4F6F9'">
+                            Close
+                        </button>
+                    </div>`;
+            } else {
+                // Internal course: just a close button
+                actionButtonsHTML = `
+                    <div style="margin-top:20px;">
+                        ${isInternal ? `<div style="background:#F4F6F9;border-radius:10px;padding:16px;text-align:center;color:#718096;font-size:0.88rem;margin-bottom:12px;">
+                            <i class="fa-solid fa-circle-check" style="color:#45B5AA;margin-right:6px;"></i>
+                            This is an AlphaLearn internal course. Progress is tracked automatically.
+                        </div>` : ''}
+                        <button onclick="closeCourseModal()" style="width:100%;padding:12px 20px;background:#F4F6F9;color:#718096;border:none;border-radius:10px;font-size:0.95rem;font-weight:500;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#E8ECF1'" onmouseout="this.style.background='#F4F6F9'">
+                            Close
+                        </button>
+                    </div>`;
+            }
 
             body.innerHTML = `
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
@@ -744,23 +753,12 @@
 
                 ${credentialsHTML}
                 ${metaDetailsHTML}
-
-                <div style="display:flex;gap:10px;margin-top:20px;">
-                    ${loginUrl ? `<a href="${loginUrlEsc}" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#45B5AA;color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;text-decoration:none;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#389E94'" onmouseout="this.style.background='#45B5AA'">
-                        Go to Course <i class="fa-solid fa-arrow-right"></i>
-                    </a>` : `<button disabled style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#E8ECF1;color:#718096;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;cursor:not-allowed;">
-                        No external link available
-                    </button>`}
-                    <button onclick="closeCourseModal()" style="padding:12px 20px;background:#F4F6F9;color:#718096;border:none;border-radius:10px;font-size:0.95rem;font-weight:500;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#E8ECF1'" onmouseout="this.style.background='#F4F6F9'">
-                        Close
-                    </button>
-                </div>
+                ${actionButtonsHTML}
             `;
 
             modal.classList.add('open');
         } catch (err) {
             console.error('[AlphaLearn] Error opening course modal:', err);
-            alert('Course modal error: ' + (err.message || err));
             // Still show the modal with an error message so user gets feedback
             const body = document.getElementById('course-modal-body');
             if (body) {
