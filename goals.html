@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - Goals</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* ---- Goals page-specific styles ---- */
+        .goals-container { max-width: 960px; }
+
+        .goal-card {
+            background: var(--color-surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            margin-bottom: 20px;
+            transition: all var(--transition);
+        }
+        .goal-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .goal-card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+        .goal-card-icon {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.15rem;
+            flex-shrink: 0;
+        }
+        .goal-card-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--color-text);
+        }
+        .goal-card-subtitle {
+            font-size: 0.82rem;
+            color: var(--color-text-secondary);
+        }
+
+        .goal-stats {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .goal-stat {
+            flex: 1;
+            background: var(--color-bg);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+        .goal-stat-value {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+        .goal-stat-value.warn { color: var(--color-orange); }
+        .goal-stat-value.danger { color: #E53E3E; }
+        .goal-stat-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        .goal-progress-bar {
+            height: 8px;
+            background: var(--color-bg);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .goal-progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            min-width: 0;
+        }
+        .goal-progress-fill.on-track { background: var(--color-primary); }
+        .goal-progress-fill.behind { background: var(--color-orange); }
+        .goal-progress-fill.at-risk { background: #E53E3E; }
+
+        .goal-pacing {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+        .pacing-label { color: var(--color-text-secondary); }
+        .pacing-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .pacing-badge.on-track { background: #E8F5E9; color: #2E7D32; }
+        .pacing-badge.behind { background: var(--color-orange-light); color: #E65100; }
+        .pacing-badge.at-risk { background: #FFEBEE; color: #C62828; }
+
+        /* Set goals form */
+        .set-goal-card {
+            background: var(--color-surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            margin-bottom: 20px;
+            transition: all var(--transition);
+        }
+        .set-goal-card:hover { box-shadow: var(--shadow-md); }
+
+        .goal-type-toggle {
+            display: flex;
+            gap: 4px;
+            background: var(--color-bg);
+            border-radius: 8px;
+            padding: 3px;
+            margin-bottom: 18px;
+        }
+        .goal-type-btn {
+            flex: 1;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--color-text-secondary);
+            font-weight: 500;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .goal-type-btn.active {
+            background: var(--color-surface);
+            color: var(--color-text);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-weight: 600;
+        }
+
+        .goal-form-row {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 14px;
+            align-items: flex-end;
+        }
+        .goal-form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .goal-form-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .goal-form-input {
+            padding: 10px 14px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-size: 0.92rem;
+            transition: border-color var(--transition);
+            outline: none;
+            width: 100%;
+        }
+        .goal-form-input:focus { border-color: var(--color-primary); }
+
+        .goal-checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .goal-checkbox-row input[type="checkbox"] {
+            width: 18px; height: 18px;
+            accent-color: var(--color-primary);
+            cursor: pointer;
+        }
+        .goal-checkbox-row label {
+            font-size: 0.88rem;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+        }
+
+        .goal-preview {
+            background: var(--color-primary-light);
+            border-radius: 10px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .goal-preview i {
+            color: var(--color-primary-dark);
+            font-size: 1.1rem;
+        }
+        .goal-preview-text {
+            font-size: 0.9rem;
+            color: var(--color-primary-dark);
+            font-weight: 500;
+        }
+
+        .goal-save-btn {
+            padding: 10px 24px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.92rem;
+            cursor: pointer;
+            transition: background var(--transition);
+        }
+        .goal-save-btn:hover { background: var(--color-primary-dark); }
+
+        .goal-remove-btn {
+            padding: 10px 18px;
+            background: transparent;
+            color: var(--color-text-muted);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-weight: 500;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            margin-left: 8px;
+        }
+        .goal-remove-btn:hover {
+            background: #FFEBEE;
+            color: #C62828;
+            border-color: #FFCDD2;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--color-text-muted);
+        }
+        .empty-state i {
+            font-size: 3rem;
+            opacity: 0.3;
+            margin-bottom: 16px;
+            display: block;
+        }
+        .empty-state p {
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+        .empty-state .empty-hint {
+            font-size: 0.85rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--color-text);
+            color: white;
+            padding: 14px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            z-index: 300;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .course-info-row {
+            font-size: 0.82rem;
+            color: var(--color-text-muted);
+            margin-bottom: 14px;
+            display: flex;
+            gap: 16px;
+        }
+        .course-info-row span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body data-view="student" data-active="goals">
+
+    <!-- Layout -->
+    <div class="layout">
+        <nav class="sidebar" id="sidebar"></nav>
+        <main class="main-content">
+            <div class="goals-container">
+                <!-- Page heading -->
+                <h1 class="welcome-heading">Goals</h1>
+
+                <!-- Tab Toggle -->
+                <div class="time-toggle" id="goals-tabs">
+                    <button class="toggle-btn active" data-tab="progress">Progress</button>
+                    <button class="toggle-btn" data-tab="set">Set Goals</button>
+                </div>
+
+                <!-- Progress View -->
+                <div id="view-progress">
+                    <div id="progress-content">
+                        <div style="text-align:center;padding:48px;color:var(--color-text-muted);">
+                            <div class="loading-spinner" style="margin:0 auto 12px;"></div>
+                            Loading your goals...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Set Goals View -->
+                <div id="view-set" style="display:none;">
+                    <div id="set-goals-content">
+                        <div style="text-align:center;padding:48px;color:var(--color-text-muted);">
+                            <div class="loading-spinner" style="margin:0 auto 12px;"></div>
+                            Loading courses...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
+    <script src="/js/layout.js"></script>
+    <script src="/js/app.js"></script>
+    <script>
+    /* ====================================================================
+       AlphaLearn – Goals Page
+       ==================================================================== */
+
+    /* ---- Color + icon mappings (same as dashboard) ---------------------- */
+    const COURSE_THEMES = ['teal', 'purple', 'pink', 'orange'];
+    const THEME_COLORS = {
+        teal:   { bg: 'var(--color-primary-light)', fg: 'var(--color-primary-dark)' },
+        purple: { bg: 'var(--color-purple-light)',   fg: '#6C5CE7' },
+        pink:   { bg: 'var(--color-pink-light)',     fg: '#AD1457' },
+        orange: { bg: 'var(--color-orange-light)',   fg: '#E65100' },
+    };
+
+    function guessIcon(title) {
+        const t = (title || '').toLowerCase();
+        if (t.includes('math') || t.includes('algebra') || t.includes('calculus')) return 'fa-calculator';
+        if (t.includes('chem') || t.includes('physics'))                          return 'fa-atom';
+        if (t.includes('bio'))                                                     return 'fa-dna';
+        if (t.includes('read') || t.includes('ela') || t.includes('english'))     return 'fa-book-open-reader';
+        if (t.includes('lang') || t.includes('composition') || t.includes('writing')) return 'fa-book-open';
+        if (t.includes('geo') || t.includes('history') || t.includes('social'))   return 'fa-globe-americas';
+        if (t.includes('code') || t.includes('tech') || t.includes('gumpp'))      return 'fa-laptop-code';
+        return 'fa-graduation-cap';
+    }
+
+    /* ---- State ---------------------------------------------------------- */
+    let allCourses = [];
+    let savedGoals = {};
+
+    const STORAGE_KEY = 'alphalearn_goals';
+    const NATIVE_APPS = ['timeback dash', 'alpha timeback', 'alphalearn', 'timeback'];
+
+    /* ---- School day calculator ------------------------------------------ */
+    function getUSSchoolHolidays(year) {
+        // Returns dates as 'YYYY-MM-DD' strings for the school year
+        // Covers major US holidays for the given calendar year
+        const holidays = [];
+
+        // Labor Day: first Monday of September
+        const sept1 = new Date(year, 8, 1);
+        const laborDay = new Date(year, 8, 1 + ((8 - sept1.getDay()) % 7));
+        holidays.push(formatDate(laborDay));
+
+        // Columbus Day / Indigenous Peoples Day: second Monday of October
+        const oct1 = new Date(year, 9, 1);
+        const columbus = new Date(year, 9, 1 + ((8 - oct1.getDay()) % 7) + 7);
+        holidays.push(formatDate(columbus));
+
+        // Veterans Day: November 11
+        holidays.push(`${year}-11-11`);
+
+        // Thanksgiving: fourth Thursday of November + Friday
+        const nov1 = new Date(year, 10, 1);
+        const thanksgivingDay = new Date(year, 10, 1 + ((11 - nov1.getDay()) % 7) + 21);
+        holidays.push(formatDate(thanksgivingDay));
+        const thanksgivingFri = new Date(thanksgivingDay);
+        thanksgivingFri.setDate(thanksgivingFri.getDate() + 1);
+        holidays.push(formatDate(thanksgivingFri));
+
+        // Winter break: Dec 23 – Jan 3
+        for (let d = 23; d <= 31; d++) holidays.push(`${year}-12-${String(d).padStart(2,'0')}`);
+        for (let d = 1; d <= 3; d++) holidays.push(`${year + 1}-01-${String(d).padStart(2,'0')}`);
+
+        // MLK Day: third Monday of January (next year for fall semester)
+        const jan1Next = new Date(year + 1, 0, 1);
+        const mlk = new Date(year + 1, 0, 1 + ((8 - jan1Next.getDay()) % 7) + 14);
+        holidays.push(formatDate(mlk));
+
+        // Presidents Day: third Monday of February
+        const feb1 = new Date(year + 1, 1, 1);
+        const presidents = new Date(year + 1, 1, 1 + ((8 - feb1.getDay()) % 7) + 14);
+        holidays.push(formatDate(presidents));
+
+        // Spring break: typically mid-March, one week (Mon-Fri)
+        // Using third week of March as a reasonable default
+        const mar1 = new Date(year + 1, 2, 1);
+        const springMon = new Date(year + 1, 2, 1 + ((8 - mar1.getDay()) % 7) + 14);
+        for (let i = 0; i < 5; i++) {
+            const d = new Date(springMon);
+            d.setDate(d.getDate() + i);
+            holidays.push(formatDate(d));
+        }
+
+        // Memorial Day: last Monday of May
+        const may31 = new Date(year + 1, 4, 31);
+        const memorial = new Date(year + 1, 4, 31 - ((may31.getDay() + 6) % 7));
+        holidays.push(formatDate(memorial));
+
+        return new Set(holidays);
+    }
+
+    function formatDate(d) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function countDaysRemaining(endDateStr, excludeNonSchoolDays) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const end = new Date(endDateStr + 'T00:00:00');
+
+        if (end <= today) return { totalDays: 0, schoolDays: 0 };
+
+        // Get holidays for relevant years
+        const holidaySet = new Set();
+        if (excludeNonSchoolDays) {
+            const startYear = today.getFullYear();
+            const endYear = end.getFullYear();
+            for (let y = startYear - 1; y <= endYear; y++) {
+                for (const h of getUSSchoolHolidays(y)) holidaySet.add(h);
+            }
+        }
+
+        let totalDays = 0;
+        let schoolDays = 0;
+        const cursor = new Date(today);
+        cursor.setDate(cursor.getDate() + 1); // start from tomorrow
+
+        while (cursor <= end) {
+            totalDays++;
+            const dayOfWeek = cursor.getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            const dateStr = formatDate(cursor);
+            const isHoliday = holidaySet.has(dateStr);
+
+            if (excludeNonSchoolDays) {
+                if (!isWeekend && !isHoliday) schoolDays++;
+            } else {
+                schoolDays = totalDays;
+            }
+
+            cursor.setDate(cursor.getDate() + 1);
+        }
+
+        return { totalDays, schoolDays };
+    }
+
+    /* ---- localStorage helpers ------------------------------------------- */
+    function loadGoals() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch { return {}; }
+    }
+
+    function saveGoals(goals) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(goals));
+        savedGoals = goals;
+    }
+
+    /* ---- Toast ---------------------------------------------------------- */
+    function showToast(message) {
+        const el = document.getElementById('toast');
+        el.textContent = message;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    /* ---- Render: Progress View ------------------------------------------ */
+    function renderProgress(xpData) {
+        const container = document.getElementById('progress-content');
+        const goals = loadGoals();
+        savedGoals = goals;
+
+        // Filter to courses that have goals set
+        const coursesWithGoals = allCourses
+            .map((c, i) => ({ ...c, _index: i, goal: goals[c._goalKey] }))
+            .filter(c => c.goal);
+
+        if (!coursesWithGoals.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-bullseye"></i>
+                    <p>No goals set yet</p>
+                    <p class="empty-hint">Switch to "Set Goals" to create goals for your courses.</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = coursesWithGoals.map((c, idx) => {
+            const goal = c.goal;
+            const theme = COURSE_THEMES[c._index % COURSE_THEMES.length];
+            const colors = THEME_COLORS[theme];
+            const icon = guessIcon(c.title);
+
+            // Calculate progress
+            let current, target, unit;
+            if (goal.type === 'xp') {
+                current = Math.round(xpData[c._index] || 0);
+                target = goal.target;
+                unit = 'XP';
+            } else {
+                // Unit-based: estimate completed lessons from XP ratio
+                const totalXp = c.totalXp || 1;
+                const xpEarned = xpData[c._index] || 0;
+                const completionRatio = Math.min(xpEarned / totalXp, 1);
+                current = Math.round(completionRatio * (c.totalLessons || 0));
+                target = goal.target || c.totalLessons || 0;
+                unit = 'units';
+            }
+
+            const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+            const remaining = Math.max(target - current, 0);
+
+            // Pacing
+            const days = countDaysRemaining(goal.endDate, goal.excludeNonSchoolDays !== false);
+            const effectiveDays = days.schoolDays || 1;
+            const perDay = remaining > 0 ? (remaining / effectiveDays).toFixed(1) : 0;
+
+            // Status
+            let status, statusLabel;
+            const expectedProgress = target > 0 ? ((effectiveDays > 0) ? (target - remaining) / target : 0) : 0;
+            const idealPerDay = target / (days.totalDays || 1);
+
+            if (days.schoolDays <= 0) {
+                status = remaining > 0 ? 'at-risk' : 'on-track';
+                statusLabel = remaining > 0 ? 'Past due' : 'Completed';
+            } else if (pct >= 100) {
+                status = 'on-track';
+                statusLabel = 'Completed';
+            } else if (perDay <= idealPerDay * 1.3) {
+                status = 'on-track';
+                statusLabel = 'On track';
+            } else if (perDay <= idealPerDay * 2) {
+                status = 'behind';
+                statusLabel = 'Behind';
+            } else {
+                status = 'at-risk';
+                statusLabel = 'At risk';
+            }
+
+            const statValueClass = status === 'on-track' ? '' : (status === 'behind' ? 'warn' : 'danger');
+            const dayLabel = (goal.excludeNonSchoolDays !== false) ? 'school days left' : 'days left';
+
+            return `
+                <div class="goal-card">
+                    <div class="goal-card-header">
+                        <div class="goal-card-icon" style="background:${colors.bg};color:${colors.fg};">
+                            <i class="fa-solid ${icon}"></i>
+                        </div>
+                        <div>
+                            <div class="goal-card-title">${c.title}</div>
+                            <div class="goal-card-subtitle">${c.subject}${goal.type === 'xp' ? ' &middot; XP Goal' : ' &middot; Unit Goal'}${goal.endDate ? ' &middot; Due ' + formatReadableDate(goal.endDate) : ''}</div>
+                        </div>
+                    </div>
+
+                    <div class="goal-stats">
+                        <div class="goal-stat">
+                            <div class="goal-stat-value">${current}</div>
+                            <div class="goal-stat-label">${unit} Completed</div>
+                        </div>
+                        <div class="goal-stat">
+                            <div class="goal-stat-value" style="color:var(--color-text);">${target}</div>
+                            <div class="goal-stat-label">${unit} Target</div>
+                        </div>
+                        <div class="goal-stat">
+                            <div class="goal-stat-value ${statValueClass}">${perDay}</div>
+                            <div class="goal-stat-label">${unit} / Day Needed</div>
+                        </div>
+                        <div class="goal-stat">
+                            <div class="goal-stat-value" style="color:var(--color-text);">${days.schoolDays}</div>
+                            <div class="goal-stat-label">${dayLabel}</div>
+                        </div>
+                    </div>
+
+                    <div class="goal-progress-bar">
+                        <div class="goal-progress-fill ${status}" style="width:${pct}%"></div>
+                    </div>
+                    <div class="goal-pacing">
+                        <span class="pacing-label">${Math.round(pct)}% complete</span>
+                        <span class="pacing-badge ${status}">
+                            <i class="fa-solid ${status === 'on-track' ? 'fa-circle-check' : (status === 'behind' ? 'fa-clock' : 'fa-triangle-exclamation')}"></i>
+                            ${statusLabel}
+                        </span>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function formatReadableDate(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00');
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    /* ---- Render: Set Goals View ----------------------------------------- */
+    function renderSetGoals() {
+        const container = document.getElementById('set-goals-content');
+        const goals = loadGoals();
+        savedGoals = goals;
+
+        if (!allCourses.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-book"></i>
+                    <p>No courses found</p>
+                    <p class="empty-hint">Enroll in courses to start setting goals.</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = allCourses.map((c, i) => {
+            const theme = COURSE_THEMES[i % COURSE_THEMES.length];
+            const colors = THEME_COLORS[theme];
+            const icon = guessIcon(c.title);
+            const existing = goals[c._goalKey] || {};
+            const goalType = existing.type || 'units';
+            const hasGoal = !!existing.type;
+
+            return `
+                <div class="set-goal-card" data-course-index="${i}" data-goal-key="${c._goalKey}">
+                    <div class="goal-card-header">
+                        <div class="goal-card-icon" style="background:${colors.bg};color:${colors.fg};">
+                            <i class="fa-solid ${icon}"></i>
+                        </div>
+                        <div>
+                            <div class="goal-card-title">${c.title}</div>
+                            <div class="goal-card-subtitle">${c.subject}</div>
+                        </div>
+                    </div>
+
+                    <div class="course-info-row">
+                        ${c.totalLessons ? `<span><i class="fa-solid fa-layer-group"></i> ${c.totalLessons} total units</span>` : ''}
+                        ${c.totalXp ? `<span><i class="fa-solid fa-bolt"></i> ${c.totalXp} total XP</span>` : ''}
+                        ${c.dailyXpGoal ? `<span><i class="fa-solid fa-target"></i> ${c.dailyXpGoal} XP/day assigned</span>` : ''}
+                    </div>
+
+                    <div class="goal-type-toggle">
+                        <button class="goal-type-btn ${goalType === 'units' ? 'active' : ''}" data-type="units" onclick="toggleGoalType(this)">
+                            <i class="fa-solid fa-layer-group"></i>&nbsp; Unit Goal
+                        </button>
+                        <button class="goal-type-btn ${goalType === 'xp' ? 'active' : ''}" data-type="xp" onclick="toggleGoalType(this)">
+                            <i class="fa-solid fa-bolt"></i>&nbsp; XP Goal
+                        </button>
+                    </div>
+
+                    <div class="goal-form-row">
+                        <div class="goal-form-group">
+                            <label class="goal-form-label">Target ${goalType === 'xp' ? 'XP' : 'Units'}</label>
+                            <input type="number" class="goal-form-input goal-target-input"
+                                   min="1"
+                                   placeholder="${goalType === 'xp' ? 'e.g. 500' : 'e.g. ' + (c.totalLessons || 20)}"
+                                   value="${existing.target || ''}"
+                                   onchange="updatePreview(this)"
+                                   oninput="updatePreview(this)">
+                        </div>
+                        <div class="goal-form-group">
+                            <label class="goal-form-label">End Date</label>
+                            <input type="date" class="goal-form-input goal-date-input"
+                                   value="${existing.endDate || ''}"
+                                   min="${formatDate(new Date())}"
+                                   onchange="updatePreview(this)">
+                        </div>
+                    </div>
+
+                    <div class="goal-checkbox-row">
+                        <input type="checkbox" id="school-days-${i}" class="goal-school-checkbox"
+                               ${(existing.excludeNonSchoolDays !== false) ? 'checked' : ''}
+                               onchange="updatePreview(this)">
+                        <label for="school-days-${i}">Exclude weekends &amp; holidays (school days only)</label>
+                    </div>
+
+                    <div class="goal-preview" id="preview-${i}" style="display:none;">
+                        <i class="fa-solid fa-calculator"></i>
+                        <span class="goal-preview-text" id="preview-text-${i}"></span>
+                    </div>
+
+                    <div style="display:flex;align-items:center;">
+                        <button class="goal-save-btn" onclick="saveGoalForCourse(${i})">
+                            <i class="fa-solid fa-check"></i>&nbsp; ${hasGoal ? 'Update Goal' : 'Save Goal'}
+                        </button>
+                        ${hasGoal ? `<button class="goal-remove-btn" onclick="removeGoalForCourse(${i})">
+                            <i class="fa-solid fa-trash-can"></i>&nbsp; Remove
+                        </button>` : ''}
+                    </div>
+                </div>`;
+        }).join('');
+
+        // Initialize previews for courses with existing goals
+        document.querySelectorAll('.set-goal-card').forEach(card => {
+            const input = card.querySelector('.goal-target-input');
+            if (input && input.value) updatePreview(input);
+        });
+    }
+
+    /* ---- Toggle goal type (XP vs Units) --------------------------------- */
+    function toggleGoalType(btn) {
+        const card = btn.closest('.set-goal-card');
+        card.querySelectorAll('.goal-type-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const type = btn.dataset.type;
+        const index = parseInt(card.dataset.courseIndex);
+        const c = allCourses[index];
+        const label = card.querySelector('.goal-form-label');
+        const input = card.querySelector('.goal-target-input');
+
+        label.textContent = 'Target ' + (type === 'xp' ? 'XP' : 'Units');
+        input.placeholder = type === 'xp' ? 'e.g. 500' : 'e.g. ' + (c.totalLessons || 20);
+
+        updatePreview(input);
+    }
+
+    /* ---- Update live pacing preview ------------------------------------- */
+    function updatePreview(el) {
+        const card = el.closest('.set-goal-card');
+        const index = parseInt(card.dataset.courseIndex);
+        const c = allCourses[index];
+
+        const target = parseInt(card.querySelector('.goal-target-input').value) || 0;
+        const endDate = card.querySelector('.goal-date-input').value;
+        const excludeNonSchool = card.querySelector('.goal-school-checkbox').checked;
+        const type = card.querySelector('.goal-type-btn.active').dataset.type;
+
+        const preview = document.getElementById(`preview-${index}`);
+        const previewText = document.getElementById(`preview-text-${index}`);
+
+        if (!target || !endDate) {
+            preview.style.display = 'none';
+            return;
+        }
+
+        const days = countDaysRemaining(endDate, excludeNonSchool);
+        const unit = type === 'xp' ? 'XP' : 'units';
+
+        if (days.schoolDays <= 0) {
+            previewText.textContent = 'The selected end date has already passed or is today.';
+            preview.style.display = 'flex';
+            return;
+        }
+
+        const perDay = (target / days.schoolDays).toFixed(1);
+        const dayType = excludeNonSchool ? 'school day' : 'day';
+
+        previewText.textContent = `You need to complete ~${perDay} ${unit} per ${dayType} to reach your goal. (${days.schoolDays} ${dayType}s remaining)`;
+        preview.style.display = 'flex';
+    }
+
+    /* ---- Save a goal ---------------------------------------------------- */
+    function saveGoalForCourse(index) {
+        const c = allCourses[index];
+        const card = document.querySelector(`.set-goal-card[data-course-index="${index}"]`);
+
+        const type = card.querySelector('.goal-type-btn.active').dataset.type;
+        const target = parseInt(card.querySelector('.goal-target-input').value) || 0;
+        const endDate = card.querySelector('.goal-date-input').value;
+        const excludeNonSchoolDays = card.querySelector('.goal-school-checkbox').checked;
+
+        if (!target || target <= 0) {
+            showToast('Please enter a target value.');
+            return;
+        }
+        if (!endDate) {
+            showToast('Please select an end date.');
+            return;
+        }
+
+        const goals = loadGoals();
+        goals[c._goalKey] = { type, target, endDate, excludeNonSchoolDays };
+        saveGoals(goals);
+
+        showToast(`Goal saved for ${c.title}!`);
+
+        // Re-render to update button labels
+        renderSetGoals();
+    }
+
+    /* ---- Remove a goal -------------------------------------------------- */
+    function removeGoalForCourse(index) {
+        const c = allCourses[index];
+        const goals = loadGoals();
+        delete goals[c._goalKey];
+        saveGoals(goals);
+
+        showToast(`Goal removed for ${c.title}.`);
+        renderSetGoals();
+    }
+
+    /* ---- Tab switching -------------------------------------------------- */
+    function switchTab(tab) {
+        document.querySelectorAll('#goals-tabs .toggle-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector(`#goals-tabs .toggle-btn[data-tab="${tab}"]`).classList.add('active');
+
+        document.getElementById('view-progress').style.display = tab === 'progress' ? '' : 'none';
+        document.getElementById('view-set').style.display = tab === 'set' ? '' : 'none';
+
+        // Update URL hash
+        history.replaceState(null, '', '#' + tab);
+
+        // Update sidebar active child
+        document.querySelectorAll('.nav-child').forEach(c => c.classList.remove('active'));
+        const childId = tab === 'progress' ? 'goals-progress' : 'goals-set';
+        const childEl = document.querySelector(`.nav-child a[href="/goals#${tab}"]`);
+        if (childEl) childEl.closest('.nav-child').classList.add('active');
+    }
+
+    document.querySelectorAll('#goals-tabs .toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    /* ---- Date helper ---------------------------------------------------- */
+    function localDateStr(d) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    /* ---- Data fetching -------------------------------------------------- */
+    document.addEventListener('DOMContentLoaded', async function () {
+        const email = localStorage.getItem('alphalearn_email') || '';
+
+        if (!email) {
+            document.getElementById('progress-content').innerHTML =
+                '<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><p>No email found. Please <a href="/login" style="color:var(--color-primary)">sign in</a> first.</p></div>';
+            document.getElementById('set-goals-content').innerHTML = '';
+            return;
+        }
+
+        try {
+            /* 1. User lookup */
+            const lookupResp = await fetch(`/api/user-lookup?email=${encodeURIComponent(email)}`);
+            const lookupData = await lookupResp.json();
+
+            if (!lookupData.user || !lookupData.user.sourcedId) {
+                document.getElementById('progress-content').innerHTML =
+                    '<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><p>Could not find your account.</p></div>';
+                return;
+            }
+
+            const userId = lookupData.user.sourcedId;
+            localStorage.setItem('alphalearn_userId', userId);
+
+            /* 2. Fetch enrollments */
+            const enrollResp = await fetch(`/api/enrollments?userId=${userId}`);
+            const enrollData = await enrollResp.json();
+
+            const raw = enrollData.data
+                || enrollData.enrollments
+                || enrollData.courses
+                || (Array.isArray(enrollData) ? enrollData : []);
+
+            const now = new Date();
+            const courses = [];
+
+            for (const e of raw) {
+                const course  = e.course || {};
+                const cMeta   = course.metadata || {};
+                const goals   = (e.metadata && e.metadata.goals) || {};
+                const metrics = (e.metadata && e.metadata.metrics) || {};
+                const title   = (course.title || '').trim();
+                const subjects = course.subjects || [];
+                const endDate = e.endDate ? new Date(e.endDate) : null;
+
+                if (endDate && endDate < now) continue;
+                if (!title) continue;
+                if (title.startsWith('Manual XP')) continue;
+                if (title.includes('Hole-Filling')) continue;
+                if (!subjects.length) continue;
+
+                const isMastery = metrics.courseType === 'mastery_test'
+                    || metrics.courseType === 'mastery-test'
+                    || metrics.courseType === 'masteryTest'
+                    || (title.toLowerCase().includes('mastery') && title.toLowerCase().includes('test'));
+                if (isMastery) continue;
+
+                const pApp = course.primaryApp || {};
+                const appName = (typeof pApp === 'object' ? pApp.name : '')
+                    || cMeta.primaryApp || cMeta.app || '';
+
+                courses.push({
+                    title,
+                    subject:      subjects[0] || '',
+                    appName,
+                    totalXp:      metrics.totalXp || 0,
+                    totalLessons: metrics.totalLessons || 0,
+                    dailyXpGoal:  goals.dailyXp || 0,
+                    _goalKey:     e.sourcedId || course.sourcedId || title,
+                    _raw: e,
+                    _course: course,
+                });
+            }
+
+            allCourses = courses;
+
+            /* 3. Fetch XP data (full school year for progress tracking) */
+            const startOfYear = new Date(now.getFullYear(), 7, 1); // Aug 1
+            if (startOfYear > now) startOfYear.setFullYear(startOfYear.getFullYear() - 1);
+            const startDate = localDateStr(startOfYear) + 'T00:00:00Z';
+            const endDate = localDateStr(now) + 'T23:59:59Z';
+
+            let xpData = {};
+            try {
+                const resp = await fetch(`/api/analytics?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}`);
+                const data = await resp.json();
+                const factsByApp = data.factsByApp || {};
+                const facts = data.facts || {};
+
+                // Per-app lookup
+                const xpMap = {};
+                for (const dayData of Object.values(factsByApp)) {
+                    for (const [subject, apps] of Object.entries(dayData)) {
+                        if (!xpMap[subject]) xpMap[subject] = {};
+                        for (const [app, info] of Object.entries(apps)) {
+                            const xp = (info.activityMetrics || {}).xpEarned || 0;
+                            const key = app.toLowerCase();
+                            xpMap[subject][key] = (xpMap[subject][key] || 0) + xp;
+                        }
+                    }
+                }
+
+                // Subject-level fallback
+                const xpBySubject = {};
+                for (const dayFacts of Object.values(facts)) {
+                    for (const [subject, info] of Object.entries(dayFacts)) {
+                        const xp = (info.activityMetrics || {}).xpEarned || 0;
+                        xpBySubject[subject] = (xpBySubject[subject] || 0) + xp;
+                    }
+                }
+
+                // Match XP to each course (same logic as dashboard)
+                for (let i = 0; i < allCourses.length; i++) {
+                    const c = allCourses[i];
+                    const subjApps = xpMap[c.subject] || {};
+                    const appName = (c.appName || '').toLowerCase();
+
+                    if (appName && Object.keys(subjApps).length) {
+                        let matched = subjApps[appName] || 0;
+                        if (!matched) {
+                            const normalized = appName.replace(/_/g, ' ');
+                            for (const [key, xp] of Object.entries(subjApps)) {
+                                if (key === normalized || key.includes(normalized) || normalized.includes(key)) {
+                                    matched = xp;
+                                    break;
+                                }
+                            }
+                        }
+                        xpData[i] = matched;
+                    } else if (!appName && Object.keys(subjApps).length) {
+                        let nativeXp = 0;
+                        for (const [key, xp] of Object.entries(subjApps)) {
+                            if (NATIVE_APPS.some(n => key.includes(n) || n.includes(key))) nativeXp += xp;
+                        }
+                        xpData[i] = nativeXp;
+                    } else {
+                        xpData[i] = xpBySubject[c.subject] || 0;
+                    }
+                }
+            } catch (err) {
+                console.warn('[AlphaLearn] Analytics unavailable:', err.message);
+            }
+
+            /* 4. Render views */
+            renderProgress(xpData);
+            renderSetGoals();
+
+            // Store xpData globally so tab switches can re-render progress
+            window._goalsXpData = xpData;
+
+        } catch (err) {
+            document.getElementById('progress-content').innerHTML =
+                `<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><p>Unable to load data. Please try again.</p></div>`;
+            console.error('[AlphaLearn Goals]', err);
+        }
+
+        /* Handle initial hash */
+        const hash = window.location.hash.replace('#', '');
+        if (hash === 'set' || hash === 'progress') {
+            switchTab(hash);
+        }
+    });
+
+    // Re-render progress when switching back to it
+    const origSwitchTab = switchTab;
+    // (handled inline — progress re-renders from stored xpData)
+    document.querySelectorAll('#goals-tabs .toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.tab === 'progress' && window._goalsXpData) {
+                renderProgress(window._goalsXpData);
+            }
+        });
+    });
+    </script>
+</body>
+</html>

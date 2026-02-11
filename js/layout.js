@@ -55,7 +55,10 @@
 
     const studentNav = [
         { id: 'home',     icon: 'fa-house',   label: 'Home',             href: '/dashboard' },
-        { id: 'mastery',  icon: 'fa-trophy',  label: 'Mastery Progress', href: '#' },
+        { id: 'goals',    icon: 'fa-bullseye', label: 'Goals', children: [
+            { id: 'goals-progress', icon: 'fa-chart-line', label: 'Progress',  href: '/goals#progress' },
+            { id: 'goals-set',      icon: 'fa-sliders',    label: 'Set Goals', href: '/goals#set' },
+        ]},
         { id: 'badges',   icon: 'fa-award',   label: 'Badges',           href: '#' },
     ];
 
@@ -68,11 +71,47 @@
 
     const items = view === 'student' ? studentNav : adminNav;
 
-    sidebar.innerHTML = '<ul class="nav-list">' + items.map(item => `
-        <li class="nav-item ${item.id === active ? 'active' : ''}">
-            <a href="${item.href}">
-                <i class="fa-solid ${item.icon}"></i>
-                <span>${item.label}</span>
-            </a>
-        </li>`).join('') + '</ul>';
+    function renderNavItem(item) {
+        // Collapsible parent with children
+        if (item.children) {
+            const isParentActive = active === item.id || item.children.some(c => c.id === active);
+            const isOpen = isParentActive; // auto-open if a child is active
+            return `
+                <li class="nav-item nav-item-parent ${isParentActive ? 'active' : ''} ${isOpen ? 'open' : ''}">
+                    <a href="#" class="nav-parent-toggle">
+                        <i class="fa-solid ${item.icon}"></i>
+                        <span>${item.label}</span>
+                        <i class="fa-solid fa-chevron-right nav-chevron"></i>
+                    </a>
+                    <ul class="nav-children">
+                        ${item.children.map(child => `
+                            <li class="nav-child ${child.id === active ? 'active' : ''}">
+                                <a href="${child.href}">
+                                    <i class="fa-solid ${child.icon}"></i>
+                                    <span>${child.label}</span>
+                                </a>
+                            </li>`).join('')}
+                    </ul>
+                </li>`;
+        }
+        // Regular flat item
+        return `
+            <li class="nav-item ${item.id === active ? 'active' : ''}">
+                <a href="${item.href}">
+                    <i class="fa-solid ${item.icon}"></i>
+                    <span>${item.label}</span>
+                </a>
+            </li>`;
+    }
+
+    sidebar.innerHTML = '<ul class="nav-list">' + items.map(renderNavItem).join('') + '</ul>';
+
+    // Attach click handlers for collapsible parents
+    sidebar.querySelectorAll('.nav-parent-toggle').forEach(toggle => {
+        toggle.addEventListener('click', function (e) {
+            e.preventDefault();
+            const parentLi = this.closest('.nav-item-parent');
+            parentLi.classList.toggle('open');
+        });
+    });
 })();

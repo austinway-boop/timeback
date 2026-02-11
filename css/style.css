@@ -170,6 +170,58 @@ img { max-width: 100%; display: block; }
     margin-left: auto;
     font-size: 0.75rem;
     opacity: 0.5;
+    transition: transform 0.25s ease;
+}
+
+/* Collapsible parent nav items */
+.nav-item-parent.open > a .nav-chevron {
+    transform: rotate(90deg);
+}
+.nav-item-parent.active > a {
+    color: var(--color-primary-dark);
+    font-weight: 600;
+}
+.nav-item-parent > a:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.nav-children {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.25s ease;
+    opacity: 0;
+    padding-left: 0;
+}
+.nav-item-parent.open .nav-children {
+    max-height: 200px;
+    opacity: 1;
+}
+
+.nav-child a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px 8px 44px;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    font-size: 0.88rem;
+    transition: all var(--transition);
+}
+.nav-child a:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+.nav-child.active a {
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+    font-weight: 600;
+}
+.nav-child a i {
+    width: 18px;
+    text-align: center;
+    font-size: 0.9rem;
 }
 
 /* ===========================================================================
@@ -971,6 +1023,62 @@ img { max-width: 100%; display: block; }
     font-size: 0.85rem;
     color: var(--color-text-secondary);
     line-height: 1.5;
+}
+
+/* ===========================================================================
+   Skeleton Loading
+   =========================================================================== */
+@keyframes skeleton-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #E8ECF1 25%, #F4F6F9 50%, #E8ECF1 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+.skeleton-text {
+    height: 12px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+}
+.skeleton-text:last-child { margin-bottom: 0; }
+.skeleton-text.lg { height: 16px; }
+.skeleton-text.sm { height: 10px; }
+.skeleton-text.xs { height: 8px; }
+.skeleton-text.short { width: 40%; }
+.skeleton-text.medium { width: 65%; }
+
+.skeleton-circle {
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.skeleton-rect {
+    border-radius: var(--radius-sm);
+}
+
+/* Dark variant (for dark-bg pages like login, signup, callback) */
+.skeleton-dark {
+    background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+/* Skeleton bar for inside buttons */
+.skeleton-btn-bar {
+    display: block;
+    height: 16px;
+    width: 80px;
+    margin: 0 auto;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(15,23,42,0.1) 25%, rgba(15,23,42,0.25) 50%, rgba(15,23,42,0.1) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
 
 /* ===========================================================================
