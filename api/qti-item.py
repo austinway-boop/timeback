@@ -61,6 +61,30 @@ def _try_fetch(urls, headers):
     return None, 404
 
 
+def _resolve_bank_to_qti(bank_id):
+    """Transform a PowerPath bank ID to QTI test and item IDs.
+
+    PowerPath: HUMG20-r173056-bank-v1
+    QTI test:  HUMG20-qti173056-test-v1
+    Pattern:   replace 'r{num}' with 'qti{num}', replace 'bank' with 'test'
+
+    Also try: HUMG20-r173056-test-v1, HUMG20-r173056-v1
+    """
+    import re
+    ids = []
+    if "-bank-" in bank_id:
+        # Primary: r→qti, bank→test
+        ids.append(re.sub(r'-r(\d+)-bank-', r'-qti\1-test-', bank_id))
+        # Also try: just replace bank→test (keep r prefix)
+        ids.append(bank_id.replace("-bank-", "-test-"))
+        # Also try: remove -bank entirely
+        ids.append(bank_id.replace("-bank-", "-"))
+    elif "-r" in bank_id:
+        # Not a bank ID but has resource number — try qti prefix
+        ids.append(re.sub(r'-r(\d+)-', r'-qti\1-', bank_id))
+    return ids
+
+
 def _match_items(items, target_subject, code, title_lower):
     """Score and rank QTI items by relevance to the search criteria."""
     scored = []
@@ -298,25 +322,63 @@ class handler(BaseHTTPRequestHandler):
     def _fetch_assessment(self, test_id, headers, errors, search_subject="", search_title="", search_grade=""):
         """Fetch an assessment test and its questions. Returns True if handled."""
 
-        # 1. Direct QTI fetch (documented endpoints)
-        #    GET https://qti.alpha-1edtech.ai/api/assessment-tests/{id}
-        #    GET https://qti.alpha-1edtech.ai/api/assessment-items/{id}
-        for endpoint in ["assessment-tests", "assessment-items"]:
-            data, st = _fetch(f"{QTI_BASE}/api/{endpoint}/{test_id}", headers)
-            if data:
-                # Check if it's a test with parts → resolve questions
-                test = data.get("qti-assessment-test", data) if isinstance(data, dict) else data
-                if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
-                    questions = self._resolve_questions(test, headers)
-                    title = data.get("title") or (test.get("_attributes") or {}).get("title", "")
-                    send_json(self, {
-                        "data": {"title": title, "questions": questions, "totalQuestions": len(questions)},
-                        "success": True,
-                    })
+        # 0. Transform PowerPath bank ID to QTI test ID
+        #    HUMG20-r173056-bank-v1 → HUMG20-qti173056-test-v1
+        qti_ids = _resolve_bank_to_qti(test_id)
+        all_ids = qti_ids + [test_id]  # Try transformed IDs first, then original
+
+        # 1. Direct QTI fetch — try all ID variants
+        for try_id in all_ids:
+            for endpoint in ["assessment-tests", "assessment-items"]:
+                data, st = _fetch(f"{QTI_BASE}/api/{endpoint}/{try_id}", headers)
+                if data:
+                    # Check if it's a test with parts → resolve questions
+                    test = data.get("qti-assessment-test", data) if isinstance(data, dict) else data
+                    if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
+                        questions = self._resolve_questions(test, headers)
+                        title = data.get("title") or (test.get("_attributes") or {}).get("title", "")
+                        send_json(self, {
+                            "data": {"title": title, "questions": questions, "totalQuestions": len(questions)},
+                            "success": True,
+                        })
+                        return True
+                    # Single item or raw data
+                    send_json(self, {"data": data, "success": True})
                     return True
-                # Single item or raw data
-                send_json(self, {"data": data, "success": True})
-                return True
+
+        # 1b. Try OneRoster Resources API to resolve PowerPath ID → QTI URL
+        #     GET /resources?filter=sourcedId~'{resource_number}'
+        import re as _re
+        res_match = _re.search(r'r(\d+)', test_id)
+        if res_match:
+            res_num = res_match.group(1)
+            try:
+                from api._helpers import fetch_with_params
+                res_data, res_st = fetch_with_params(
+                    "/ims/oneroster/resources/v1p2/resources",
+                    {"filter": f"sourcedId~'{res_num}'", "limit": 10},
+                )
+                if res_data:
+                    resources = res_data.get("resources", [])
+                    for res in resources:
+                        meta = res.get("metadata") or {}
+                        qti_url = meta.get("url") or ""
+                        if qti_url and "qti" in qti_url:
+                            data, st = _fetch(qti_url, headers)
+                            if data:
+                                test = data.get("qti-assessment-test", data) if isinstance(data, dict) else data
+                                if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
+                                    questions = self._resolve_questions(test, headers)
+                                    title = data.get("title") or (test.get("_attributes") or {}).get("title", "")
+                                    send_json(self, {
+                                        "data": {"title": title, "questions": questions, "totalQuestions": len(questions)},
+                                        "success": True,
+                                    })
+                                    return True
+                                send_json(self, {"data": data, "success": True})
+                                return True
+            except Exception:
+                pass
 
         # 2. Search QTI catalog by subject/title/keywords
         catalog_result = self._search_qti_catalog(
