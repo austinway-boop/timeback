@@ -10,478 +10,418 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .quiz-container { max-width: 760px; margin: 0 auto; padding: 20px; }
-        .quiz-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
-        .quiz-meta { font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 20px; }
-        .quiz-loading { text-align: center; padding: 60px 20px; color: var(--color-text-muted); }
-        .quiz-loading .loading-spinner { margin: 0 auto 12px; }
-        .question-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
-        .question-number { font-size: 0.78rem; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-        .question-prompt { font-size: 1rem; font-weight: 500; line-height: 1.6; margin-bottom: 16px; }
-        .question-prompt img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
-        .choice-list { display: flex; flex-direction: column; gap: 8px; }
-        .choice-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border: 2px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
-        .choice-item:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
-        .choice-item.selected { border-color: var(--color-primary); background: var(--color-primary-light); }
-        .choice-letter { width: 28px; height: 28px; border-radius: 50%; background: var(--color-bg); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; flex-shrink: 0; }
-        .choice-item.selected .choice-letter { background: var(--color-primary); color: #fff; }
-        .choice-text { flex: 1; line-height: 1.5; }
-        .choice-text img { max-width: 100%; border-radius: 4px; margin-top: 4px; }
-        .stimulus-content { background: var(--color-bg); border-radius: var(--radius-sm); padding: 20px; margin-bottom: 20px; line-height: 1.7; font-size: 0.95rem; }
-        .stimulus-content p { margin: 0 0 12px; }
-        .quiz-actions { display: flex; gap: 12px; margin-top: 24px; }
-        .quiz-btn { padding: 12px 24px; border: none; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.92rem; cursor: pointer; }
+        .quiz-wrap { max-width: 720px; margin: 0 auto; padding: 20px; }
+        .quiz-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+        .quiz-title { font-size: 1.2rem; font-weight: 700; flex: 1; }
+        .quiz-score { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 700; color: var(--color-primary); background: var(--color-primary-light); padding: 6px 14px; border-radius: 20px; }
+        .quiz-progress-bar { height: 6px; background: #E8ECF1; border-radius: 3px; margin-bottom: 24px; overflow: hidden; }
+        .quiz-progress-fill { height: 100%; background: var(--color-primary); border-radius: 3px; transition: width 0.4s ease; }
+        .quiz-status { font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: 8px; text-align: center; }
+        .question-card { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius); padding: 28px; margin-bottom: 20px; }
+        .question-num { font-size: 0.75rem; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .question-text { font-size: 1.05rem; font-weight: 500; line-height: 1.7; margin-bottom: 20px; }
+        .question-text img { max-width: 100%; border-radius: 8px; margin: 10px 0; }
+        .choices { display: flex; flex-direction: column; gap: 10px; }
+        .choice { display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px; border: 2px solid var(--color-border); border-radius: 12px; cursor: pointer; transition: all 0.15s; }
+        .choice:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+        .choice.selected { border-color: var(--color-primary); background: var(--color-primary-light); }
+        .choice.correct { border-color: #2E7D32; background: #E8F5E9; }
+        .choice.incorrect { border-color: #E53E3E; background: #FFF5F5; }
+        .choice-letter { width: 32px; height: 32px; border-radius: 50%; background: var(--color-bg); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+        .choice.selected .choice-letter { background: var(--color-primary); color: #fff; }
+        .choice.correct .choice-letter { background: #2E7D32; color: #fff; }
+        .choice.incorrect .choice-letter { background: #E53E3E; color: #fff; }
+        .choice-text { flex: 1; font-size: 0.95rem; line-height: 1.5; padding-top: 4px; }
+        .feedback { padding: 16px; border-radius: 10px; margin-top: 16px; font-size: 0.9rem; line-height: 1.6; display: none; }
+        .feedback.correct { background: #E8F5E9; border: 1px solid #A5D6A7; color: #1B5E20; display: block; }
+        .feedback.incorrect { background: #FFF5F5; border: 1px solid #FFCDD2; color: #B71C1C; display: block; }
+        .quiz-btn { padding: 14px 28px; border: none; border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
         .quiz-btn-primary { background: var(--color-primary); color: #fff; }
         .quiz-btn-primary:hover { background: var(--color-primary-dark); }
+        .quiz-btn-primary:disabled { background: #CBD5E0; cursor: not-allowed; }
         .quiz-btn-secondary { background: var(--color-bg); color: var(--color-text-secondary); }
+        .quiz-actions { display: flex; gap: 12px; justify-content: flex-end; }
+        .result-card { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius); padding: 40px; text-align: center; }
+        .result-score { font-size: 3.5rem; font-weight: 800; color: var(--color-primary); }
+        .result-label { font-size: 1rem; color: var(--color-text-secondary); margin-top: 4px; }
+        .result-details { display: flex; gap: 20px; justify-content: center; margin-top: 24px; }
+        .result-stat { text-align: center; }
+        .result-stat-val { font-size: 1.5rem; font-weight: 700; }
+        .result-stat-label { font-size: 0.78rem; color: var(--color-text-muted); }
+        .xp-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 1.1rem; font-weight: 700; color: var(--color-primary); background: var(--color-primary-light); padding: 8px 20px; border-radius: 20px; margin-top: 16px; }
+        .loading-msg { text-align: center; padding: 60px; color: var(--color-text-muted); }
+        .loading-msg .loading-spinner { margin: 0 auto 12px; }
         .back-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--color-text-secondary); font-size: 0.88rem; font-weight: 500; text-decoration: none; margin-bottom: 16px; }
         .back-btn:hover { color: var(--color-primary); }
-        .error-box { background: #FFF5F5; border: 1px solid #FED7D7; border-radius: var(--radius-sm); padding: 16px; color: #C53030; font-size: 0.88rem; margin-top: 12px; }
-        .raw-content { background: var(--color-bg); padding: 20px; border-radius: var(--radius-sm); line-height: 1.7; font-size: 0.95rem; }
-        .raw-content img { max-width: 100%; }
+        .stimulus-box { background: var(--color-bg); border-radius: var(--radius-sm); padding: 20px; margin-bottom: 20px; line-height: 1.7; font-size: 0.95rem; max-height: 400px; overflow-y: auto; }
+        .stimulus-box img { max-width: 100%; border-radius: 8px; }
     </style>
 </head>
 <body data-view="student" data-active="home">
     <div class="layout">
         <nav class="sidebar" id="sidebar"></nav>
         <main class="main-content">
-            <div class="quiz-container">
+            <div class="quiz-wrap">
                 <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back to course</a>
                 <div id="quiz-area">
-                    <div class="quiz-loading">
-                        <div class="loading-spinner"></div>
-                        Loading content...
-                    </div>
+                    <div class="loading-msg"><div class="loading-spinner"></div>Starting quiz...</div>
                 </div>
             </div>
         </main>
     </div>
-
     <script src="/js/layout.js"></script>
     <script>
     function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+    // Reuse the renderNode from the QTI parser for rich content
+    function renderNode(node) {
+        if (!node) return '';
+        if (typeof node === 'string') return node;
+        if (Array.isArray(node)) return node.map(renderNode).join('');
+        var html = '';
+        for (var key in node) {
+            if (key.startsWith('_')) continue;
+            var val = node[key];
+            if (key === 'strong' || key === 'b') { html += '<strong>' + (typeof val === 'string' ? val : renderNode(val)) + '</strong>'; continue; }
+            if (key === 'em' || key === 'i') { html += '<em>' + (typeof val === 'string' ? val : renderNode(val)) + '</em>'; continue; }
+            if (key === 'p') { var ps = Array.isArray(val) ? val : [val]; ps.forEach(function(p) { html += '<p>' + (typeof p === 'string' ? p : (p['_'] || renderNode(p))) + '</p>'; }); continue; }
+            if (key === 'img') { var ia = val['_attributes'] || val; html += '<img src="' + esc(ia.src||'') + '" alt="' + esc(ia.alt||'') + '" style="max-width:100%;border-radius:8px;">'; continue; }
+            if (key === 'figure') { var figs = Array.isArray(val)?val:[val]; figs.forEach(function(f){ var im=f.img||{}; var a=im['_attributes']||im; html+='<figure style="text-align:center;margin:12px 0;"><img src="'+esc(a.src||'')+'" style="max-width:100%;border-radius:8px;">'+(f.figcaption?'<figcaption style="font-size:0.82rem;color:var(--color-text-muted);margin-top:6px;">'+esc(f.figcaption)+'</figcaption>':'')+'</figure>'; }); continue; }
+            if (key === 'span') { html += typeof val === 'string' ? val : renderNode(val); continue; }
+            if (key === 'div') { var ds=Array.isArray(val)?val:[val]; ds.forEach(function(d){html+=renderNode(d);}); continue; }
+            if (typeof val === 'object' && val !== null) html += renderNode(val);
+        }
+        return html;
+    }
+
+    var quizState = {
+        attemptId: null,
+        questionNum: 0,
+        correct: 0,
+        total: 0,
+        xpEarned: 0,
+        currentQuestion: null,
+        selectedChoice: null,
+        answered: false,
+        testId: '',
+        title: '',
+    };
+
+    var area = document.getElementById('quiz-area');
+
     document.addEventListener('DOMContentLoaded', async function() {
         var params = new URLSearchParams(window.location.search);
-        var itemId = params.get('id') || '';
-        var itemType = params.get('type') || 'item';
-        var itemUrl = params.get('url') || '';
-        var title = params.get('title') || 'Content';
-        var area = document.getElementById('quiz-area');
+        var testId = params.get('id') || params.get('testId') || '';
+        var qtiUrl = params.get('url') || '';
+        quizState.title = params.get('title') || 'Quiz';
+        quizState.testId = testId;
 
-        if (!itemId && !itemUrl) {
-            area.innerHTML = '<div class="quiz-loading"><p>No content ID provided.</p></div>';
+        var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+
+        // Try PowerPath adaptive quiz flow first
+        if (testId && userId) {
+            try {
+                var startResp = await fetch('/api/quiz-session?action=start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({studentId: userId, testId: testId}),
+                });
+                var startData = await startResp.json();
+                if (startData.attemptId || startData.id) {
+                    quizState.attemptId = startData.attemptId || startData.id;
+                    await loadNextQuestion();
+                    return;
+                }
+            } catch(e) { console.warn('PowerPath attempt failed:', e.message); }
+        }
+
+        // Fallback: load all questions from QTI API (old method)
+        if (qtiUrl || testId) {
+            await loadAllQuestions(qtiUrl, testId);
             return;
         }
 
-        var data = null;
-        var errors = [];
+        area.innerHTML = '<div class="loading-msg">No quiz ID provided.</div>';
+    });
 
-        // Method 1: Try our backend proxy (uses Cognito client credentials)
+    // ── PowerPath adaptive: load one question at a time ──
+    async function loadNextQuestion() {
+        if (!quizState.attemptId) return;
+        area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading question...</div>';
+
         try {
-            var apiUrl = '/api/qti-item?';
-            if (itemUrl) apiUrl += 'url=' + encodeURIComponent(itemUrl);
-            else apiUrl += 'id=' + encodeURIComponent(itemId) + '&type=' + encodeURIComponent(itemType);
+            var resp = await fetch('/api/quiz-session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId));
+            var data = await resp.json();
 
-            var resp = await fetch(apiUrl);
-            var result = await resp.json();
-            if (result.success && result.data) {
-                data = result.data;
-            } else {
-                errors.push('Backend: ' + (result.error || resp.status));
+            if (data.complete || data.finished || data.error === 'no_more_questions') {
+                showResults();
+                return;
             }
+
+            quizState.currentQuestion = data;
+            quizState.questionNum++;
+            quizState.selectedChoice = null;
+            quizState.answered = false;
+            renderQuestion(data);
         } catch(e) {
-            errors.push('Backend: ' + e.message);
+            area.innerHTML = '<div class="loading-msg">Error loading question: ' + esc(e.message) + '</div>';
         }
+    }
 
-        // Method 2: If backend failed, try calling Timeback server function directly
-        // (works if user is logged into alpha.timeback.com in the same browser)
-        if (!data) {
-            try {
-                var tbPayload = JSON.stringify({ data: { itemId: itemId, itemType: itemType } });
-                var tbResp = await fetch(
-                    'https://alpha.timeback.com/_serverFn/src_features_qti_actions_getQtiItem_ts--getQtiItem_createServerFn_handler?payload=' + encodeURIComponent(tbPayload) + '&createServerFn',
-                    { credentials: 'include', headers: { 'Accept': 'application/json' } }
-                );
-                if (tbResp.ok) {
-                    data = await tbResp.json();
-                } else {
-                    errors.push('Timeback serverFn: ' + tbResp.status);
-                }
-            } catch(e) {
-                errors.push('Timeback serverFn: ' + e.message);
-            }
-        }
+    function renderQuestion(q) {
+        var prompt = q.prompt || q.question || q.text || q.body || '';
+        if (typeof prompt === 'object') prompt = renderNode(prompt);
+        var choices = q.choices || q.options || q.answers || [];
+        var stimulus = q.stimulus || q.passage || q.reading || '';
+        if (typeof stimulus === 'object') stimulus = renderNode(stimulus);
 
-        // Method 3: Try the QTI URL directly from the browser (CORS may block)
-        if (!data && itemUrl) {
-            try {
-                var directResp = await fetch(itemUrl, { credentials: 'include' });
-                if (directResp.ok) {
-                    data = await directResp.json();
-                } else {
-                    errors.push('Direct QTI: ' + directResp.status);
-                }
-            } catch(e) {
-                errors.push('Direct QTI: CORS blocked');
-            }
-        }
+        var html = '<div class="quiz-header">' +
+            '<div class="quiz-title">' + esc(quizState.title) + '</div>' +
+            '<div class="quiz-score"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP</div>' +
+        '</div>' +
+        '<div class="quiz-status">Question ' + quizState.questionNum + ' · ' + quizState.correct + '/' + quizState.total + ' correct</div>' +
+        '<div class="quiz-progress-bar"><div class="quiz-progress-fill" style="width:' + (quizState.total > 0 ? Math.round((quizState.correct/quizState.total)*100) : 0) + '%;"></div></div>';
 
-        // Render content
-        if (!data) {
-            area.innerHTML = '<h1 class="quiz-title">' + esc(title) + '</h1>' +
-                '<div class="error-box"><strong>Could not load content</strong><br>' +
-                '<div style="margin-top:8px;font-size:0.82rem;">' + errors.map(esc).join('<br>') + '</div>' +
-                '<div style="margin-top:12px;">This content requires authentication with the Timeback platform. ' +
-                '<a href="https://alpha.timeback.com/app" target="_blank" style="color:var(--color-primary);font-weight:600;">Open on Timeback</a></div>' +
-                '</div>';
-            return;
-        }
-
-        // ── Render QTI JSON to HTML ──
-        function renderNode(node) {
-            if (!node) return '';
-            if (typeof node === 'string') return '<p>' + node + '</p>';
-            if (Array.isArray(node)) return node.map(renderNode).join('');
-
-            var html = '';
-            for (var key in node) {
-                if (key.startsWith('_')) continue; // skip _attributes, _text
-                var val = node[key];
-
-                // Handle text with bold
-                if (key === '_' || key === '#text' || key === '_text') {
-                    html += val;
-                    continue;
-                }
-                if (key === 'strong' || key === 'b') {
-                    html += '<strong>' + (typeof val === 'string' ? val : renderNode(val)) + '</strong>';
-                    continue;
-                }
-                if (key === 'em' || key === 'i') {
-                    html += '<em>' + (typeof val === 'string' ? val : renderNode(val)) + '</em>';
-                    continue;
-                }
-
-                // Headings
-                if (key === 'h1' || key === 'h2' || key === 'h3' || key === 'h4') {
-                    var items = Array.isArray(val) ? val : [val];
-                    for (var i = 0; i < items.length; i++) {
-                        html += '<' + key + ' style="margin:20px 0 10px;color:var(--color-text);">' + (typeof items[i] === 'string' ? items[i] : renderNode(items[i])) + '</' + key + '>';
-                    }
-                    continue;
-                }
-
-                // Paragraphs
-                if (key === 'p') {
-                    var paras = Array.isArray(val) ? val : [val];
-                    for (var i = 0; i < paras.length; i++) {
-                        var p = paras[i];
-                        if (typeof p === 'string') {
-                            html += '<p style="margin:0 0 12px;line-height:1.7;">' + p + '</p>';
-                        } else if (typeof p === 'object') {
-                            var pText = p['_'] || p['_text'] || p['#text'] || '';
-                            var bold = p['strong'] || p['b'] || '';
-                            if (bold) pText = pText.replace(bold, '<strong>' + bold + '</strong>');
-                            if (!pText) pText = renderNode(p);
-                            html += '<p style="margin:0 0 12px;line-height:1.7;">' + pText + '</p>';
-                        }
-                    }
-                    continue;
-                }
-
-                // Figures/images
-                if (key === 'figure') {
-                    var figs = Array.isArray(val) ? val : [val];
-                    for (var i = 0; i < figs.length; i++) {
-                        var fig = figs[i];
-                        var img = fig.img || {};
-                        var imgAttrs = img['_attributes'] || img;
-                        var src = imgAttrs.src || imgAttrs.href || '';
-                        var alt = imgAttrs.alt || '';
-                        var caption = fig.figcaption || '';
-                        if (src) {
-                            html += '<figure style="margin:16px 0;text-align:center;">' +
-                                '<img src="' + esc(src) + '" alt="' + esc(alt) + '" style="max-width:100%;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">' +
-                                (caption ? '<figcaption style="font-size:0.82rem;color:var(--color-text-muted);margin-top:8px;font-weight:600;">' + esc(caption) + '</figcaption>' : '') +
-                                '</figure>';
-                        }
-                    }
-                    continue;
-                }
-
-                // Images directly
-                if (key === 'img') {
-                    var imgA = val['_attributes'] || val;
-                    html += '<img src="' + esc(imgA.src || '') + '" alt="' + esc(imgA.alt || '') + '" style="max-width:100%;border-radius:8px;margin:8px 0;">';
-                    continue;
-                }
-
-                // Tables
-                if (key === 'table') {
-                    var tables = Array.isArray(val) ? val : [val];
-                    for (var ti = 0; ti < tables.length; ti++) {
-                        var tbl = tables[ti];
-                        html += '<div style="overflow-x:auto;margin:16px 0;"><table style="width:100%;border-collapse:collapse;font-size:0.88rem;">';
-                        // thead
-                        var thead = tbl.thead;
-                        if (thead) {
-                            html += '<thead>';
-                            var hRows = thead.tr ? (Array.isArray(thead.tr) ? thead.tr : [thead.tr]) : [];
-                            for (var r = 0; r < hRows.length; r++) {
-                                html += '<tr>';
-                                var ths = hRows[r].th || [];
-                                if (!Array.isArray(ths)) ths = [ths];
-                                for (var c = 0; c < ths.length; c++) {
-                                    html += '<th style="padding:8px 12px;border:1px solid var(--color-border);background:var(--color-bg);font-weight:600;text-align:left;">' + (typeof ths[c] === 'string' ? ths[c] : renderNode(ths[c])) + '</th>';
-                                }
-                                html += '</tr>';
-                            }
-                            html += '</thead>';
-                        }
-                        // tbody
-                        var tbody = tbl.tbody;
-                        if (tbody) {
-                            html += '<tbody>';
-                            var bRows = tbody.tr ? (Array.isArray(tbody.tr) ? tbody.tr : [tbody.tr]) : [];
-                            for (var r = 0; r < bRows.length; r++) {
-                                html += '<tr>';
-                                var tds = bRows[r].td || [];
-                                if (!Array.isArray(tds)) tds = [tds];
-                                for (var c = 0; c < tds.length; c++) {
-                                    var cell = tds[c];
-                                    var cellText = '';
-                                    if (typeof cell === 'string') cellText = cell;
-                                    else if (Array.isArray(cell)) cellText = cell.join('<br>');
-                                    else cellText = renderNode(cell);
-                                    html += '<td style="padding:8px 12px;border:1px solid var(--color-border);vertical-align:top;">' + cellText + '</td>';
-                                }
-                                html += '</tr>';
-                            }
-                            html += '</tbody>';
-                        }
-                        html += '</table></div>';
-                    }
-                    continue;
-                }
-
-                // Lists
-                if (key === 'ul' || key === 'ol') {
-                    var lists = Array.isArray(val) ? val : [val];
-                    for (var li = 0; li < lists.length; li++) {
-                        var items = lists[li].li || [];
-                        if (!Array.isArray(items)) items = [items];
-                        html += '<' + key + ' style="margin:8px 0 12px 20px;">';
-                        for (var j = 0; j < items.length; j++) {
-                            html += '<li style="margin-bottom:4px;">' + (typeof items[j] === 'string' ? items[j] : renderNode(items[j])) + '</li>';
-                        }
-                        html += '</' + key + '>';
-                    }
-                    continue;
-                }
-
-                // Nested div
-                if (key === 'div') {
-                    var divs = Array.isArray(val) ? val : [val];
-                    for (var i = 0; i < divs.length; i++) {
-                        html += renderNode(divs[i]);
-                    }
-                    continue;
-                }
-
-                // Anything else with object value - recurse
-                if (typeof val === 'object' && val !== null) {
-                    html += renderNode(val);
-                }
-            }
-            return html;
-        }
-
-        // Detect content type and extract the right data
-        var stimulus = data['qti-assessment-stimulus'] || null;
-        var assessmentItem = data['qti-assessment-item'] || null;
-        var assessmentTest = data['qti-assessment-test'] || null;
-
-        var html = '<h1 class="quiz-title">' + esc(data.title || (stimulus && stimulus['_attributes'] && stimulus['_attributes'].title) || title) + '</h1>';
-
-        // ── Stimulus (reading passage) ──
         if (stimulus) {
-            var stimBody = stimulus['qti-stimulus-body'] || {};
-            html += '<div class="stimulus-content">' + renderNode(stimBody) + '</div>';
+            html += '<div class="stimulus-box">' + stimulus + '</div>';
         }
 
-        // ── Check for body/content from other formats ──
-        var body = data.body || data.content || data.itemBody || data.passage || '';
-        if (!stimulus && body) {
-            if (typeof body === 'object') html += '<div class="stimulus-content">' + renderNode(body) + '</div>';
-            else html += '<div class="stimulus-content">' + body + '</div>';
-        }
+        html += '<div class="question-card"><div class="question-num">Question ' + quizState.questionNum + '</div>';
+        html += '<div class="question-text">' + (prompt || 'Loading question...') + '</div>';
 
-        // Parse questions -- handle QTI 3.0 format
-        var questions = data.questions || data.items || [];
-        var totalQ = data.totalQuestions || questions.length;
-
-        // Parse QTI 3.0 assessment items using renderNode for proper HTML
-        function parseQtiItem(item) {
-            // Find the assessment item content in multiple locations
-            var qi = item['qti-assessment-item']
-                || (item.content && item.content['qti-assessment-item'])
-                || item;
-            var attrs = qi['_attributes'] || {};
-            var itemBody = qi['qti-item-body'] || qi['itemBody'] || {};
-
-            // If itemBody empty, check alternative locations
-            if (!itemBody || Object.keys(itemBody).length === 0) {
-                var ci = qi['qti-choice-interaction'];
-                if (ci) itemBody = { 'qti-choice-interaction': ci };
-            }
-
-            // Find and extract choices BEFORE rendering (so we can separate prompt from choices)
-            function findChoices(node, depth) {
-                if (!node || typeof node !== 'object' || depth > 5) return [];
-                // Direct choice interaction
-                var interaction = node['qti-choice-interaction'] || node['choiceInteraction'];
-                if (interaction) {
-                    var sc = interaction['qti-simple-choice'] || interaction['simpleChoice'] || [];
-                    if (!Array.isArray(sc)) sc = [sc];
-                    return sc.map(function(c, i) {
-                        var ca = c['_attributes'] || {};
-                        var cText = '';
-
-                        // Method 1: p._ (most common)
-                        if (c.p) {
-                            if (typeof c.p === 'string') cText = c.p;
-                            else if (c.p['_']) cText = c.p['_'];
-                            else if (c.p['_text']) cText = c.p['_text'];
-                            else cText = renderNode(c.p);
-                        }
-                        // Method 2: direct text content
-                        if (!cText && c['_']) cText = c['_'];
-                        if (!cText && c['_text']) cText = c['_text'];
-                        // Method 3: span or div inside
-                        if (!cText && c.span) cText = typeof c.span === 'string' ? c.span : renderNode(c.span);
-                        if (!cText && c.div) cText = typeof c.div === 'string' ? c.div : renderNode(c.div);
-                        // Method 4: render everything except feedback
-                        if (!cText) {
-                            try {
-                                var cClone = JSON.parse(JSON.stringify(c));
-                                delete cClone['qti-feedback-inline'];
-                                delete cClone['_attributes'];
-                                cText = renderNode(cClone);
-                            } catch(e) {}
-                        }
-
-                        return { id: ca['identifier'] || String(i), html: cText || 'Option ' + ca['identifier'] || (i+1) };
-                    });
-                }
-                // Recurse into children
-                for (var k in node) {
-                    if (k.startsWith('_')) continue;
-                    var v = node[k];
-                    if (typeof v === 'object') {
-                        var items = Array.isArray(v) ? v : [v];
-                        for (var i = 0; i < items.length; i++) {
-                            var found = findChoices(items[i], depth + 1);
-                            if (found.length > 0) return found;
-                        }
-                    }
-                }
-                return [];
-            }
-
-            var choices = findChoices(itemBody, 0);
-
-            // Extract prompt from multiple possible locations
-            var promptHtml = '';
-            var ci = itemBody['qti-choice-interaction'] || {};
-            var prompt = ci['qti-prompt'] || ci['prompt'] || {};
-
-            // Method 1: qti-prompt.p._
-            if (prompt && prompt.p) {
-                var pVal = prompt.p;
-                if (typeof pVal === 'string') promptHtml = '<p>' + pVal + '</p>';
-                else if (pVal['_']) promptHtml = '<p>' + pVal['_'] + '</p>';
-                else promptHtml = renderNode(pVal);
-            }
-            // Method 2: qti-prompt has direct text or HTML
-            if (!promptHtml && prompt) {
-                if (typeof prompt === 'string') promptHtml = prompt;
-                else if (prompt['_']) promptHtml = prompt['_'];
-                else {
-                    var pClone = JSON.parse(JSON.stringify(prompt));
-                    delete pClone['_attributes'];
-                    var rendered = renderNode(pClone);
-                    if (rendered && rendered !== '<p></p>') promptHtml = rendered;
-                }
-            }
-            // Method 3: content before the interaction (div, p at itemBody level)
-            if (!promptHtml) {
-                try {
-                    var bodyClone = JSON.parse(JSON.stringify(itemBody));
-                    delete bodyClone['qti-choice-interaction'];
-                    delete bodyClone['choiceInteraction'];
-                    delete bodyClone['_attributes'];
-                    promptHtml = renderNode(bodyClone);
-                } catch(e) {}
-            }
-            // Method 4: check if there's an image/figure in the prompt
-            if (prompt && prompt.figure) promptHtml += renderNode({figure: prompt.figure});
-            if (prompt && prompt.img) {
-                var imgA = prompt.img['_attributes'] || prompt.img;
-                promptHtml += '<img src="' + esc(imgA.src || '') + '" alt="' + esc(imgA.alt || '') + '" style="max-width:100%;border-radius:8px;margin:8px 0;">';
-            }
-            // Method 5: title from the item itself
-            if (!promptHtml) {
-                var iTitle = item.title || attrs.title || '';
-                if (iTitle && iTitle !== 'Question') promptHtml = '<p>' + esc(iTitle) + '</p>';
-            }
-
-            return {
-                id: attrs['identifier'] || '',
-                title: attrs['title'] || '',
-                promptHtml: promptHtml,
-                choices: choices,
-            };
-        }
-
-        // Show body/stimulus if present
-        if (body) {
-            html += '<div class="stimulus-content">' + body + '</div>';
-        }
-
-        if (questions.length > 0) {
-            html += '<div class="quiz-meta">' + questions.length + ' of ' + totalQ + ' questions loaded</div>';
+        if (choices.length > 0) {
             var letters = 'ABCDEFGHIJ';
-
-            for (var qi = 0; qi < questions.length; qi++) {
-                var parsed = parseQtiItem(questions[qi]);
-                html += '<div class="question-card">';
-                html += '<div class="question-number">Question ' + (qi + 1) + '</div>';
-                html += '<div class="question-prompt">' + (parsed.promptHtml || 'Loading...') + '</div>';
-
-                if (parsed.choices.length > 0) {
-                    html += '<div class="choice-list">';
-                    for (var ci = 0; ci < parsed.choices.length; ci++) {
-                        html += '<div class="choice-item" onclick="selectChoice(this,' + qi + ',' + ci + ')">' +
-                            '<span class="choice-letter">' + (letters[ci] || String(ci)) + '</span>' +
-                            '<span class="choice-text">' + parsed.choices[ci].html + '</span></div>';
-                    }
-                    html += '</div>';
-                }
-                html += '</div>';
+            html += '<div class="choices" id="choices">';
+            for (var i = 0; i < choices.length; i++) {
+                var c = choices[i];
+                var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : '');
+                if (typeof cText === 'object') cText = renderNode(cText);
+                var cId = c.id || c.identifier || letters[i] || String(i);
+                html += '<div class="choice" data-id="' + esc(cId) + '" onclick="selectAnswer(this, \'' + esc(cId) + '\')">' +
+                    '<div class="choice-letter">' + (letters[i] || i) + '</div>' +
+                    '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' +
+                '</div>';
             }
-
-            // Submit button
-            html += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-primary" onclick="submitQuiz()"><i class="fa-solid fa-check" style="margin-right:6px;"></i>Submit Answers</button></div>';
-        } else if (!body && !stimulus) {
-            // Last resort: render the whole data object through renderNode
-            html += '<div class="stimulus-content">' + renderNode(data) + '</div>';
+            html += '</div>';
         }
 
-        html += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left" style="margin-right:6px;"></i>Back to Course</button></div>';
+        html += '<div class="feedback" id="feedback"></div>';
+        html += '</div>';
+
+        html += '<div class="quiz-actions">' +
+            '<button class="quiz-btn quiz-btn-primary" id="submit-btn" onclick="submitAnswer()" disabled><i class="fa-solid fa-check"></i> Submit Answer</button>' +
+        '</div>';
 
         area.innerHTML = html;
-    });
+    }
+
+    function selectAnswer(el, choiceId) {
+        if (quizState.answered) return;
+        quizState.selectedChoice = choiceId;
+        document.querySelectorAll('.choice').forEach(function(c) { c.classList.remove('selected'); });
+        el.classList.add('selected');
+        document.getElementById('submit-btn').disabled = false;
+    }
+
+    async function submitAnswer() {
+        if (!quizState.selectedChoice || quizState.answered) return;
+        quizState.answered = true;
+        quizState.total++;
+
+        var btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
+
+        // Submit to PowerPath if we have an attempt
+        var isCorrect = false;
+        var feedback = '';
+        if (quizState.attemptId) {
+            try {
+                var resp = await fetch('/api/quiz-session?action=respond', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        attemptId: quizState.attemptId,
+                        questionId: quizState.currentQuestion.id || quizState.currentQuestion.questionId || '',
+                        response: quizState.selectedChoice,
+                    }),
+                });
+                var data = await resp.json();
+                isCorrect = data.correct || data.isCorrect || false;
+                feedback = data.feedback || data.explanation || '';
+                if (data.xpEarned) quizState.xpEarned += data.xpEarned;
+            } catch(e) {}
+        }
+
+        if (isCorrect) quizState.correct++;
+
+        // Show feedback
+        var feedbackEl = document.getElementById('feedback');
+        if (feedbackEl) {
+            feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
+            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong>') +
+                (feedback ? '<p style="margin-top:8px;">' + feedback + '</p>' : '');
+        }
+
+        // Highlight selected choice
+        document.querySelectorAll('.choice').forEach(function(c) {
+            if (c.dataset.id === quizState.selectedChoice) {
+                c.classList.add(isCorrect ? 'correct' : 'incorrect');
+            }
+        });
+
+        // Update score display
+        document.querySelector('.quiz-score').innerHTML = '<i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP';
+
+        // Show Next button
+        btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Next Question';
+        btn.disabled = false;
+        btn.onclick = function() { loadNextQuestion(); };
+    }
+
+    function showResults() {
+        var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+        var passed = pct >= 90;
+
+        area.innerHTML = '<div class="result-card">' +
+            '<div style="font-size:3rem;margin-bottom:8px;">' + (passed ? '🎉' : '📝') + '</div>' +
+            '<div class="result-score">' + pct + '%</div>' +
+            '<div class="result-label">' + (passed ? 'Mastery Achieved!' : 'Keep Practicing') + '</div>' +
+            '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned</div>' +
+            '<div class="result-details">' +
+                '<div class="result-stat"><div class="result-stat-val" style="color:#2E7D32;">' + quizState.correct + '</div><div class="result-stat-label">Correct</div></div>' +
+                '<div class="result-stat"><div class="result-stat-val">' + quizState.total + '</div><div class="result-stat-label">Total</div></div>' +
+                '<div class="result-stat"><div class="result-stat-val">' + pct + '%</div><div class="result-stat-label">Accuracy</div></div>' +
+            '</div>' +
+            (pct < 90 ? '<div style="margin-top:20px;font-size:0.88rem;color:var(--color-text-muted);">Need ≥90% to advance. <strong>' + (90 - pct) + '% more needed.</strong></div>' : '') +
+            '<div style="margin-top:24px;display:flex;gap:12px;justify-content:center;">' +
+                '<button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button>' +
+            '</div>' +
+        '</div>';
+
+        // Finalize the attempt
+        if (quizState.attemptId) {
+            fetch('/api/quiz-session?action=finalize', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({attemptId: quizState.attemptId}),
+            }).catch(function(){});
+        }
+    }
+
+    // ── Fallback: load all questions at once from QTI (when PowerPath adaptive fails) ──
+    async function loadAllQuestions(qtiUrl, testId) {
+        area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading quiz...</div>';
+        try {
+            var apiUrl = '/api/qti-item?';
+            if (qtiUrl) apiUrl += 'url=' + encodeURIComponent(qtiUrl);
+            else apiUrl += 'id=' + encodeURIComponent(testId) + '&type=assessment';
+            var resp = await fetch(apiUrl);
+            var result = await resp.json();
+            if (!result.success || !result.data) {
+                area.innerHTML = '<div class="loading-msg">Could not load quiz.</div>';
+                return;
+            }
+            var data = result.data;
+
+            // Check for stimulus
+            var stimulus = data['qti-assessment-stimulus'];
+            if (stimulus) {
+                var stimBody = stimulus['qti-stimulus-body'] || {};
+                area.innerHTML = '<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px;">' + esc(data.title || quizState.title) + '</h1>' +
+                    '<div class="stimulus-box" style="max-height:none;">' + renderNode(stimBody) + '</div>' +
+                    '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button></div>';
+                return;
+            }
+
+            // Render questions (from the already-fetched data)
+            var questions = data.questions || [];
+            if (questions.length > 0) {
+                quizState.title = data.title || quizState.title;
+                // Use the questions as a static quiz, one at a time
+                var allQ = questions.map(function(q) {
+                    var qi = q['qti-assessment-item'] || (q.content && q.content['qti-assessment-item']) || q;
+                    var attrs = qi['_attributes'] || {};
+                    var body = qi['qti-item-body'] || {};
+                    var ci = body['qti-choice-interaction'] || {};
+                    var prompt = ci['qti-prompt'] || {};
+                    var promptText = '';
+                    if (prompt.p) promptText = typeof prompt.p === 'string' ? prompt.p : (prompt.p['_'] || renderNode(prompt.p));
+                    if (!promptText) {
+                        var bc = JSON.parse(JSON.stringify(body));
+                        delete bc['qti-choice-interaction'];
+                        promptText = renderNode(bc);
+                    }
+                    var sc = ci['qti-simple-choice'] || [];
+                    if (!Array.isArray(sc)) sc = [sc];
+                    var choices = sc.map(function(c,i) {
+                        var ca = c['_attributes'] || {};
+                        var t = c.p ? (typeof c.p === 'string' ? c.p : (c.p['_'] || renderNode(c.p))) : renderNode(c);
+                        return { id: ca.identifier || String(i), text: t };
+                    });
+                    // Get correct answer
+                    var rd = qi['qti-response-declaration'] || {};
+                    var cr = rd['qti-correct-response'] || {};
+                    var correctId = cr['qti-value'] || '';
+                    // Get feedback
+                    var feedbackMap = {};
+                    sc.forEach(function(c) {
+                        var ca = c['_attributes'] || {};
+                        var fb = c['qti-feedback-inline'] || {};
+                        if (fb.span) feedbackMap[ca.identifier] = typeof fb.span === 'string' ? fb.span : renderNode(fb.span);
+                    });
+                    return { prompt: promptText, choices: choices, correctId: correctId, feedbackMap: feedbackMap };
+                });
+
+                // Run static quiz one at a time
+                var currentIdx = 0;
+                function showStaticQuestion() {
+                    if (currentIdx >= allQ.length) { showResults(); return; }
+                    var q = allQ[currentIdx];
+                    quizState.currentQuestion = q;
+                    quizState.selectedChoice = null;
+                    quizState.answered = false;
+                    quizState.questionNum = currentIdx + 1;
+
+                    var qData = {
+                        prompt: q.prompt,
+                        choices: q.choices.map(function(c) { return { id: c.id, text: c.text }; }),
+                    };
+                    renderQuestion(qData);
+
+                    // Override submit to handle locally
+                    document.getElementById('submit-btn').onclick = function() {
+                        if (!quizState.selectedChoice || quizState.answered) return;
+                        quizState.answered = true;
+                        quizState.total++;
+                        var isCorrect = quizState.selectedChoice === q.correctId;
+                        if (isCorrect) { quizState.correct++; quizState.xpEarned += 1; }
+                        var fb = q.feedbackMap[quizState.selectedChoice] || '';
+
+                        document.querySelectorAll('.choice').forEach(function(c) {
+                            if (c.dataset.id === quizState.selectedChoice) c.classList.add(isCorrect ? 'correct' : 'incorrect');
+                            if (c.dataset.id === q.correctId) c.classList.add('correct');
+                        });
+                        var feedbackEl = document.getElementById('feedback');
+                        feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
+                        feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
+                        document.querySelector('.quiz-score').innerHTML = '<i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP';
+                        var btn = document.getElementById('submit-btn');
+                        btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Next Question';
+                        btn.onclick = function() { currentIdx++; showStaticQuestion(); };
+                    };
+                }
+                showStaticQuestion();
+            } else {
+                // Raw content display
+                area.innerHTML = '<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px;">' + esc(data.title || quizState.title) + '</h1>' +
+                    '<div class="stimulus-box" style="max-height:none;">' + renderNode(data) + '</div>' +
+                    '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>';
+            }
+        } catch(e) {
+            area.innerHTML = '<div class="loading-msg">Error: ' + esc(e.message) + '</div>';
+        }
+    }
     </script>
 </body>
 </html>
