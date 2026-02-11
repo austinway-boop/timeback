@@ -242,7 +242,7 @@ async function loadAssignments(studentId) {
 
     try {
         var [assignResp, enrollResp] = await Promise.all([
-            fetch('/api/assign-test?studentId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { testAssignments: [] }; }),
+            fetch('/api/assign-test?student=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { testAssignments: [] }; }),
             fetch('/api/enrollments?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return {}; }),
         ]);
 
@@ -376,7 +376,7 @@ async function assignTest(subject, grade, idx) {
         var resp = await fetch('/api/assign-test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ studentId: selectedStudent.sourcedId, subject: subject, gradeLevel: grade }),
+            body: JSON.stringify({ student: selectedStudent.sourcedId, subject: subject, grade: grade }),
         });
         var data = await resp.json().catch(function() { return {}; });
 
@@ -412,7 +412,7 @@ async function removeAssignment(idx) {
         await fetch('/api/assign-test', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ assignmentId: a.sourcedId || '', studentId: selectedStudent ? selectedStudent.sourcedId : '', subject: a.subject || '', gradeLevel: a.grade || '' }),
+            body: JSON.stringify({ assignmentId: a.sourcedId || '', student: selectedStudent ? selectedStudent.sourcedId : '', subject: a.subject || '', grade: a.grade || '' }),
         });
     } catch(e) {}
 }

@@ -41,7 +41,7 @@ class handler(BaseHTTPRequestHandler):
             resp = requests.get(
                 f"{API_BASE}/powerpath/test-assignments",
                 headers=headers,
-                params={"studentId": student_id},
+                params={"student": student_id},
                 timeout=15,
             )
             if resp.status_code == 200:
@@ -82,7 +82,7 @@ class handler(BaseHTTPRequestHandler):
                         resp = requests.delete(
                             f"{API_BASE}/powerpath/test-assignments",
                             headers=headers,
-                            json={"studentId": student_id, "subject": subject, "gradeLevel": grade_level},
+                            json={"student": student_id, "subject": subject, "grade": grade_level},
                             timeout=15,
                         )
                         if resp.status_code in (200, 204):
@@ -121,7 +121,7 @@ class handler(BaseHTTPRequestHandler):
 
             # ── Bulk ─────────────────────────────────────────
             if bulk:
-                normalized = [{"studentId": a.get("studentId", ""), "testId": a.get("testId", "")} for a in bulk]
+                normalized = [{"student": a.get("studentId", a.get("student", "")), "testId": a.get("testId", "")} for a in bulk]
                 ok, data, err = _post(headers, f"{API_BASE}/powerpath/test-assignments/bulk", {"assignments": normalized})
                 if ok:
                     send_json(self, {"success": True, "message": "Bulk assignment complete", "response": data})
@@ -132,7 +132,7 @@ class handler(BaseHTTPRequestHandler):
 
             # ── By testId ────────────────────────────────────
             if test_id:
-                payload = {"studentId": student_id, "testId": test_id}
+                payload = {"student": student_id, "testId": test_id}
                 if due_date:
                     payload["dueDate"] = due_date
                 ok, data, err = _post(headers, f"{API_BASE}/powerpath/test-assignments", payload)
@@ -147,65 +147,39 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": "Need subject and grade (or testId)", "success": False}, 400)
                 return
 
-            # Strategy 1: screening/tests/assign (all-in-one)
+            # Strategy 1: POST /powerpath/test-assignments with { student, subject, grade }
+            # This is the documented endpoint — field must be "student" not "studentId"
             ok, data, err = _post(
                 headers,
-                f"{API_BASE}/powerpath/screening/tests/assign",
-                {"studentId": student_id, "subject": subject, "gradeLevel": grade_level},
+                f"{API_BASE}/powerpath/test-assignments",
+                {"student": student_id, "subject": subject, "grade": grade_level},
             )
             if ok:
                 send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data})
                 return
-            errors.append(f"screening: {err}")
+            errors.append(f"test-assignments: {err}")
 
-            # Strategy 2: createInternalTest → then assign with returned testId
+            # Strategy 2: screening/tests/assign with { student, subject, grade }
             ok2, data2, err2 = _post(
                 headers,
-                f"{API_BASE}/powerpath/assessments/internal-test",
-                {"studentId": student_id, "subject": subject, "gradeLevel": grade_level},
+                f"{API_BASE}/powerpath/screening/tests/assign",
+                {"student": student_id, "subject": subject, "grade": grade_level},
             )
             if ok2:
-                new_test_id = ""
-                if isinstance(data2, dict):
-                    new_test_id = data2.get("testId") or data2.get("id") or data2.get("test_id") or ""
-                if new_test_id:
-                    ok3, data3, err3 = _post(
-                        headers,
-                        f"{API_BASE}/powerpath/test-assignments",
-                        {"studentId": student_id, "testId": str(new_test_id)},
-                    )
-                    if ok3:
-                        send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data3})
-                        return
-                    errors.append(f"assign after create: {err3}")
-                else:
-                    # createInternalTest succeeded but returned no testId — that IS the assignment
-                    send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data2})
-                    return
-            else:
-                errors.append(f"createInternalTest: {err2}")
-
-            # Strategy 3: try test-assignments with subject/grade directly
-            ok4, data4, err4 = _post(
-                headers,
-                f"{API_BASE}/powerpath/test-assignments",
-                {"studentId": student_id, "subject": subject, "gradeLevel": grade_level},
-            )
-            if ok4:
-                send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data4})
+                send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data2})
                 return
-            errors.append(f"test-assignments: {err4}")
+            errors.append(f"screening: {err2}")
 
-            # Strategy 4: try alternate field names
-            ok5, data5, err5 = _post(
+            # Strategy 3: screening with userId fallback
+            ok3, data3, err3 = _post(
                 headers,
                 f"{API_BASE}/powerpath/screening/tests/assign",
                 {"userId": student_id, "subject": subject, "grade": grade_level},
             )
-            if ok5:
-                send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data5})
+            if ok3:
+                send_json(self, {"success": True, "message": f"Test assigned ({subject} Grade {grade_level})", "response": data3})
                 return
-            errors.append(f"screening alt: {err5}")
+            errors.append(f"screening-userId: {err3}")
 
             # All strategies failed — return 422 (not 502!)
             send_json(self, {
