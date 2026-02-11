@@ -293,17 +293,16 @@ function lessonCard(c, i) {
 
     const done      = MASTERED[i] || 0;
     const total     = c.totalLessons || 0;
-    const target    = g.target || total;
-    const denom     = target || total;
+    const denom     = total;
     const remaining = Math.max(denom - done, 0);
     const pct       = denom > 0 ? Math.min((done / denom) * 100, 100) : 0;
 
     // Pace info (shown inline, no separate preview box)
     let paceHtml = '';
-    if (has && target > 0) {
+    if (has && denom > 0) {
         const excl = g.excludeNonSchoolDays !== false;
         const d    = cntDays(g.endDate, excl);
-        const pace = remaining > 0 && d.school > 0 ? (remaining / d.school) : 0;
+        const daily = remaining > 0 && d.school > 0 ? Math.ceil(remaining / d.school) : 0;
         const dayT = excl ? 'school day' : 'day';
 
         let cls = '', txt = '';
@@ -314,7 +313,7 @@ function lessonCard(c, i) {
             cls = 'gc-goal-overdue';
             txt = 'Past due &mdash; update your end date';
         } else {
-            txt = `~${pace.toFixed(1)} units/${dayT} &middot; ${d.school} ${dayT}s left &middot; by ${fmtNice(g.endDate)}`;
+            txt = `${daily} units/${dayT} &middot; ${d.school} ${dayT}s left &middot; by ${fmtNice(g.endDate)}`;
         }
         paceHtml = `<div class="gc-goal ${cls}"><div class="gc-goal-pace">${txt}</div></div>`;
     }
@@ -332,7 +331,6 @@ function lessonCard(c, i) {
             ${denom > 0 ? '<div class="gc-bar"><div class="gc-bar-fill" style="width:' + pct.toFixed(1) + '%"></div></div>' : ''}
             ${paceHtml}
             <div class="gc-form">
-                <div class="gc-fld"><label class="gc-lbl">Target</label><input type="number" class="gc-inp gl-tgt" min="1" value="${target || ''}" placeholder="${total || '?'}" oninput="previewL(${i})"></div>
                 <div class="gc-fld"><label class="gc-lbl">End Date</label><input type="date" class="gc-inp gl-date" value="${g.endDate || ''}" min="${fmtD(new Date())}" onchange="previewL(${i})"></div>
                 <div class="gc-fld gc-fld-chk"><label class="gc-chk"><input type="checkbox" class="gl-sch" ${(g.excludeNonSchoolDays !== false) ? 'checked' : ''} onchange="previewL(${i})"> School days only</label></div>
             </div>
@@ -390,7 +388,7 @@ function xpCard(c, i) {
 
 function previewL(i) {
     const card = document.querySelector(`.gc[data-i="${i}"]`);
-    const tgt  = parseInt(card.querySelector('.gl-tgt').value) || 0;
+    const tgt  = ALL[i].totalLessons || 0;
     const dt   = card.querySelector('.gl-date').value;
     const excl = card.querySelector('.gl-sch').checked;
     const pv   = document.getElementById('pv-' + i);
@@ -405,7 +403,7 @@ function previewL(i) {
 
     if (d.school <= 0)    pvt.textContent = 'That date has already passed.';
     else if (rem <= 0)    pvt.textContent = 'Already completed!';
-    else                  pvt.innerHTML = `~${(rem / d.school).toFixed(1)} units/${dayT} &middot; ${d.school} ${dayT}s left`;
+    else                  pvt.innerHTML = `${Math.ceil(rem / d.school)} units/${dayT} &middot; ${d.school} ${dayT}s left`;
     pv.classList.add('show');
 }
 
@@ -417,9 +415,8 @@ function previewL(i) {
 
 async function saveL(i) {
     const card = document.querySelector(`.gc[data-i="${i}"]`);
-    const tgt  = parseInt(card.querySelector('.gl-tgt').value) || 0;
+    const tgt  = ALL[i].totalLessons || 0;
     const dt   = card.querySelector('.gl-date').value;
-    if (!tgt) { toast('Enter target units.'); return; }
     if (!dt)  { toast('Pick an end date.'); return; }
     const excl = card.querySelector('.gl-sch').checked;
     const eid  = card.dataset.eid;

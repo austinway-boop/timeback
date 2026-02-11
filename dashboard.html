@@ -329,19 +329,18 @@
             if (lessonBased) {
                 // Lesson-based AP course: show overall mastered progress toward goal
                 const done = masteredIdx[i] || 0;
-                const tgt = (savedGoal && savedGoal.target) ? savedGoal.target : (c.totalLessons || 0);
+                const total = c.totalLessons || 0;
 
-                if (savedGoal && savedGoal.endDate && tgt > 0) {
-                    const rem = Math.max(tgt - done, 0);
+                if (savedGoal && savedGoal.endDate && total > 0) {
+                    const rem = Math.max(total - done, 0);
                     const excl = savedGoal.excludeNonSchoolDays !== false;
                     const days = countSchoolDays(savedGoal.endDate, excl);
-                    const pace = days > 0 && rem > 0 ? (rem / days).toFixed(1) : 0;
-                    const dayT = excl ? 'school day' : 'day';
-                    pct = tgt > 0 ? Math.min((done / tgt) * 100, 100) : 0;
-                    progressText = `${done} / ${tgt} units`;
-                    progressLabel = rem > 0 && days > 0 ? `~${pace}/${dayT}` : (rem <= 0 ? 'DONE' : 'OVERDUE');
+                    const daily = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
+                    pct = total > 0 ? Math.min((done / total) * 100, 100) : 0;
+                    progressText = `${done} / ${total} units`;
+                    progressLabel = rem > 0 && days > 0 ? `${daily}/day` : (rem <= 0 ? 'DONE' : 'OVERDUE');
                 } else {
-                    pct = tgt > 0 ? Math.min((done / tgt) * 100, 100) : 0;
+                    pct = total > 0 ? Math.min((done / total) * 100, 100) : 0;
                     progressText = `${done} units mastered`;
                     progressLabel = '<a href="/goals" style="color:var(--color-primary);text-decoration:none;font-weight:600;font-size:0.78rem;" onclick="event.stopPropagation()">Set Goal &rarr;</a>';
                 }
