@@ -1,65 +1,18 @@
 """POST/GET /api/quiz-session — PowerPath assessment sessions.
 
-Flow (from API docs):
-  1. POST  createNewAttempt       { studentId, testId }     → { attemptId }
-  2. GET   getNextQuestion        { attemptId }             → { question with QTI content }
-  3. POST  updateStudentQuestionResponse  { attemptId, questionId, response }
-  4. POST  finalStudentAssessmentResponse { attemptId }
-
-The testId IS the PowerPath resource ID (e.g. HUMG20-r104435-bank-v1).
-PowerPath returns QTI content embedded in getNextQuestion responses.
+Actions:
+  POST ?action=start    — {studentId, testId, subject, grade}
+  GET  ?action=next     — {attemptId}
+  POST ?action=respond  — {attemptId, questionId, response}
+  POST ?action=finalize — {attemptId}
 """
 
 import json
 from http.server import BaseHTTPRequestHandler
-
 import requests
 from api._helpers import API_BASE, api_headers, send_json, get_query_params
 
-
-def _try_post(headers, paths, payload):
-    """Try POSTing to multiple URL paths, return first success."""
-    for url in paths:
-        try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=8)
-            try:
-                data = resp.json()
-            except Exception:
-                data = {"status": resp.status_code}
-            if resp.status_code in (200, 201, 204):
-                return data, resp.status_code
-            if resp.status_code != 404:
-                return data, resp.status_code
-        except Exception:
-            continue
-    return None, 0
-
-
-def _try_get(headers, paths, params):
-    """Try GETting from multiple URL paths, return first success."""
-    for url in paths:
-        try:
-            resp = requests.get(url, headers=headers, params=params, timeout=8)
-            try:
-                data = resp.json()
-            except Exception:
-                data = {"status": resp.status_code}
-            if resp.status_code in (200, 201, 204):
-                return data, resp.status_code
-            if resp.status_code != 404:
-                return data, resp.status_code
-        except Exception:
-            continue
-    return None, 0
-
-
-# All plausible base paths for PowerPath assessment endpoints
-_BASES = [
-    f"{API_BASE}/powerpath/assessments",
-    f"{API_BASE}/api/v1/powerpath/assessments",
-    f"{API_BASE}/powerpath",
-    f"{API_BASE}/api/v1/powerpath",
-]
+PP = f"{API_BASE}/powerpath"
 
 
 class handler(BaseHTTPRequestHandler):
@@ -73,155 +26,116 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         params = get_query_params(self)
         action = params.get("action", "")
+        headers = api_headers()
 
         if action == "next":
             attempt_id = params.get("attemptId", "")
             if not attempt_id:
                 send_json(self, {"error": "Need attemptId"}, 400)
                 return
-
-            headers = api_headers()
-            # getNextQuestion — try multiple path patterns
-            urls = []
-            for base in _BASES:
-                urls.extend([
-                    f"{base}/get-next-question",
-                    f"{base}/getNextQuestion",
-                    f"{base}/next-question",
-                ])
-            data, st = _try_get(headers, urls, {"attemptId": attempt_id})
-            if data and st < 400:
-                send_json(self, data, st)
-            else:
-                send_json(self, data or {"complete": True}, st if st and st < 400 else 200)
+            try:
+                resp = requests.get(
+                    f"{PP}/assessments/next-question",
+                    headers=headers,
+                    params={"attemptId": attempt_id},
+                    timeout=10,
+                )
+                send_json(self, resp.json() if resp.status_code == 200 else {"complete": True}, resp.status_code if resp.status_code == 200 else 200)
+            except Exception as e:
+                send_json(self, {"complete": True, "error": str(e)}, 200)
 
         elif action == "progress":
-            headers = api_headers()
-            student_id = params.get("studentId", "")
-            test_id = params.get("testId", "")
-            urls = [f"{base}/progress" for base in _BASES]
-            data, st = _try_get(headers, urls, {"studentId": student_id, "testId": test_id})
-            send_json(self, data or {}, st or 200)
-
+            sid = params.get("studentId", "")
+            tid = params.get("testId", "")
+            try:
+                resp = requests.get(f"{PP}/assessments/progress", headers=headers, params={"studentId": sid, "testId": tid}, timeout=10)
+                send_json(self, resp.json(), resp.status_code)
+            except Exception as e:
+                send_json(self, {"error": str(e)}, 500)
         else:
-            send_json(self, {"error": "Unknown GET action"}, 400)
+            send_json(self, {"error": "Use action=next or action=progress"}, 400)
 
     def do_POST(self):
         try:
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = json.loads(self.rfile.read(content_length)) if content_length else {}
+            cl = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(cl)) if cl else {}
         except Exception:
             body = {}
 
         params = get_query_params(self)
         action = params.get("action", body.get("action", ""))
+        headers = api_headers()
 
         if action == "start":
             student_id = body.get("studentId", "")
             test_id = body.get("testId", "")
             subject = body.get("subject", "")
             grade = body.get("grade", "")
-            course_id = body.get("courseId", "")
-            if not student_id:
-                send_json(self, {"error": "Need studentId"}, 400)
-                return
-            if not test_id:
-                send_json(self, {"error": "Need testId"}, 400)
+
+            if not student_id or not test_id:
+                send_json(self, {"error": "Need studentId and testId"}, 400)
                 return
 
-            headers = api_headers()
-
-            # Try multiple payload formats — the API needs "lesson" and "student"
-            payloads = [
+            # Try creating an attempt with the PowerPath API
+            # The API expects { student, lesson } per the 422 error
+            errors = []
+            for payload in [
                 {"student": student_id, "lesson": test_id},
                 {"student": student_id, "lesson": test_id, "subject": subject, "grade": grade},
-                {"student": student_id, "lesson": test_id, "courseId": course_id},
                 {"studentId": student_id, "lesson": test_id},
-                {"studentId": student_id, "testId": test_id, "lesson": test_id},
                 {"studentId": student_id, "testId": test_id},
-            ]
-
-            # createNewAttempt — try each URL with each payload format
-            paths = []
-            for base in _BASES:
-                paths.extend([
-                    f"{base}/create-new-attempt",
-                    f"{base}/createNewAttempt",
-                    f"{base}/new-attempt",
-                    f"{base}/attempts",
-                ])
-
-            data, st = None, 0
-            for url in paths:
-                for payload in payloads:
+            ]:
+                for path in [
+                    f"{PP}/assessments/attempts",
+                    f"{PP}/assessments/create-new-attempt",
+                ]:
                     try:
-                        resp = requests.post(url, headers=headers, json=payload, timeout=6)
-                        try:
-                            rdata = resp.json()
-                        except Exception:
-                            rdata = {"status": resp.status_code}
-                        if resp.status_code in (200, 201, 204):
-                            data, st = rdata, resp.status_code
-                            break
-                        if resp.status_code == 422 or resp.status_code == 400:
-                            # Validation error — try next payload format on same URL
-                            data, st = rdata, resp.status_code
-                            continue
-                        if resp.status_code != 404:
-                            data, st = rdata, resp.status_code
-                            break
-                    except Exception:
-                        continue
-                if data and st < 400:
-                    break
+                        resp = requests.post(path, headers=headers, json=payload, timeout=8)
+                        if resp.status_code in (200, 201):
+                            send_json(self, resp.json(), resp.status_code)
+                            return
+                        errors.append({"url": path, "status": resp.status_code, "body": resp.text[:200], "payload": list(payload.keys())})
+                    except Exception as e:
+                        errors.append({"url": path, "error": str(e)})
 
-            if data and st < 400:
-                send_json(self, data, st)
-            else:
-                send_json(self, data or {"error": "Could not create attempt"}, st if st >= 400 else 422)
+            # All failed — return the errors for debugging
+            send_json(self, {"error": "Could not create attempt", "tried": errors[:6]}, 422)
 
         elif action == "respond":
             attempt_id = body.get("attemptId", "")
             question_id = body.get("questionId", "")
             response = body.get("response", "")
+
             if not attempt_id or not question_id:
                 send_json(self, {"error": "Need attemptId and questionId"}, 400)
                 return
 
-            headers = api_headers()
-            payload = {"attemptId": attempt_id, "questionId": question_id, "response": response}
-
-            # updateStudentQuestionResponse
-            urls = []
-            for base in _BASES:
-                urls.extend([
-                    f"{base}/update-student-question-response",
-                    f"{base}/updateStudentQuestionResponse",
-                    f"{base}/update-response",
-                    f"{base}/responses",
-                ])
-            data, st = _try_post(headers, urls, payload)
-            send_json(self, data or {"error": "Failed to submit"}, st or 422)
+            try:
+                resp = requests.post(
+                    f"{PP}/assessments/responses",
+                    headers=headers,
+                    json={"attemptId": attempt_id, "questionId": question_id, "response": response},
+                    timeout=10,
+                )
+                send_json(self, resp.json() if resp.ok else {"error": resp.text[:200]}, resp.status_code)
+            except Exception as e:
+                send_json(self, {"error": str(e)}, 500)
 
         elif action == "finalize":
             attempt_id = body.get("attemptId", "")
             if not attempt_id:
                 send_json(self, {"error": "Need attemptId"}, 400)
                 return
-
-            headers = api_headers()
-            payload = {"attemptId": attempt_id}
-
-            # finalStudentAssessmentResponse
-            urls = []
-            for base in _BASES:
-                urls.extend([
-                    f"{base}/final-student-assessment-response",
-                    f"{base}/finalStudentAssessmentResponse",
-                    f"{base}/finalize",
-                ])
-            data, st = _try_post(headers, urls, payload)
-            send_json(self, data or {"status": "finalized"}, st if st and st < 400 else 200)
+            try:
+                resp = requests.post(
+                    f"{PP}/assessments/finalize",
+                    headers=headers,
+                    json={"attemptId": attempt_id},
+                    timeout=10,
+                )
+                send_json(self, resp.json() if resp.ok else {"status": "ok"}, resp.status_code if resp.ok else 200)
+            except Exception as e:
+                send_json(self, {"error": str(e)}, 500)
 
         else:
-            send_json(self, {"error": "Unknown POST action"}, 400)
+            send_json(self, {"error": "Use action=start, respond, or finalize"}, 400)
