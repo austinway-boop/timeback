@@ -244,13 +244,13 @@
         <main class="main-content">
             <h1 class="welcome-heading">Goals</h1>
 
-            <!-- AP Courses Section -->
-            <div id="ap-section">
+            <!-- Unit-based courses (Timeback/PowerPath) -->
+            <div id="unit-section">
                 <div class="section-heading">
-                    <i class="fa-solid fa-graduation-cap"></i>
-                    AP Courses <span class="section-count" id="ap-count"></span>
+                    <i class="fa-solid fa-layer-group"></i>
+                    Unit Courses <span class="section-count" id="unit-count"></span>
                 </div>
-                <div class="goals-grid" id="ap-grid">
+                <div class="goals-grid" id="unit-grid">
                     <div class="empty-section">
                         <div class="loading-spinner" style="margin:0 auto 12px;"></div>
                         Loading courses...
@@ -258,11 +258,11 @@
                 </div>
             </div>
 
-            <!-- XP Courses Section -->
+            <!-- XP-based courses (external apps) -->
             <div id="xp-section">
                 <div class="section-heading">
                     <i class="fa-solid fa-bolt"></i>
-                    Other Courses <span class="section-count" id="xp-count"></span>
+                    XP Courses <span class="section-count" id="xp-count"></span>
                 </div>
                 <div class="goals-grid" id="xp-grid">
                     <div class="empty-section">
@@ -303,9 +303,18 @@
         return 'fa-graduation-cap';
     }
 
-    function isAPCourse(title) {
-        const t = (title || '').trim();
-        return /\bAP\b/.test(t) || t.toLowerCase().includes('advanced placement');
+    /**
+     * Timeback-native (PowerPath) courses have no external app.
+     * These are the ones with unit tracking (totalLessons).
+     * External-app courses (Math Academy, etc.) are XP-only.
+     */
+    function isUnitCourse(c) {
+        const app = (c.appName || '').toLowerCase().trim();
+        // No external app = Timeback-native/PowerPath — use units if available
+        if (!app) return c.totalLessons > 0;
+        // Also treat native app names as Timeback courses
+        if (NATIVE_APPS.some(n => app.includes(n) || n.includes(app))) return c.totalLessons > 0;
+        return false;
     }
 
     /* ---- State ---------------------------------------------------------- */
@@ -392,8 +401,8 @@
         return { cls:'at-risk', label:'At risk' };
     }
 
-    /* ---- Build an AP course card (unit-based, fully automatic) ---------- */
-    function renderAPCard(c, i) {
+    /* ---- Build a unit course card (Timeback/PowerPath, fully automatic) - */
+    function renderUnitCard(c, i) {
         const theme = COURSE_THEMES[i % COURSE_THEMES.length];
         const icon = guessIcon(c.title);
         const goal = loadGoals()[c._goalKey] || {};
@@ -408,7 +417,7 @@
         const remaining = Math.max(totalUnits - unitsCompleted, 0);
         const pct = totalUnits > 0 ? Math.min((unitsCompleted / totalUnits) * 100, 100) : 0;
 
-        // Pacing (only if end date is set)
+        // Pacing (only if goal confirmed)
         let statusObj = { cls:'no-goal', label:'Set a date' };
         let pacingText = '';
         if (hasGoal) {
@@ -430,7 +439,7 @@
         }
 
         return `
-        <div class="goal-card" data-idx="${i}" data-key="${c._goalKey}" data-type="ap"
+        <div class="goal-card" data-idx="${i}" data-key="${c._goalKey}" data-type="unit"
              data-total-units="${totalUnits}" data-xp-per-unit="${Math.round(xpPerUnit)}" data-remaining="${remaining}">
             <div class="course-card-image ${THEME_BG[theme]}">
                 <div class="course-card-illustration"><i class="fa-solid ${icon}"></i></div>
@@ -447,27 +456,40 @@
                     <div class="goal-bar-fill ${hasGoal ? statusObj.cls : 'on-track'}" style="width:${pct}%"></div>
                 </div>
 
-                <div class="goal-pacing ${pacingText ? 'show' : ''}" id="pacing-${i}">
-                    <i class="fa-solid fa-calculator"></i>
-                    <span>${pacingText}</span>
-                </div>
+                ${hasGoal ? `
+                    <div class="goal-pacing show" id="pacing-${i}">
+                        <i class="fa-solid fa-calculator"></i>
+                        <span>${pacingText}</span>
+                    </div>
+                ` : ''}
 
                 <div class="goal-field">
-                    <label class="goal-label">Finish by</label>
+                    <label class="goal-label">Complete by</label>
                     <input type="date" class="goal-input goal-date"
                            value="${goal.endDate || ''}"
                            min="${formatDate(new Date())}"
-                           onchange="livePreviewAP(${i}); autoSaveAP(${i})">
+                           onchange="onUnitDatePick(${i})">
                 </div>
 
                 <label class="goal-check">
                     <input type="checkbox" class="goal-school"
                            ${(goal.excludeNonSchoolDays !== false) ? 'checked' : ''}
-                           onchange="livePreviewAP(${i}); autoSaveAP(${i})">
+                           onchange="onUnitDatePick(${i})">
                     School days only (exclude weekends &amp; holidays)
                 </label>
 
-                ${hasGoal ? `<button class="btn-remove" style="width:100%;" onclick="removeGoal(${i})"><i class="fa-solid fa-xmark"></i> Clear date</button>` : ''}
+                <div class="goal-pacing" id="preview-${i}" style="display:none;">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span id="preview-text-${i}"></span>
+                </div>
+
+                <div class="goal-actions">
+                    <button class="btn-save" id="confirm-btn-${i}" style="width:100%;${hasGoal ? '' : 'display:none;'}"
+                            onclick="confirmUnitGoal(${i})">
+                        <i class="fa-solid fa-check"></i> ${hasGoal ? 'Update Goal' : 'Confirm Goal'}
+                    </button>
+                    ${hasGoal ? `<button class="btn-remove" style="width:100%;margin-top:6px;" onclick="removeGoal(${i})"><i class="fa-solid fa-xmark"></i> Clear Goal</button>` : ''}
+                </div>
             </div>
         </div>`;
     }
@@ -557,38 +579,55 @@
         </div>`;
     }
 
-    /* ---- Live preview: AP (auto from remaining units) ------------------- */
-    function livePreviewAP(idx) {
+    /* ---- Unit course: date picked → show preview + confirm button ------- */
+    function onUnitDatePick(idx) {
         const card = document.querySelector(`.goal-card[data-idx="${idx}"]`);
         if (!card) return;
         const endDate = card.querySelector('.goal-date').value;
         const excludeNonSchool = card.querySelector('.goal-school').checked;
-        const pacing = document.getElementById(`pacing-${idx}`);
-        const span = pacing.querySelector('span');
+        const preview = document.getElementById(`preview-${idx}`);
+        const previewText = document.getElementById(`preview-text-${idx}`);
+        const confirmBtn = document.getElementById(`confirm-btn-${idx}`);
         const remaining = parseInt(card.dataset.remaining) || 0;
         const xpPerUnit = parseInt(card.dataset.xpPerUnit) || 0;
 
-        if (!endDate) { pacing.classList.remove('show'); return; }
+        if (!endDate) {
+            preview.style.display = 'none';
+            confirmBtn.style.display = 'none';
+            return;
+        }
 
         const days = countDays(endDate, excludeNonSchool);
         const dayType = excludeNonSchool ? 'school day' : 'day';
 
         if (days.school <= 0) {
-            span.textContent = 'End date has passed or is today.';
-            pacing.classList.add('show');
-            return;
+            previewText.textContent = 'That date has passed or is today.';
+        } else if (remaining <= 0) {
+            previewText.textContent = 'Course already complete!';
+        } else {
+            const unitsPerDay = (remaining / days.school).toFixed(1);
+            const xpPerDay = Math.round(unitsPerDay * xpPerUnit);
+            previewText.innerHTML = `~${unitsPerDay} units/${dayType} (~${xpPerDay} XP/day) &middot; ${days.school} ${dayType}s left`;
         }
 
-        if (remaining <= 0) {
-            span.textContent = 'Course complete!';
-            pacing.classList.add('show');
-            return;
-        }
+        preview.style.display = 'flex';
+        confirmBtn.style.display = '';
+        confirmBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm Goal';
+    }
 
-        const unitsPerDay = (remaining / days.school).toFixed(1);
-        const xpPerDay = Math.round(unitsPerDay * xpPerUnit);
-        span.innerHTML = `~${unitsPerDay} units/${dayType} (~${xpPerDay} XP/day) &middot; ${days.school} ${dayType}s left`;
-        pacing.classList.add('show');
+    /* ---- Confirm unit goal ---------------------------------------------- */
+    function confirmUnitGoal(idx) {
+        const card = document.querySelector(`.goal-card[data-idx="${idx}"]`);
+        const endDate = card.querySelector('.goal-date').value;
+        if (!endDate) { showToast('Pick a completion date first.'); return; }
+        const excludeNonSchoolDays = card.querySelector('.goal-school').checked;
+        const totalUnits = parseInt(card.dataset.totalUnits) || 0;
+        const key = card.dataset.key;
+        const goals = loadGoals();
+        goals[key] = { type: 'units', target: totalUnits, endDate, excludeNonSchoolDays };
+        saveGoals(goals);
+        showToast('Goal confirmed!');
+        renderAll();
     }
 
     /* ---- Live preview: XP ----------------------------------------------- */
@@ -662,21 +701,21 @@
 
     /* ---- Render all ----------------------------------------------------- */
     function renderAll() {
-        const apCourses = [];
+        const unitCourses = [];
         const xpCourses = [];
 
         allCourses.forEach((c, i) => {
-            if (isAPCourse(c.title)) apCourses.push({ c, i });
+            if (isUnitCourse(c)) unitCourses.push({ c, i });
             else xpCourses.push({ c, i });
         });
 
-        // AP section
-        document.getElementById('ap-count').textContent = apCourses.length ? `(${apCourses.length})` : '';
-        const apGrid = document.getElementById('ap-grid');
-        if (apCourses.length) {
-            apGrid.innerHTML = apCourses.map(({ c, i }) => renderAPCard(c, i)).join('');
+        // Unit section (Timeback/PowerPath)
+        document.getElementById('unit-count').textContent = unitCourses.length ? `(${unitCourses.length})` : '';
+        const unitGrid = document.getElementById('unit-grid');
+        if (unitCourses.length) {
+            unitGrid.innerHTML = unitCourses.map(({ c, i }) => renderUnitCard(c, i)).join('');
         } else {
-            apGrid.innerHTML = '<div class="empty-section">No AP courses enrolled.</div>';
+            unitGrid.innerHTML = '<div class="empty-section">No unit-based courses found.</div>';
         }
 
         // XP section
@@ -685,7 +724,7 @@
         if (xpCourses.length) {
             xpGrid.innerHTML = xpCourses.map(({ c, i }) => renderXPCard(c, i)).join('');
         } else {
-            xpGrid.innerHTML = '<div class="empty-section">No other courses enrolled.</div>';
+            xpGrid.innerHTML = '<div class="empty-section">No XP-based courses found.</div>';
         }
     }
 
@@ -698,7 +737,7 @@
     document.addEventListener('DOMContentLoaded', async function () {
         const email = localStorage.getItem('alphalearn_email') || '';
         if (!email) {
-            document.getElementById('ap-grid').innerHTML = '<div class="empty-section">Please <a href="/login" style="color:var(--color-primary)">sign in</a> first.</div>';
+            document.getElementById('unit-grid').innerHTML = '<div class="empty-section">Please <a href="/login" style="color:var(--color-primary)">sign in</a> first.</div>';
             document.getElementById('xp-grid').innerHTML = '';
             return;
         }
@@ -707,7 +746,7 @@
             const lookupResp = await fetch(`/api/user-lookup?email=${encodeURIComponent(email)}`);
             const lookupData = await lookupResp.json();
             if (!lookupData.user || !lookupData.user.sourcedId) {
-                document.getElementById('ap-grid').innerHTML = '<div class="empty-section">Could not find your account.</div>';
+                document.getElementById('unit-grid').innerHTML = '<div class="empty-section">Could not find your account.</div>';
                 document.getElementById('xp-grid').innerHTML = '';
                 return;
             }
@@ -804,7 +843,7 @@
 
             renderAll();
         } catch (err) {
-            document.getElementById('ap-grid').innerHTML = '<div class="empty-section">Unable to load data. Please try again.</div>';
+            document.getElementById('unit-grid').innerHTML = '<div class="empty-section">Unable to load data. Please try again.</div>';
             document.getElementById('xp-grid').innerHTML = '';
             console.error('[AlphaLearn Goals]', err);
         }

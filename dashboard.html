@@ -121,10 +121,14 @@
         return COURSE_ICONS.default;
     }
 
-    /* ---- AP detection ----------------------------------------------------- */
-    function isAPCourse(title) {
-        const t = (title || '').trim();
-        return /\bAP\b/.test(t) || t.toLowerCase().includes('advanced placement');
+    /* ---- Timeback-native course detection (unit tracking) ---------------- */
+    function isUnitCourse(c) {
+        const app = (c.appName || '').toLowerCase().trim();
+        // No external app = Timeback-native/PowerPath — use units if available
+        if (!app) return c.totalLessons > 0;
+        // Also treat native app names as Timeback courses
+        if (NATIVE_APPS.some(n => app.includes(n) || n.includes(app))) return c.totalLessons > 0;
+        return false;
     }
 
     /* ---- State ------------------------------------------------------------ */
@@ -160,11 +164,11 @@
             const name      = c.title || 'Untitled Course';
             const goalKey   = c._goalKey || '';
             const savedGoal = savedGoals[goalKey] || null;
-            const ap        = isAPCourse(c.title);
+            const unitBased = isUnitCourse(c);
 
             let progressText, progressLabel, pct;
 
-            if (ap && c.totalLessons > 0) {
+            if (unitBased) {
                 // AP course: show unit progress (estimated from full-year XP)
                 const totalXp = c.totalXp || 1;
                 const totalUnits = c.totalLessons;
@@ -339,9 +343,9 @@
             /* 5. Store courses globally, fetch full-year XP for AP unit tracking, then daily XP */
             allCourses = courses;
 
-            // Fetch full-year XP (for AP unit progress estimation)
-            const hasAP = courses.some(c => isAPCourse(c.title));
-            if (hasAP) {
+            // Fetch full-year XP (for unit course progress estimation)
+            const hasUnitCourses = courses.some(c => isUnitCourse(c));
+            if (hasUnitCourses) {
                 await loadFullYearXp(email);
             }
 
@@ -487,7 +491,7 @@
             fullYearXpIdx = {};
             for (let i = 0; i < allCourses.length; i++) {
                 const c = allCourses[i];
-                if (!isAPCourse(c.title)) continue; // only needed for AP
+                if (!isUnitCourse(c)) continue; // only needed for unit courses
                 const subjApps = xpMap[c.subject] || {};
                 const appName = (c.appName || '').toLowerCase();
                 if (appName && Object.keys(subjApps).length) {
