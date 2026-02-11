@@ -373,9 +373,10 @@
                 function resLabel(type, url) {
                     var t = (type || '').toLowerCase();
                     if (t === 'video') return 'Video';
-                    if (t.includes('assessment')) return 'Quiz';
+                    if (t === 'assessment' || t === 'quiz' || t === 'test' || t === 'exam' || t === 'frq') return 'Quiz';
+                    if (t.includes('assessment') && !t.includes('stimulus') && !t.includes('reading')) return 'Quiz';
                     if (url && url.includes('stimuli')) return 'Reading';
-                    if (url && url.includes('assessment')) return 'Quiz';
+                    if (url && (url.includes('/assessment') || url.includes('/quiz'))) return 'Quiz';
                     return 'Reading';
                 }
                 function resColor(type) {
@@ -472,11 +473,9 @@
                                 else if (rurl && !rurl.includes('flashcard.com')) { pillUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(lTitle); }
                                 else if (resId) { pillUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=' + encodeURIComponent(rtype || 'assessment') + '&title=' + encodeURIComponent(lTitle); }
 
-                                // Only exact type matches count as genuine quizzes — NOT substring
-                                // (types like "assessment_stimulus" or "test_reading" are NOT quizzes)
-                                var isGenuineQuiz = (rtype === 'assessment' || rtype === 'quiz' || rtype === 'test' || rtype === 'exam');
-                                var effectiveType = rtype || (isAssessmentTitle ? 'assessment' : '');
-                                resDetails.push({ type: effectiveType, url: rurl, pillUrl: pillUrl, title: rTitle2, label: resLabel(effectiveType, rurl), _genuineQuiz: isGenuineQuiz });
+                                // Each resource keeps its own type — don't inherit 'assessment' from lesson title
+                                // (that was causing readings/videos inside assessment lessons to lose their buttons)
+                                resDetails.push({ type: rtype, url: rurl, pillUrl: pillUrl, title: rTitle2, label: resLabel(rtype, rurl) });
 
                                 if (!openUrl && pillUrl) openUrl = pillUrl;
                             }
@@ -492,13 +491,14 @@
                             }
                             // If we have an openUrl but no resource details, add a synthetic entry so the pill renders
                             if (resDetails.length === 0 && openUrl) {
-                                resDetails.push({ type: 'assessment', url: '', pillUrl: openUrl, title: lTitle, label: 'Quiz', _genuineQuiz: true });
+                                resDetails.push({ type: 'assessment', url: '', pillUrl: openUrl, title: lTitle, label: 'Quiz' });
                             }
 
                             // Per-resource completion tracking
+                            // Buttons only for articles (Reading) and videos (Video) — NOT quizzes/FRQs
                             var nonQuizCount = 0, nonQuizDoneCount = 0;
                             for (var rci = 0; rci < resDetails.length; rci++) {
-                                var isQuizRes = !!resDetails[rci]._genuineQuiz;
+                                var isQuizRes = (resDetails[rci].label === 'Quiz');
                                 resDetails[rci]._isQuiz = isQuizRes;
                                 if (!isQuizRes) {
                                     nonQuizCount++;
