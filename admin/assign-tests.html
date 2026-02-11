@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - Assign Tests</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preload" href="/css/style.css" as="style">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* Assign Tests Section */
+        .assign-section {
+            background: var(--color-surface); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 0; margin-bottom: 20px; overflow: visible;
+        }
+        .assign-section .card-header { padding: 20px 24px 0; }
+        .assign-body { padding: 20px 24px 24px; }
+        .assign-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; }
+        .assign-field { display: flex; flex-direction: column; position: relative; }
+        .assign-field label {
+            font-size: 0.78rem; font-weight: 600; color: var(--color-text-secondary);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+        }
+        .assign-field input, .assign-field select {
+            padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+            background: var(--color-surface); color: var(--color-text); font-size: 0.9rem; outline: none;
+        }
+        .assign-field input:focus, .assign-field select:focus { border-color: var(--color-primary); }
+        .assign-btn {
+            padding: 10px 24px; background: var(--color-primary); color: #fff; border: none;
+            border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: background 0.2s; white-space: nowrap; height: 42px;
+        }
+        .assign-btn:hover { background: var(--color-primary-dark); }
+        .assign-btn:disabled { background: var(--color-border); color: var(--color-text-muted); cursor: not-allowed; }
+        .assign-msg {
+            margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm);
+            font-size: 0.88rem; font-weight: 500; display: none;
+        }
+        .assign-msg.success { display: block; background: #E8F5E9; color: #2E7D32; }
+        .assign-msg.error { display: block; background: #FFF5F5; color: #E53E3E; }
+
+        /* Search-as-you-type dropdown */
+        .search-results-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;
+            background: #fff; border: 1px solid #E8ECF1;
+            border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            max-height: 300px; overflow-y: auto; display: none;
+        }
+        .search-results-dropdown.open { display: block; }
+        .search-result-item {
+            padding: 10px 14px; cursor: pointer; font-size: 0.88rem;
+            border-bottom: 1px solid var(--color-border); transition: background 0.1s;
+        }
+        .search-result-item:last-child { border-bottom: none; }
+        .search-result-item:hover { background: var(--color-primary-light); }
+        .search-result-name { font-weight: 600; color: var(--color-text); }
+        .search-result-email { font-size: 0.78rem; color: var(--color-text-muted); }
+        .search-result-empty { padding: 14px; text-align: center; color: var(--color-text-muted); font-size: 0.85rem; }
+        .selected-student-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--color-primary-light); color: var(--color-primary-dark);
+            padding: 4px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
+            margin-top: 6px;
+        }
+        .selected-student-tag button {
+            border: none; background: none; color: var(--color-primary-dark);
+            font-size: 1rem; cursor: pointer; padding: 0 2px; line-height: 1;
+        }
+
+        /* Recent assignments table */
+        .recent-section {
+            background: var(--color-surface); border-radius: var(--radius);
+            box-shadow: var(--shadow); overflow: hidden;
+        }
+        .recent-section .card-header { padding: 20px 24px; border-bottom: 1px solid var(--color-border); }
+        .mini-table { width: 100%; border-collapse: collapse; }
+        .mini-table th {
+            padding: 10px 16px; text-align: left; font-weight: 600; font-size: 0.78rem;
+            color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
+            background: var(--color-bg); border-bottom: 1px solid var(--color-border);
+        }
+        .mini-table td { padding: 10px 16px; border-bottom: 1px solid var(--color-border); font-size: 0.88rem; }
+        .mini-table tbody tr:hover { background: #FAFBFC; }
+        .mini-table tbody tr:last-child td { border-bottom: none; }
+
+        @media (max-width: 768px) {
+            .assign-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body data-view="admin" data-active="assign-tests">
+
+    <div class="layout">
+        <nav class="sidebar" id="sidebar"></nav>
+        <main class="main-content">
+            <div class="admin-assign-tests">
+                <div class="page-header">
+                    <h1 class="page-title">Assign Tests</h1>
+                    <p class="page-subtitle">Assign mastery tests and screenings to students</p>
+                </div>
+
+                <!-- Assign Tests Form -->
+                <div class="assign-section">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa-solid fa-clipboard-check" style="color:var(--color-primary);margin-right:8px;"></i>New Assignment</h2>
+                    </div>
+                    <div class="assign-body">
+                        <div class="assign-row">
+                            <div class="assign-field">
+                                <label>Student</label>
+                                <input type="text" id="student-search-input" placeholder="Search student by name or email..." autocomplete="off" oninput="onStudentSearch(this.value)">
+                                <div id="student-search-results" class="search-results-dropdown"></div>
+                                <div id="selected-student-display"></div>
+                                <input type="hidden" id="selected-student-id" value="">
+                            </div>
+                            <div class="assign-field">
+                                <label>Subject</label>
+                                <select id="assign-subject" onchange="updateAssignBtn()">
+                                    <option value="">Select subject...</option>
+                                    <option value="Math">Math</option>
+                                    <option value="Reading">Reading</option>
+                                    <option value="Writing">Writing</option>
+                                    <option value="Science">Science</option>
+                                    <option value="Social Studies">Social Studies</option>
+                                    <option value="Language">Language</option>
+                                    <option value="Vocabulary">Vocabulary</option>
+                                </select>
+                            </div>
+                            <div class="assign-field">
+                                <label>Grade</label>
+                                <select id="assign-grade" onchange="updateAssignBtn()">
+                                    <option value="">Select grade...</option>
+                                    <option value="3">Grade 3</option>
+                                    <option value="4">Grade 4</option>
+                                    <option value="5">Grade 5</option>
+                                    <option value="6">Grade 6</option>
+                                    <option value="7">Grade 7</option>
+                                    <option value="8">Grade 8</option>
+                                    <option value="9">Grade 9</option>
+                                    <option value="10">Grade 10</option>
+                                    <option value="11">Grade 11</option>
+                                    <option value="12">Grade 12</option>
+                                </select>
+                            </div>
+                            <div class="assign-field">
+                                <label>Type</label>
+                                <select id="assign-type">
+                                    <option value="test-assignment">Test Assignment</option>
+                                    <option value="screening">Screening Test</option>
+                                </select>
+                            </div>
+                            <button class="assign-btn" id="assign-btn" onclick="submitAssignment()" disabled>
+                                <i class="fa-solid fa-paper-plane"></i> Assign Test
+                            </button>
+                        </div>
+                        <div class="assign-msg" id="assign-msg"></div>
+                    </div>
+                </div>
+
+                <!-- Recent Assignments -->
+                <div class="recent-section">
+                    <div class="card-header">
+                        <h2 class="card-title">Recent Assignments</h2>
+                    </div>
+                    <table class="mini-table">
+                        <thead><tr><th>Student</th><th>Subject</th><th>Grade</th><th>Type</th><th>Status</th></tr></thead>
+                        <tbody id="recent-assignments-tbody">
+                            <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--color-text-muted);">No recent assignments.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/auth-guard.js?v=3"></script>
+    <script src="/js/layout.js"></script>
+    <script src="/js/app.js"></script>
+    <script>
+    /* ==================================================================== */
+    /* Global state                                                         */
+    /* ==================================================================== */
+    var cachedStudents = [];
+    var selectedStudentId = '';
+    var recentAssignments = [];
+
+    /* ---- Helpers -------------------------------------------------------- */
+    function esc(s) {
+        if (s == null) return '';
+        if (typeof s !== 'string') s = String(s);
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    /* ==================================================================== */
+    /* Student search-as-you-type (max 20 results, debounced)               */
+    /* ==================================================================== */
+    var searchTimer = null;
+
+    function onStudentSearch(query) {
+        clearTimeout(searchTimer);
+        if (!query || query.length < 2) {
+            document.getElementById('student-search-results').className = 'search-results-dropdown';
+            return;
+        }
+        searchTimer = setTimeout(function() { doStudentSearch(query); }, 300);
+    }
+
+    function doStudentSearch(query) {
+        var q = query.toLowerCase();
+        var isEmail = q.includes('@');
+
+        if (isEmail) {
+            fetch('/api/user-lookup?email=' + encodeURIComponent(query))
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    showSearchResults(data.user ? [data.user] : []);
+                })
+                .catch(function() { showSearchResults([]); });
+        } else {
+            var filtered = cachedStudents.filter(function(u) {
+                var name = ((u.givenName || '') + ' ' + (u.familyName || '')).toLowerCase();
+                var uname = (u.username || '').toLowerCase();
+                return name.includes(q) || (u.email || '').toLowerCase().includes(q) || uname.includes(q);
+            }).slice(0, 20);
+            showSearchResults(filtered);
+        }
+    }
+
+    function showSearchResults(results) {
+        var dropdown = document.getElementById('student-search-results');
+        if (!results.length) {
+            dropdown.innerHTML = '<div class="search-result-empty">No students found. Try a different name or email.</div>';
+            dropdown.className = 'search-results-dropdown open';
+            return;
+        }
+        dropdown.innerHTML = results.slice(0, 20).map(function(u) {
+            var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
+            var email = u.email || '';
+            var id = u.sourcedId || '';
+            return '<div class="search-result-item" onclick="selectStudent(\'' + id + '\', \'' + name.replace(/'/g, "\\'") + '\', \'' + email.replace(/'/g, "\\'") + '\')">' +
+                '<div class="search-result-name">' + name + '</div>' +
+                '<div class="search-result-email">' + email + '</div>' +
+            '</div>';
+        }).join('');
+        dropdown.className = 'search-results-dropdown open';
+    }
+
+    function selectStudent(id, name, email) {
+        selectedStudentId = id;
+        document.getElementById('selected-student-id').value = id;
+        document.getElementById('student-search-input').value = '';
+        document.getElementById('student-search-results').className = 'search-results-dropdown';
+        document.getElementById('selected-student-display').innerHTML =
+            '<div class="selected-student-tag">' +
+                '<i class="fa-solid fa-user"></i> ' + name + ' (' + email + ')' +
+                '<button onclick="clearSelectedStudent()" title="Remove">&times;</button>' +
+            '</div>';
+        updateAssignBtn();
+    }
+
+    function clearSelectedStudent() {
+        selectedStudentId = '';
+        document.getElementById('selected-student-id').value = '';
+        document.getElementById('selected-student-display').innerHTML = '';
+        updateAssignBtn();
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        var dropdown = document.getElementById('student-search-results');
+        if (dropdown && !e.target.closest('.assign-field')) {
+            dropdown.className = 'search-results-dropdown';
+        }
+    });
+
+    /* ---- Assign button state ------------------------------------------- */
+    function updateAssignBtn() {
+        var btn = document.getElementById('assign-btn');
+        if (!btn) return;
+        var hasSubject = (document.getElementById('assign-subject') || {}).value !== '';
+        var hasGrade = (document.getElementById('assign-grade') || {}).value !== '';
+        var hasStudent = selectedStudentId !== '';
+        btn.disabled = !(hasStudent && hasSubject && hasGrade);
+    }
+
+    async function submitAssignment() {
+        var subject = (document.getElementById('assign-subject') || {}).value || '';
+        var grade = (document.getElementById('assign-grade') || {}).value || '';
+        var assignType = (document.getElementById('assign-type') || {}).value || 'test-assignment';
+        if (!subject || !grade || !selectedStudentId) return;
+
+        var btn = document.getElementById('assign-btn');
+        var msgEl = document.getElementById('assign-msg');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Assigning...';
+        msgEl.className = 'assign-msg'; msgEl.style.display = 'none';
+
+        // Get the student name from the tag for the recent assignments table
+        var studentTag = document.querySelector('.selected-student-tag');
+        var studentName = studentTag ? studentTag.textContent.replace('×', '').trim() : 'Unknown';
+
+        try {
+            var resp = await fetch('/api/assign-test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    studentId: selectedStudentId,
+                    subject: subject,
+                    grade: grade,
+                    type: assignType,
+                }),
+            });
+            var data = await resp.json().catch(function() { return {}; });
+            if (resp.ok && data.success) {
+                msgEl.textContent = data.message || 'Test assigned successfully!';
+                msgEl.className = 'assign-msg success';
+                msgEl.style.display = 'block';
+                addRecentAssignment(studentName, subject, grade, assignType, 'success');
+                clearSelectedStudent();
+                document.getElementById('assign-subject').value = '';
+                document.getElementById('assign-grade').value = '';
+            } else {
+                msgEl.textContent = data.error || data.message || 'Assignment failed.';
+                msgEl.className = 'assign-msg error';
+                msgEl.style.display = 'block';
+                addRecentAssignment(studentName, subject, grade, assignType, 'error');
+            }
+        } catch(e) {
+            msgEl.textContent = 'Network error. Please try again.';
+            msgEl.className = 'assign-msg error';
+            msgEl.style.display = 'block';
+            addRecentAssignment(studentName, subject, grade, assignType, 'error');
+        }
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Assign Test';
+        updateAssignBtn();
+    }
+
+    /* ---- Recent Assignments Table -------------------------------------- */
+    function addRecentAssignment(studentName, subject, grade, type, status) {
+        recentAssignments.unshift({ studentName, subject, grade, type, status, time: new Date() });
+        if (recentAssignments.length > 20) recentAssignments.pop();
+        renderRecentAssignments();
+    }
+
+    function renderRecentAssignments() {
+        var tbody = document.getElementById('recent-assignments-tbody');
+        if (!recentAssignments.length) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--color-text-muted);">No recent assignments.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = recentAssignments.map(function(a) {
+            var statusBadge = a.status === 'success'
+                ? '<span class="status-badge status-active">Assigned</span>'
+                : '<span class="status-badge status-tobedeleted">Failed</span>';
+            var typeLabel = a.type === 'screening' ? 'Screening' : 'Test Assignment';
+            return '<tr>' +
+                '<td style="font-weight:600;">' + esc(a.studentName) + '</td>' +
+                '<td>' + esc(a.subject) + '</td>' +
+                '<td>Grade ' + esc(a.grade) + '</td>' +
+                '<td>' + esc(typeLabel) + '</td>' +
+                '<td>' + statusBadge + '</td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    /* ==================================================================== */
+    /* Main load: fetch students for search                                 */
+    /* ==================================================================== */
+    document.addEventListener('DOMContentLoaded', async function() {
+        try {
+            var resp = await fetch('/api/users');
+            var data = await resp.json();
+            var allUsers = data.users || [];
+            cachedStudents = allUsers.filter(function(u) {
+                return (u.role || '').toLowerCase() === 'student';
+            }).slice(0, 500);
+        } catch(e) {
+            console.warn('[Admin] Failed to load students for search:', e.message);
+        }
+        updateAssignBtn();
+    });
+    </script>
+</body>
+</html>
