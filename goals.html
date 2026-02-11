@@ -14,26 +14,43 @@
         .gc{background:var(--color-surface);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);transition:all var(--transition)}
         .gc:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
         .gc-b{padding:20px}
-        .gc-name{font-weight:600;font-size:1rem;color:var(--color-text);margin-bottom:12px}
-        .gc-done{font-size:.85rem;color:var(--color-text-secondary);margin-bottom:14px;display:flex;align-items:center;gap:6px}
-        .gc-done strong{color:var(--color-primary);font-weight:700}
-        .gc-goal{background:#E8F5E9;border-radius:8px;padding:12px 16px;margin-bottom:14px}
-        .gc-goal-text{font-size:.88rem;color:#2E7D32;font-weight:600;display:flex;align-items:center;gap:8px}
-        .gc-goal-pace{font-size:.8rem;color:#388E3C;margin-top:4px}
-        .gc-lbl{display:block;font-size:.72rem;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
-        .gc-inp{width:100%;padding:9px 12px;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);color:var(--color-text);font-size:.88rem;outline:none;transition:border-color var(--transition)}
+        .gc-name{font-weight:600;font-size:.95rem;color:var(--color-text);margin-bottom:14px;line-height:1.3}
+        /* ---- Big progress display ---- */
+        .gc-progress{display:flex;align-items:baseline;gap:2px;margin-bottom:6px;flex-wrap:wrap}
+        .gc-big{font-size:1.8rem;font-weight:800;color:var(--color-primary);line-height:1}
+        .gc-of{font-size:1.1rem;font-weight:600;color:var(--color-text-secondary)}
+        .gc-unit{font-size:.82rem;font-weight:600;color:var(--color-text-muted);margin-left:2px}
+        .gc-rem{font-size:.78rem;font-weight:500;color:var(--color-text-muted);margin-left:auto}
+        .gc-rem-done{color:var(--color-primary);font-weight:600}
+        /* ---- Progress bar ---- */
+        .gc-bar{height:8px;background:#E8ECF1;border-radius:4px;margin-bottom:14px;overflow:hidden}
+        .gc-bar-fill{height:100%;background:var(--color-primary);border-radius:4px;transition:width .3s ease}
+        /* ---- Pace / goal status ---- */
+        .gc-goal{background:#E8F5E9;border-radius:8px;padding:10px 14px;margin-bottom:14px}
+        .gc-goal-pace{font-size:.82rem;color:#2E7D32;font-weight:500}
+        .gc-goal.gc-goal-done{background:#E3F2FD}
+        .gc-goal.gc-goal-done .gc-goal-pace{color:#1565C0}
+        .gc-goal.gc-goal-overdue{background:#FFF3E0}
+        .gc-goal.gc-goal-overdue .gc-goal-pace{color:#E65100}
+        /* ---- Compact form row ---- */
+        .gc-form{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
+        .gc-form .gc-fld{flex:1;min-width:80px;margin-bottom:0}
+        .gc-form .gc-fld-chk{flex:0 0 auto;min-width:auto;display:flex;align-items:flex-end;padding-bottom:2px}
+        .gc-lbl{display:block;font-size:.68rem;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+        .gc-inp{width:100%;padding:8px 10px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-surface);color:var(--color-text);font-size:.82rem;outline:none;transition:border-color var(--transition);box-sizing:border-box}
         .gc-inp:focus{border-color:var(--color-primary)}
-        .gc-chk{display:flex;align-items:center;gap:8px;margin:10px 0 14px;font-size:.82rem;color:var(--color-text-secondary);cursor:pointer}
-        .gc-chk input{width:16px;height:16px;accent-color:var(--color-primary);cursor:pointer}
-        .gc-fld{margin-bottom:12px}
-        .gc-2{display:flex;gap:10px}.gc-2 .gc-fld{flex:1}
-        .gc-preview{background:var(--color-primary-light);border-radius:8px;padding:10px 14px;font-size:.85rem;color:var(--color-primary-dark);font-weight:500;margin-bottom:14px;display:none;align-items:center;gap:8px}
+        .gc-chk{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;margin:0}
+        .gc-chk input{width:14px;height:14px;accent-color:var(--color-primary);cursor:pointer}
+        /* ---- Preview (inline below form) ---- */
+        .gc-preview{background:var(--color-primary-light);border-radius:6px;padding:8px 12px;font-size:.8rem;color:var(--color-primary-dark);font-weight:500;margin-bottom:10px;display:none;align-items:center;gap:6px}
         .gc-preview.show{display:flex}
-        .gc-preview i{flex-shrink:0}
-        .btn-c{width:100%;padding:11px;background:var(--color-primary);color:#fff;border:none;border-radius:8px;font-weight:600;font-size:.9rem;cursor:pointer;transition:background var(--transition);display:flex;align-items:center;justify-content:center;gap:8px}
+        .gc-preview i{flex-shrink:0;font-size:.75rem}
+        /* ---- Buttons ---- */
+        .btn-c{width:100%;padding:10px;background:var(--color-primary);color:#fff;border:none;border-radius:8px;font-weight:600;font-size:.88rem;cursor:pointer;transition:background var(--transition);display:flex;align-items:center;justify-content:center;gap:8px}
         .btn-c:hover{background:var(--color-primary-dark)}
-        .btn-x{width:100%;padding:8px;background:transparent;color:var(--color-text-muted);border:1px solid var(--color-border);border-radius:8px;font-weight:500;font-size:.82rem;cursor:pointer;margin-top:8px;transition:all var(--transition)}
+        .btn-x{width:100%;padding:7px;background:transparent;color:var(--color-text-muted);border:1px solid var(--color-border);border-radius:8px;font-weight:500;font-size:.78rem;cursor:pointer;margin-top:6px;transition:all var(--transition)}
         .btn-x:hover{background:#FFEBEE;color:#C62828;border-color:#FFCDD2}
+        /* ---- Misc ---- */
         .empty-s{grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--color-text-muted);font-size:.9rem}
         .toast{position:fixed;bottom:24px;right:24px;background:var(--color-text);color:#fff;padding:14px 24px;border-radius:var(--radius-sm);font-size:.9rem;font-weight:500;box-shadow:var(--shadow-lg);z-index:300;transform:translateY(100px);opacity:0;transition:all .3s ease}
         .toast.show{transform:translateY(0);opacity:1}
@@ -65,180 +82,517 @@
 <script src="/js/layout.js"></script>
 <script src="/js/app.js"></script>
 <script>
-const THEMES=['teal','purple','pink','orange'],SKEY='alphalearn_goals';
-const NATIVE=['timeback dash','alpha timeback','alphalearn','timeback'];
-const TBG={teal:'card-theme-teal',purple:'card-theme-purple',pink:'card-theme-pink',orange:'card-theme-orange'};
+/* =========================================================================
+   AlphaLearn – Goals Page
+   ========================================================================= */
 
-function ic(t){t=(t||'').toLowerCase();if(t.includes('math')||t.includes('algebra'))return'fa-calculator';if(t.includes('chem')||t.includes('physics'))return'fa-atom';if(t.includes('bio'))return'fa-dna';if(t.includes('history')||t.includes('social')||t.includes('geo'))return'fa-globe-americas';if(t.includes('read')||t.includes('ela')||t.includes('english'))return'fa-book-open-reader';if(t.includes('code')||t.includes('tech'))return'fa-laptop-code';return'fa-graduation-cap';}
+const THEMES = ['teal', 'purple', 'pink', 'orange'];
+const SKEY   = 'alphalearn_goals';
+const NATIVE = ['timeback dash', 'alpha timeback', 'alphalearn', 'timeback'];
+const TBG    = { teal: 'card-theme-teal', purple: 'card-theme-purple', pink: 'card-theme-pink', orange: 'card-theme-orange' };
 
-function subImg(t){t=(t||'').toLowerCase();if(t.includes('math')||t.includes('algebra')||t.includes('calculus'))return'/img/subjects/math.png';if(t.includes('chem')||t.includes('physics'))return'/img/subjects/science.png';if(t.includes('bio'))return'/img/subjects/biology.png';if(t.includes('read')||t.includes('ela')||t.includes('english'))return'/img/subjects/reading.png';if(t.includes('lang')||t.includes('composition')||t.includes('writing'))return'/img/subjects/language.png';if(t.includes('geo')||t.includes('history')||t.includes('social'))return'/img/subjects/geography.png';if(t.includes('code')||t.includes('tech')||t.includes('gumpp'))return'/img/subjects/tech.png';return'/img/subjects/default.png';}
+/* ---- Helpers ---------------------------------------------------------- */
 
-function isAP(t){return /\bAP\b/.test((t||'').trim());}
-function isTimeback(c){
-    const a=(c.appName||'').toLowerCase().trim();
-    if(!a)return true;
-    if(NATIVE.some(n=>a.includes(n)||n.includes(a)))return true;
-    if(/^pp/i.test(a)||a.includes('powerpath'))return true;
+/* Per-app images and icon overrides */
+const APP_IMAGES = {
+    egumpp:'/img/apps/egumpp.png', runestone:'/img/apps/runestone.png',
+    newsela:'/img/apps/newsela.png', khan:'/img/apps/khan.png',
+    readtheory:'/img/apps/readtheory.png', commonlit:'/img/apps/commonlit.png',
+    knewton:'/img/apps/knewton.png', lalilo:'/img/apps/lalilo.png',
+    rocket:'/img/apps/rocketmath.png', zearn:'/img/apps/zearn.png',
+    renaissance:'/img/apps/renaissance.png', powerpath:'/img/apps/powerpath.png',
+};
+const APP_ICON_MAP = {
+    egumpp:'fa-book-open', runestone:'fa-laptop-code', newsela:'fa-book-open-reader',
+    khan:'fa-calculator', readtheory:'fa-book-open-reader', commonlit:'fa-book-open-reader',
+    knewton:'fa-calculator', lalilo:'fa-book-open-reader', rocket:'fa-calculator',
+    zearn:'fa-calculator', renaissance:'fa-graduation-cap', powerpath:'fa-calculator',
+};
+const SUBJ_IMAGES = {
+    math:'/img/subjects/math.png', science:'/img/subjects/science.png',
+    language:'/img/subjects/language.png', reading:'/img/subjects/reading.png',
+    geography:'/img/subjects/geography.png', biology:'/img/subjects/biology.png',
+    tech:'/img/subjects/tech.png', default:'/img/subjects/default.png',
+};
+
+function matchApp(s) {
+    const a = (s || '').toLowerCase().replace(/[\s_-]/g, '');
+    for (const k of Object.keys(APP_IMAGES)) { if (a.includes(k)) return k; }
+    return null;
+}
+
+function ic(t, appName) {
+    const app = matchApp(appName) || matchApp(t);
+    if (app && APP_ICON_MAP[app]) return APP_ICON_MAP[app];
+    t = (t || '').toLowerCase();
+    if (t.includes('math') || t.includes('algebra'))                        return 'fa-calculator';
+    if (t.includes('chem') || t.includes('physics'))                        return 'fa-atom';
+    if (t.includes('bio'))                                                  return 'fa-dna';
+    if (t.includes('history') || t.includes('social') || t.includes('geo')) return 'fa-globe-americas';
+    if (t.includes('read') || t.includes('ela') || t.includes('english'))   return 'fa-book-open-reader';
+    if (t.includes('lang') || t.includes('composition') || t.includes('writing')) return 'fa-book-open';
+    if (t.includes('code') || t.includes('tech'))                           return 'fa-laptop-code';
+    return 'fa-graduation-cap';
+}
+
+function getCardImage(t, appName) {
+    const app = matchApp(appName) || matchApp(t);
+    if (app && APP_IMAGES[app]) return APP_IMAGES[app];
+    t = (t || '').toLowerCase();
+    if (t.includes('math') || t.includes('algebra') || t.includes('calculus')) return SUBJ_IMAGES.math;
+    if (t.includes('chem') || t.includes('physics'))       return SUBJ_IMAGES.science;
+    if (t.includes('bio'))                                  return SUBJ_IMAGES.biology;
+    if (t.includes('read') || t.includes('ela') || t.includes('english')) return SUBJ_IMAGES.reading;
+    if (t.includes('lang') || t.includes('composition') || t.includes('writing')) return SUBJ_IMAGES.language;
+    if (t.includes('geo') || t.includes('history') || t.includes('social')) return SUBJ_IMAGES.geography;
+    if (t.includes('code') || t.includes('tech'))          return SUBJ_IMAGES.tech;
+    return SUBJ_IMAGES.default;
+}
+
+function isAP(t) { return /\bAP\b/.test((t || '').trim()); }
+function isTimeback(c) {
+    const a = (c.appName || '').toLowerCase().trim();
+    if (!a) return true;
+    if (NATIVE.some(n => a.includes(n) || n.includes(a))) return true;
+    if (/^pp/i.test(a) || a.includes('powerpath')) return true;
     return false;
 }
-function isLesson(c){return isAP(c.title)&&isTimeback(c);}
+function isLesson(c) { return isAP(c.title) && isTimeback(c); }
 
-let ALL=[],XP={},MASTERED={};
-function ld(){try{return JSON.parse(localStorage.getItem(SKEY))||{};}catch{return{};}}
-function sv(g){localStorage.setItem(SKEY,JSON.stringify(g));}
-function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2500);}
-function fmtD(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function fmtNice(s){return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+/* ---- State ------------------------------------------------------------ */
 
-function holidays(y){const h=[];const s1=new Date(y,8,1);h.push(fmtD(new Date(y,8,1+((8-s1.getDay())%7))));h.push(`${y}-11-11`);const n1=new Date(y,10,1);const th=new Date(y,10,1+((11-n1.getDay())%7)+21);h.push(fmtD(th));const tf=new Date(th);tf.setDate(tf.getDate()+1);h.push(fmtD(tf));for(let d=23;d<=31;d++)h.push(`${y}-12-${String(d).padStart(2,'0')}`);for(let d=1;d<=3;d++)h.push(`${y+1}-01-${String(d).padStart(2,'0')}`);const j1=new Date(y+1,0,1);h.push(fmtD(new Date(y+1,0,1+((8-j1.getDay())%7)+14)));const f1=new Date(y+1,1,1);h.push(fmtD(new Date(y+1,1,1+((8-f1.getDay())%7)+14)));const m1=new Date(y+1,2,1);const sb=new Date(y+1,2,1+((8-m1.getDay())%7)+14);for(let i=0;i<5;i++){const dd=new Date(sb);dd.setDate(dd.getDate()+i);h.push(fmtD(dd));}const may31=new Date(y+1,4,31);h.push(fmtD(new Date(y+1,4,31-((may31.getDay()+6)%7))));return new Set(h);}
-function cntDays(end,excl){const t=new Date();t.setHours(0,0,0,0);const e=new Date(end+'T00:00:00');if(e<=t)return{total:0,school:0};const hs=new Set();if(excl){for(let y=t.getFullYear()-1;y<=e.getFullYear();y++)for(const h of holidays(y))hs.add(h);}let tot=0,sch=0;const c=new Date(t);c.setDate(c.getDate()+1);while(c<=e){tot++;const dow=c.getDay();if(excl){if(dow!==0&&dow!==6&&!hs.has(fmtD(c)))sch++;}else sch=tot;c.setDate(c.getDate()+1);}return{total:tot,school:sch};}
+let ALL = [], XP = {}, MASTERED = {};
 
-/* ---- AP LESSON CARD ---- */
-function lessonCard(c,i){
-    const th=THEMES[i%4],g=ld()[c._goalKey]||{},has=!!g.endDate;
-    const done=MASTERED[i]||0;
-    const tgt=g.target||0;
+/* ---- LocalStorage ----------------------------------------------------- */
 
-    let goalHtml='';
-    if(has&&tgt>0){
-        const rem=Math.max(tgt-done,0);
-        const excl=g.excludeNonSchoolDays!==false;
-        const d=cntDays(g.endDate,excl);
-        const eff=d.school||1;
-        const lpd=rem>0?(rem/eff):0;
-        const dayT=excl?'school day':'day';
-        const pct=tgt>0?Math.min((done/tgt)*100,100):0;
-        goalHtml=`
-            <div class="gc-goal">
-                <div class="gc-goal-text"><i class="fa-solid fa-circle-check"></i> ${done} / ${tgt} lessons by ${fmtNice(g.endDate)}</div>
-                <div class="gc-goal-pace">${rem>0&&d.school>0?`~${lpd.toFixed(1)} lessons/${dayT} needed &middot; ${d.school} ${dayT}s left`:(rem<=0?'Goal complete!':'Past due')}</div>
-            </div>`;
+function ld() { try { return JSON.parse(localStorage.getItem(SKEY)) || {}; } catch { return {}; } }
+function sv(g) { localStorage.setItem(SKEY, JSON.stringify(g)); }
+
+/* ---- UI helpers ------------------------------------------------------- */
+
+function toast(m) {
+    const e = document.getElementById('toast');
+    e.textContent = m;
+    e.classList.add('show');
+    setTimeout(() => e.classList.remove('show'), 2500);
+}
+
+function fmtD(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function fmtNice(s) {
+    return new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/* ---- Holidays (US school calendar) ------------------------------------ */
+
+function holidays(y) {
+    const h = [];
+
+    // Labor Day — 1st Monday of September
+    const s1 = new Date(y, 8, 1);
+    h.push(fmtD(new Date(y, 8, 1 + ((8 - s1.getDay()) % 7))));
+
+    // Veterans Day — Nov 11
+    h.push(`${y}-11-11`);
+
+    // Thanksgiving — 4th Thursday of November + Friday
+    const n1 = new Date(y, 10, 1);
+    const th = new Date(y, 10, 1 + ((11 - n1.getDay()) % 7) + 21);
+    h.push(fmtD(th));
+    const tf = new Date(th); tf.setDate(tf.getDate() + 1);
+    h.push(fmtD(tf));
+
+    // Winter Break — Dec 23-31 + Jan 1-3
+    for (let d = 23; d <= 31; d++) h.push(`${y}-12-${String(d).padStart(2, '0')}`);
+    for (let d = 1; d <= 3; d++)   h.push(`${y + 1}-01-${String(d).padStart(2, '0')}`);
+
+    // MLK Day — 3rd Monday of January
+    const j1 = new Date(y + 1, 0, 1);
+    h.push(fmtD(new Date(y + 1, 0, 1 + ((8 - j1.getDay()) % 7) + 14)));
+
+    // Presidents Day — 3rd Monday of February
+    const f1 = new Date(y + 1, 1, 1);
+    h.push(fmtD(new Date(y + 1, 1, 1 + ((8 - f1.getDay()) % 7) + 14)));
+
+    // Spring Break — 5 days starting 3rd Monday of March
+    const m1 = new Date(y + 1, 2, 1);
+    const sb = new Date(y + 1, 2, 1 + ((8 - m1.getDay()) % 7) + 14);
+    for (let i = 0; i < 5; i++) {
+        const dd = new Date(sb); dd.setDate(dd.getDate() + i);
+        h.push(fmtD(dd));
     }
 
-    return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
-        <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;"><img src="${subImg(c.title)}" alt="${c.title}" style="width:100%;height:100%;object-fit:cover;"></div>
-        <div class="gc-b">
-            <div class="gc-name">${c.title}</div>
-            <div class="gc-done"><i class="fa-solid fa-check-circle"></i> <strong>${done}</strong> lessons completed</div>
-            ${goalHtml}
-            <div class="gc-2">
-                <div class="gc-fld"><label class="gc-lbl">Total Lessons</label><input type="number" class="gc-inp gl-tgt" min="1" value="${g.target||''}" placeholder="e.g. 100" oninput="previewL(${i})"></div>
-                <div class="gc-fld"><label class="gc-lbl">Finish By</label><input type="date" class="gc-inp gl-date" value="${g.endDate||''}" min="${fmtD(new Date())}" onchange="previewL(${i})"></div>
-            </div>
-            <label class="gc-chk"><input type="checkbox" class="gl-sch" ${(g.excludeNonSchoolDays!==false)?'checked':''} onchange="previewL(${i})"> School days only</label>
-            <div class="gc-preview" id="pv-${i}"><i class="fa-solid fa-calculator"></i><span id="pvt-${i}"></span></div>
-            <button class="btn-c" id="cb-${i}" style="${has?'':'display:none'}" onclick="saveL(${i})"><i class="fa-solid fa-check"></i> ${has?'Update':'Set'} Goal</button>
-            ${has?`<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear Goal</button>`:''}
-        </div></div>`;
+    // Memorial Day — last Monday of May
+    const may31 = new Date(y + 1, 4, 31);
+    h.push(fmtD(new Date(y + 1, 4, 31 - ((may31.getDay() + 6) % 7))));
+
+    return new Set(h);
 }
 
-/* ---- XP CARD ---- */
-function xpCard(c,i){
-    const th=THEMES[i%4],g=ld()[c._goalKey]||{},has=!!g.type;
-    const xpE=Math.round(XP[i]||0),tgt=g.target||0;
-    let goalHtml='';
-    if(has&&g.endDate){
-        const excl=g.excludeNonSchoolDays!==false,d=cntDays(g.endDate,excl),eff=d.school||1;
-        const rem=Math.max(tgt-xpE,0),xpd=rem>0?Math.round(rem/eff):0,dayT=excl?'school day':'day';
-        goalHtml=`<div class="gc-goal"><div class="gc-goal-text"><i class="fa-solid fa-circle-check"></i> ${xpE} / ${tgt} XP by ${fmtNice(g.endDate)}</div><div class="gc-goal-pace">${rem>0&&d.school>0?'~'+xpd+' XP/'+dayT+' needed':(rem<=0?'Goal reached!':'Past due')}</div></div>`;
-    }
-    return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
-        <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;"><img src="${subImg(c.title)}" alt="${c.title}" style="width:100%;height:100%;object-fit:cover;"></div>
-        <div class="gc-b">
-            <div class="gc-name">${c.title}</div>
-            <div class="gc-done"><i class="fa-solid fa-bolt"></i> <strong>${xpE}</strong> XP earned</div>
-            ${goalHtml}
-            <div class="gc-2"><div class="gc-fld"><label class="gc-lbl">Target XP</label><input type="number" class="gc-inp gx-tgt" min="1" value="${g.target||''}" placeholder="e.g. 500"></div>
-            <div class="gc-fld"><label class="gc-lbl">Finish By</label><input type="date" class="gc-inp gx-date" value="${g.endDate||''}" min="${fmtD(new Date())}"></div></div>
-            <label class="gc-chk"><input type="checkbox" class="gx-sch" ${(g.excludeNonSchoolDays!==false)?'checked':''} > School days only</label>
-            <button class="btn-c" onclick="saveXP(${i})"><i class="fa-solid fa-check"></i> ${has?'Update':'Set'} Goal</button>
-            ${has?`<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear Goal</button>`:''}
-        </div></div>`;
-}
+/* ---- Day counting ----------------------------------------------------- */
 
-/* ---- ACTIONS ---- */
-function previewL(i){
-    const card=document.querySelector(`.gc[data-i="${i}"]`);
-    const tgt=parseInt(card.querySelector('.gl-tgt').value)||0;
-    const dt=card.querySelector('.gl-date').value;
-    const excl=card.querySelector('.gl-sch').checked;
-    const pv=document.getElementById('pv-'+i),pvt=document.getElementById('pvt-'+i),btn=document.getElementById('cb-'+i);
-    const done=MASTERED[i]||0;
-    if(!tgt||!dt){pv.classList.remove('show');btn.style.display='none';return;}
-    const rem=Math.max(tgt-done,0),d=cntDays(dt,excl),dayT=excl?'school day':'day';
-    if(d.school<=0)pvt.textContent='That date has passed.';
-    else if(rem<=0)pvt.textContent='Already done!';
-    else{const lpd=(rem/d.school).toFixed(1);pvt.innerHTML=`~${lpd} lessons/${dayT} &middot; ${d.school} ${dayT}s left`;}
-    pv.classList.add('show');btn.style.display='';
-}
-function saveL(i){
-    const card=document.querySelector(`.gc[data-i="${i}"]`);
-    const tgt=parseInt(card.querySelector('.gl-tgt').value)||0;
-    const dt=card.querySelector('.gl-date').value;
-    if(!tgt){toast('Enter total lessons.');return;}if(!dt){toast('Pick a date.');return;}
-    const excl=card.querySelector('.gl-sch').checked;
-    const g=ld();g[card.dataset.k]={type:'lessons',target:tgt,endDate:dt,excludeNonSchoolDays:excl};sv(g);
-    toast('Goal saved!');render();
-}
-function saveXP(i){
-    const card=document.querySelector(`.gc[data-i="${i}"]`);
-    const tgt=parseInt(card.querySelector('.gx-tgt').value)||0;
-    const dt=card.querySelector('.gx-date').value;
-    if(!tgt){toast('Enter target XP.');return;}if(!dt){toast('Pick a date.');return;}
-    const excl=card.querySelector('.gx-sch').checked;
-    const g=ld();g[card.dataset.k]={type:'xp',target:tgt,endDate:dt,excludeNonSchoolDays:excl};sv(g);
-    toast('Goal saved!');render();
-}
-function clearG(i){const card=document.querySelector(`.gc[data-i="${i}"]`);const g=ld();delete g[card.dataset.k];sv(g);toast('Cleared.');render();}
+function cntDays(end, excl) {
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    const e = new Date(end + 'T00:00:00');
+    if (e <= t) return { total: 0, school: 0 };
 
-/* ---- RENDER ---- */
-function render(){
-    const lc=[],xc=[];ALL.forEach((c,i)=>{if(isLesson(c))lc.push({c,i});else xc.push({c,i});});
-    document.getElementById('lg').innerHTML=lc.length?lc.map(({c,i})=>lessonCard(c,i)).join(''):'<div class="empty-s">No AP courses found.</div>';
-    document.getElementById('xg').innerHTML=xc.length?xc.map(({c,i})=>xpCard(c,i)).join(''):'<div class="empty-s">No XP courses found.</div>';
-}
-
-/* ---- DATA ---- */
-document.addEventListener('DOMContentLoaded',async function(){
-    const email=localStorage.getItem('alphalearn_email')||'';
-    if(!email){document.getElementById('lg').innerHTML='<div class="empty-s">Please <a href="/login" style="color:var(--color-primary)">sign in</a>.</div>';document.getElementById('xg').innerHTML='';return;}
-    try{
-        const lu=await(await fetch(`/api/user-lookup?email=${encodeURIComponent(email)}`)).json();
-        if(!lu.user||!lu.user.sourcedId){document.getElementById('lg').innerHTML='<div class="empty-s">Account not found.</div>';document.getElementById('xg').innerHTML='';return;}
-        const uid=lu.user.sourcedId;localStorage.setItem('alphalearn_userId',uid);
-        const ed=await(await fetch(`/api/enrollments?userId=${uid}`)).json();
-        const raw=ed.data||ed.enrollments||ed.courses||(Array.isArray(ed)?ed:[]);
-        const now=new Date(),courses=[];
-        for(const e of raw){
-            const co=e.course||{},cm=co.metadata||{},gl=(e.metadata&&e.metadata.goals)||{};
-            const mt=(e.metadata&&e.metadata.metrics)||{},cmt=cm.metrics||{};
-            const ti=(co.title||'').trim(),su=co.subjects||[],eD=e.endDate?new Date(e.endDate):null;
-            if(eD&&eD<now)continue;if(!ti||ti.startsWith('Manual XP')||ti.includes('Hole-Filling')||!su.length)continue;
-            if(mt.courseType==='mastery_test'||mt.courseType==='mastery-test'||mt.courseType==='masteryTest'||(ti.toLowerCase().includes('mastery')&&ti.toLowerCase().includes('test')))continue;
-            const pA=co.primaryApp||{},an=(typeof pA==='object'?pA.name:'')||cm.primaryApp||cm.app||'';
-            const totalLessons=mt.totalLessons||cmt.totalLessons||cm.totalLessons||0;
-            const totalXp=mt.totalXp||cmt.totalXp||cm.totalXp||0;
-            courses.push({title:ti,subject:su[0]||'',appName:an,totalXp,totalLessons,dailyXpGoal:gl.dailyXp||0,_goalKey:e.sourcedId||co.sourcedId||ti,_raw:e,_course:co});
+    // Build holiday set spanning from last year through end year
+    const hs = new Set();
+    if (excl) {
+        for (let y = t.getFullYear() - 1; y <= e.getFullYear(); y++) {
+            for (const h of holidays(y)) hs.add(h);
         }
-        ALL=courses;
-        // Fetch analytics for XP + mastered units
-        const soy=new Date(now.getFullYear(),7,1);if(soy>now)soy.setFullYear(soy.getFullYear()-1);
-        try{
-            const ad=await(await fetch(`/api/analytics?email=${encodeURIComponent(email)}&startDate=${fmtD(soy)}T00:00:00Z&endDate=${fmtD(now)}T23:59:59Z`)).json();
-            const fba=ad.factsByApp||{},fa=ad.facts||{};
-            const xm={};for(const dd of Object.values(fba))for(const[s,apps]of Object.entries(dd)){if(!xm[s])xm[s]={};for(const[a,info]of Object.entries(apps)){const x=(info.activityMetrics||{}).xpEarned||0;xm[s][a.toLowerCase()]=(xm[s][a.toLowerCase()]||0)+x;}}
-            const xs={},mu={};
-            for(const df of Object.values(fa))for(const[s,info]of Object.entries(df)){const am=info.activityMetrics||{};xs[s]=(xs[s]||0)+(am.xpEarned||0);mu[s]=(mu[s]||0)+(am.masteredUnits||am.lessonsCompleted||am.completedLessons||0);}
-            for(let i=0;i<ALL.length;i++){
-                const c=ALL[i],sa=xm[c.subject]||{},an=(c.appName||'').toLowerCase();
-                if(an&&Object.keys(sa).length){let m=sa[an]||0;if(!m){const n=an.replace(/_/g,' ');for(const[k,x]of Object.entries(sa))if(k===n||k.includes(n)||n.includes(k)){m=x;break;}}XP[i]=m;}
-                else if(!an&&Object.keys(sa).length){let t=0;for(const x of Object.values(sa))t+=x;XP[i]=t||xs[c.subject]||0;}
-                else XP[i]=xs[c.subject]||0;
-                MASTERED[i]=mu[c.subject]||0;
+    }
+
+    let tot = 0, sch = 0;
+    const c = new Date(t); c.setDate(c.getDate() + 1);
+    while (c <= e) {
+        tot++;
+        const dow = c.getDay();
+        if (excl) {
+            if (dow !== 0 && dow !== 6 && !hs.has(fmtD(c))) sch++;
+        } else {
+            sch++;
+        }
+        c.setDate(c.getDate() + 1);
+    }
+    return { total: tot, school: sch };
+}
+
+/* ===================================================================
+   AP LESSON CARD — clean layout: progress up top, compact form below
+   =================================================================== */
+
+function lessonCard(c, i) {
+    const th  = THEMES[i % 4];
+    const g   = ld()[c._goalKey] || {};
+    const has = !!g.endDate;
+
+    const done      = MASTERED[i] || 0;
+    const total     = c.totalLessons || 0;
+    const target    = g.target || total;
+    const denom     = target || total;
+    const remaining = Math.max(denom - done, 0);
+    const pct       = denom > 0 ? Math.min((done / denom) * 100, 100) : 0;
+
+    // Pace info (shown inline, no separate preview box)
+    let paceHtml = '';
+    if (has && target > 0) {
+        const excl = g.excludeNonSchoolDays !== false;
+        const d    = cntDays(g.endDate, excl);
+        const pace = remaining > 0 && d.school > 0 ? (remaining / d.school) : 0;
+        const dayT = excl ? 'school day' : 'day';
+
+        let cls = '', txt = '';
+        if (remaining <= 0) {
+            cls = 'gc-goal-done';
+            txt = 'Goal complete!';
+        } else if (d.school <= 0) {
+            cls = 'gc-goal-overdue';
+            txt = 'Past due &mdash; update your end date';
+        } else {
+            txt = `~${pace.toFixed(1)} units/${dayT} &middot; ${d.school} ${dayT}s left &middot; by ${fmtNice(g.endDate)}`;
+        }
+        paceHtml = `<div class="gc-goal ${cls}"><div class="gc-goal-pace">${txt}</div></div>`;
+    }
+
+    return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
+        <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;border-radius:12px 12px 0 0;"><img src="${getCardImage(c.title, c.appName)}" alt="${c.title}" style="width:100%;height:100%;object-fit:cover;"></div>
+        <div class="gc-b">
+            <div class="gc-name">${c.title}</div>
+            <div class="gc-progress">
+                <span class="gc-big">${done}</span>
+                <span class="gc-of"> / ${denom || '?'}</span>
+                <span class="gc-unit"> units</span>
+                ${remaining > 0 && denom ? '<span class="gc-rem">' + remaining + ' left</span>' : '<span class="gc-rem gc-rem-done">Done</span>'}
+            </div>
+            ${denom > 0 ? '<div class="gc-bar"><div class="gc-bar-fill" style="width:' + pct.toFixed(1) + '%"></div></div>' : ''}
+            ${paceHtml}
+            <div class="gc-form">
+                <div class="gc-fld"><label class="gc-lbl">Target</label><input type="number" class="gc-inp gl-tgt" min="1" value="${target || ''}" placeholder="${total || '?'}" oninput="previewL(${i})"></div>
+                <div class="gc-fld"><label class="gc-lbl">End Date</label><input type="date" class="gc-inp gl-date" value="${g.endDate || ''}" min="${fmtD(new Date())}" onchange="previewL(${i})"></div>
+                <div class="gc-fld gc-fld-chk"><label class="gc-chk"><input type="checkbox" class="gl-sch" ${(g.excludeNonSchoolDays !== false) ? 'checked' : ''} onchange="previewL(${i})"> School days only</label></div>
+            </div>
+            <div class="gc-preview" id="pv-${i}"><i class="fa-solid fa-calculator"></i><span id="pvt-${i}"></span></div>
+            <button class="btn-c" onclick="saveL(${i})"><i class="fa-solid fa-check"></i> ${has ? 'Update' : 'Set'} Goal</button>
+            ${has ? `<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear Goal</button>` : ''}
+        </div></div>`;
+}
+
+/* ===================================================================
+   XP CARD — same clean layout
+   =================================================================== */
+
+function xpCard(c, i) {
+    const g   = ld()[c._goalKey] || {};
+    const has = !!g.type;
+
+    const xpE       = Math.round(XP[i] || 0);
+    const totalXp   = c.totalXp || 0;
+    const tgt       = g.target || 0;
+    const denom     = tgt || totalXp;
+    const remaining = denom > 0 ? Math.max(denom - xpE, 0) : 0;
+    const pct       = denom > 0 ? Math.min((xpE / denom) * 100, 100) : 0;
+
+    let statusHtml = '';
+    if (has && tgt > 0) {
+        if (remaining <= 0) {
+            statusHtml = '<div class="gc-goal gc-goal-done"><div class="gc-goal-pace">Goal reached!</div></div>';
+        }
+    }
+
+    return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
+        <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;border-radius:12px 12px 0 0;"><img src="${getCardImage(c.title, c.appName)}" alt="${c.title}" style="width:100%;height:100%;object-fit:cover;"></div>
+        <div class="gc-b">
+            <div class="gc-name">${c.title}</div>
+            <div class="gc-progress">
+                <span class="gc-big">${xpE}</span>
+                <span class="gc-of"> / ${denom || '?'}</span>
+                <span class="gc-unit"> XP</span>
+                ${remaining > 0 && denom ? '<span class="gc-rem">' + remaining + ' left</span>' : '<span class="gc-rem gc-rem-done">Done</span>'}
+            </div>
+            ${denom > 0 ? '<div class="gc-bar"><div class="gc-bar-fill" style="width:' + pct.toFixed(1) + '%"></div></div>' : ''}
+            ${statusHtml}
+            <div class="gc-form">
+                <div class="gc-fld" style="flex:1"><label class="gc-lbl">Target XP</label><input type="number" class="gc-inp gx-tgt" min="1" value="${tgt || ''}" placeholder="${totalXp || 'e.g. 500'}"></div>
+            </div>
+            <button class="btn-c" onclick="saveXP(${i})" style="margin-top:10px"><i class="fa-solid fa-check"></i> ${has ? 'Update' : 'Set'} Goal</button>
+            ${has ? `<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear Goal</button>` : ''}
+        </div></div>`;
+}
+
+/* ===================================================================
+   PREVIEW (live pace calculation as user types — inline in form area)
+   =================================================================== */
+
+function previewL(i) {
+    const card = document.querySelector(`.gc[data-i="${i}"]`);
+    const tgt  = parseInt(card.querySelector('.gl-tgt').value) || 0;
+    const dt   = card.querySelector('.gl-date').value;
+    const excl = card.querySelector('.gl-sch').checked;
+    const pv   = document.getElementById('pv-' + i);
+    const pvt  = document.getElementById('pvt-' + i);
+    const done = MASTERED[i] || 0;
+
+    if (!tgt || !dt) { pv.classList.remove('show'); return; }
+
+    const rem  = Math.max(tgt - done, 0);
+    const d    = cntDays(dt, excl);
+    const dayT = excl ? 'school day' : 'day';
+
+    if (d.school <= 0)    pvt.textContent = 'That date has already passed.';
+    else if (rem <= 0)    pvt.textContent = 'Already completed!';
+    else                  pvt.innerHTML = `~${(rem / d.school).toFixed(1)} units/${dayT} &middot; ${d.school} ${dayT}s left`;
+    pv.classList.add('show');
+}
+
+/* previewXP removed — XP courses only have a target, no date/pace */
+
+/* ===================================================================
+   SAVE / CLEAR
+   =================================================================== */
+
+function saveL(i) {
+    const card = document.querySelector(`.gc[data-i="${i}"]`);
+    const tgt  = parseInt(card.querySelector('.gl-tgt').value) || 0;
+    const dt   = card.querySelector('.gl-date').value;
+    if (!tgt) { toast('Enter target units.'); return; }
+    if (!dt)  { toast('Pick an end date.'); return; }
+    const excl = card.querySelector('.gl-sch').checked;
+    const g = ld();
+    g[card.dataset.k] = { type: 'lessons', target: tgt, endDate: dt, excludeNonSchoolDays: excl };
+    sv(g);
+    toast('Goal saved!');
+    render();
+}
+
+function saveXP(i) {
+    const card = document.querySelector(`.gc[data-i="${i}"]`);
+    const tgt  = parseInt(card.querySelector('.gx-tgt').value) || 0;
+    if (!tgt) { toast('Enter target XP.'); return; }
+    const g = ld();
+    g[card.dataset.k] = { type: 'xp', target: tgt };
+    sv(g);
+    toast('Goal saved!');
+    render();
+}
+
+function clearG(i) {
+    const card = document.querySelector(`.gc[data-i="${i}"]`);
+    const g = ld();
+    delete g[card.dataset.k];
+    sv(g);
+    toast('Goal cleared.');
+    render();
+}
+
+/* ===================================================================
+   RENDER
+   =================================================================== */
+
+function render() {
+    const lc = [], xc = [];
+    ALL.forEach((c, i) => {
+        if (isLesson(c)) lc.push({ c, i });
+        else xc.push({ c, i });
+    });
+    document.getElementById('lg').innerHTML = lc.length
+        ? lc.map(({ c, i }) => lessonCard(c, i)).join('')
+        : '<div class="empty-s">No AP courses found.</div>';
+    document.getElementById('xg').innerHTML = xc.length
+        ? xc.map(({ c, i }) => xpCard(c, i)).join('')
+        : '<div class="empty-s">No XP courses found.</div>';
+}
+
+/* ===================================================================
+   DATA LOADING
+   =================================================================== */
+
+document.addEventListener('DOMContentLoaded', async function () {
+    const email = localStorage.getItem('alphalearn_email') || '';
+    if (!email) {
+        document.getElementById('lg').innerHTML = '<div class="empty-s">Please <a href="/login" style="color:var(--color-primary)">sign in</a>.</div>';
+        document.getElementById('xg').innerHTML = '';
+        return;
+    }
+
+    try {
+        /* 1. Look up user */
+        const lu = await (await fetch(`/api/user-lookup?email=${encodeURIComponent(email)}`)).json();
+        if (!lu.user || !lu.user.sourcedId) {
+            document.getElementById('lg').innerHTML = '<div class="empty-s">Account not found.</div>';
+            document.getElementById('xg').innerHTML = '';
+            return;
+        }
+        const uid = lu.user.sourcedId;
+        localStorage.setItem('alphalearn_userId', uid);
+
+        /* 2. Fetch enrollments */
+        const ed  = await (await fetch(`/api/enrollments?userId=${uid}`)).json();
+        const raw = ed.data || ed.enrollments || ed.courses || (Array.isArray(ed) ? ed : []);
+        const now = new Date();
+        const courses = [];
+
+        for (const e of raw) {
+            const co  = e.course || {};
+            const cm  = co.metadata || {};
+            const gl  = (e.metadata && e.metadata.goals) || {};
+            const mt  = (e.metadata && e.metadata.metrics) || {};
+            const cmt = cm.metrics || {};
+            const ti  = (co.title || '').trim();
+            const su  = co.subjects || [];
+            const eD  = e.endDate ? new Date(e.endDate) : null;
+
+            // Skip expired
+            if (eD && eD < now) continue;
+            // Skip junk rows
+            if (!ti || ti.startsWith('Manual XP') || ti.includes('Hole-Filling') || !su.length) continue;
+            // Skip mastery tests
+            if (mt.courseType === 'mastery_test' || mt.courseType === 'mastery-test' || mt.courseType === 'masteryTest'
+                || (ti.toLowerCase().includes('mastery') && ti.toLowerCase().includes('test'))) continue;
+
+            const pA = co.primaryApp || {};
+            const an = (typeof pA === 'object' ? pA.name : '') || cm.primaryApp || cm.app || '';
+            const totalLessons = mt.totalLessons || cmt.totalLessons || cm.totalLessons || 0;
+            const totalXp      = mt.totalXp || cmt.totalXp || cm.totalXp || 0;
+
+            courses.push({
+                title: ti,
+                subject: su[0] || '',
+                appName: an,
+                totalXp,
+                totalLessons,
+                dailyXpGoal: gl.dailyXp || 0,
+                _goalKey: e.id || co.id || ti,
+                _enrollmentId: e.id || '',
+                _raw: e,
+                _course: co,
+            });
+        }
+
+        ALL = courses;
+
+        /* 3. Fetch per-enrollment analytics for accurate per-course data */
+        const soy = new Date(now.getFullYear(), 7, 1);
+        if (soy > now) soy.setFullYear(soy.getFullYear() - 1);
+        const startParam = `${fmtD(soy)}T00:00:00Z`;
+        const endParam   = `${fmtD(now)}T23:59:59Z`;
+
+        // Fire per-enrollment analytics calls in parallel for every course with an enrollment ID
+        const analyticsPromises = ALL.map((c, i) => {
+            if (!c._enrollmentId) return Promise.resolve(null);
+            return fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startParam}&endDate=${endParam}`)
+                .then(r => r.json())
+                .then(data => ({ i, data }))
+                .catch(() => null);
+        });
+
+        try {
+            const results = await Promise.all(analyticsPromises);
+            const cache = {};
+
+            for (const r of results) {
+                if (!r || !r.data) continue;
+                const { i, data } = r;
+                const facts      = data.facts || {};
+                const factsByApp = data.factsByApp || {};
+
+                let totalXp = 0, totalMastered = 0;
+
+                // Sum from facts (subject-level per day)
+                for (const dayFacts of Object.values(facts)) {
+                    for (const info of Object.values(dayFacts)) {
+                        const am = info.activityMetrics || {};
+                        totalXp      += am.xpEarned || 0;
+                        totalMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons || 0;
+                    }
+                }
+
+                // Also sum from factsByApp for completeness
+                let appXp = 0, appMastered = 0;
+                for (const dayData of Object.values(factsByApp)) {
+                    for (const apps of Object.values(dayData)) {
+                        for (const info of Object.values(apps)) {
+                            const am = info.activityMetrics || {};
+                            appXp      += am.xpEarned || 0;
+                            appMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons || 0;
+                        }
+                    }
+                }
+
+                // Use whichever source has more data
+                XP[i]       = Math.max(totalXp, appXp);
+                MASTERED[i] = Math.max(totalMastered, appMastered);
+
+                // Build cache for dashboard
+                if (ALL[i]._enrollmentId) {
+                    cache[ALL[i]._enrollmentId] = {
+                        mastered: MASTERED[i],
+                        xp: XP[i],
+                        totalLessons: ALL[i].totalLessons || 0,
+                        goalKey: ALL[i]._goalKey,
+                    };
+                }
             }
-        }catch(e){console.warn('[AlphaLearn] Analytics:',e.message);}
+
+            // Cache mastered data for dashboard to use
+            localStorage.setItem('alphalearn_mastered_cache', JSON.stringify({
+                data: cache,
+                updatedAt: new Date().toISOString(),
+            }));
+        } catch (e) {
+            console.warn('[AlphaLearn] Per-enrollment analytics:', e.message);
+        }
+
         render();
-    }catch(e){document.getElementById('lg').innerHTML='<div class="empty-s">Unable to load data.</div>';document.getElementById('xg').innerHTML='';console.error(e);}
+
+    } catch (e) {
+        document.getElementById('lg').innerHTML = '<div class="empty-s">Unable to load data.</div>';
+        document.getElementById('xg').innerHTML = '';
+        console.error(e);
+    }
 });
 </script>
 </body>

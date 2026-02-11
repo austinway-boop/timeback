@@ -141,7 +141,7 @@
         default:    'fa-graduation-cap',
     };
 
-    /* Subject illustration images */
+    /* Subject illustration images (fallback) */
     const COURSE_IMAGES = {
         math:       '/img/subjects/math.png',
         science:    '/img/subjects/science.png',
@@ -153,7 +153,52 @@
         default:    '/img/subjects/default.png',
     };
 
-    function guessIcon(title) {
+    /* Per-app images: checked FIRST before subject fallback */
+    const APP_IMAGES = {
+        egumpp:      '/img/apps/egumpp.png',
+        runestone:   '/img/apps/runestone.png',
+        newsela:     '/img/apps/newsela.png',
+        khan:        '/img/apps/khan.png',
+        readtheory:  '/img/apps/readtheory.png',
+        commonlit:   '/img/apps/commonlit.png',
+        knewton:     '/img/apps/knewton.png',
+        lalilo:      '/img/apps/lalilo.png',
+        rocket:      '/img/apps/rocketmath.png',
+        zearn:       '/img/apps/zearn.png',
+        renaissance: '/img/apps/renaissance.png',
+        powerpath:   '/img/apps/powerpath.png',
+    };
+
+    /* Per-app icon overrides (correct subject for each app) */
+    const APP_ICON_MAP = {
+        egumpp:      'fa-book-open',       // English grammar/writing
+        runestone:   'fa-laptop-code',     // Computer Science
+        newsela:     'fa-book-open-reader',// Reading / ELA
+        khan:        'fa-calculator',      // Math (primarily)
+        readtheory:  'fa-book-open-reader',// Reading comprehension
+        commonlit:   'fa-book-open-reader',// Reading / Literature
+        knewton:     'fa-calculator',      // Math / Statistics
+        lalilo:      'fa-book-open-reader',// Reading / Literacy
+        rocket:      'fa-calculator',      // Math fluency
+        zearn:       'fa-calculator',      // Math
+        renaissance: 'fa-graduation-cap',  // Assessment (Reading+Math)
+        powerpath:   'fa-calculator',      // Math
+    };
+
+    /** Match an app name string against the known app keys */
+    function matchApp(appName) {
+        const a = (appName || '').toLowerCase().replace(/[\s_-]/g, '');
+        for (const key of Object.keys(APP_IMAGES)) {
+            if (a.includes(key)) return key;
+        }
+        return null;
+    }
+
+    function guessIcon(title, appName) {
+        // 1. Check app name first
+        const app = matchApp(appName) || matchApp(title);
+        if (app && APP_ICON_MAP[app]) return APP_ICON_MAP[app];
+        // 2. Fall back to title keywords
         const t = (title || '').toLowerCase();
         if (t.includes('math') || t.includes('algebra') || t.includes('calculus')) return COURSE_ICONS.math;
         if (t.includes('chem') || t.includes('physics'))                          return COURSE_ICONS.science;
@@ -161,11 +206,15 @@
         if (t.includes('read') || t.includes('ela') || t.includes('english'))     return COURSE_ICONS.reading;
         if (t.includes('lang') || t.includes('composition') || t.includes('writing')) return COURSE_ICONS.language;
         if (t.includes('geo') || t.includes('history') || t.includes('social'))   return COURSE_ICONS.geography;
-        if (t.includes('code') || t.includes('tech') || t.includes('gumpp'))      return COURSE_ICONS.tech;
+        if (t.includes('code') || t.includes('tech'))                              return COURSE_ICONS.tech;
         return COURSE_ICONS.default;
     }
 
-    function guessSubjectImage(title) {
+    function guessSubjectImage(title, appName) {
+        // 1. Check app name first
+        const app = matchApp(appName) || matchApp(title);
+        if (app && APP_IMAGES[app]) return APP_IMAGES[app];
+        // 2. Fall back to title keywords
         const t = (title || '').toLowerCase();
         if (t.includes('math') || t.includes('algebra') || t.includes('calculus')) return COURSE_IMAGES.math;
         if (t.includes('chem') || t.includes('physics'))                          return COURSE_IMAGES.science;
@@ -173,7 +222,7 @@
         if (t.includes('read') || t.includes('ela') || t.includes('english'))     return COURSE_IMAGES.reading;
         if (t.includes('lang') || t.includes('composition') || t.includes('writing')) return COURSE_IMAGES.language;
         if (t.includes('geo') || t.includes('history') || t.includes('social'))   return COURSE_IMAGES.geography;
-        if (t.includes('code') || t.includes('tech') || t.includes('gumpp'))      return COURSE_IMAGES.tech;
+        if (t.includes('code') || t.includes('tech'))                              return COURSE_IMAGES.tech;
         return COURSE_IMAGES.default;
     }
 
@@ -207,17 +256,64 @@
         catch (e) { return {}; }
     }
 
-    // Quick school-day counter for dashboard pacing display
+    // US school holidays for a school year starting in September of year y
+    function getSchoolHolidays(y) {
+        const h = [];
+        function pad(d) {
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+        // Labor Day — 1st Monday of September
+        const s1 = new Date(y,8,1);
+        h.push(pad(new Date(y,8,1+((8-s1.getDay())%7))));
+        // Veterans Day
+        h.push(`${y}-11-11`);
+        // Thanksgiving — 4th Thursday + Friday
+        const n1 = new Date(y,10,1);
+        const th = new Date(y,10,1+((11-n1.getDay())%7)+21);
+        h.push(pad(th));
+        const tf = new Date(th); tf.setDate(tf.getDate()+1); h.push(pad(tf));
+        // Winter Break — Dec 23-31, Jan 1-3
+        for (let d=23;d<=31;d++) h.push(`${y}-12-${String(d).padStart(2,'0')}`);
+        for (let d=1;d<=3;d++)   h.push(`${y+1}-01-${String(d).padStart(2,'0')}`);
+        // MLK Day — 3rd Monday of January
+        const j1 = new Date(y+1,0,1);
+        h.push(pad(new Date(y+1,0,1+((8-j1.getDay())%7)+14)));
+        // Presidents Day — 3rd Monday of February
+        const f1 = new Date(y+1,1,1);
+        h.push(pad(new Date(y+1,1,1+((8-f1.getDay())%7)+14)));
+        // Spring Break — 5 days from 3rd Monday of March
+        const m1 = new Date(y+1,2,1);
+        const sb = new Date(y+1,2,1+((8-m1.getDay())%7)+14);
+        for (let i=0;i<5;i++) { const dd=new Date(sb); dd.setDate(dd.getDate()+i); h.push(pad(dd)); }
+        // Memorial Day — last Monday of May
+        const may31 = new Date(y+1,4,31);
+        h.push(pad(new Date(y+1,4,31-((may31.getDay()+6)%7))));
+        return new Set(h);
+    }
+
+    // School-day counter — excludes weekends AND holidays when excludeNonSchool is true
     function countSchoolDays(endDateStr, excludeNonSchool) {
         const today = new Date(); today.setHours(0,0,0,0);
         const end = new Date(endDateStr + 'T00:00:00');
         if (end <= today) return 0;
+
+        // Build holiday set
+        const hs = new Set();
+        if (excludeNonSchool) {
+            for (let y = today.getFullYear() - 1; y <= end.getFullYear(); y++) {
+                for (const h of getSchoolHolidays(y)) hs.add(h);
+            }
+        }
+
         let count = 0;
         const c = new Date(today); c.setDate(c.getDate() + 1);
         while (c <= end) {
             const dow = c.getDay();
-            if (excludeNonSchool) { if (dow !== 0 && dow !== 6) count++; }
-            else count++;
+            if (excludeNonSchool) {
+                if (dow !== 0 && dow !== 6 && !hs.has(localDateStr(c))) count++;
+            } else {
+                count++;
+            }
             c.setDate(c.getDate() + 1);
         }
         return count;
@@ -236,7 +332,7 @@
 
         document.getElementById('course-grid').innerHTML = courses.map((c, i) => {
             const color     = COURSE_THEMES[i % COURSE_THEMES.length];
-            const icon      = guessIcon(c.title || '');
+            const icon      = guessIcon(c.title || '', c.appName || '');
             const name      = c.title || 'Untitled Course';
             const goalKey   = c._goalKey || '';
             const savedGoal = savedGoals[goalKey] || null;
@@ -245,25 +341,22 @@
             let progressText, progressLabel, pct;
 
             if (lessonBased) {
-                // Lesson-based AP course: show mastered lessons + daily pace
+                // Lesson-based AP course: show overall mastered progress toward goal
                 const done = masteredIdx[i] || 0;
-                const tgt = (savedGoal && savedGoal.target) ? savedGoal.target : 0;
+                const tgt = (savedGoal && savedGoal.target) ? savedGoal.target : (c.totalLessons || 0);
 
                 if (savedGoal && savedGoal.endDate && tgt > 0) {
                     const rem = Math.max(tgt - done, 0);
                     const excl = savedGoal.excludeNonSchoolDays !== false;
                     const days = countSchoolDays(savedGoal.endDate, excl);
-                    const dailyTarget = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
-                    // Show today's progress toward daily target
-                    const todayXp = xpByCourseIdx[i] || 0;
-                    const xpPerLesson = (c.totalXp || 1) / (tgt || 1);
-                    const todayLessons = Math.min(Math.round(todayXp / (xpPerLesson || 1)), dailyTarget);
-                    pct = dailyTarget > 0 ? Math.min((todayLessons / dailyTarget) * 100, 100) : 0;
-                    progressText = `${todayLessons} / ${dailyTarget} lessons`;
-                    progressLabel = 'TODAY';
+                    const pace = days > 0 && rem > 0 ? (rem / days).toFixed(1) : 0;
+                    const dayT = excl ? 'school day' : 'day';
+                    pct = tgt > 0 ? Math.min((done / tgt) * 100, 100) : 0;
+                    progressText = `${done} / ${tgt} units`;
+                    progressLabel = rem > 0 && days > 0 ? `~${pace}/${dayT}` : (rem <= 0 ? 'DONE' : 'OVERDUE');
                 } else {
-                    pct = 0;
-                    progressText = `${done} lessons done`;
+                    pct = tgt > 0 ? Math.min((done / tgt) * 100, 100) : 0;
+                    progressText = `${done}${tgt > 0 ? ' / ' + tgt : ''} units`;
                     progressLabel = 'SET GOAL';
                 }
             } else {
@@ -299,7 +392,7 @@
                 </div>`;
             }
 
-            const subjectImg = guessSubjectImage(c.title || '');
+            const subjectImg = guessSubjectImage(c.title || '', c.appName || '');
 
             return `
                 <div class="course-card" data-course-index="${i}" ${isExternal && launchUrl ? `data-launch-url="${esc(launchUrl)}"` : ''} style="cursor:pointer;position:relative;">
@@ -467,7 +560,8 @@
                     totalXp,
                     totalLessons,
                     dailyXpGoal:  goals.dailyXp || 0,
-                    _goalKey:     e.sourcedId || course.sourcedId || title,
+                    _goalKey:     e.id || course.id || title,
+                    _enrollmentId: e.id || '',
                     _vendorKey:   vendorKey,
                     _raw: e,
                     _course: course,
@@ -626,71 +720,94 @@
         renderCourses();
     }
 
-    /* ---- Full-year XP for AP unit estimation ------------------------------ */
+    /* ---- Full-year XP + mastered units for AP courses --------------------- */
     async function loadFullYearXp(email) {
+        fullYearXpIdx = {};
+        masteredIdx = {};
+
+        // 1. Try to use the mastered cache from the goals page (per-enrollment data)
+        let cacheUsed = false;
+        try {
+            const raw = localStorage.getItem('alphalearn_mastered_cache');
+            if (raw) {
+                const cached = JSON.parse(raw);
+                const age = cached.updatedAt ? (Date.now() - new Date(cached.updatedAt).getTime()) : Infinity;
+                // Use cache if less than 1 hour old
+                if (age < 3600000 && cached.data) {
+                    for (let i = 0; i < allCourses.length; i++) {
+                        const c = allCourses[i];
+                        if (!isLessonCourse(c)) continue;
+                        const entry = cached.data[c._enrollmentId] || null;
+                        if (entry) {
+                            masteredIdx[i] = entry.mastered || 0;
+                            fullYearXpIdx[i] = entry.xp || 0;
+                            cacheUsed = true;
+                        }
+                    }
+                }
+            }
+        } catch (e) { /* ignore cache errors */ }
+
+        // 2. If cache covered all lesson courses, we're done
+        const lessonCourseCount = allCourses.filter((c, i) => isLessonCourse(c)).length;
+        const cachedCount = Object.keys(masteredIdx).length;
+        if (cacheUsed && cachedCount >= lessonCourseCount) return;
+
+        // 3. Fallback: per-enrollment analytics calls for courses not in cache
         try {
             const now = new Date();
-            const startOfYear = new Date(now.getFullYear(), 7, 1); // Aug 1
+            const startOfYear = new Date(now.getFullYear(), 7, 1);
             if (startOfYear > now) startOfYear.setFullYear(startOfYear.getFullYear() - 1);
             const startDate = localDateStr(startOfYear) + 'T00:00:00Z';
             const endDate   = localDateStr(now) + 'T23:59:59Z';
 
-            const resp = await fetch(`/api/analytics?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}`);
-            const data = await resp.json();
-            const factsByApp = data.factsByApp || {};
-            const facts = data.facts || {};
-
-            const xpMap = {};
-            for (const dayData of Object.values(factsByApp)) {
-                for (const [subject, apps] of Object.entries(dayData)) {
-                    if (!xpMap[subject]) xpMap[subject] = {};
-                    for (const [appName, info] of Object.entries(apps)) {
-                        const xp = (info.activityMetrics || {}).xpEarned || 0;
-                        const key = appName.toLowerCase();
-                        xpMap[subject][key] = (xpMap[subject][key] || 0) + xp;
-                    }
-                }
-            }
-            const xpBySubject = {};
-            const masteredBySubject = {};
-            for (const dayFacts of Object.values(facts)) {
-                for (const [subject, info] of Object.entries(dayFacts)) {
-                    const am = info.activityMetrics || {};
-                    xpBySubject[subject] = (xpBySubject[subject] || 0) + (am.xpEarned || 0);
-                    masteredBySubject[subject] = (masteredBySubject[subject] || 0) + (am.masteredUnits || am.lessonsCompleted || am.completedLessons || 0);
-                }
-            }
-
-            fullYearXpIdx = {};
-            masteredIdx = {};
+            const promises = [];
             for (let i = 0; i < allCourses.length; i++) {
                 const c = allCourses[i];
                 if (!isLessonCourse(c)) continue;
-                // Mastered units from analytics
-                masteredIdx[i] = masteredBySubject[c.subject] || 0;
-                // XP
-                const subjApps = xpMap[c.subject] || {};
-                const appName = (c.appName || '').toLowerCase();
-                if (appName && Object.keys(subjApps).length) {
-                    let matched = subjApps[appName] || 0;
-                    if (!matched) {
-                        const normalized = appName.replace(/_/g, ' ');
-                        for (const [key, xp] of Object.entries(subjApps)) {
-                            if (key === normalized || key.includes(normalized) || normalized.includes(key)) { matched = xp; break; }
+                if (masteredIdx[i] !== undefined) continue; // already from cache
+                if (!c._enrollmentId) continue;
+
+                promises.push(
+                    fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}`)
+                        .then(r => r.json())
+                        .then(data => ({ i, data }))
+                        .catch(() => null)
+                );
+            }
+
+            if (promises.length > 0) {
+                const results = await Promise.all(promises);
+                for (const r of results) {
+                    if (!r || !r.data) continue;
+                    const { i, data } = r;
+                    const facts      = data.facts || {};
+                    const factsByApp = data.factsByApp || {};
+
+                    let totalXp = 0, totalMastered = 0;
+                    for (const dayFacts of Object.values(facts)) {
+                        for (const info of Object.values(dayFacts)) {
+                            const am = info.activityMetrics || {};
+                            totalXp      += am.xpEarned || 0;
+                            totalMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons || 0;
                         }
                     }
-                    fullYearXpIdx[i] = matched;
-                } else if (!appName && Object.keys(subjApps).length) {
-                    let total = 0;
-                    for (const xp of Object.values(subjApps)) total += xp;
-                    fullYearXpIdx[i] = total || xpBySubject[c.subject] || 0;
-                } else {
-                    fullYearXpIdx[i] = xpBySubject[c.subject] || 0;
+                    let appXp = 0, appMastered = 0;
+                    for (const dayData of Object.values(factsByApp)) {
+                        for (const apps of Object.values(dayData)) {
+                            for (const info of Object.values(apps)) {
+                                const am = info.activityMetrics || {};
+                                appXp      += am.xpEarned || 0;
+                                appMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons || 0;
+                            }
+                        }
+                    }
+                    fullYearXpIdx[i] = Math.max(totalXp, appXp);
+                    masteredIdx[i]   = Math.max(totalMastered, appMastered);
                 }
             }
         } catch (err) {
-            console.warn('[AlphaLearn] Full-year XP unavailable:', err.message);
-            fullYearXpIdx = {};
+            console.warn('[AlphaLearn] Full-year analytics unavailable:', err.message);
         }
     }
 
@@ -785,7 +902,7 @@
             body.innerHTML = `
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
                     <div style="width:48px;height:48px;border-radius:12px;background:var(--color-primary-light);display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--color-primary-dark);">
-                        <i class="fa-solid ${guessIcon(c.title)}"></i>
+                        <i class="fa-solid ${guessIcon(c.title, c.appName)}"></i>
                     </div>
                     <div>
                         <div style="font-weight:600;font-size:1rem;color:#2D3748;">${titleEsc}</div>
