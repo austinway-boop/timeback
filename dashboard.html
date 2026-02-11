@@ -554,6 +554,7 @@
             }
 
             const userId = lookupData.user.sourcedId;
+            currentUserId = userId;
             localStorage.setItem('alphalearn_userId', userId);
 
             // Build credentials map from userIds (primary source: username + password)
@@ -814,7 +815,7 @@
             const hasLesson = allCourses.some(c => isLessonCourse(c));
             if (hasLesson) {
                 try {
-                    const lcResp = await fetch(`/api/lesson-count?userId=${encodeURIComponent(userId)}&startDate=${startDate}&endDate=${endDate}`);
+                    const lcResp = await fetch(`/api/lesson-count?userId=${encodeURIComponent(currentUserId)}&startDate=${startDate}&endDate=${endDate}`);
                     const lcData = await lcResp.json();
                     const courseLessons = lcData.courses || {};
                     for (let idx = 0; idx < allCourses.length; idx++) {
