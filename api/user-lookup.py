@@ -35,9 +35,12 @@ class handler(BaseHTTPRequestHandler):
                             break
 
                 if users_list:
-                    user_data = parse_user(users_list[0])
+                    raw_user = users_list[0]
+                    user_data = parse_user(raw_user)
                     # Include userProfiles for credential/app lookup
-                    user_data['userProfiles'] = users_list[0].get('userProfiles', [])
+                    user_data['userProfiles'] = raw_user.get('userProfiles', [])
+                    # Include userIds for platform credentials (username + password)
+                    user_data['userIds'] = raw_user.get('userIds', [])
                     send_json(self, {"user": user_data})
                     return
 
