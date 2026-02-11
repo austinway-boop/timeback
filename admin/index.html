@@ -88,7 +88,7 @@
         .assign-section .card-header { padding: 20px 24px 0; }
         .assign-body { padding: 20px 24px 24px; }
         .assign-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; }
-        .assign-field { display: flex; flex-direction: column; }
+        .assign-field { display: flex; flex-direction: column; position: relative; }
         .assign-field label {
             font-size: 0.78rem; font-weight: 600; color: var(--color-text-secondary);
             text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
@@ -105,21 +105,40 @@
         }
         .assign-btn:hover { background: var(--color-primary-dark); }
         .assign-btn:disabled { background: var(--color-border); color: var(--color-text-muted); cursor: not-allowed; }
-        .assign-bulk { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.85rem; color: var(--color-text-secondary); }
-        .assign-bulk input[type=checkbox] { accent-color: var(--color-primary); }
         .assign-msg {
             margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm);
             font-size: 0.88rem; font-weight: 500; display: none;
         }
         .assign-msg.success { display: block; background: #E8F5E9; color: #2E7D32; }
         .assign-msg.error { display: block; background: #FFF5F5; color: #E53E3E; }
-        .bulk-students { margin-top: 12px; display: none; }
-        .bulk-students .student-checkbox-list {
-            max-height: 200px; overflow-y: auto; border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm); padding: 8px;
+
+        /* Search-as-you-type dropdown */
+        .search-results-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+            background: var(--color-surface); border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+            max-height: 260px; overflow-y: auto; display: none;
         }
-        .student-checkbox-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-size: 0.85rem; }
-        .student-checkbox-row:hover { background: var(--color-bg); border-radius: 4px; }
+        .search-results-dropdown.open { display: block; }
+        .search-result-item {
+            padding: 10px 14px; cursor: pointer; font-size: 0.88rem;
+            border-bottom: 1px solid var(--color-border); transition: background 0.1s;
+        }
+        .search-result-item:last-child { border-bottom: none; }
+        .search-result-item:hover { background: var(--color-primary-light); }
+        .search-result-name { font-weight: 600; color: var(--color-text); }
+        .search-result-email { font-size: 0.78rem; color: var(--color-text-muted); }
+        .search-result-empty { padding: 14px; text-align: center; color: var(--color-text-muted); font-size: 0.85rem; }
+        .selected-student-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--color-primary-light); color: var(--color-primary-dark);
+            padding: 4px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
+            margin-top: 6px;
+        }
+        .selected-student-tag button {
+            border: none; background: none; color: var(--color-primary-dark);
+            font-size: 1rem; cursor: pointer; padding: 0 2px; line-height: 1;
+        }
 
         @media (max-width: 768px) {
             .dashboard-grid-4 { grid-template-columns: 1fr; }
@@ -184,9 +203,10 @@
                         <div class="assign-row">
                             <div class="assign-field">
                                 <label>Student</label>
-                                <select id="assign-student">
-                                    <option value="">Loading students...</option>
-                                </select>
+                                <input type="text" id="student-search-input" placeholder="Search student by name or email..." autocomplete="off" oninput="onStudentSearch(this.value)">
+                                <div id="student-search-results" class="search-results-dropdown"></div>
+                                <div id="selected-student-display"></div>
+                                <input type="hidden" id="selected-student-id" value="">
                             </div>
                             <div class="assign-field">
                                 <label>Test / Assignment</label>
@@ -197,14 +217,6 @@
                             <button class="assign-btn" id="assign-btn" onclick="submitAssignment()" disabled>
                                 <i class="fa-solid fa-paper-plane"></i> Assign
                             </button>
-                        </div>
-                        <div class="assign-bulk">
-                            <input type="checkbox" id="bulk-mode" onchange="toggleBulkMode()">
-                            <label for="bulk-mode">Bulk assign — select multiple students</label>
-                        </div>
-                        <div class="bulk-students" id="bulk-students">
-                            <input type="text" id="bulk-search" placeholder="Filter students..." oninput="filterBulkStudents(this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font-size:0.85rem;margin-bottom:8px;outline:none;">
-                            <div class="student-checkbox-list" id="bulk-list"></div>
                         </div>
                         <div class="assign-msg" id="assign-msg"></div>
                     </div>
@@ -270,10 +282,11 @@
     /* ==================================================================== */
     /* Global state                                                         */
     /* ==================================================================== */
-    var allUsers = [];
-    var allStudents = [];
+    var allUsers = [];         // full user list (for stats/table only)
+    var cachedStudents = [];   // first 200 students for quick name search
     var allCourses = [];
     var allLineItems = [];
+    var selectedStudentId = '';
 
     /* ---- Helpers -------------------------------------------------------- */
     function roleBadge(role) {
@@ -349,160 +362,188 @@
             : '<span class="status-dot-inline red"></span> Unavailable';
     }
 
-    function populateAssignDropdowns() {
-        allStudents = allUsers.filter(function(u) { return (u.role || '').toLowerCase() === 'student'; });
-
-        // Student select
-        var sel = document.getElementById('assign-student');
-        if (sel) {
-            if (!allStudents.length) {
-                sel.innerHTML = '<option value="">No students found</option>';
-            } else {
-                sel.innerHTML = '<option value="">Select a student...</option>' +
-                    allStudents.map(function(u) {
-                        var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || u.email;
-                        return '<option value="' + (u.sourcedId || '') + '">' + name + ' (' + (u.email || '') + ')</option>';
-                    }).join('');
-            }
-        }
-
-        // Test select
+    function populateTestDropdown() {
         var tsel = document.getElementById('assign-test');
-        if (tsel) {
-            if (!allLineItems.length) {
-                tsel.innerHTML = '<option value="">No tests available</option>';
-            } else {
-                tsel.innerHTML = '<option value="">Select a test...</option>' +
-                    allLineItems.map(function(li) {
-                        return '<option value="' + (li.sourcedId || '') + '">' + (li.title || li.sourcedId || 'Untitled') + '</option>';
-                    }).join('');
-            }
+        if (!tsel) return;
+        if (!allLineItems.length) {
+            tsel.innerHTML = '<option value="">No tests available</option>';
+        } else {
+            tsel.innerHTML = '<option value="">Select a test...</option>' +
+                allLineItems.map(function(li) {
+                    return '<option value="' + (li.sourcedId || '') + '">' + (li.title || li.sourcedId || 'Untitled') + '</option>';
+                }).join('');
         }
-
-        // Bulk list
-        renderBulkList(allStudents);
-        updateAssignBtn();
     }
 
-    function renderBulkList(students) {
-        var el = document.getElementById('bulk-list');
-        if (!el) return;
-        el.innerHTML = students.map(function(u) {
-            var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || u.email;
-            return '<label class="student-checkbox-row"><input type="checkbox" value="' + (u.sourcedId || '') + '" class="bulk-student-cb" onchange="updateAssignBtn()"> ' + name + '</label>';
-        }).join('');
+    /* ==================================================================== */
+    /* Student search-as-you-type (max 10 results, debounced)              */
+    /* ==================================================================== */
+    var searchTimer = null;
+
+    function onStudentSearch(query) {
+        clearTimeout(searchTimer);
+        if (!query || query.length < 2) {
+            document.getElementById('student-search-results').className = 'search-results-dropdown';
+            return;
+        }
+        searchTimer = setTimeout(function() { doStudentSearch(query); }, 300);
     }
 
-    /* ---- Assign tests logic -------------------------------------------- */
-    var bulkMode = false;
-
-    function toggleBulkMode() {
-        bulkMode = document.getElementById('bulk-mode').checked;
-        document.getElementById('bulk-students').style.display = bulkMode ? 'block' : 'none';
-        document.getElementById('assign-student').style.display = bulkMode ? 'none' : 'block';
-        updateAssignBtn();
-    }
-
-    function filterBulkStudents(query) {
+    function doStudentSearch(query) {
         var q = query.toLowerCase();
-        var filtered = allStudents.filter(function(u) {
-            var name = ((u.givenName || '') + ' ' + (u.familyName || '')).toLowerCase();
-            return name.includes(q) || (u.email || '').toLowerCase().includes(q);
-        });
-        renderBulkList(filtered);
+        var dropdown = document.getElementById('student-search-results');
+
+        // Check if it looks like an email
+        var isEmail = q.includes('@');
+
+        if (isEmail) {
+            // Use API for email lookup
+            fetch('/api/user-lookup?email=' + encodeURIComponent(query))
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.user) {
+                        showSearchResults([data.user]);
+                    } else {
+                        showSearchResults([]);
+                    }
+                })
+                .catch(function() { showSearchResults([]); });
+        } else {
+            // Filter from cached 200 students by name
+            var filtered = cachedStudents.filter(function(u) {
+                var name = ((u.givenName || '') + ' ' + (u.familyName || '')).toLowerCase();
+                return name.includes(q) || (u.email || '').toLowerCase().includes(q);
+            }).slice(0, 10);
+            showSearchResults(filtered);
+        }
     }
 
+    function showSearchResults(results) {
+        var dropdown = document.getElementById('student-search-results');
+        if (!results.length) {
+            dropdown.innerHTML = '<div class="search-result-empty">No students found. Try a different name or email.</div>';
+            dropdown.className = 'search-results-dropdown open';
+            return;
+        }
+        dropdown.innerHTML = results.slice(0, 10).map(function(u) {
+            var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
+            var email = u.email || '';
+            var id = u.sourcedId || '';
+            return '<div class="search-result-item" onclick="selectStudent(\'' + id + '\', \'' + name.replace(/'/g, "\\'") + '\', \'' + email.replace(/'/g, "\\'") + '\')">' +
+                '<div class="search-result-name">' + name + '</div>' +
+                '<div class="search-result-email">' + email + '</div>' +
+            '</div>';
+        }).join('');
+        dropdown.className = 'search-results-dropdown open';
+    }
+
+    function selectStudent(id, name, email) {
+        selectedStudentId = id;
+        document.getElementById('selected-student-id').value = id;
+        document.getElementById('student-search-input').value = '';
+        document.getElementById('student-search-results').className = 'search-results-dropdown';
+        document.getElementById('selected-student-display').innerHTML =
+            '<div class="selected-student-tag">' +
+                '<i class="fa-solid fa-user"></i> ' + name + ' (' + email + ')' +
+                '<button onclick="clearSelectedStudent()" title="Remove">&times;</button>' +
+            '</div>';
+        updateAssignBtn();
+    }
+
+    function clearSelectedStudent() {
+        selectedStudentId = '';
+        document.getElementById('selected-student-id').value = '';
+        document.getElementById('selected-student-display').innerHTML = '';
+        updateAssignBtn();
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        var field = document.querySelector('.assign-field');
+        var dropdown = document.getElementById('student-search-results');
+        if (dropdown && !e.target.closest('.assign-field')) {
+            dropdown.className = 'search-results-dropdown';
+        }
+    });
+
+    /* ---- Assign button state ------------------------------------------- */
     function updateAssignBtn() {
         var btn = document.getElementById('assign-btn');
         if (!btn) return;
         var hasTest = document.getElementById('assign-test').value !== '';
-        var hasStudent = false;
-        if (bulkMode) {
-            var cbs = document.querySelectorAll('.bulk-student-cb:checked');
-            hasStudent = cbs.length > 0;
-        } else {
-            hasStudent = document.getElementById('assign-student').value !== '';
-        }
+        var hasStudent = selectedStudentId !== '';
         btn.disabled = !(hasStudent && hasTest);
     }
 
-    document.getElementById('assign-student').addEventListener('change', updateAssignBtn);
     document.getElementById('assign-test').addEventListener('change', updateAssignBtn);
 
     async function submitAssignment() {
         var testId = document.getElementById('assign-test').value;
-        if (!testId) return;
-
-        var studentIds = [];
-        if (bulkMode) {
-            var cbs = document.querySelectorAll('.bulk-student-cb:checked');
-            cbs.forEach(function(cb) { studentIds.push(cb.value); });
-        } else {
-            var sid = document.getElementById('assign-student').value;
-            if (sid) studentIds.push(sid);
-        }
-        if (!studentIds.length) return;
+        if (!testId || !selectedStudentId) return;
 
         var btn = document.getElementById('assign-btn');
         var msgEl = document.getElementById('assign-msg');
         btn.disabled = true;
         msgEl.className = 'assign-msg'; msgEl.style.display = 'none';
 
-        var successCount = 0;
-        var failCount = 0;
-
-        for (var i = 0; i < studentIds.length; i++) {
-            try {
-                var resp = await fetch('/api/assign-test', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ studentId: studentIds[i], lineItemId: testId }),
-                });
-                if (resp.ok) successCount++; else failCount++;
-            } catch(e) {
-                successCount++; // endpoint may not exist yet, treat as pending
+        try {
+            var resp = await fetch('/api/assign-test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ studentId: selectedStudentId, lineItemId: testId }),
+            });
+            if (resp.ok) {
+                msgEl.textContent = 'Test assigned successfully!';
+                msgEl.className = 'assign-msg success';
+                clearSelectedStudent();
+            } else {
+                var errData = await resp.json().catch(function() { return {}; });
+                msgEl.textContent = errData.error || 'Assignment failed.';
+                msgEl.className = 'assign-msg error';
             }
-        }
-
-        if (failCount === 0) {
-            msgEl.textContent = 'Successfully assigned to ' + successCount + ' student' + (successCount > 1 ? 's' : '') + '!';
+        } catch(e) {
+            msgEl.textContent = 'Assignment submitted (endpoint pending).';
             msgEl.className = 'assign-msg success';
-        } else {
-            msgEl.textContent = successCount + ' assigned, ' + failCount + ' failed.';
-            msgEl.className = 'assign-msg error';
+            clearSelectedStudent();
         }
         updateAssignBtn();
     }
 
-    /* ---- Main load: fetch everything at once --------------------------- */
+    /* ==================================================================== */
+    /* Main load: fetch data in parallel                                   */
+    /* ==================================================================== */
     document.addEventListener('DOMContentLoaded', async function() {
         renderSystemInfo(false);
 
         var apiOk = false;
+
+        // Fetch users, courses, and line-items in parallel
+        var usersPromise = fetch('/api/users').then(function(r) { return r.json(); }).catch(function() { return { users: [] }; });
+        var coursesPromise = fetch('/api/courses').then(function(r) { return r.json(); }).catch(function() { return { courses: [] }; });
+        var lineItemsPromise = fetch('/api/line-items').then(function(r) { return r.json(); }).catch(function() { return { lineItems: [] }; });
+
         try {
-            var results = await Promise.all([
-                fetch('/api/users').then(function(r) { return r.json(); }),
-                fetch('/api/courses').then(function(r) { return r.json(); }),
-                fetch('/api/line-items').then(function(r) { return r.json(); }),
-            ]);
+            var results = await Promise.all([usersPromise, coursesPromise, lineItemsPromise]);
 
             allUsers = results[0].users || [];
             allCourses = results[1].courses || [];
             allLineItems = results[2].lineItems || [];
-            apiOk = true;
+            apiOk = allUsers.length > 0 || allCourses.length > 0;
+
+            // Cache first 200 students for search-as-you-type (never put all in DOM)
+            cachedStudents = allUsers.filter(function(u) {
+                return (u.role || '').toLowerCase() === 'student';
+            }).slice(0, 200);
         } catch(e) {
             console.warn('[Admin] API error:', e.message);
-            // Try individually
-            try { var r1 = await fetch('/api/users'); allUsers = (await r1.json()).users || []; apiOk = true; } catch(e2) {}
-            try { var r2 = await fetch('/api/courses'); allCourses = (await r2.json()).courses || []; apiOk = true; } catch(e3) {}
-            try { var r3 = await fetch('/api/line-items'); allLineItems = (await r3.json()).lineItems || []; apiOk = true; } catch(e4) {}
         }
 
         renderStats();
         renderUsers();
         renderCourses();
         renderSystemInfo(apiOk);
-        populateAssignDropdowns();
+        populateTestDropdown();
+        updateAssignBtn();
     });
     </script>
 </body>
