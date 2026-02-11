@@ -333,7 +333,7 @@
             if (lessonBased) {
                 /* AP course — show daily pace as the main number */
                 const done = masteredIdx[i] || 0;
-                const total = c.totalLessons || 0;
+                const total = c.totalLessons || (savedGoal && savedGoal.target) || 0;
 
                 if (savedGoal && savedGoal.endDate && total > 0) {
                     const rem = Math.max(total - done, 0);

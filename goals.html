@@ -288,7 +288,7 @@ function lessonCard(c, i) {
     const has = !!g.endDate;
 
     const done      = MASTERED[i] || 0;
-    const total     = c.totalLessons || 0;
+    const total     = c.totalLessons || g.target || 0;
     const remaining = Math.max(total - done, 0);
     const pct       = total > 0 ? Math.min((done / total) * 100, 100) : 0;
 
@@ -363,7 +363,7 @@ function xpCard(c, i) {
 
 function previewL(i) {
     const card = document.querySelector(`.gc[data-i="${i}"]`);
-    const tgt  = ALL[i].totalLessons || 0;
+    const tgt  = ALL[i].totalLessons || (GOALS[ALL[i]._enrollmentId] || {}).target || 0;
     const dt   = card.querySelector('.gl-date').value;
     const excl = card.querySelector('.gl-sch').checked;
     const pv   = document.getElementById('pv-' + i);
@@ -390,7 +390,7 @@ function previewL(i) {
 
 async function saveL(i) {
     const card = document.querySelector(`.gc[data-i="${i}"]`);
-    const tgt  = ALL[i].totalLessons || 0;
+    const tgt  = ALL[i].totalLessons || (GOALS[ALL[i]._enrollmentId] || {}).target || 0;
     const dt   = card.querySelector('.gl-date').value;
     if (!dt)  { toast('Pick an end date.'); return; }
     const excl = card.querySelector('.gl-sch').checked;
