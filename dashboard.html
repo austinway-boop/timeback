@@ -228,7 +228,7 @@
         if (/^pp/i.test(a) || a.includes('powerpath')) return true;
         return false;
     }
-    function isLessonCourse(c) { return isAPCourse(c.title) && isTimeback(c); }
+    function isLessonCourse(c) { return c.totalLessons > 0 || (isAPCourse(c.title) && isTimeback(c)); }
 
     /* ---- State ------------------------------------------------------------ */
     let allCourses = [];       // set once after enrollment fetch
@@ -237,6 +237,7 @@
     let masteredIdx = {};      // { 0: 25, ... } — mastered units from analytics (for lesson courses)
     let currentPeriod = 'today';
     let userProfilesMap = {};  // { vendorId: { username, credentialId, appName, domain, launchUrl } }
+    let credentialsMap = {};   // { vendorId/platform: { username, password } }
     let currentUserId = '';    // user's sourcedId for credential decryption
 
     // Timeback-native app names (XP reported here for courses without their own app)
@@ -540,8 +541,9 @@
 
                 // Check both enrollment metadata AND course metadata for metrics
                 const cMetrics = (cMeta.metrics) || {};
-                const totalLessons = metrics.totalLessons || cMetrics.totalLessons || cMeta.totalLessons || 0;
-                const totalXp = metrics.totalXp || cMetrics.totalXp || cMeta.totalXp || 0;
+                const totalLessons = metrics.totalLessons || cMetrics.totalLessons || cMeta.totalLessons
+                    || course.totalLessons || metrics.totalUnits || cMetrics.totalUnits || cMeta.totalUnits || course.totalUnits || 0;
+                const totalXp = metrics.totalXp || cMetrics.totalXp || cMeta.totalXp || course.totalXp || 0;
 
                 // Vendor key: used to match course → userProfiles for credentials
                 const vendorKey = cMeta.primaryApp || cMeta.app || cMeta.vendor
@@ -783,7 +785,8 @@
                         for (const info of Object.values(dayFacts)) {
                             const am = info.activityMetrics || {};
                             totalXp      += am.xpEarned || 0;
-                            totalMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons || 0;
+                            totalMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons
+                                || am.unitsCompleted || am.completedUnits || 0;
                         }
                     }
                     let appXp = 0, appMastered = 0;
@@ -792,7 +795,8 @@
                             for (const info of Object.values(apps)) {
                                 const am = info.activityMetrics || {};
                                 appXp      += am.xpEarned || 0;
-                                appMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons || 0;
+                                appMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons
+                                    || am.unitsCompleted || am.completedUnits || 0;
                             }
                         }
                     }
