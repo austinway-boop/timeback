@@ -182,7 +182,7 @@ function doSearch(q) {
     dd.innerHTML = '<div class="search-empty"><i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i>Searching...</div>';
     dd.classList.add('open');
 
-    fetch('/api/users-page?search=' + encodeURIComponent(q) + '&role=student&limit=20', { signal: searchController.signal })
+    fetch('/api/users-page?search=' + encodeURIComponent(q) + '&limit=20', { signal: searchController.signal })
         .then(function(r) { return r.json(); })
         .then(function(d) {
             var users = d.users || [];
