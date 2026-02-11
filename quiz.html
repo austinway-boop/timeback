@@ -156,13 +156,52 @@
             }
         }
 
-        // ── 2. QTI direct fetch (for direct QTI URLs only) ──
+        // ── 2. Try production Timeback server functions (user may be logged in) ──
+        if (testId) {
+            try {
+                area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading assessment content...</div>';
+                // The production app uses TanStack Start server functions for PowerPath quizzes
+                // These require the user to be logged into alpha.timeback.com (cookies sent via credentials:include)
+                var tbPayload = JSON.stringify({ data: { lessonId: testId } });
+                var tbResp = await fetch(
+                    'https://alpha.timeback.com/_serverFn/src_features_powerpath-quiz_services_lesson-mastery_ts--getLessonType_createServerFn_handler?payload=' + encodeURIComponent(tbPayload) + '&createServerFn',
+                    { credentials: 'include', headers: { 'Accept': 'application/json' } }
+                );
+                if (tbResp.ok) {
+                    var tbData = await tbResp.json();
+                    console.log('Timeback getLessonType:', JSON.stringify(tbData));
+                    // If we got lesson data, try to get the QTI content from it
+                    if (tbData && (tbData.qtiUrl || tbData.itemId || tbData.testId || tbData.content)) {
+                        var tbQtiUrl = tbData.qtiUrl || tbData.url || '';
+                        var tbItemId = tbData.itemId || tbData.testId || tbData.id || '';
+                        if (tbQtiUrl) {
+                            var loaded = await loadAllQuestions(tbQtiUrl, '', subject, gradeLevel);
+                            if (loaded) return;
+                        } else if (tbItemId) {
+                            var loaded = await loadAllQuestions('', tbItemId, subject, gradeLevel);
+                            if (loaded) return;
+                        }
+                        // If tbData has questions/content directly
+                        if (tbData.questions || tbData.content) {
+                            area.innerHTML = '<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px;">' + esc(quizState.title) + '</h1>' +
+                                '<div class="stimulus-box" style="max-height:none;">' + (typeof tbData.content === 'string' ? tbData.content : JSON.stringify(tbData, null, 2)) + '</div>' +
+                                '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button></div>';
+                            return;
+                        }
+                    }
+                }
+            } catch(e) {
+                console.warn('Timeback serverFn failed (CORS or not logged in):', e.message);
+            }
+        }
+
+        // ── 3. QTI direct fetch (for direct QTI URLs only) ──
         if (qtiUrl) {
             var loaded = await loadAllQuestions(qtiUrl, '', subject, gradeLevel);
             if (loaded) return;
         }
 
-        // ── 3. Local FRQ fallback ──
+        // ── 4. Local FRQ fallback ──
         if (testId || subject) {
             showLocalAssessment(quizState.title, subject, gradeLevel);
             return;
