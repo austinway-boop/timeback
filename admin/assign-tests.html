@@ -399,6 +399,7 @@ async function assignTest(subject, grade, idx) {
             renderTests();
             renderPending();
         } else {
+            console.log('Assign error response:', JSON.stringify(data));
             var errMsg = data.error || data.message || 'Assignment failed.';
             if (data.placementGrade != null && data.requestedGrade) {
                 errMsg = 'Student is placed at Grade ' + data.placementGrade + ' in ' + subject + '. Cannot assign Grade ' + data.requestedGrade + ' — try Grade ' + data.placementGrade + ' instead.';
