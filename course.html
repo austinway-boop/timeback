@@ -36,35 +36,17 @@
         .course-hero .meta-item { display: flex; align-items: center; gap: 6px; }
         .course-hero .meta-item i { color: var(--color-primary); font-size: 0.8rem; }
 
-        /* ── Progress Overview ────────────────────────────────────── */
-        .progress-overview {
+        /* ── Slim Progress Bar ────────────────────────────────────── */
+        .progress-slim {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 16px; margin-bottom: 16px;
             background: var(--color-surface); border-radius: var(--radius);
-            box-shadow: var(--shadow); padding: 24px 28px; margin-bottom: 24px;
+            border: 1px solid var(--color-border);
         }
-        .progress-header {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 14px;
-        }
-        .progress-header .label { font-weight: 600; font-size: 0.95rem; }
-        .progress-header .value { font-weight: 800; font-size: 1.4rem; color: var(--color-primary); }
-        .progress-bar-track { height: 8px; background: var(--color-bg); border-radius: 4px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; border-radius: 4px; background: var(--color-primary); transition: width 0.6s ease; }
-        .progress-stats-row {
-            display: flex; gap: 12px; margin-top: 14px;
-        }
-        .progress-chip {
-            flex: 1; display: flex; flex-direction: column; align-items: center;
-            padding: 12px; background: var(--color-bg); border-radius: var(--radius-sm);
-        }
-        .progress-chip .num { font-size: 1.15rem; font-weight: 700; color: var(--color-text); }
-        .progress-chip .txt {
-            font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.4px; color: var(--color-text-muted); margin-top: 2px;
-        }
-        .progress-sub {
-            display: flex; justify-content: space-between;
-            margin-top: 8px; font-size: 0.78rem; color: var(--color-text-muted);
-        }
+        .progress-slim .count { font-size: 0.78rem; font-weight: 500; color: var(--color-text-muted); white-space: nowrap; }
+        .progress-slim .bar { flex: 1; height: 6px; background: var(--color-bg); border-radius: 3px; overflow: hidden; }
+        .progress-slim .bar-fill { height: 100%; background: var(--color-primary); border-radius: 3px; transition: width 0.6s ease; }
+        .progress-slim .pct { font-size: 0.85rem; font-weight: 700; color: var(--color-primary); white-space: nowrap; }
 
         /* ── Admin Banner ────────────────────────────────────────── */
         .admin-banner {
@@ -83,7 +65,8 @@
             border: 1px solid var(--color-border);
             overflow: hidden; transition: all var(--transition);
         }
-        .unit-card + .unit-card { margin-top: 12px; }
+        .unit-card { margin-top: 12px; }
+        .unit-card:first-child { margin-top: 0; }
         .unit-card:hover { box-shadow: var(--shadow-md); }
         .unit-card.expanded { border: 2px solid var(--color-orange); }
         .unit-card.locked { opacity: 0.55; }
@@ -136,11 +119,11 @@
         }
         .unit-chevron.open { transform: rotate(180deg); }
 
-        .unit-body {
+        .unit-timeline {
             max-height: 0; overflow: hidden;
             transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .unit-body.open { max-height: 8000px; }
+        .unit-timeline.open { max-height: 8000px; }
 
         /* ── Timeline ────────────────────────────────────────────── */
         .timeline {
@@ -409,11 +392,11 @@
 
     /* ── Expand / Collapse helpers ─────────────────────────────── */
     function toggleUnit(id) {
-        var body = document.getElementById(id);
+        var timeline = document.getElementById(id);
         var chev = document.getElementById(id + '-chev');
-        var card = body ? body.parentElement : null;
-        if (!body) return;
-        body.classList.toggle('open');
+        var card = document.getElementById(id + '-card');
+        if (!timeline) return;
+        timeline.classList.toggle('open');
         if (chev) chev.classList.toggle('open');
         if (card) card.classList.toggle('expanded');
     }
@@ -637,94 +620,67 @@
             if (courseGrade) quizExtra += '&grade=' + encodeURIComponent(courseGrade);
 
             if (units.length > 0) {
-                // ── Pre-pass: count total & completed ACTIVITIES across all units ──
+                // ── Pre-process: normalize lessons, build flat list, count activities ──
+                var processedUnits = [];
+                var globalLessonList = [];
                 var grandTotalAct = 0, grandDoneAct = 0;
+
                 for (var pu = 0; pu < units.length; pu++) {
-                    var pUnit = units[pu];
-                    var pLessons = (pUnit.subComponents || []).slice();
-                    var pUnitRes = pUnit.componentResources || [];
+                    var pMod = units[pu];
+                    var pLessons = (pMod.subComponents || []).slice();
+                    pLessons.sort(function(a, b) { return (a.sortOrder || '').localeCompare(b.sortOrder || ''); });
+                    var pUnitRes = pMod.componentResources || [];
                     if (pLessons.length === 0 && pUnitRes.length > 0) {
                         for (var puri = 0; puri < pUnitRes.length; puri++) {
                             var pR = pUnitRes[puri].resource || pUnitRes[puri] || {};
-                            pLessons.push({ title: pR.title || '', id: pR.id || pR.sourcedId || '', sourcedId: pR.sourcedId || pR.id || '', componentResources: [pUnitRes[puri]] });
+                            pLessons.push({ title: pR.title || ('Assessment ' + (puri + 1)), id: pR.id || pR.sourcedId || '', sourcedId: pR.sourcedId || pR.id || '', sortOrder: pR.sortOrder || String(puri), componentResources: [pUnitRes[puri]] });
                         }
                     }
+                    processedUnits.push({ mod: pMod, lessons: pLessons, title: pMod.title || 'Unit ' + (pu + 1) });
+
                     for (var pl = 0; pl < pLessons.length; pl++) {
                         var pLesson = pLessons[pl];
+                        var pLTitle = (pLesson.title || '').trim();
+                        var pLocalKey = 'completed_' + (pLesson.id || pLesson.sourcedId || pLTitle);
+                        var pLDone = !!progressByTitle[pLTitle] || localStorage.getItem(pLocalKey) === 'true';
                         var pRes = pLesson.componentResources || [];
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
-                        var pLTitle = (pLesson.title || '').trim();
-                        var pLocalKey = 'completed_' + (pLesson.id || pLesson.sourcedId || pLTitle);
-                        var pLessonDone = !!progressByTitle[pLTitle] || localStorage.getItem(pLocalKey) === 'true';
-                        if (pLessonDone) {
-                            grandDoneAct += pCount;
-                        } else {
-                            for (var pr = 0; pr < pRes.length; pr++) {
-                                if (localStorage.getItem(pLocalKey + '_r' + pr) === 'true') grandDoneAct++;
-                            }
-                        }
+                        var pHasAny = pLDone;
+                        if (pLDone) { grandDoneAct += pCount; }
+                        else { for (var pr = 0; pr < pRes.length; pr++) { if (localStorage.getItem(pLocalKey + '_r' + pr) === 'true') { grandDoneAct++; pHasAny = true; } } }
+                        globalLessonList.push({ unitIdx: pu, hasProgress: pHasAny });
                     }
                 }
+
+                // ── Global frontier: furthest lesson with ANY progress ──
+                var globalFrontier = -1;
+                for (var gi = globalLessonList.length - 1; gi >= 0; gi--) {
+                    if (globalLessonList[gi].hasProgress) { globalFrontier = gi; break; }
+                }
+                var currentUnitIdx = globalFrontier >= 0 ? globalLessonList[globalFrontier].unitIdx : 0;
+
+                // ── Slim progress bar ──
                 var overallPct = grandTotalAct > 0 ? Math.round((grandDoneAct / grandTotalAct) * 100) : 0;
-
-                // Overall progress header (activity-based)
-                html += '<div class="progress-overview" style="margin-bottom:16px;">' +
-                    '<div class="progress-header"><span class="label">Overall Progress</span><span class="value">' + overallPct + '%</span></div>' +
-                    '<div class="progress-bar-track"><div class="progress-bar-fill" style="width:' + overallPct + '%;"></div></div>' +
-                    '<div class="progress-sub"><span>' + grandDoneAct + ' of ' + grandTotalAct + ' activities completed</span><span>' + units.length + ' units</span></div></div>';
-
-                // ── Determine unlock frontier based on actual student progress ──
-                // Instead of requiring each unit to be 100% complete before the next,
-                // find the furthest unit the student has ANY progress in and unlock
-                // everything up to it + the next one.
-                var furthestUnitIdx = -1;
-                for (var fi = units.length - 1; fi >= 0; fi--) {
-                    var fMod = units[fi];
-                    var fLessons = (fMod.subComponents || []).slice();
-                    var fUnitRes = fMod.componentResources || [];
-                    if (fLessons.length === 0 && fUnitRes.length > 0) {
-                        for (var furi = 0; furi < fUnitRes.length; furi++) {
-                            var fR = fUnitRes[furi].resource || fUnitRes[furi] || {};
-                            fLessons.push({ title: fR.title || '', id: fR.id || fR.sourcedId || '', sourcedId: fR.sourcedId || fR.id || '', componentResources: [fUnitRes[furi]] });
-                        }
-                    }
-                    var fHas = false;
-                    for (var fl = 0; fl < fLessons.length && !fHas; fl++) {
-                        var fTitle = (fLessons[fl].title || '').trim();
-                        var fKey = 'completed_' + (fLessons[fl].id || fLessons[fl].sourcedId || fTitle);
-                        if (progressByTitle[fTitle] || localStorage.getItem(fKey) === 'true') { fHas = true; break; }
-                        var fRes = fLessons[fl].componentResources || [];
-                        for (var fr = 0; fr < fRes.length; fr++) {
-                            if (localStorage.getItem(fKey + '_r' + fr) === 'true') { fHas = true; break; }
-                        }
-                    }
-                    if (fHas) { furthestUnitIdx = fi; break; }
-                }
+                html += '<div class="progress-slim">' +
+                    '<span class="count">' + grandDoneAct + '/' + grandTotalAct + ' activities</span>' +
+                    '<div class="bar"><div class="bar-fill" style="width:' + overallPct + '%;"></div></div>' +
+                    '<span class="pct">' + overallPct + '%</span></div>';
 
                 // ── Render Units ───────────────────────────────────
-                for (var mi = 0; mi < units.length; mi++) {
-                    var mod = units[mi];
-                    var modTitle = mod.title || 'Unit ' + (mi + 1);
-                    var modLessons = mod.subComponents || [];
-                    modLessons.sort(function(a, b) { return (a.sortOrder || '').localeCompare(b.sortOrder || ''); });
+                var globalIdx = 0;
 
-                    // Handle units with componentResources but no subComponent lessons
-                    var unitRes = mod.componentResources || [];
-                    if (modLessons.length === 0 && unitRes.length > 0) {
-                        for (var uri = 0; uri < unitRes.length; uri++) {
-                            var uRes = unitRes[uri].resource || unitRes[uri] || {};
-                            modLessons.push({
-                                title: uRes.title || ('Assessment ' + (uri + 1)),
-                                id: uRes.id || uRes.sourcedId || '',
-                                sourcedId: uRes.sourcedId || uRes.id || '',
-                                sortOrder: uRes.sortOrder || String(uri),
-                                componentResources: [unitRes[uri]],
-                            });
-                        }
-                    }
+                for (var mi = 0; mi < processedUnits.length; mi++) {
+                    var puData = processedUnits[mi];
+                    var modLessons = puData.lessons;
+                    var modTitle = puData.title;
+                    var unitId = 'unit-' + mi;
 
-                    // Calculate unit progress
+                    // Unit state from global frontier
+                    var unitFirstIdx = globalIdx;
+                    var forceComplete = !isAdmin && mi < currentUnitIdx;
+                    var unitLocked = isAdmin ? false : (unitFirstIdx > globalFrontier + 1);
+
                     var unitDone = 0;
                     for (var lc = 0; lc < modLessons.length; lc++) {
                         var lcTitle = (modLessons[lc].title || '').trim();
@@ -732,23 +688,17 @@
                         if (progressByTitle[lcTitle] || localStorage.getItem(lcLocalKey) === 'true') unitDone++;
                     }
                     var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
-                    // Unit unlocked if: admin, OR index <= furthest progress + 1
-                    var unitLocked = isAdmin ? false : (mi > furthestUnitIdx + 1);
-                    var unitComplete = (unitDone === modLessons.length && modLessons.length > 0);
-                    var unitId = 'unit-' + mi;
+                    var unitComplete = forceComplete || (unitDone === modLessons.length && modLessons.length > 0);
+                    var isCurrentUnit = (mi === currentUnitIdx);
+                    var autoExpand = !unitLocked && isCurrentUnit;
 
-                    // Determine auto-expand: first non-complete unlocked unit
-                    var autoExpand = !unitLocked && !unitComplete && unitDone < modLessons.length;
+                    // ── Unit card (header only) ──
+                    var cardClass = 'unit-card';
+                    if (unitComplete) cardClass += ' complete';
+                    if (unitLocked) cardClass += ' locked';
+                    if (autoExpand) cardClass += ' expanded';
 
-                    // Unit card
-                    var unitClass = 'unit-card';
-                    if (unitComplete) unitClass += ' complete';
-                    if (unitLocked) unitClass += ' locked';
-                    if (autoExpand) unitClass += ' expanded';
-
-                    html += '<div class="' + unitClass + '">';
-
-                    // Unit header — clean: label + title + status + chevron
+                    html += '<div class="' + cardClass + '" id="' + unitId + '-card">';
                     html += '<div class="unit-header" onclick="' + (unitLocked ? '' : "toggleUnit('" + unitId + "')") + '">' +
                         '<div class="unit-info">' +
                             '<div class="u-label">Unit ' + (mi + 1) + '</div>' +
@@ -765,28 +715,16 @@
                     html += '</div>' +
                         '<i class="fa-solid fa-chevron-down unit-chevron' + (autoExpand ? ' open' : '') + '" id="' + unitId + '-chev"></i>' +
                     '</div>';
+                    html += '</div>'; // close unit-card
 
-                    // Unit body (collapsible)
-                    html += '<div class="unit-body' + (autoExpand ? ' open' : '') + '" id="' + unitId + '">';
+                    // ── Unit timeline (sibling, outside card border) ──
+                    html += '<div class="unit-timeline' + (autoExpand ? ' open' : '') + '" id="' + unitId + '">';
 
                     if (!unitLocked) {
                         html += '<div class="timeline">';
 
-                        // Find furthest lesson with any progress in this unit
-                        var furthestLessonIdx = -1;
-                        for (var fli = modLessons.length - 1; fli >= 0; fli--) {
-                            var flTitle = (modLessons[fli].title || '').trim();
-                            var flKey = 'completed_' + (modLessons[fli].id || modLessons[fli].sourcedId || flTitle);
-                            if (progressByTitle[flTitle] || localStorage.getItem(flKey) === 'true') { furthestLessonIdx = fli; break; }
-                            var flRes = modLessons[fli].componentResources || [];
-                            var flHas = false;
-                            for (var flr = 0; flr < flRes.length; flr++) {
-                                if (localStorage.getItem(flKey + '_r' + flr) === 'true') { flHas = true; break; }
-                            }
-                            if (flHas) { furthestLessonIdx = fli; break; }
-                        }
-
                         for (var li = 0; li < modLessons.length; li++) {
+                            var lessonGlobalIdx = globalIdx + li;
                             var lesson = modLessons[li];
                             var lTitle = lesson.title || 'Lesson ' + (li + 1);
                             var prog = progressByTitle[lTitle.trim()] || null;
@@ -794,15 +732,12 @@
                             var localKey = 'completed_' + (lesson.id || lesson.sourcedId || lTitle);
                             var isLocalDone = localStorage.getItem(localKey) === 'true';
                             isDone = isDone || isLocalDone;
-                            // Lesson unlocked if: admin, OR index <= furthest progress + 1
-                            var lessonLocked = isAdmin ? false : (li > furthestLessonIdx + 1);
+                            // Global lesson-level locking
+                            var lessonLocked = isAdmin ? false : (lessonGlobalIdx > globalFrontier + 1);
                             var resources = lesson.componentResources || [];
 
-                            // Detect assessment type from title
                             var isAssessmentTitle = /assess|aps[\s:\-]|quiz|final\s*test|unit\s*test|exam|cumulative\s*review/i.test(lTitle);
                             var isReview = /cumulative\s*review|review/i.test(lTitle);
-
-                            // Determine lesson type from resources + title
                             var lessonType = isAssessmentTitle ? 'quiz' : 'reading';
                             var openUrl = '';
                             var resDetails = [];
@@ -815,165 +750,104 @@
                                 var rurl = rmeta.url || res.url || rmeta.href || res.href || '';
                                 var rTitle2 = (typeof res === 'object' ? (res.title || '') : '').substring(0, 60);
                                 var resId = res.id || res.sourcedId || resObj.id || resObj.sourcedId || '';
-
                                 if (rtype === 'video') lessonType = 'video';
                                 else if (rtype.includes('assess') || rtype.includes('quiz') || rtype.includes('test')) lessonType = 'quiz';
-
                                 var pillUrl = '';
                                 if (rtype === 'video' && rurl) { pillUrl = rurl; }
                                 else if (rurl && !rurl.includes('flashcard.com')) { pillUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(lTitle) + quizExtra; }
                                 else if (resId) { pillUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=' + encodeURIComponent(rtype || 'assessment') + '&title=' + encodeURIComponent(lTitle) + quizExtra; }
-
                                 var lbl = resLabel(rtype, rurl);
                                 resDetails.push({ type: rtype, url: rurl, pillUrl: pillUrl, title: rTitle2, label: lbl });
-
                                 if (!openUrl && pillUrl) openUrl = pillUrl;
                             }
 
-                            // Fallback URL from lesson-level properties
                             if (!openUrl) {
                                 var lessonMetaUrl = (lesson.metadata || {}).url || lesson.url || '';
                                 var lessonResId = lesson.id || lesson.sourcedId || '';
-                                if (lessonMetaUrl) {
-                                    openUrl = '/quiz?url=' + encodeURIComponent(lessonMetaUrl) + '&title=' + encodeURIComponent(lTitle) + quizExtra;
-                                } else if (lessonResId && (lessonType === 'quiz' || isAssessmentTitle)) {
-                                    openUrl = '/quiz?id=' + encodeURIComponent(lessonResId) + '&type=assessment&title=' + encodeURIComponent(lTitle) + quizExtra;
-                                }
+                                if (lessonMetaUrl) { openUrl = '/quiz?url=' + encodeURIComponent(lessonMetaUrl) + '&title=' + encodeURIComponent(lTitle) + quizExtra; }
+                                else if (lessonResId && (lessonType === 'quiz' || isAssessmentTitle)) { openUrl = '/quiz?id=' + encodeURIComponent(lessonResId) + '&type=assessment&title=' + encodeURIComponent(lTitle) + quizExtra; }
                             }
-                            if (resDetails.length === 0 && openUrl) {
-                                resDetails.push({ type: 'assessment', url: '', pillUrl: openUrl, title: lTitle, label: 'Quiz' });
-                            }
+                            if (resDetails.length === 0 && openUrl) { resDetails.push({ type: 'assessment', url: '', pillUrl: openUrl, title: lTitle, label: 'Quiz' }); }
 
-                            // Per-resource completion tracking
                             var nonQuizCount = 0, nonQuizDoneCount = 0;
                             for (var rci = 0; rci < resDetails.length; rci++) {
                                 var isQuizRes = (resDetails[rci].label === 'Quiz');
                                 resDetails[rci]._isQuiz = isQuizRes;
-                                if (!isQuizRes) {
-                                    nonQuizCount++;
-                                    var resKey = localKey + '_r' + rci;
-                                    resDetails[rci]._localKey = resKey;
-                                    resDetails[rci]._resDone = localStorage.getItem(resKey) === 'true';
-                                    if (resDetails[rci]._resDone) nonQuizDoneCount++;
-                                } else {
-                                    resDetails[rci]._localKey = '';
-                                    resDetails[rci]._resDone = false;
-                                }
+                                if (!isQuizRes) { nonQuizCount++; var resKey = localKey + '_r' + rci; resDetails[rci]._localKey = resKey; resDetails[rci]._resDone = localStorage.getItem(resKey) === 'true'; if (resDetails[rci]._resDone) nonQuizDoneCount++; }
+                                else { resDetails[rci]._localKey = ''; resDetails[rci]._resDone = false; }
                             }
-                            // Lesson done when all non-quiz resources complete
-                            if (!isDone && nonQuizCount > 0 && nonQuizDoneCount === nonQuizCount) {
-                                isDone = true;
-                                localStorage.setItem(localKey, 'true');
-                            }
+                            if (!isDone && nonQuizCount > 0 && nonQuizDoneCount === nonQuizCount) { isDone = true; localStorage.setItem(localKey, 'true'); }
 
-                            // Calculate lesson-level percentage
                             var totalRes = resDetails.length;
                             var doneRes = 0;
-                            for (var dc = 0; dc < resDetails.length; dc++) {
-                                if (resDetails[dc]._resDone || resDetails[dc]._isQuiz) doneRes++;
-                            }
+                            for (var dc = 0; dc < resDetails.length; dc++) { if (resDetails[dc]._resDone || resDetails[dc]._isQuiz) doneRes++; }
                             if (isDone) doneRes = totalRes;
                             var lessonPctVal = totalRes > 0 ? Math.round((doneRes / totalRes) * 100) : (isDone ? 100 : 0);
 
                             var typeIcon = lessonType === 'video' ? 'fa-play' : lessonType === 'quiz' ? 'fa-clipboard-question' : 'fa-file-lines';
-                            var typeLabel = lessonType === 'video' ? 'Video' : lessonType === 'quiz' ? 'Quiz' : 'Article';
-                            var typeClass = lessonType === 'video' ? 'video' : lessonType === 'quiz' ? 'quiz' : 'reading';
                             var lessonId = 'lesson-' + mi + '-' + li;
+                            var sortedRes = resDetails.slice().sort(function(a, b) { var order = { 'Video': 0, 'Article': 1, 'Quiz': 2 }; return (order[a.label] || 1) - (order[b.label] || 1); });
 
-                            // Sort resources: Video first, then Article, then Quiz
-                            var sortedRes = resDetails.slice().sort(function(a, b) {
-                                var order = { 'Video': 0, 'Article': 1, 'Quiz': 2 };
-                                return (order[a.label] || 1) - (order[b.label] || 1);
-                            });
-
-                            // Timeline item
                             var tlClass = 'tl-item';
                             if (lessonLocked) tlClass += ' locked';
                             if (isReview) tlClass += ' review';
-
                             html += '<div class="' + tlClass + '">';
 
-                            // Timeline dot
                             var dotClass = 'tl-dot';
                             if (isDone) dotClass += ' done';
                             else if (lessonLocked) dotClass += ' locked';
                             else dotClass += ' active';
-
                             html += '<div class="' + dotClass + '">';
                             if (isDone) html += '<i class="fa-solid fa-check"></i>';
                             else if (lessonLocked) html += '<i class="fa-solid fa-lock"></i>';
                             else html += '<i class="fa-solid ' + typeIcon + '"></i>';
                             html += '</div>';
 
-                            // XP display from progress data
                             var xpHtml = '';
-                            if (prog && prog.score !== undefined && prog.score !== null) {
-                                xpHtml = '<span class="xp-text">' + prog.score + ' XP</span>';
-                            }
-
-                            // Activity completion indicator
+                            if (prog && prog.score !== undefined && prog.score !== null) { xpHtml = '<span class="xp-text">' + prog.score + ' XP</span>'; }
                             var actAllDone = (doneRes === totalRes && totalRes > 0);
                             var actCls = 'act-text' + (actAllDone ? ' complete' : '');
                             var actIcon = actAllDone ? 'fa-circle-check' : 'fa-circle';
 
-                            // Lesson row — clean: title + stats (%, XP, activities)
                             html += '<div class="lesson-row" onclick="toggleLesson(\'' + lessonId + '\')">' +
-                                '<div class="lesson-info">' +
-                                    '<div class="lesson-title">' + esc(lTitle) + '</div>' +
-                                '</div>' +
+                                '<div class="lesson-info"><div class="lesson-title">' + esc(lTitle) + '</div></div>' +
                                 '<div class="lesson-stats">' +
                                     '<span class="pct-badge ' + pctBadgeClass(lessonPctVal) + '"><i class="fa-solid fa-circle" style="font-size:0.35rem;vertical-align:middle;margin-right:3px;"></i>' + lessonPctVal + '%</span>' +
                                     xpHtml +
                                     '<span class="' + actCls + '"><i class="fa-solid ' + actIcon + '"></i> ' + doneRes + '/' + totalRes + ' Activities</span>' +
                                 '</div>' +
-                                '<i class="fa-solid fa-chevron-down lesson-chev" id="' + lessonId + '-chev"></i>' +
-                            '</div>';
+                                '<i class="fa-solid fa-chevron-down lesson-chev" id="' + lessonId + '-chev"></i></div>';
 
-                            // Lesson body (expandable) — resources sorted: Video → Article → Quiz
-                            html += '<div class="lesson-body" id="' + lessonId + '">' +
-                                '<div class="resource-list">';
-
+                            html += '<div class="lesson-body" id="' + lessonId + '"><div class="resource-list">';
                             for (var rd = 0; rd < sortedRes.length; rd++) {
                                 var d = sortedRes[rd];
                                 var isInt = d.pillUrl && d.pillUrl.startsWith('/');
                                 var rLabel = d.label;
                                 var rCls = resClass(rLabel);
                                 var iconCls = d._resDone ? 'done-icon' : rCls;
-
                                 html += '<a ' + (d.pillUrl ? (isInt ? 'href="' + esc(d.pillUrl) + '"' : 'href="' + esc(d.pillUrl) + '" target="_blank"') : '') + ' class="resource-card' + (d._resDone ? ' res-done' : '') + '">' +
                                     '<div class="res-icon ' + iconCls + '"><i class="fa-solid ' + (d._resDone ? 'fa-check' : resIcon(d.type)) + '"></i></div>' +
-                                    '<div class="res-details">' +
-                                        '<div class="res-name">' + esc(d.title || rLabel) + '</div>' +
-                                        '<div class="res-meta">' + rLabel + (d._resDone ? ' · <span class="done-text">Completed</span>' : '') + '</div>' +
-                                    '</div>' +
-                                    (d.pillUrl ? '<i class="fa-solid fa-arrow-right res-arrow"></i>' : '') +
-                                '</a>';
-
-                                // Mark Complete button for non-quiz resources
+                                    '<div class="res-details"><div class="res-name">' + esc(d.title || rLabel) + '</div><div class="res-meta">' + rLabel + (d._resDone ? ' · <span class="done-text">Completed</span>' : '') + '</div></div>' +
+                                    (d.pillUrl ? '<i class="fa-solid fa-arrow-right res-arrow"></i>' : '') + '</a>';
                                 if (!d._isQuiz && !d._resDone && d._localKey) {
-                                    html += '<button class="mark-btn" onclick="event.stopPropagation(); markComplete(\'' + esc(d._localKey) + '\', this)">' +
-                                        '<i class="fa-solid fa-check"></i> Mark Complete</button>';
+                                    html += '<button class="mark-btn" onclick="event.stopPropagation(); markComplete(\'' + esc(d._localKey) + '\', this)"><i class="fa-solid fa-check"></i> Mark Complete</button>';
                                 }
                             }
-
-                            // Fallback lesson-level mark complete
                             if (!isDone && nonQuizCount === 0 && lessonType !== 'quiz') {
-                                html += '<button class="mark-btn" onclick="event.stopPropagation(); markComplete(\'' + esc(localKey) + '\', this)">' +
-                                    '<i class="fa-solid fa-check"></i> Mark as Completed</button>';
+                                html += '<button class="mark-btn" onclick="event.stopPropagation(); markComplete(\'' + esc(localKey) + '\', this)"><i class="fa-solid fa-check"></i> Mark as Completed</button>';
                             }
-
                             html += '</div></div>'; // resource-list + lesson-body
                             html += '</div>'; // tl-item
-
                         }
 
                         html += '</div>'; // timeline
                     } else {
                         html += '<div style="padding:16px 24px;color:var(--color-text-muted);font-size:0.85rem;">' +
-                            '<i class="fa-solid fa-lock" style="margin-right:6px;"></i> Complete the previous unit to unlock this one.</div>';
+                            '<i class="fa-solid fa-lock" style="margin-right:6px;"></i> Complete the previous lessons to unlock this unit.</div>';
                     }
 
-                    html += '</div></div>'; // unit-body + unit-card
+                    html += '</div>'; // unit-timeline
+                    globalIdx += modLessons.length;
                 }
             }
 
@@ -989,6 +863,14 @@
                 '<i class="fa-solid fa-arrow-right" style="color:var(--color-primary);"></i></a>';
 
             contentEl.innerHTML = html;
+
+            // ── Auto-scroll to current unit ──
+            if (units.length > 0) {
+                setTimeout(function() {
+                    var target = document.getElementById('unit-' + currentUnitIdx + '-card');
+                    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 300);
+            }
 
         } catch(e) {
             console.error('[Course] Content fetch error:', e);
