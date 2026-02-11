@@ -134,32 +134,9 @@
 
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
-        // ── PowerPath adaptive flow (primary) ──
-        // PowerPath IDs (like HUMG20-xxx-bank-v1) go to PowerPath API which
-        // creates an attempt and returns QTI content via getNextQuestion.
-        if (userId && testId) {
-            try {
-                var startResp = await fetch('/api/quiz-session?action=start', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        studentId: userId,
-                        testId: testId,
-                        subject: params.get('subject') || '',
-                        grade: params.get('grade') || '',
-                        courseId: params.get('courseId') || '',
-                    }),
-                });
-                var startData = await startResp.json();
-                if (startData.attemptId || startData.id) {
-                    quizState.attemptId = startData.attemptId || startData.id;
-                    await loadNextQuestion();
-                    return;
-                }
-            } catch(e) { console.warn('PowerPath attempt failed:', e.message); }
-        }
-
-        // ── QTI direct fetch (only for QTI URLs, not PowerPath IDs) ──
+        // ── Load quiz content from QTI API ──
+        // PowerPath assessment endpoints don't exist on our API host,
+        // so we load questions from QTI and run the PowerPath 100 scoring locally.
         if (qtiUrl) {
             var loaded = await loadAllQuestions(qtiUrl, '');
             if (loaded) return;
