@@ -379,28 +379,23 @@
             let progressText, progressLabel, pct;
 
             if (lessonBased) {
-                /* AP course — show daily questions done vs scaled goal */
-                const totalMastered = masteredIdx[i] || 0;
+                /* AP course — show lessons completed vs daily goal */
+                const totalDone = masteredIdx[i] || 0;
                 const total = c.totalLessons || (savedGoal && savedGoal.target) || 0;
-                const periodQuestions = unitsByCourseIdx[i] || 0;
-                // full-year totalQuestions for this course (from loadFullYearXp cache)
-                const yearQuestions = fullYearXpIdx['q_' + i] || 0;
+                const periodLessons = unitsByCourseIdx[i] || 0;
 
                 if (savedGoal && savedGoal.endDate && total > 0) {
-                    const rem = Math.max(total - totalMastered, 0);
+                    const rem = Math.max(total - totalDone, 0);
                     const excl = savedGoal.excludeNonSchoolDays !== false;
                     const days = countSchoolDays(savedGoal.endDate, excl);
-                    const dailyLessons = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
-                    // Scale to questions: use user's own avg questions/lesson
-                    const qPerLesson = totalMastered > 0 ? Math.round(yearQuestions / totalMastered) : 20;
-                    const dailyQ = dailyLessons * qPerLesson;
-                    const periodGoal = currentPeriod === 'today' ? dailyQ : dailyQ * 5;
-                    pct = periodGoal > 0 ? Math.min((periodQuestions / periodGoal) * 100, 100) : (rem <= 0 ? 100 : 0);
-                    progressText = rem <= 0 ? 'Complete!' : `${periodQuestions} / ${periodGoal} questions`;
+                    const daily = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
+                    const periodGoal = currentPeriod === 'today' ? daily : daily * 5;
+                    pct = periodGoal > 0 ? Math.min((periodLessons / periodGoal) * 100, 100) : (rem <= 0 ? 100 : 0);
+                    progressText = rem <= 0 ? 'Complete!' : `${periodLessons} / ${periodGoal} lessons`;
                     progressLabel = rem <= 0 ? 'DONE' : periodLabel;
                 } else {
                     pct = 0;
-                    progressText = `${periodQuestions} questions ${currentPeriod === 'today' ? 'today' : 'this week'}`;
+                    progressText = `${periodLessons} lessons ${currentPeriod === 'today' ? 'today' : 'this week'}`;
                     progressLabel = '<a href="/goals" style="color:var(--color-primary);text-decoration:none;font-weight:600;font-size:0.78rem;" onclick="event.stopPropagation()">Set Goal &rarr;</a>';
                 }
             } else {
@@ -768,19 +763,19 @@
                 }
             }
 
-            // Fetch per-enrollment analytics for AP courses: get totalQuestions for the period
+            // Fetch per-enrollment analytics for AP courses: get masteredUnits for the period
             const lessonFetches = allCourses.map((c, idx) => {
                 if (!isLessonCourse(c) || !c._enrollmentId) return null;
                 return fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}`)
                     .then(r => r.json())
                     .then(d => {
-                        let q = 0;
+                        let lessons = 0;
                         for (const dayFacts of Object.values(d.facts || {})) {
                             for (const info of Object.values(dayFacts)) {
-                                q += (info.activityMetrics || {}).totalQuestions || 0;
+                                lessons += (info.activityMetrics || {}).masteredUnits || 0;
                             }
                         }
-                        unitsByCourseIdx[idx] = q;
+                        unitsByCourseIdx[idx] = lessons;
                     })
                     .catch(() => null);
             }).filter(Boolean);
