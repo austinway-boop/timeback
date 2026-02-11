@@ -123,6 +123,15 @@
 
     var area = document.getElementById('quiz-area');
 
+    // Mark quiz complete — saves ALL possible keys so course.html can detect it
+    function _markQuizComplete() {
+        var p = new URLSearchParams(window.location.search);
+        var ids = [p.get('lessonId')||'', p.get('id')||'', p.get('testId')||'', p.get('title')||''];
+        for (var i = 0; i < ids.length; i++) {
+            if (ids[i]) localStorage.setItem('completed_' + ids[i], 'true');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', async function() {
         var params = new URLSearchParams(window.location.search);
         var testId = params.get('id') || params.get('testId') || '';
@@ -136,8 +145,7 @@
 
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
-        // ── 1. PowerPath / Timeback adaptive flow ──
-        // Tries PowerPath REST API first, then proxies to Timeback production server functions
+        // ── 1. PowerPath adaptive flow ──
         if (userId && (testId || lessonId)) {
             try {
                 area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Starting assessment...</div>';
@@ -408,15 +416,7 @@
             }).catch(function(){});
         }
 
-        // Auto-mark lesson as complete if mastery achieved
-        if (passed) {
-            var params = new URLSearchParams(window.location.search);
-            var lessonTitle = params.get('title') || '';
-            var lessonId = params.get('id') || params.get('testId') || '';
-            if (lessonTitle || lessonId) {
-                localStorage.setItem('completed_' + (lessonId || lessonTitle), 'true');
-            }
-        }
+        if (passed) { _markQuizComplete(); }
     }
 
     // ── Fallback: load all questions at once from QTI (when PowerPath adaptive fails) ──
@@ -748,13 +748,7 @@
             if (responses[r].length >= 50) xp += 2;
         }
 
-        // Mark as complete
-        var params = new URLSearchParams(window.location.search);
-        var lessonTitle = params.get('title') || '';
-        var lessonId = params.get('id') || params.get('testId') || '';
-        if (lessonTitle || lessonId) {
-            localStorage.setItem('completed_' + (lessonId || lessonTitle), 'true');
-        }
+        _markQuizComplete();
 
         area.innerHTML = '<div class="result-card">' +
             '<div style="font-size:3rem;margin-bottom:8px;">✅</div>' +

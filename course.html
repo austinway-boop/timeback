@@ -573,6 +573,11 @@
                     var pMod = units[pu];
                     var pLessons = (pMod.subComponents || []).slice();
                     pLessons.sort(function(a, b) { return (a.sortOrder || '').localeCompare(b.sortOrder || ''); });
+                    // Filter out Advanced Organizer Submission items from AP courses
+                    pLessons = pLessons.filter(function(les) {
+                        var t = (les.title || '').toLowerCase();
+                        return !t.includes('advanced organizer') && !t.includes('organizer submission');
+                    });
                     var pUnitRes = pMod.componentResources || [];
                     if (pLessons.length === 0 && pUnitRes.length > 0) {
                         for (var puri = 0; puri < pUnitRes.length; puri++) {
@@ -781,11 +786,7 @@
                 html = '<div style="text-align:center;padding:30px;color:var(--color-text-muted);"><p>No lesson data available yet.</p></div>';
             }
 
-            // Launch CTA
-            html += '<a href="https://alpha.timeback.com/app" target="_blank" rel="noopener" class="launch-cta">' +
-                '<div class="cta-icon"><i class="fa-solid fa-rocket"></i></div>' +
-                '<div class="cta-text"><div class="cta-title">Open Full Course</div><div class="cta-sub">Launch on Timeback</div></div>' +
-                '<i class="fa-solid fa-arrow-right" style="color:var(--color-primary);"></i></a>';
+            // (Launch CTA removed)
 
             contentEl.innerHTML = html;
 
