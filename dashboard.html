@@ -241,7 +241,7 @@
     let masteredIdx = {};      // { 0: 25, ... } — mastered units from analytics (for lesson courses)
     let currentPeriod = 'today';
     let userProfilesMap = {};  // { vendorId: { username, credentialId, appName, domain, launchUrl } }
-    let credentialsMap = {};   // { vendorId/platform: { username, password } }
+    var credentialsMap = window.credentialsMap || {};   // { vendorId/platform: { username, password } }
     let currentUserId = '';    // user's sourcedId for credential decryption
 
     // Timeback-native app names (XP reported here for courses without their own app)
