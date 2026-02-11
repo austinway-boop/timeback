@@ -146,7 +146,12 @@
         var userRole = (localStorage.getItem('alphalearn_role') || '').toLowerCase();
         var userEmail = (localStorage.getItem('alphalearn_email') || '').toLowerCase();
         var isAdmin = userRole.includes('admin') || userRole.includes('administrator')
-            || userEmail === 'twsevenyw@gmail.com' || userEmail === 'austin.way@alpha.school';
+            || userEmail === 'twsevenyw@gmail.com' || userEmail === 'austin.way@alpha.school'
+            || userEmail === 'evan.klein@alpha.school';
+
+        // Course unlock toggle — stored per course in localStorage
+        var unlockKey = 'course_unlocked_' + (courseId || courseTitle);
+        var isUnlocked = localStorage.getItem(unlockKey) === 'true';
 
         // Set page title
         document.title = 'AlphaLearn - ' + courseTitle;
@@ -234,10 +239,16 @@
 
         // ── Admin mode banner ──
         if (isAdmin) {
-            contentHTML += '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:linear-gradient(135deg,#FFF8E1,#FFF3E0);border:1px solid #FFE082;border-radius:var(--radius);margin-bottom:16px;">' +
-                '<i class="fa-solid fa-shield-halved" style="color:#F57F17;font-size:1.1rem;"></i>' +
-                '<div style="flex:1;"><span style="font-weight:700;font-size:0.88rem;color:#E65100;">Admin Mode</span>' +
-                '<span style="font-size:0.8rem;color:#BF360C;margin-left:8px;">All content unlocked — sequential locks bypassed</span></div>' +
+            var lockIcon = isUnlocked ? 'fa-lock-open' : 'fa-lock';
+            var lockLabel = isUnlocked ? 'Course Unlocked — you can skip ahead' : 'Course Locked — sequential progression';
+            var lockBtnText = isUnlocked ? 'Lock Course' : 'Unlock Course';
+            var lockBtnColor = isUnlocked ? '#E65100' : '#2E7D32';
+            var bannerBg = isUnlocked ? 'linear-gradient(135deg,#FFF8E1,#FFF3E0)' : 'linear-gradient(135deg,#E8F5E9,#F1F8E9)';
+            var bannerBorder = isUnlocked ? '#FFE082' : '#A5D6A7';
+            contentHTML += '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:' + bannerBg + ';border:1px solid ' + bannerBorder + ';border-radius:var(--radius);margin-bottom:16px;">' +
+                '<i class="fa-solid ' + lockIcon + '" style="color:' + lockBtnColor + ';font-size:1.1rem;"></i>' +
+                '<div style="flex:1;"><span style="font-weight:700;font-size:0.88rem;color:' + lockBtnColor + ';">' + lockLabel + '</span></div>' +
+                '<button onclick="toggleCourseLock()" style="padding:6px 14px;border:1px solid ' + lockBtnColor + ';border-radius:6px;background:transparent;color:' + lockBtnColor + ';font-size:0.8rem;font-weight:600;cursor:pointer;">' + lockBtnText + '</button>' +
             '</div>';
         }
 
@@ -427,7 +438,7 @@
                         if (progressByTitle[lcTitle] || localStorage.getItem(lcLocalKey) === 'true') unitDone++;
                     }
                     var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
-                    var unitLocked = isAdmin ? false : !prevUnitComplete;
+                    var unitLocked = (isAdmin && isUnlocked) ? false : !prevUnitComplete;
                     var unitId = 'unit-' + mi;
 
                     // Unit header (clickable to expand/collapse)
@@ -455,7 +466,7 @@
                             var localKey = 'completed_' + (lesson.id || lesson.sourcedId || lTitle);
                             var isLocalDone = localStorage.getItem(localKey) === 'true';
                             isDone = isDone || isLocalDone;
-                            var lessonLocked = isAdmin ? false : !prevLessonDone;
+                            var lessonLocked = (isAdmin && isUnlocked) ? false : !prevLessonDone;
                             var resources = lesson.componentResources || [];
 
                             // Detect assessment type from lesson title (APS, Quiz, Test, etc.)
@@ -616,6 +627,15 @@
     });
 
     // Toggle unit expand/collapse
+    function toggleCourseLock() {
+        var params = new URLSearchParams(window.location.search);
+        var cId = params.get('id') || params.get('title') || '';
+        var key = 'course_unlocked_' + cId;
+        var current = localStorage.getItem(key) === 'true';
+        localStorage.setItem(key, current ? 'false' : 'true');
+        location.reload();
+    }
+
     function toggleUnit(id) {
         var el = document.getElementById(id);
         var chev = document.getElementById(id + '-chevron');
