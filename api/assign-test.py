@@ -12,7 +12,7 @@ import json
 from http.server import BaseHTTPRequestHandler
 
 import requests
-from api._helpers import API_BASE, api_headers, send_json
+from api._helpers import API_BASE, POWERPATH_BASE, api_headers, powerpath_headers, send_json
 
 
 class handler(BaseHTTPRequestHandler):
@@ -33,12 +33,15 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            headers = api_headers()
+            try:
+                headers = powerpath_headers()
+            except Exception:
+                headers = api_headers()
             resp = requests.get(
-                f"{API_BASE}/powerpath/test-assignments",
+                f"{POWERPATH_BASE}/test-assignments",
                 headers=headers,
                 params={"student": sid},
-                timeout=15,
+                timeout=10,
             )
             if resp.status_code == 200:
                 send_json(self, resp.json())
@@ -52,12 +55,15 @@ class handler(BaseHTTPRequestHandler):
             raw = self.rfile.read(int(self.headers.get("Content-Length", 0)) or 0)
             body = json.loads(raw) if raw else {}
             aid = (body.get("assignmentId") or "").strip()
-            headers = api_headers()
+            try:
+                headers = powerpath_headers()
+            except Exception:
+                headers = api_headers()
             deleted = False
 
             if aid:
                 try:
-                    resp = requests.delete(f"{API_BASE}/powerpath/test-assignments/{aid}", headers=headers, timeout=15)
+                    resp = requests.delete(f"{POWERPATH_BASE}/test-assignments/{aid}", headers=headers, timeout=10)
                     if resp.status_code in (200, 204):
                         deleted = True
                 except Exception:
@@ -87,52 +93,66 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": "subject and grade are required", "success": False}, 400)
                 return
 
-            headers = api_headers()
-
-            # Per OpenAPI spec: POST /powerpath/test-assignments
-            # Required fields: student, subject, grade
-            payload = {"student": sid, "subject": subject, "grade": grade}
-            if test_name:
-                payload["testName"] = test_name
-
+            # Try PowerPath auth first, fall back to legacy
+            pp_headers = None
             try:
-                resp = requests.post(
-                    f"{API_BASE}/powerpath/test-assignments",
-                    headers=headers,
-                    json=payload,
-                    timeout=15,
-                )
-                data = {}
-                try:
-                    data = resp.json()
-                except Exception:
-                    data = {"status": resp.status_code}
+                pp_headers = powerpath_headers()
+            except Exception:
+                pp_headers = api_headers()
 
-                if resp.status_code in (200, 201, 204):
-                    # Also check for success=false in body
-                    if isinstance(data, dict) and data.get("success") is False:
-                        err = data.get("error") or data.get("message") or "API returned success=false"
-                        send_json(self, {"success": False, "error": err, "response": data}, 422)
-                    else:
-                        send_json(self, {
-                            "success": True,
-                            "message": f"Test assigned ({subject} Grade {grade})",
-                            "response": data,
-                        })
-                else:
-                    err = ""
-                    if isinstance(data, dict):
-                        err = data.get("error") or data.get("message") or data.get("imsx_description") or ""
-                    send_json(self, {
-                        "success": False,
-                        "error": err or f"HTTP {resp.status_code}",
-                        "response": data,
-                    }, 422)
+            # Try multiple URLs and field name combos
+            urls = [
+                f"{POWERPATH_BASE}/test-assignments",
+                f"{API_BASE}/powerpath/test-assignments",
+            ]
+            payloads = [
+                {"student": sid, "subject": subject, "grade": grade},
+                {"studentId": sid, "subject": subject, "gradeLevel": grade},
+                {"student": sid, "subject": subject, "gradeLevel": grade},
+                {"studentId": sid, "subject": subject, "grade": grade},
+            ]
+            if test_name:
+                for p in payloads:
+                    p["testName"] = test_name
 
-            except requests.exceptions.Timeout:
-                send_json(self, {"success": False, "error": "Request timed out"}, 504)
-            except Exception as e:
-                send_json(self, {"success": False, "error": str(e)}, 502)
+            data, ok = None, False
+            for url in urls:
+                for payload in payloads:
+                    try:
+                        resp = requests.post(url, headers=pp_headers, json=payload, timeout=6)
+                        try:
+                            data = resp.json()
+                        except Exception:
+                            data = {"status": resp.status_code}
+                        if resp.status_code in (200, 201, 204):
+                            if isinstance(data, dict) and data.get("success") is False:
+                                continue
+                            ok = True
+                            break
+                        if resp.status_code in (422, 400):
+                            continue  # validation error — try next payload
+                        if resp.status_code != 404:
+                            break
+                    except Exception:
+                        continue
+                if ok:
+                    break
+
+            if ok:
+                send_json(self, {
+                    "success": True,
+                    "message": f"Test assigned ({subject} Grade {grade})",
+                    "response": data,
+                })
+            else:
+                err = ""
+                if isinstance(data, dict):
+                    err = data.get("error") or data.get("message") or data.get("imsx_description") or ""
+                send_json(self, {
+                    "success": False,
+                    "error": err or "Assignment failed",
+                    "response": data,
+                }, 422)
 
         except json.JSONDecodeError:
             send_json(self, {"error": "Invalid JSON", "success": False}, 400)
