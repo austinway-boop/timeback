@@ -83,7 +83,7 @@
     </div>
 
     <!-- Course Detail Modal -->
-    <div class="modal-overlay" id="course-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;">
+    <div class="modal-overlay" id="course-modal">
         <div style="background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.15);width:90%;max-width:520px;max-height:85vh;overflow-y:auto;">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid #E8ECF1;">
                 <h2 style="font-size:1.15rem;font-weight:700;margin:0;" id="course-modal-title">Course Details</h2>
@@ -718,7 +718,7 @@
                 </div>
             `;
 
-            if (modal) modal.style.display = 'flex';
+            modal.classList.add('open');
         } catch (err) {
             console.error('[AlphaLearn] Error opening course modal:', err);
             alert('Course modal error: ' + (err.message || err));
@@ -733,12 +733,13 @@
                         <button onclick="closeCourseModal()" style="margin-top:16px;padding:10px 24px;background:#F4F6F9;color:#718096;border:none;border-radius:8px;font-size:0.9rem;font-weight:500;cursor:pointer;">Close</button>
                     </div>`;
             }
-            if (modal) modal.style.display = 'flex';
+            modal.classList.add('open');
         }
     }
 
     function closeCourseModal() {
-        document.getElementById('course-modal').style.display = 'none';
+        var m = document.getElementById('course-modal');
+        if (m) m.classList.remove('open');
     }
 
     // Course card click via event delegation (more robust than inline onclick)
