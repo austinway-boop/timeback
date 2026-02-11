@@ -33,6 +33,13 @@
         }
         .course-info-tooltip .tip-label { font-size: 0.72rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; }
         .course-info-tooltip a { color: #45B5AA; word-break: break-all; }
+        .show-pw-btn {
+            border: 1px solid #45B5AA; background: #fff; color: #45B5AA;
+            padding: 2px 10px; border-radius: 4px; font-size: 0.78rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .show-pw-btn:hover { background: #45B5AA; color: #fff; }
+        .show-pw-btn:disabled { opacity: 0.5; cursor: wait; }
     </style>
 </head>
 <body data-view="student" data-active="home">
@@ -187,7 +194,8 @@
     let fullYearXpIdx = {};    // { 0: 500, 1: 1200, ... } — full-year XP for unit estimation
     let masteredIdx = {};      // { 0: 25, ... } — mastered units from analytics (for lesson courses)
     let currentPeriod = 'today';
-    let userProfilesMap = {};  // { vendorId: { username, password, appName, domain, launchUrl } }
+    let userProfilesMap = {};  // { vendorId: { username, credentialId, appName, domain, launchUrl } }
+    let currentUserId = '';    // user's sourcedId for credential decryption
 
     // Timeback-native app names (XP reported here for courses without their own app)
     const NATIVE_APPS = ['timeback dash', 'alpha timeback', 'alphalearn', 'timeback'];
@@ -285,7 +293,7 @@
                     <div class="course-info-tooltip">
                         ${platformName ? `<div><span class="tip-label">Platform</span><br><strong>${esc(platformName)}</strong></div>` : ''}
                         ${credUsername ? `<div style="margin-top:6px;"><span class="tip-label">Username</span><br><code>${esc(credUsername)}</code></div>` : ''}
-                        <div style="margin-top:6px;"><span class="tip-label">Password</span><br>${credPassword ? `<code>${esc(credPassword)}</code>` : `<span style="color:#A0AEC0;font-style:italic;">Not available from API</span>`}</div>
+                        <div style="margin-top:6px;"><span class="tip-label">Password</span><br>${profile && profile.credentialId ? `<button class="show-pw-btn" onclick="event.stopPropagation(); decryptPassword('${esc(currentUserId)}', '${esc(profile.credentialId)}', this)">Show Password</button>` : `<span style="color:#A0AEC0;font-style:italic;">Not available</span>`}</div>
                         ${launchUrl ? `<div style="margin-top:8px;"><a href="${esc(launchUrl)}" target="_blank">${esc(launchUrl)}</a></div>` : ''}
                     </div>
                 </div>`;
@@ -355,6 +363,7 @@
 
             // Cache the sourcedId so future page loads can skip the lookup
             localStorage.setItem('alphalearn_userId', userId);
+            currentUserId = userId;
 
             // Build userProfiles map from initial lookup data
             const profiles = lookupData.user.userProfiles || [];
@@ -365,7 +374,7 @@
                 const cred = (p.credentials && p.credentials[0]) || {};
                 userProfilesMap[vendorId] = {
                     username: cred.username || '',
-                    password: cred.password || cred.secret || cred.passphrase || cred.credential || '',
+                    credentialId: cred.id || '',
                     appName: (p.app && p.app.name) || p.description || '',
                     domain: appDomains[0] || '',
                     launchUrl: appDomains[0] ? 'https://' + appDomains[0] : '',
@@ -382,9 +391,11 @@
                         if (!vId) continue;
                         // Merge: prefer values from dedicated endpoint, fill in gaps
                         const existing = userProfilesMap[vId] || {};
+                        const rawCreds = cp.rawCredentials || [];
+                        const firstRawCred = rawCreds[0] || {};
                         userProfilesMap[vId] = {
                             username: cp.username || existing.username || '',
-                            password: cp.password || existing.password || '',
+                            credentialId: firstRawCred.id || existing.credentialId || '',
                             appName: cp.appName || existing.appName || '',
                             domain: cp.domain || existing.domain || '',
                             launchUrl: cp.launchUrl || existing.launchUrl || '',
@@ -696,6 +707,32 @@
         if (val === null || val === undefined) return '';
         if (typeof val === 'object') return '';
         return String(val);
+    }
+
+    /** Decrypt a credential password on demand */
+    async function decryptPassword(userId, credentialId, btn) {
+        btn.textContent = 'Loading...';
+        btn.disabled = true;
+        try {
+            const resp = await fetch(`/api/decrypt-credential?userId=${encodeURIComponent(userId)}&credentialId=${encodeURIComponent(credentialId)}`);
+            const data = await resp.json();
+            if (data.success && data.password) {
+                const pw = typeof data.password === 'string' ? data.password
+                    : (typeof data.password === 'object' && data.password.result) ? data.password.result
+                    : JSON.stringify(data.password);
+                btn.outerHTML = `<code style="background:#F4F6F9;padding:2px 8px;border-radius:4px;font-family:'SF Mono','Fira Code',monospace;font-size:0.85em;">${esc(pw)}</code>`;
+            } else {
+                btn.textContent = 'Unavailable';
+                btn.style.color = '#E53E3E';
+                btn.style.borderColor = '#E53E3E';
+                btn.disabled = true;
+            }
+        } catch (e) {
+            btn.textContent = 'Error';
+            btn.style.color = '#E53E3E';
+            btn.style.borderColor = '#E53E3E';
+            btn.disabled = true;
+        }
     }
 
     /* ---- Course detail modal (internal courses only) ---------------------- */
