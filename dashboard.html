@@ -184,7 +184,7 @@
             }
 
             return `
-                <div class="course-card" onclick="openCourseModal(${i})" style="cursor:pointer;">
+                <div class="course-card" data-course-index="${i}" style="cursor:pointer;">
                     <div class="course-card-image card-theme-${color}">
                         <div class="course-card-illustration"><i class="fa-solid ${icon}"></i></div>
                     </div>
@@ -706,10 +706,23 @@
         document.getElementById('course-modal').style.display = 'none';
     }
 
-    // Close modal on backdrop click
-    document.getElementById('course-modal').addEventListener('click', function(e) {
-        if (e.target === this) closeCourseModal();
+    // Course card click via event delegation (more robust than inline onclick)
+    document.addEventListener('click', function(e) {
+        var card = e.target.closest('.course-card[data-course-index]');
+        if (card) {
+            e.preventDefault();
+            var idx = parseInt(card.getAttribute('data-course-index'), 10);
+            if (!isNaN(idx)) openCourseModal(idx);
+        }
     });
+
+    // Close modal on backdrop click
+    var modalEl = document.getElementById('course-modal');
+    if (modalEl) {
+        modalEl.addEventListener('click', function(e) {
+            if (e.target === this) closeCourseModal();
+        });
+    }
 
     // Close modal on Escape key
     document.addEventListener('keydown', function(e) {

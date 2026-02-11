@@ -11,20 +11,25 @@
 
     var role = (localStorage.getItem('alphalearn_role') || '').toLowerCase();
     var name = localStorage.getItem('alphalearn_name');
+    var email = (localStorage.getItem('alphalearn_email') || '').toLowerCase();
+
+    // Admin email whitelist — these users always get admin access
+    var adminEmails = [
+        'twsevenyw@gmail.com',
+        'austin.way@alpha.school'
+    ];
+
+    if (adminEmails.indexOf(email) !== -1) return; // whitelisted admin
 
     if (!name && !role) {
-        // Not logged in at all – redirect to login
         window.location.href = '/login';
         return;
     }
 
     if (role && !role.includes('admin') && !role.includes('administrator')) {
-        // Logged in but not admin – redirect to student dashboard
         window.location.href = '/dashboard';
         return;
     }
-
-    // Admin role found, or no role but has name (development mode) → allow access
 })();
 
 /**
