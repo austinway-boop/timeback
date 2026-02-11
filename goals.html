@@ -71,6 +71,8 @@ const TBG={teal:'card-theme-teal',purple:'card-theme-purple',pink:'card-theme-pi
 
 function ic(t){t=(t||'').toLowerCase();if(t.includes('math')||t.includes('algebra'))return'fa-calculator';if(t.includes('chem')||t.includes('physics'))return'fa-atom';if(t.includes('bio'))return'fa-dna';if(t.includes('history')||t.includes('social')||t.includes('geo'))return'fa-globe-americas';if(t.includes('read')||t.includes('ela')||t.includes('english'))return'fa-book-open-reader';if(t.includes('code')||t.includes('tech'))return'fa-laptop-code';return'fa-graduation-cap';}
 
+function subImg(t){t=(t||'').toLowerCase();if(t.includes('math')||t.includes('algebra')||t.includes('calculus'))return'/img/subjects/math.png';if(t.includes('chem')||t.includes('physics'))return'/img/subjects/science.png';if(t.includes('bio'))return'/img/subjects/biology.png';if(t.includes('read')||t.includes('ela')||t.includes('english'))return'/img/subjects/reading.png';if(t.includes('lang')||t.includes('composition')||t.includes('writing'))return'/img/subjects/language.png';if(t.includes('geo')||t.includes('history')||t.includes('social'))return'/img/subjects/geography.png';if(t.includes('code')||t.includes('tech')||t.includes('gumpp'))return'/img/subjects/tech.png';return'/img/subjects/default.png';}
+
 function isAP(t){return /\bAP\b/.test((t||'').trim());}
 function isTimeback(c){
     const a=(c.appName||'').toLowerCase().trim();
@@ -114,7 +116,7 @@ function lessonCard(c,i){
     }
 
     return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
-        <div class="course-card-image ${TBG[th]}"><div class="course-card-illustration"><i class="fa-solid ${ic(c.title)}"></i></div></div>
+        <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;"><img src="${subImg(c.title)}" alt="${c.title}" style="width:100%;height:100%;object-fit:cover;"></div>
         <div class="gc-b">
             <div class="gc-name">${c.title}</div>
             <div class="gc-done"><i class="fa-solid fa-check-circle"></i> <strong>${done}</strong> lessons completed</div>
@@ -141,7 +143,7 @@ function xpCard(c,i){
         goalHtml=`<div class="gc-goal"><div class="gc-goal-text"><i class="fa-solid fa-circle-check"></i> ${xpE} / ${tgt} XP by ${fmtNice(g.endDate)}</div><div class="gc-goal-pace">${rem>0&&d.school>0?'~'+xpd+' XP/'+dayT+' needed':(rem<=0?'Goal reached!':'Past due')}</div></div>`;
     }
     return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
-        <div class="course-card-image ${TBG[th]}"><div class="course-card-illustration"><i class="fa-solid ${ic(c.title)}"></i></div></div>
+        <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;"><img src="${subImg(c.title)}" alt="${c.title}" style="width:100%;height:100%;object-fit:cover;"></div>
         <div class="gc-b">
             <div class="gc-name">${c.title}</div>
             <div class="gc-done"><i class="fa-solid fa-bolt"></i> <strong>${xpE}</strong> XP earned</div>
