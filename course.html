@@ -334,79 +334,91 @@
                 return 'fa-file-lines';
             }
 
-            // ── Parse lesson plan (student-specific or tree) ──
+            // ── Parse lesson plan data ──
             var plan = contentData.lessonPlan || contentData.tree;
             var modules = getModules(plan);
 
-            if (modules.length > 0) {
-                // Sort by order if available
-                modules.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+            // Check if items have nested lessons (hierarchical) or are flat
+            var isHierarchical = modules.length > 0 && modules.some(function(m) {
+                return (m.lessons && m.lessons.length > 0) || (m.children && m.children.length > 0) || (m.items && m.items.length > 0);
+            });
 
+            // Render function for a single lesson/item row
+            function renderLesson(lesson, idx, indent) {
+                var lTitle = lesson.name || lesson.title || lesson.label || 'Lesson ' + (idx + 1);
+                var lType = lesson.type || lesson.nodeType || '';
+                var lStatus = (lesson.status || lesson.state || '').toLowerCase();
+                var lScore = lesson.score;
+                var lDate = lesson.completedAt || lesson.completed_at || '';
+                var isComplete = lStatus === 'completed' || lStatus === 'mastered';
+                var isInProgress = lStatus === 'in_progress' || lStatus === 'started' || lStatus === 'in progress';
+                var lUrl = lesson.url || lesson.href || '';
+                var lessonId = lesson.id || lesson.sourcedId || '';
+                var linkUrl = lUrl || (lessonId ? 'https://alpha.timeback.com/app' : '');
+
+                var row = '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;' + (indent ? 'margin-left:20px;' : '') + 'border-radius:var(--radius-sm);transition:background 0.15s;cursor:pointer;" onmouseover="this.style.background=\'var(--color-bg)\'" onmouseout="this.style.background=\'transparent\'"' + (linkUrl ? ' onclick="window.open(\'' + esc(linkUrl) + '\',\'_blank\')"' : '') + '>' +
+                    '<div style="width:30px;height:30px;border-radius:var(--radius-sm);background:' + (isComplete ? '#E8F5E9' : isInProgress ? '#FFF8E1' : 'var(--color-primary-light)') + ';color:' + (isComplete ? '#2E7D32' : isInProgress ? '#F9A825' : 'var(--color-primary-dark)') + ';display:flex;align-items:center;justify-content:center;font-size:0.75rem;flex-shrink:0;"><i class="fa-solid ' + (isComplete ? 'fa-check' : lessonIcon(lType)) + '"></i></div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="font-weight:500;font-size:0.88rem;">' + esc(lTitle) + '</div>' +
+                        (lType || lDate ? '<div style="font-size:0.7rem;color:var(--color-text-muted);text-transform:capitalize;">' + (lType ? esc(lType) : '') + (lDate ? (lType ? ' · ' : '') + esc(lDate.split('T')[0]) : '') + '</div>' : '') +
+                    '</div>' +
+                    (lScore !== null && lScore !== undefined && lScore !== '' ? '<span style="font-weight:700;font-size:0.85rem;color:#2E7D32;">' + esc(String(lScore)) + '</span>' : '') +
+                    statusBadge(lStatus) +
+                    '<i class="fa-solid fa-chevron-right" style="font-size:0.65rem;color:var(--color-text-muted);"></i>' +
+                '</div>';
+                return row;
+            }
+
+            if (isHierarchical && modules.length > 0) {
+                // ── Hierarchical: units with lessons inside ──
                 html += '<h2><i class="fa-solid fa-sitemap" style="color:var(--color-primary);margin-right:8px;"></i>Course Content</h2>';
 
                 for (var mi = 0; mi < modules.length; mi++) {
                     var mod = modules[mi];
                     var modTitle = mod.name || mod.title || 'Unit ' + (mi + 1);
                     var modLessons = mod.lessons || mod.children || mod.items || [];
-                    var completedCount = modLessons.filter(function(l) { var s = (l.status || '').toLowerCase(); return s === 'completed' || s === 'mastered'; }).length;
-                    var modProgress = modLessons.length > 0 ? Math.round((completedCount / modLessons.length) * 100) : 0;
+                    var completedCount = modLessons.filter(function(l) { var s = (l.status || l.state || '').toLowerCase(); return s === 'completed' || s === 'mastered'; }).length;
+                    var modTotal = modLessons.length;
+                    var modPct = modTotal > 0 ? Math.round((completedCount / modTotal) * 100) : 0;
 
-                    // Unit header
-                    html += '<div style="background:var(--color-bg);border-radius:var(--radius);padding:16px 20px;margin-top:' + (mi > 0 ? '16' : '0') + 'px;border-left:4px solid var(--color-primary);">' +
-                        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:' + (modLessons.length > 0 ? '12' : '0') + 'px;">' +
-                            '<div style="width:42px;height:42px;border-radius:50%;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;">' + (mi + 1) + '</div>' +
+                    html += '<div style="background:#fff;border-radius:var(--radius);padding:16px 20px;margin-top:' + (mi > 0 ? '12' : '0') + 'px;border:1px solid var(--color-border);border-left:4px solid var(--color-primary);">' +
+                        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:' + (modTotal > 0 ? '10' : '0') + 'px;">' +
+                            '<div style="width:40px;height:40px;border-radius:50%;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.95rem;flex-shrink:0;">' + (mi + 1) + '</div>' +
                             '<div style="flex:1;">' +
                                 '<div style="font-weight:700;font-size:0.95rem;">' + esc(modTitle) + '</div>' +
-                                '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + completedCount + ' / ' + modLessons.length + ' completed</div>' +
+                                '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + modTotal + ' lessons' + (completedCount > 0 ? ' · ' + completedCount + ' done' : '') + '</div>' +
                             '</div>' +
-                            '<div style="width:60px;height:6px;background:#E8ECF1;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + modProgress + '%;background:var(--color-primary);border-radius:3px;"></div></div>' +
-                            '<span style="font-size:0.78rem;font-weight:700;color:var(--color-primary);min-width:36px;text-align:right;">' + modProgress + '%</span>' +
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<div style="width:80px;height:6px;background:#E8ECF1;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + modPct + '%;background:var(--color-primary);border-radius:3px;transition:width 0.3s;"></div></div>' +
+                                '<span style="font-size:0.82rem;font-weight:700;color:var(--color-primary);min-width:36px;text-align:right;">' + modPct + '%</span>' +
+                            '</div>' +
                         '</div>';
 
-                    // Lessons inside the unit
-                    if (modLessons.length > 0) {
-                        // Sort lessons by order if available
-                        modLessons.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
-
-                        for (var li = 0; li < modLessons.length; li++) {
-                            var lesson = modLessons[li];
-                            var lTitle = lesson.name || lesson.title || 'Lesson ' + (li + 1);
-                            var lType = lesson.type || '';
-                            var lStatus = lesson.status || '';
-                            var lScore = lesson.score;
-                            var lDate = lesson.completedAt || lesson.completed_at || '';
-                            var isComplete = (lStatus || '').toLowerCase() === 'completed' || (lStatus || '').toLowerCase() === 'mastered';
-
-                            html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;margin-left:20px;' + (isComplete ? 'opacity:0.7;' : '') + '">' +
-                                '<div style="width:30px;height:30px;border-radius:var(--radius-sm);background:' + (isComplete ? '#E8F5E9' : 'var(--color-primary-light)') + ';color:' + (isComplete ? '#2E7D32' : 'var(--color-primary-dark)') + ';display:flex;align-items:center;justify-content:center;font-size:0.75rem;flex-shrink:0;"><i class="fa-solid ' + (isComplete ? 'fa-check' : lessonIcon(lType)) + '"></i></div>' +
-                                '<div style="flex:1;min-width:0;">' +
-                                    '<div style="font-weight:500;font-size:0.88rem;' + (isComplete ? 'text-decoration:line-through;color:var(--color-text-muted);' : '') + '">' + esc(lTitle) + '</div>' +
-                                    (lType ? '<div style="font-size:0.7rem;color:var(--color-text-muted);text-transform:capitalize;">' + esc(lType) + (lDate ? ' · ' + esc(lDate.split('T')[0]) : '') + '</div>' : '') +
-                                '</div>' +
-                                (lScore !== null && lScore !== undefined && lScore !== '' ? '<span style="font-weight:700;font-size:0.88rem;color:#2E7D32;">' + esc(String(lScore)) + '</span>' : '') +
-                                statusBadge(lStatus) +
-                            '</div>';
-                        }
+                    for (var li = 0; li < modLessons.length; li++) {
+                        html += renderLesson(modLessons[li], li, true);
                     }
-
-                    html += '</div>'; // close unit card
+                    html += '</div>';
                 }
+
+            } else if (modules.length > 0) {
+                // ── Flat list: each item is a lesson ──
+                html += '<h2><i class="fa-solid fa-list" style="color:var(--color-primary);margin-right:8px;"></i>Course Content (' + modules.length + ' items)</h2>';
+                html += '<div style="background:#fff;border-radius:var(--radius);border:1px solid var(--color-border);overflow:hidden;">';
+                for (var fi = 0; fi < modules.length; fi++) {
+                    html += renderLesson(modules[fi], fi, false);
+                }
+                html += '</div>';
             }
 
-            // ── Course progress (from getCourseProgress) ──
+            // ── Course progress (from getCourseProgress) — only if no lesson plan ──
             var progress = contentData.courseProgress;
             if (progress && !modules.length) {
                 var progItems = getModules(progress);
                 if (progItems.length > 0) {
-                    html += '<h2 style="margin-top:16px;"><i class="fa-solid fa-chart-line" style="color:var(--color-primary);margin-right:8px;"></i>Progress</h2>';
-                    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+                    html += '<h2><i class="fa-solid fa-chart-line" style="color:var(--color-primary);margin-right:8px;"></i>Progress (' + progItems.length + ')</h2>';
+                    html += '<div style="background:#fff;border-radius:var(--radius);border:1px solid var(--color-border);overflow:hidden;">';
                     for (var pi = 0; pi < progItems.length; pi++) {
-                        var p = typeof progItems[pi] === 'object' ? progItems[pi] : {};
-                        html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
-                            '<div style="flex:1;font-weight:500;font-size:0.88rem;">' + esc(p.title || p.name || 'Item ' + (pi+1)) + '</div>' +
-                            (p.score ? '<span style="font-weight:700;color:#2E7D32;">' + esc(String(p.score)) + '</span>' : '') +
-                            statusBadge(p.status) +
-                        '</div>';
+                        html += renderLesson(progItems[pi], pi, false);
                     }
                     html += '</div>';
                 }
