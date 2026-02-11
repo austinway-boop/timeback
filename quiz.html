@@ -14,6 +14,18 @@
         .quiz-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
         .quiz-title { font-size: 1.2rem; font-weight: 700; flex: 1; }
         .quiz-score { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 700; color: var(--color-primary); background: var(--color-primary-light); padding: 6px 14px; border-radius: 20px; }
+        .pp-scoreboard { display: flex; align-items: center; gap: 20px; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px 24px; margin-bottom: 20px; }
+        .pp-ring { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+        .pp-ring svg { transform: rotate(-90deg); }
+        .pp-ring-bg { fill: none; stroke: #E8ECF1; stroke-width: 4; }
+        .pp-ring-fill { fill: none; stroke: var(--color-primary); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+        .pp-ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; color: var(--color-primary); }
+        .pp-stat { text-align: center; padding: 0 16px; border-left: 1px solid var(--color-border); }
+        .pp-stat:first-of-type { padding-left: 20px; }
+        .pp-stat-label { font-size: 0.7rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .pp-stat-value { font-size: 1.2rem; font-weight: 700; color: var(--color-text); }
+        .pp-label { font-size: 0.72rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .pp-score-text { font-weight: 700; font-size: 0.95rem; color: var(--color-text); }
         .quiz-progress-bar { height: 6px; background: #E8ECF1; border-radius: 3px; margin-bottom: 24px; overflow: hidden; }
         .quiz-progress-fill { height: 100%; background: var(--color-primary); border-radius: 3px; transition: width 0.4s ease; }
         .quiz-status { font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: 8px; text-align: center; }
@@ -100,6 +112,7 @@
         correct: 0,
         total: 0,
         xpEarned: 0,
+        ppScore: 0, // PowerPath 100 score (0-100)
         currentQuestion: null,
         selectedChoice: null,
         answered: false,
@@ -178,20 +191,23 @@
         var expectedLines = q.expectedLines || 10;
 
         var accuracy = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
-        var accColor = accuracy >= 90 ? '#2E7D32' : accuracy >= 80 ? '#F9A825' : accuracy > 0 ? '#E53E3E' : 'var(--color-text-muted)';
+        var ppScore = Math.max(0, Math.min(100, quizState.ppScore));
+        var circumference = 2 * Math.PI * 28;
+        var dashOffset = circumference - (ppScore / 100) * circumference;
 
-        var html = '<div class="quiz-header">' +
-            '<div class="quiz-title">' + esc(quizState.title) + '</div>' +
-            '<div class="quiz-score"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP</div>' +
-        '</div>' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-            '<div class="quiz-status">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>' +
-            '<div style="display:flex;gap:16px;font-size:0.85rem;font-weight:600;">' +
-                '<span>' + quizState.correct + '/' + quizState.total + ' correct</span>' +
-                '<span style="color:' + accColor + ';">' + accuracy + '% accuracy</span>' +
+        var html = '<div class="quiz-header"><div class="quiz-title">' + esc(quizState.title) + '</div></div>' +
+        '<div class="pp-scoreboard">' +
+            '<div class="pp-ring">' +
+                '<svg width="64" height="64" viewBox="0 0 64 64">' +
+                    '<circle class="pp-ring-bg" cx="32" cy="32" r="28"/>' +
+                    '<circle class="pp-ring-fill" cx="32" cy="32" r="28" stroke-dasharray="' + circumference.toFixed(1) + '" stroke-dashoffset="' + dashOffset.toFixed(1) + '"/>' +
+                '</svg>' +
+                '<div class="pp-ring-text">' + ppScore + '</div>' +
             '</div>' +
-        '</div>' +
-        '<div class="quiz-progress-bar"><div class="quiz-progress-fill" style="width:' + accuracy + '%;background:' + accColor + ';"></div></div>';
+            '<div><div class="pp-label">PowerPath 100</div><div class="pp-score-text">' + ppScore + ' / 100</div></div>' +
+            '<div class="pp-stat"><div class="pp-stat-label">Questions</div><div class="pp-stat-value">' + quizState.total + '</div></div>' +
+            '<div class="pp-stat"><div class="pp-stat-label">Accuracy</div><div class="pp-stat-value">' + accuracy + '%</div></div>' +
+        '</div>';
 
         if (stimulus) {
             html += '<div class="stimulus-box">' + stimulus + '</div>';
@@ -276,30 +292,55 @@
             } catch(e) {}
         }
 
-        if (isCorrect) quizState.correct++;
+        if (isCorrect) {
+            quizState.correct++;
+            quizState.ppScore = Math.min(100, quizState.ppScore + 8); // +8 per correct
+            quizState.xpEarned += 1;
+        } else {
+            quizState.ppScore = Math.max(0, quizState.ppScore - 4); // -4 per incorrect
+        }
 
         // Show feedback
         var feedbackEl = document.getElementById('feedback');
         if (feedbackEl) {
             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong>') +
+            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +8</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect -4</strong>') +
                 (feedback ? '<p style="margin-top:8px;">' + feedback + '</p>' : '');
         }
 
-        // Highlight selected choice
+        // Highlight choices
         document.querySelectorAll('.choice').forEach(function(c) {
-            if (c.dataset.id === quizState.selectedChoice) {
-                c.classList.add(isCorrect ? 'correct' : 'incorrect');
-            }
+            if (c.dataset.id === quizState.selectedChoice) c.classList.add(isCorrect ? 'correct' : 'incorrect');
         });
 
-        // Update score display
-        document.querySelector('.quiz-score').innerHTML = '<i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP';
+        // Update PowerPath scoreboard
+        updateScoreboard();
 
-        // Show Next button
-        btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Next Question';
-        btn.disabled = false;
-        btn.onclick = function() { loadNextQuestion(); };
+        // Check if score reached 100
+        if (quizState.ppScore >= 100) {
+            btn.innerHTML = '<i class="fa-solid fa-trophy"></i> PowerPath 100 Complete!';
+            btn.disabled = false;
+            btn.onclick = function() { showResults(); };
+        } else {
+            btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Next Question';
+            btn.disabled = false;
+            btn.onclick = function() { loadNextQuestion(); };
+        }
+    }
+
+    function updateScoreboard() {
+        var ppScore = Math.max(0, Math.min(100, quizState.ppScore));
+        var accuracy = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+        var circumference = 2 * Math.PI * 28;
+        var dashOffset = circumference - (ppScore / 100) * circumference;
+        var sb = document.querySelector('.pp-scoreboard');
+        if (sb) {
+            sb.querySelector('.pp-ring-fill').setAttribute('stroke-dashoffset', dashOffset.toFixed(1));
+            sb.querySelector('.pp-ring-text').textContent = ppScore;
+            sb.querySelectorAll('.pp-stat-value')[0].textContent = quizState.total;
+            sb.querySelectorAll('.pp-stat-value')[1].textContent = accuracy + '%';
+            sb.querySelector('.pp-score-text').textContent = ppScore + ' / 100';
+        }
     }
 
     function showResults() {
@@ -489,7 +530,10 @@
                         }
                         if (isCorrect) {
                             quizState.correct++;
+                            quizState.ppScore = Math.min(100, quizState.ppScore + 8);
                             quizState.xpEarned += q.isFRQ ? 2 : 1;
+                        } else {
+                            quizState.ppScore = Math.max(0, quizState.ppScore - 4);
                         }
                         var fb = q.isFRQ ? '' : (q.feedbackMap[quizState.selectedChoice] || '');
 
@@ -512,20 +556,17 @@
                             feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
                         }
 
-                        // Update score displays
-                        var acc = Math.round((quizState.correct / quizState.total) * 100);
-                        document.querySelector('.quiz-score').innerHTML = '<i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP';
+                        // Update PowerPath scoreboard
+                        updateScoreboard();
 
                         var btn = document.getElementById('submit-btn');
 
-                        // Check mastery: ≥90% accuracy after at least 10 questions = mastery achieved
-                        if (quizState.total >= 10 && acc >= 90) {
-                            // Award bonus XP for mastery
-                            quizState.xpEarned += 5;
-                            btn.innerHTML = '<i class="fa-solid fa-trophy"></i> Mastery Achieved! See Results';
+                        // Quiz ends when PowerPath score reaches 100
+                        if (quizState.ppScore >= 100) {
+                            quizState.xpEarned += 5; // bonus
+                            btn.innerHTML = '<i class="fa-solid fa-trophy"></i> PowerPath 100 Complete!';
                             btn.onclick = function() { showResults(); };
                         } else if (currentIdx + 1 >= allQ.length) {
-                            // End of questions
                             btn.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> See Results';
                             btn.onclick = function() { showResults(); };
                         } else {
