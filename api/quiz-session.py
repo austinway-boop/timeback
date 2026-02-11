@@ -69,37 +69,56 @@ class handler(BaseHTTPRequestHandler):
         if action == "start":
             student_id = body.get("studentId", "")
             test_id = body.get("testId", "")
+            lesson_id = body.get("lessonId", "")
             subject = body.get("subject", "")
             grade = body.get("grade", "")
 
-            if not student_id or not test_id:
-                send_json(self, {"error": "Need studentId and testId"}, 400)
+            if not student_id or not (test_id or lesson_id):
+                send_json(self, {"error": "Need studentId and testId or lessonId"}, 400)
                 return
 
-            # Try creating an attempt with the PowerPath API
-            # The API expects { student, lesson } per the 422 error
             errors = []
+
+            # Strategy 1: PowerPath REST API (try multiple payload/path combos)
             for payload in [
                 {"student": student_id, "lesson": test_id},
-                {"student": student_id, "lesson": test_id, "subject": subject, "grade": grade},
-                {"studentId": student_id, "lesson": test_id},
+                {"student": student_id, "lesson": lesson_id} if lesson_id else None,
                 {"studentId": student_id, "testId": test_id},
             ]:
+                if payload is None:
+                    continue
                 for path in [
                     f"{PP}/assessments/attempts",
                     f"{PP}/assessments/create-new-attempt",
                 ]:
                     try:
-                        resp = requests.post(path, headers=headers, json=payload, timeout=8)
+                        resp = requests.post(path, headers=headers, json=payload, timeout=6)
                         if resp.status_code in (200, 201):
                             send_json(self, resp.json(), resp.status_code)
                             return
-                        errors.append({"url": path, "status": resp.status_code, "body": resp.text[:200], "payload": list(payload.keys())})
+                        if resp.status_code != 404:
+                            errors.append(f"{path}: {resp.status_code}")
                     except Exception as e:
-                        errors.append({"url": path, "error": str(e)})
+                        errors.append(str(e))
 
-            # All failed — return the errors for debugging
-            send_json(self, {"error": "Could not create attempt", "tried": errors[:6]}, 422)
+            # Strategy 2: Proxy through Timeback production server functions (no CORS)
+            # The production app uses TanStack Start serverFn at alpha.timeback.com
+            effective_lid = lesson_id or test_id
+            if effective_lid:
+                tb_url = "https://alpha.timeback.com/_serverFn/src_features_powerpath-quiz_services_lesson-mastery_ts--getLessonType_createServerFn_handler?createServerFn"
+                tb_body = {"data": {"lessonId": effective_lid}, "context": {}}
+                try:
+                    tb_resp = requests.post(tb_url, json=tb_body, headers={"Content-Type": "application/json", "Accept": "application/json"}, timeout=8)
+                    if tb_resp.status_code == 200:
+                        tb_data = tb_resp.json()
+                        # Return whatever the server function gives us — the frontend will handle it
+                        send_json(self, {"lessonType": tb_data, "source": "timeback_serverFn"})
+                        return
+                    errors.append(f"timeback serverFn: {tb_resp.status_code}")
+                except Exception as e:
+                    errors.append(f"timeback serverFn: {e}")
+
+            send_json(self, {"error": "Could not create attempt", "details": errors}, 422)
 
         elif action == "respond":
             attempt_id = body.get("attemptId", "")

@@ -136,83 +136,45 @@
 
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
-        // ── 1. PowerPath adaptive flow (primary for all assessments) ──
-        // PowerPath accepts the bank ID as "lesson" and creates an adaptive attempt
-        if (userId && testId) {
+        // ── 1. PowerPath / Timeback adaptive flow ──
+        // Tries PowerPath REST API first, then proxies to Timeback production server functions
+        if (userId && (testId || lessonId)) {
             try {
                 area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Starting assessment...</div>';
                 var startResp = await fetch('/api/quiz-session?action=start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ studentId: userId, testId: testId, subject: subject, grade: gradeLevel }),
+                    body: JSON.stringify({ studentId: userId, testId: testId, lessonId: lessonId, subject: subject, grade: gradeLevel }),
                 });
                 var startData = await startResp.json();
+
+                // Check if we got an attemptId (PowerPath adaptive flow)
                 if (startData.attemptId || startData.id) {
                     quizState.attemptId = startData.attemptId || startData.id;
                     await loadNextQuestion();
                     return;
                 }
-                console.warn('PowerPath start response:', JSON.stringify(startData));
-            } catch(e) {
-                console.warn('PowerPath attempt failed:', e.message);
-            }
-        }
 
-        // ── 2. Try production Timeback server functions (user may be logged in) ──
-        // The production app uses TanStack Start server functions for PowerPath quizzes.
-        // Format: POST /_serverFn/{handler}?createServerFn with body {"data":{"lessonId":"..."},"context":{}}
-        var effectiveLessonId = lessonId || testId;
-        if (effectiveLessonId) {
-            try {
-                area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading assessment content...</div>';
-                var tbBody = JSON.stringify({ data: { lessonId: effectiveLessonId }, context: {} });
-
-                // Try getLessonType first to understand what kind of content this is
-                var tbResp = await fetch(
-                    'https://alpha.timeback.com/_serverFn/src_features_powerpath-quiz_services_lesson-mastery_ts--getLessonType_createServerFn_handler?createServerFn',
-                    { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: tbBody }
-                );
-                if (tbResp.ok) {
-                    var tbData = await tbResp.json();
-                    console.log('Timeback getLessonType:', JSON.stringify(tbData));
-
-                    // If we got useful data, use it
-                    if (tbData) {
-                        var tbQtiUrl = tbData.qtiUrl || tbData.url || tbData.href || '';
-                        var tbItemId = tbData.itemId || tbData.testId || tbData.id || tbData.qtiId || '';
-
-                        if (tbQtiUrl) {
-                            var loaded = await loadAllQuestions(tbQtiUrl, '', subject, gradeLevel);
-                            if (loaded) return;
-                        }
-                        if (tbItemId) {
-                            var loaded = await loadAllQuestions('', tbItemId, subject, gradeLevel);
-                            if (loaded) return;
-                        }
-                        if (tbData.questions || tbData.items) {
-                            var qs = tbData.questions || tbData.items || [];
-                            if (qs.length > 0) {
-                                // TODO: render these questions through the quiz engine
-                                console.log('Got ' + qs.length + ' questions from Timeback');
-                            }
-                        }
-                        if (tbData.content || tbData.body || tbData.html) {
-                            var content = tbData.content || tbData.body || tbData.html || '';
-                            if (typeof content === 'string' && content.length > 20) {
-                                area.innerHTML = '<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px;">' + esc(quizState.title) + '</h1>' +
-                                    '<div class="stimulus-box" style="max-height:none;">' + content + '</div>' +
-                                    '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button></div>';
-                                return;
-                            }
-                        }
+                // Check if we got lessonType data from Timeback server function proxy
+                if (startData.lessonType) {
+                    var lt = startData.lessonType;
+                    console.log('Timeback lessonType:', JSON.stringify(lt));
+                    var ltUrl = lt.qtiUrl || lt.url || lt.href || '';
+                    var ltId = lt.itemId || lt.testId || lt.id || lt.qtiId || '';
+                    if (ltUrl) { var loaded = await loadAllQuestions(ltUrl, '', subject, gradeLevel); if (loaded) return; }
+                    if (ltId) { var loaded = await loadAllQuestions('', ltId, subject, gradeLevel); if (loaded) return; }
+                    if (lt.questions || lt.items) {
+                        console.log('Got questions from Timeback:', (lt.questions || lt.items).length);
                     }
                 }
+
+                console.warn('Start response:', JSON.stringify(startData));
             } catch(e) {
-                console.warn('Timeback serverFn failed (CORS or not logged in):', e.message);
+                console.warn('Assessment start failed:', e.message);
             }
         }
 
-        // ── 3. QTI direct fetch (for direct QTI URLs only) ──
+        // ── 2. QTI direct fetch (for direct QTI URLs only) ──
         if (qtiUrl) {
             var loaded = await loadAllQuestions(qtiUrl, '', subject, gradeLevel);
             if (loaded) return;
