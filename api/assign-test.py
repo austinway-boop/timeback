@@ -170,7 +170,8 @@ class handler(BaseHTTPRequestHandler):
 
 
 def _post(headers, url, payload, method_name):
-    """POST to PowerPath. Returns (ok, method, response, error). Retries on timeout."""
+    """POST to PowerPath. Returns (ok, method, response, error). Retries on timeout.
+    Checks BOTH HTTP status code AND response body 'success' field."""
     for attempt in range(2):
         try:
             resp = requests.post(url, headers=headers, json=payload, timeout=60)
@@ -179,13 +180,18 @@ def _post(headers, url, payload, method_name):
             except Exception:
                 data = {"status": resp.status_code}
 
-            if resp.status_code in (200, 201, 204):
-                return True, method_name, data, None
+            # Check HTTP status first
+            if resp.status_code not in (200, 201, 204):
+                err = data.get("error", data.get("message",
+                    data.get("imsx_description", f"Status {resp.status_code}")))
+                return False, method_name, data, err
 
-            # Extract the actual error message
-            err = data.get("error", data.get("message",
-                data.get("imsx_description", f"Status {resp.status_code}")))
-            return False, method_name, data, err
+            # ALSO check response body — PowerPath can return 200 with {"success": false}
+            if isinstance(data, dict) and data.get("success") is False:
+                err = data.get("error", data.get("message", "API returned success=false"))
+                return False, method_name, data, err
+
+            return True, method_name, data, None
         except requests.exceptions.Timeout:
             if attempt == 0:
                 continue
