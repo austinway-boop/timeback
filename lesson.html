@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - Lesson</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body { background: var(--color-bg); }
+
+        .lesson-page {
+            display: flex; flex-direction: column;
+            min-height: 100vh; max-width: 960px;
+            margin: 0 auto; padding: 0 20px;
+        }
+
+        /* ── Stepper ─────────────────────────────────────────── */
+        .stepper {
+            display: flex; align-items: center; gap: 8px;
+            padding: 20px 0 16px; flex-shrink: 0;
+        }
+        .step {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border-radius: 24px;
+            font-size: 0.82rem; font-weight: 600;
+            cursor: pointer; transition: all var(--transition);
+            border: 2px solid transparent;
+        }
+        .step.active {
+            background: var(--color-primary); color: #fff;
+            border-color: var(--color-primary);
+        }
+        .step.completed {
+            background: var(--color-primary-light); color: var(--color-primary);
+            border-color: var(--color-primary);
+        }
+        .step.upcoming {
+            background: var(--color-bg); color: var(--color-text-muted);
+            border-color: var(--color-border);
+        }
+        .step i { font-size: 0.85rem; }
+        .step-arrow {
+            font-size: 0.7rem; color: var(--color-text-muted);
+            margin: 0 2px;
+        }
+
+        /* ── Content Area ────────────────────────────────────── */
+        .lesson-content {
+            flex: 1; display: flex; flex-direction: column;
+            background: var(--color-surface); border-radius: var(--radius);
+            border: 1px solid var(--color-border);
+            overflow: hidden; min-height: 400px;
+        }
+        .lesson-content iframe {
+            flex: 1; width: 100%; border: none;
+            min-height: 500px;
+        }
+        .lesson-content .article-frame {
+            flex: 1; width: 100%; border: none;
+            min-height: 500px; background: #fff;
+        }
+        .lesson-placeholder {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 40px; color: var(--color-text-muted); text-align: center;
+        }
+        .lesson-placeholder i { font-size: 3rem; margin-bottom: 16px; opacity: 0.3; }
+        .lesson-placeholder p { font-size: 0.95rem; margin-bottom: 8px; }
+        .lesson-placeholder .sub { font-size: 0.82rem; color: var(--color-text-muted); }
+
+        /* ── Bottom Nav ──────────────────────────────────────── */
+        .lesson-nav {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 0 24px; flex-shrink: 0;
+        }
+        .nav-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 12px 24px; border-radius: var(--radius-sm);
+            font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: all var(--transition);
+            text-decoration: none; border: none;
+            font-family: var(--font);
+        }
+        .nav-btn.back {
+            background: var(--color-surface); color: var(--color-text-secondary);
+            border: 1px solid var(--color-border);
+        }
+        .nav-btn.back:hover { border-color: var(--color-primary); color: var(--color-primary); }
+        .nav-btn.continue {
+            background: var(--color-primary); color: #fff;
+        }
+        .nav-btn.continue:hover { background: var(--color-primary-dark); }
+        .nav-btn i { font-size: 0.85rem; }
+
+        /* ── Responsive ──────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .stepper { flex-wrap: wrap; }
+            .step { padding: 6px 12px; font-size: 0.78rem; }
+            .lesson-content iframe, .lesson-content .article-frame { min-height: 350px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lesson-page">
+        <!-- Stepper -->
+        <div class="stepper" id="stepper"></div>
+
+        <!-- Content Area -->
+        <div class="lesson-content" id="lesson-content">
+            <div class="lesson-placeholder">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <p>Loading lesson...</p>
+            </div>
+        </div>
+
+        <!-- Bottom Nav -->
+        <div class="lesson-nav">
+            <button class="nav-btn back" id="btn-back" onclick="goBack()">
+                <i class="fa-solid fa-arrow-left"></i> Back
+            </button>
+            <button class="nav-btn continue" id="btn-continue" onclick="goNext()">
+                Continue <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+    /* ====================================================================
+       Lesson Viewer — Video → Article → Quiz stepper
+       ==================================================================== */
+    var steps = [];
+    var currentStep = 0;
+    var lessonData = null;
+
+    // Step type config
+    var stepConfig = {
+        'Video':   { icon: 'fa-video',              label: 'Video' },
+        'Article': { icon: 'fa-file-lines',          label: 'Article' },
+        'Quiz':    { icon: 'fa-clipboard-question',   label: 'Quiz' }
+    };
+
+    function init() {
+        var raw = sessionStorage.getItem('al_lesson_data');
+        if (!raw) {
+            showError('No lesson data found. Please go back and select a lesson.');
+            return;
+        }
+        try { lessonData = JSON.parse(raw); } catch(e) { showError('Invalid lesson data.'); return; }
+
+        // Set page title
+        document.title = 'AlphaLearn - ' + (lessonData.title || 'Lesson');
+
+        // Build ordered steps from resources: Video → Article → Quiz
+        var resources = lessonData.resources || [];
+        var videos = [], articles = [], quizzes = [];
+        for (var i = 0; i < resources.length; i++) {
+            var r = resources[i];
+            if (r.label === 'Video') videos.push(r);
+            else if (r.label === 'Quiz') quizzes.push(r);
+            else articles.push(r);
+        }
+        // Build steps array (only steps that exist)
+        if (videos.length > 0) steps.push({ type: 'Video', resource: videos[0] });
+        if (articles.length > 0) steps.push({ type: 'Article', resource: articles[0] });
+        if (quizzes.length > 0) steps.push({ type: 'Quiz', resource: quizzes[0] });
+
+        if (steps.length === 0) {
+            showError('This lesson has no content yet.');
+            return;
+        }
+
+        renderStepper();
+        showStep(0);
+    }
+
+    function renderStepper() {
+        var el = document.getElementById('stepper');
+        var html = '';
+        for (var i = 0; i < steps.length; i++) {
+            if (i > 0) html += '<i class="fa-solid fa-chevron-right step-arrow"></i>';
+            var cfg = stepConfig[steps[i].type] || { icon: 'fa-circle', label: steps[i].type };
+            var cls = i < currentStep ? 'completed' : i === currentStep ? 'active' : 'upcoming';
+            html += '<div class="step ' + cls + '" onclick="showStep(' + i + ')">' +
+                '<i class="fa-solid ' + cfg.icon + '"></i>' +
+                '<span>' + cfg.label + '</span>' +
+            '</div>';
+        }
+        el.innerHTML = html;
+    }
+
+    function showStep(idx) {
+        if (idx < 0 || idx >= steps.length) return;
+        currentStep = idx;
+        renderStepper();
+
+        var step = steps[idx];
+        var contentEl = document.getElementById('lesson-content');
+        var btnContinue = document.getElementById('btn-continue');
+        var btnBack = document.getElementById('btn-back');
+
+        // Update button labels
+        if (idx === steps.length - 1) {
+            // Last step
+            if (step.type === 'Quiz') {
+                btnContinue.innerHTML = 'Start Quiz <i class="fa-solid fa-arrow-right"></i>';
+            } else {
+                btnContinue.innerHTML = 'Finish <i class="fa-solid fa-check"></i>';
+            }
+        } else {
+            btnContinue.innerHTML = 'Continue <i class="fa-solid fa-arrow-right"></i>';
+        }
+
+        var url = step.resource.url || step.resource.pillUrl || '';
+
+        if (step.type === 'Video') {
+            // Embed video as iframe (YouTube, Vimeo, etc.)
+            var embedUrl = toEmbedUrl(url);
+            if (embedUrl) {
+                contentEl.innerHTML = '<iframe src="' + esc(embedUrl) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>';
+            } else {
+                contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-video"></i><p>Video</p><p class="sub"><a href="' + esc(url) + '" target="_blank" style="color:var(--color-primary);">Open video in new tab</a></p></div>';
+            }
+        } else if (step.type === 'Article') {
+            // Embed article as iframe
+            if (url) {
+                contentEl.innerHTML = '<iframe class="article-frame" src="' + esc(url) + '" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>';
+            } else {
+                contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content</p><p class="sub">No article URL available for this lesson.</p></div>';
+            }
+        } else if (step.type === 'Quiz') {
+            // Show quiz preview — Continue will navigate to quiz page
+            var quizUrl = step.resource.pillUrl || '';
+            contentEl.innerHTML = '<div class="lesson-placeholder">' +
+                '<i class="fa-solid fa-clipboard-question"></i>' +
+                '<p style="font-size:1.1rem;font-weight:600;color:var(--color-text);margin-bottom:4px;">Ready for the Quiz?</p>' +
+                '<p class="sub">Click "Start Quiz" to begin the assessment for this lesson.</p>' +
+            '</div>';
+        }
+    }
+
+    function goNext() {
+        if (currentStep < steps.length - 1) {
+            showStep(currentStep + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            // Last step — finish or navigate to quiz
+            var step = steps[currentStep];
+            if (step.type === 'Quiz') {
+                var quizUrl = step.resource.pillUrl || '';
+                if (quizUrl) {
+                    window.location.href = quizUrl;
+                    return;
+                }
+            }
+            // Otherwise go back to course
+            goBackToCourse();
+        }
+    }
+
+    function goBack() {
+        if (currentStep > 0) {
+            showStep(currentStep - 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            goBackToCourse();
+        }
+    }
+
+    function goBackToCourse() {
+        if (window.history.length > 1) {
+            window.history.back();
+        } else {
+            window.location.href = '/dashboard';
+        }
+    }
+
+    // Convert video URLs to embeddable format
+    function toEmbedUrl(url) {
+        if (!url) return '';
+        // YouTube
+        var yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+        if (yt) return 'https://www.youtube.com/embed/' + yt[1];
+        // Vimeo
+        var vm = url.match(/vimeo\.com\/(\d+)/);
+        if (vm) return 'https://player.vimeo.com/video/' + vm[1];
+        // Already an embed or iframe-compatible URL
+        if (url.includes('/embed') || url.includes('player.')) return url;
+        // Generic — try as iframe
+        return url;
+    }
+
+    function esc(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function showError(msg) {
+        document.getElementById('lesson-content').innerHTML =
+            '<div class="lesson-placeholder"><i class="fa-solid fa-circle-exclamation"></i><p>' + msg + '</p>' +
+            '<p class="sub"><a href="/dashboard" style="color:var(--color-primary);">Back to Dashboard</a></p></div>';
+        document.getElementById('btn-continue').style.display = 'none';
+    }
+
+    // Init on load
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

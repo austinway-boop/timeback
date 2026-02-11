@@ -136,8 +136,14 @@
             width: 2.5px; background: var(--color-orange);
         }
 
-        .tl-item { position: relative; }
-        .tl-item + .tl-item { margin-top: 2px; }
+        .tl-item {
+            position: relative; background: var(--color-surface);
+            border: 1px solid var(--color-border); border-radius: var(--radius);
+            padding: 2px 0;
+        }
+        .tl-item + .tl-item { margin-top: 8px; }
+        .tl-item.review { background: #FFFBEB; border-color: #FDE68A; }
+        .tl-item.locked { opacity: 0.5; }
 
         .tl-dot {
             position: absolute; left: -27px; top: 14px;
@@ -148,8 +154,8 @@
             z-index: 1; font-size: 0.55rem;
             transition: all var(--transition);
         }
-        .tl-dot.done { background: #16A34A; border-color: #16A34A; color: #fff; }
-        .tl-dot.active { border-color: var(--color-orange); background: var(--color-orange-light); color: var(--color-orange); }
+        .tl-dot.done { background: #fff; border-color: var(--color-orange); color: var(--color-orange); }
+        .tl-dot.active { width: 26px; height: 26px; left: -29px; top: 12px; background: var(--color-orange); border-color: var(--color-orange); }
         .tl-dot.locked { background: #F4F6F9; border-color: #E2E8F0; color: #CBD5E0; }
 
         /* ── Lesson Row ──────────────────────────────────────────── */
@@ -195,65 +201,7 @@
             font-size: 0.68rem; font-weight: 700;
         }
 
-        .lesson-chev {
-            font-size: 0.55rem; color: var(--color-text-muted);
-            transition: transform 0.2s ease;
-        }
-        .lesson-chev.open { transform: rotate(180deg); }
-
-        /* ── Lesson Expanded Body ────────────────────────────────── */
-        .lesson-body {
-            max-height: 0; overflow: hidden;
-            transition: max-height 0.3s ease;
-            padding-left: 16px; padding-right: 16px;
-        }
-        .lesson-body.open { max-height: 1200px; padding-bottom: 12px; }
-
-        .resource-list { display: flex; flex-direction: column; gap: 6px; }
-
-        .resource-card {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 14px; border-radius: var(--radius-sm);
-            background: #F8FAFC; border: 1px solid var(--color-border);
-            text-decoration: none; color: var(--color-text);
-            transition: all 0.15s ease;
-        }
-        .resource-card:hover {
-            border-color: var(--color-primary); background: var(--color-primary-light);
-            transform: translateX(2px);
-        }
-        .resource-card.res-done { background: #F0FFF4; border-color: #BBF7D0; }
-        .resource-card.res-done:hover { background: #DCFCE7; }
-
-        .res-icon {
-            width: 34px; height: 34px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.8rem; flex-shrink: 0;
-        }
-        .res-icon.video { background: #FEE2E2; color: #DC2626; }
-        .res-icon.reading { background: var(--color-primary-light); color: var(--color-primary-dark); }
-        .res-icon.quiz { background: #EDE9FE; color: #7C3AED; }
-        .res-icon.done-icon { background: #DCFCE7; color: #16A34A; }
-
-        .res-details { flex: 1; min-width: 0; }
-        .res-name { font-weight: 600; font-size: 0.82rem; }
-        .res-meta { font-size: 0.7rem; color: var(--color-text-muted); margin-top: 1px; }
-        .res-meta .done-text { color: #16A34A; font-weight: 600; }
-
-        .res-arrow { font-size: 0.7rem; color: var(--color-primary); flex-shrink: 0; }
-
-        .mark-btn {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 5px 12px; margin: 4px 0 0 46px;
-            background: var(--color-primary); color: #fff; border: none;
-            border-radius: 6px; font-size: 0.72rem; font-weight: 600;
-            cursor: pointer; transition: background 0.15s;
-        }
-        .mark-btn:hover { background: var(--color-primary-dark); }
-
-        /* ── Review / Assessment Highlight ────────────────────────── */
-        .tl-item.review .lesson-row { background: #FFFBEB; }
-        .tl-item.review .lesson-row:hover { background: #FEF3C7; }
+        .lesson-row a { text-decoration: none; color: inherit; }
 
         /* ── Launch CTA ──────────────────────────────────────────── */
         .launch-cta {
@@ -401,18 +349,14 @@
         if (card) card.classList.toggle('expanded');
     }
 
-    function toggleLesson(id) {
-        var body = document.getElementById(id);
-        var chev = document.getElementById(id + '-chev');
-        if (!body) return;
-        body.classList.toggle('open');
-        if (chev) chev.classList.toggle('open');
-    }
+    // Store lesson data for navigation to lesson viewer
+    window._lessonData = {};
 
-    function markComplete(key, btn) {
-        localStorage.setItem(key, 'true');
-        btn.outerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;margin-left:46px;background:#DCFCE7;color:#16A34A;border-radius:8px;font-size:0.78rem;font-weight:600;"><i class="fa-solid fa-check"></i> Completed!</span>';
-        setTimeout(function() { location.reload(); }, 800);
+    function openLesson(key) {
+        var data = window._lessonData[key];
+        if (!data) return;
+        sessionStorage.setItem('al_lesson_data', JSON.stringify(data));
+        window.location.href = '/lesson?title=' + encodeURIComponent(data.title);
     }
 
     /* ── Resource-type helpers ──────────────────────────────────── */
@@ -793,6 +737,7 @@
                             if (isReview) tlClass += ' review';
                             html += '<div class="' + tlClass + '">';
 
+                            // Timeline dot
                             var dotClass = 'tl-dot';
                             if (isDone) dotClass += ' done';
                             else if (lessonLocked) dotClass += ' locked';
@@ -800,8 +745,17 @@
                             html += '<div class="' + dotClass + '">';
                             if (isDone) html += '<i class="fa-solid fa-check"></i>';
                             else if (lessonLocked) html += '<i class="fa-solid fa-lock"></i>';
-                            else html += '<i class="fa-solid ' + typeIcon + '"></i>';
+                            // active: no icon (solid filled dot)
                             html += '</div>';
+
+                            // Store lesson data for navigation
+                            var lessonDataKey = 'lesson_' + mi + '_' + li;
+                            window._lessonData[lessonDataKey] = {
+                                title: lTitle,
+                                resources: sortedRes.map(function(r) { return { type: r.type, url: r.url, pillUrl: r.pillUrl, title: r.title, label: r.label }; }),
+                                courseTitle: courseTitle,
+                                quizExtra: quizExtra
+                            };
 
                             var xpHtml = '';
                             if (prog && prog.score !== undefined && prog.score !== null) { xpHtml = '<span class="xp-text">' + prog.score + ' XP</span>'; }
@@ -809,34 +763,16 @@
                             var actCls = 'act-text' + (actAllDone ? ' complete' : '');
                             var actIcon = actAllDone ? 'fa-circle-check' : 'fa-circle';
 
-                            html += '<div class="lesson-row" onclick="toggleLesson(\'' + lessonId + '\')">' +
+                            // Lesson row — clickable card navigating to lesson viewer
+                            var rowClick = lessonLocked ? '' : ' onclick="openLesson(\'' + lessonDataKey + '\')"';
+                            html += '<div class="lesson-row"' + rowClick + '>' +
                                 '<div class="lesson-info"><div class="lesson-title">' + esc(lTitle) + '</div></div>' +
                                 '<div class="lesson-stats">' +
                                     '<span class="pct-badge ' + pctBadgeClass(lessonPctVal) + '"><i class="fa-solid fa-circle" style="font-size:0.35rem;vertical-align:middle;margin-right:3px;"></i>' + lessonPctVal + '%</span>' +
                                     xpHtml +
                                     '<span class="' + actCls + '"><i class="fa-solid ' + actIcon + '"></i> ' + doneRes + '/' + totalRes + ' Activities</span>' +
-                                '</div>' +
-                                '<i class="fa-solid fa-chevron-down lesson-chev" id="' + lessonId + '-chev"></i></div>';
+                                '</div></div>';
 
-                            html += '<div class="lesson-body" id="' + lessonId + '"><div class="resource-list">';
-                            for (var rd = 0; rd < sortedRes.length; rd++) {
-                                var d = sortedRes[rd];
-                                var isInt = d.pillUrl && d.pillUrl.startsWith('/');
-                                var rLabel = d.label;
-                                var rCls = resClass(rLabel);
-                                var iconCls = d._resDone ? 'done-icon' : rCls;
-                                html += '<a ' + (d.pillUrl ? (isInt ? 'href="' + esc(d.pillUrl) + '"' : 'href="' + esc(d.pillUrl) + '" target="_blank"') : '') + ' class="resource-card' + (d._resDone ? ' res-done' : '') + '">' +
-                                    '<div class="res-icon ' + iconCls + '"><i class="fa-solid ' + (d._resDone ? 'fa-check' : resIcon(d.type)) + '"></i></div>' +
-                                    '<div class="res-details"><div class="res-name">' + esc(d.title || rLabel) + '</div><div class="res-meta">' + rLabel + (d._resDone ? ' · <span class="done-text">Completed</span>' : '') + '</div></div>' +
-                                    (d.pillUrl ? '<i class="fa-solid fa-arrow-right res-arrow"></i>' : '') + '</a>';
-                                if (!d._isQuiz && !d._resDone && d._localKey) {
-                                    html += '<button class="mark-btn" onclick="event.stopPropagation(); markComplete(\'' + esc(d._localKey) + '\', this)"><i class="fa-solid fa-check"></i> Mark Complete</button>';
-                                }
-                            }
-                            if (!isDone && nonQuizCount === 0 && lessonType !== 'quiz') {
-                                html += '<button class="mark-btn" onclick="event.stopPropagation(); markComplete(\'' + esc(localKey) + '\', this)"><i class="fa-solid fa-check"></i> Mark as Completed</button>';
-                            }
-                            html += '</div></div>'; // resource-list + lesson-body
                             html += '</div>'; // tl-item
                         }
 
