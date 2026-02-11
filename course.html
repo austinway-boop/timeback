@@ -674,9 +674,35 @@
                     '<div class="progress-bar-track"><div class="progress-bar-fill" style="width:' + overallPct + '%;"></div></div>' +
                     '<div class="progress-sub"><span>' + grandDoneAct + ' of ' + grandTotalAct + ' activities completed</span><span>' + units.length + ' units</span></div></div>';
 
-                // ── Render Units ───────────────────────────────────
-                var prevUnitComplete = true;
+                // ── Determine unlock frontier based on actual student progress ──
+                // Instead of requiring each unit to be 100% complete before the next,
+                // find the furthest unit the student has ANY progress in and unlock
+                // everything up to it + the next one.
+                var furthestUnitIdx = -1;
+                for (var fi = units.length - 1; fi >= 0; fi--) {
+                    var fMod = units[fi];
+                    var fLessons = (fMod.subComponents || []).slice();
+                    var fUnitRes = fMod.componentResources || [];
+                    if (fLessons.length === 0 && fUnitRes.length > 0) {
+                        for (var furi = 0; furi < fUnitRes.length; furi++) {
+                            var fR = fUnitRes[furi].resource || fUnitRes[furi] || {};
+                            fLessons.push({ title: fR.title || '', id: fR.id || fR.sourcedId || '', sourcedId: fR.sourcedId || fR.id || '', componentResources: [fUnitRes[furi]] });
+                        }
+                    }
+                    var fHas = false;
+                    for (var fl = 0; fl < fLessons.length && !fHas; fl++) {
+                        var fTitle = (fLessons[fl].title || '').trim();
+                        var fKey = 'completed_' + (fLessons[fl].id || fLessons[fl].sourcedId || fTitle);
+                        if (progressByTitle[fTitle] || localStorage.getItem(fKey) === 'true') { fHas = true; break; }
+                        var fRes = fLessons[fl].componentResources || [];
+                        for (var fr = 0; fr < fRes.length; fr++) {
+                            if (localStorage.getItem(fKey + '_r' + fr) === 'true') { fHas = true; break; }
+                        }
+                    }
+                    if (fHas) { furthestUnitIdx = fi; break; }
+                }
 
+                // ── Render Units ───────────────────────────────────
                 for (var mi = 0; mi < units.length; mi++) {
                     var mod = units[mi];
                     var modTitle = mod.title || 'Unit ' + (mi + 1);
@@ -706,12 +732,13 @@
                         if (progressByTitle[lcTitle] || localStorage.getItem(lcLocalKey) === 'true') unitDone++;
                     }
                     var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
-                    var unitLocked = isAdmin ? false : !prevUnitComplete;
+                    // Unit unlocked if: admin, OR index <= furthest progress + 1
+                    var unitLocked = isAdmin ? false : (mi > furthestUnitIdx + 1);
                     var unitComplete = (unitDone === modLessons.length && modLessons.length > 0);
                     var unitId = 'unit-' + mi;
 
-                    // Determine auto-expand BEFORE using it
-                    var autoExpand = !unitLocked && unitDone < modLessons.length && prevUnitComplete;
+                    // Determine auto-expand: first non-complete unlocked unit
+                    var autoExpand = !unitLocked && !unitComplete && unitDone < modLessons.length;
 
                     // Unit card
                     var unitClass = 'unit-card';
@@ -744,7 +771,20 @@
 
                     if (!unitLocked) {
                         html += '<div class="timeline">';
-                        var prevLessonDone = true;
+
+                        // Find furthest lesson with any progress in this unit
+                        var furthestLessonIdx = -1;
+                        for (var fli = modLessons.length - 1; fli >= 0; fli--) {
+                            var flTitle = (modLessons[fli].title || '').trim();
+                            var flKey = 'completed_' + (modLessons[fli].id || modLessons[fli].sourcedId || flTitle);
+                            if (progressByTitle[flTitle] || localStorage.getItem(flKey) === 'true') { furthestLessonIdx = fli; break; }
+                            var flRes = modLessons[fli].componentResources || [];
+                            var flHas = false;
+                            for (var flr = 0; flr < flRes.length; flr++) {
+                                if (localStorage.getItem(flKey + '_r' + flr) === 'true') { flHas = true; break; }
+                            }
+                            if (flHas) { furthestLessonIdx = fli; break; }
+                        }
 
                         for (var li = 0; li < modLessons.length; li++) {
                             var lesson = modLessons[li];
@@ -754,7 +794,8 @@
                             var localKey = 'completed_' + (lesson.id || lesson.sourcedId || lTitle);
                             var isLocalDone = localStorage.getItem(localKey) === 'true';
                             isDone = isDone || isLocalDone;
-                            var lessonLocked = isAdmin ? false : !prevLessonDone;
+                            // Lesson unlocked if: admin, OR index <= furthest progress + 1
+                            var lessonLocked = isAdmin ? false : (li > furthestLessonIdx + 1);
                             var resources = lesson.componentResources || [];
 
                             // Detect assessment type from title
@@ -924,7 +965,6 @@
                             html += '</div></div>'; // resource-list + lesson-body
                             html += '</div>'; // tl-item
 
-                            prevLessonDone = isDone;
                         }
 
                         html += '</div>'; // timeline
@@ -934,8 +974,6 @@
                     }
 
                     html += '</div></div>'; // unit-body + unit-card
-
-                    prevUnitComplete = unitComplete;
                 }
             }
 
