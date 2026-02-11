@@ -51,9 +51,10 @@
         .gc-preview.show{display:flex}
         .gc-preview i{flex-shrink:0;font-size:.75rem}
         /* ---- Buttons ---- */
-        .btn-c{width:100%;padding:11px;background:var(--color-primary);color:#fff;border:none;border-radius:12px;font-weight:700;font-size:.9rem;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
-        .btn-c:hover{background:var(--color-primary-dark);transform:translateY(-1px);box-shadow:0 4px 12px rgba(69,181,170,.25)}
-        .btn-x{width:100%;padding:8px;background:transparent;color:var(--color-text-muted);border:1.5px solid var(--color-border);border-radius:10px;font-weight:500;font-size:.78rem;cursor:pointer;margin-top:8px;transition:all .15s}
+        .gc-actions{display:flex;gap:8px;align-items:center}
+        .btn-c{flex:1;padding:9px;background:var(--color-primary);color:#fff;border:none;border-radius:10px;font-weight:600;font-size:.82rem;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+        .btn-c:hover{background:var(--color-primary-dark)}
+        .btn-x{padding:9px 12px;background:transparent;color:var(--color-text-muted);border:1.5px solid var(--color-border);border-radius:10px;font-weight:500;font-size:.78rem;cursor:pointer;transition:all .15s;white-space:nowrap}
         .btn-x:hover{background:#FFEBEE;color:#C62828;border-color:#FFCDD2}
         /* ---- Misc ---- */
         .empty-s{grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--color-text-muted);font-size:.9rem}
@@ -334,8 +335,10 @@ function lessonCard(c, i) {
                 <div class="gc-fld gc-fld-chk"><label class="gc-chk"><input type="checkbox" class="gl-sch" ${(g.excludeNonSchoolDays !== false) ? 'checked' : ''} onchange="previewL(${i})"> School days</label></div>
             </div>
             <div class="gc-preview" id="pv-${i}"><i class="fa-solid fa-calculator"></i><span id="pvt-${i}"></span></div>
-            <button class="btn-c" onclick="saveL(${i})"><i class="fa-solid fa-${has ? 'arrows-rotate' : 'bullseye'}"></i> ${has ? 'Update' : 'Set'} Goal</button>
-            ${has ? `<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear</button>` : ''}
+            <div class="gc-actions">
+                <button class="btn-c" onclick="saveL(${i})">${has ? 'Update' : 'Set Goal'}</button>
+                ${has ? `<button class="btn-x" onclick="clearG(${i})">Clear</button>` : ''}
+            </div>
         </div></div>`;
 }
 
@@ -364,8 +367,10 @@ function xpCard(c, i) {
             <div class="gc-form">
                 <div class="gc-fld"><label class="gc-lbl">Daily XP Goal</label><input type="number" class="gc-inp gx-tgt" min="1" value="${dailyG || ''}" placeholder="e.g. 30"></div>
             </div>
-            <button class="btn-c" onclick="saveXP(${i})" style="margin-top:8px"><i class="fa-solid fa-${has ? 'arrows-rotate' : 'bullseye'}"></i> ${has ? 'Update' : 'Set'} Goal</button>
-            ${has ? `<button class="btn-x" onclick="clearG(${i})"><i class="fa-solid fa-xmark"></i> Clear</button>` : ''}
+            <div class="gc-actions">
+                <button class="btn-c" onclick="saveXP(${i})">${has ? 'Update' : 'Set Goal'}</button>
+                ${has ? `<button class="btn-x" onclick="clearG(${i})">Clear</button>` : ''}
+            </div>
         </div></div>`;
 }
 
