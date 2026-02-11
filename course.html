@@ -347,6 +347,13 @@
             var units = (innerPlan && innerPlan.subComponents) ? innerPlan.subComponents : [];
             units.sort(function(a, b) { return (a.sortOrder || '').localeCompare(b.sortOrder || ''); });
 
+            // Extract subject and grade for PowerPath quiz URLs
+            var courseSubject = (course.subjects || [])[0] || '';
+            var courseGrade = ((course.grades || [])[0] || '').replace(/[^0-9]/g, '');
+            var quizExtra = '';
+            if (courseSubject) quizExtra += '&subject=' + encodeURIComponent(courseSubject);
+            if (courseGrade) quizExtra += '&grade=' + encodeURIComponent(courseGrade);
+
             if (units.length > 0) {
                 // Count totals
                 var totalLessons = 0;
@@ -470,8 +477,8 @@
 
                                 var pillUrl = '';
                                 if (rtype === 'video' && rurl) { pillUrl = rurl; }
-                                else if (rurl && !rurl.includes('flashcard.com')) { pillUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(lTitle); }
-                                else if (resId) { pillUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=' + encodeURIComponent(rtype || 'assessment') + '&title=' + encodeURIComponent(lTitle); }
+                                else if (rurl && !rurl.includes('flashcard.com')) { pillUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(lTitle) + quizExtra; }
+                                else if (resId) { pillUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=' + encodeURIComponent(rtype || 'assessment') + '&title=' + encodeURIComponent(lTitle) + quizExtra; }
 
                                 // Each resource keeps its own type — don't inherit 'assessment' from lesson title
                                 // (that was causing readings/videos inside assessment lessons to lose their buttons)
@@ -484,9 +491,9 @@
                                 var lessonMetaUrl = (lesson.metadata || {}).url || lesson.url || '';
                                 var lessonResId = lesson.id || lesson.sourcedId || '';
                                 if (lessonMetaUrl) {
-                                    openUrl = '/quiz?url=' + encodeURIComponent(lessonMetaUrl) + '&title=' + encodeURIComponent(lTitle);
+                                    openUrl = '/quiz?url=' + encodeURIComponent(lessonMetaUrl) + '&title=' + encodeURIComponent(lTitle) + quizExtra;
                                 } else if (lessonResId && (lessonType === 'quiz' || isAssessmentTitle)) {
-                                    openUrl = '/quiz?id=' + encodeURIComponent(lessonResId) + '&type=assessment&title=' + encodeURIComponent(lTitle);
+                                    openUrl = '/quiz?id=' + encodeURIComponent(lessonResId) + '&type=assessment&title=' + encodeURIComponent(lTitle) + quizExtra;
                                 }
                             }
                             // If we have an openUrl but no resource details, add a synthetic entry so the pill renders

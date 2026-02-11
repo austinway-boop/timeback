@@ -127,18 +127,26 @@
         var params = new URLSearchParams(window.location.search);
         var testId = params.get('id') || params.get('testId') || '';
         var qtiUrl = params.get('url') || '';
+        var subject = params.get('subject') || '';
+        var gradeLevel = params.get('grade') || params.get('gradeLevel') || '';
         quizState.title = params.get('title') || 'Quiz';
         quizState.testId = testId;
 
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
         // Try PowerPath adaptive quiz flow first
-        if (testId && userId) {
+        // Pass subject + gradeLevel (documented PowerPath API needs these, not just testId)
+        if (userId && (testId || (subject && gradeLevel))) {
             try {
+                var startBody = { studentId: userId };
+                if (testId) startBody.testId = testId;
+                if (subject) startBody.subject = subject;
+                if (gradeLevel) startBody.gradeLevel = gradeLevel;
+
                 var startResp = await fetch('/api/quiz-session?action=start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({studentId: userId, testId: testId}),
+                    body: JSON.stringify(startBody),
                 });
                 var startData = await startResp.json();
                 if (startData.attemptId || startData.id) {
@@ -149,7 +157,7 @@
             } catch(e) { console.warn('PowerPath attempt failed:', e.message); }
         }
 
-        // Fallback: load all questions from QTI API (old method)
+        // Fallback: load all questions from QTI API
         if (qtiUrl || testId) {
             await loadAllQuestions(qtiUrl, testId);
             return;
@@ -297,8 +305,8 @@
         if (isCorrect) {
             quizState.correct++;
             quizState.streak++;
-            // Streak multiplier: x1.0, x1.2, x1.4, x1.6, x1.8, x2.0 max
-            var multiplier = Math.min(2, 1 + (quizState.streak - 1) * 0.2);
+            // Streak multiplier: x1.0, x1.375, x1.75, x2.125, x2.5 max at 5
+            var multiplier = Math.min(2.5, 1 + (quizState.streak - 1) * 0.375);
             pointsChange = Math.round(5 * multiplier);
             quizState.ppScore = Math.min(100, quizState.ppScore + pointsChange);
             quizState.xpEarned += 1;
@@ -312,7 +320,7 @@
         var feedbackEl = document.getElementById('feedback');
         if (feedbackEl) {
             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-            var streakText = isCorrect && quizState.streak > 1 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (Math.min(2, 1 + (quizState.streak - 1) * 0.2)).toFixed(1) + ')</span>' : '';
+            var streakText = isCorrect && quizState.streak > 1 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (Math.min(2.5, 1 + (quizState.streak - 1) * 0.375)).toFixed(1) + ')</span>' : '';
             feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong>' + streakText : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong> <span style="font-size:0.85rem;">Streak reset</span>') +
                 (feedback ? '<p style="margin-top:8px;">' + feedback + '</p>' : '');
         }
@@ -552,7 +560,7 @@
                         if (isCorrect) {
                             quizState.correct++;
                             quizState.streak++;
-                            var multiplier = Math.min(2, 1 + (quizState.streak - 1) * 0.2);
+                            var multiplier = Math.min(2.5, 1 + (quizState.streak - 1) * 0.375);
                             pointsChange = Math.round(5 * multiplier);
                             quizState.ppScore = Math.min(100, quizState.ppScore + pointsChange);
                             quizState.xpEarned += q.isFRQ ? 2 : 1;
@@ -579,7 +587,7 @@
                             });
                             var feedbackEl = document.getElementById('feedback');
                             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-                            var streakText = isCorrect && quizState.streak > 1 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (Math.min(2, 1 + (quizState.streak - 1) * 0.2)).toFixed(1) + ')</span>' : '';
+                            var streakText = isCorrect && quizState.streak > 1 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (Math.min(2.5, 1 + (quizState.streak - 1) * 0.375)).toFixed(1) + ')</span>' : '';
                             feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong>' + streakText : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
                         }
 
