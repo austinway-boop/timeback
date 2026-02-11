@@ -9,6 +9,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .course-info-icon {
+            position: absolute; top: 10px; right: 10px;
+            width: 26px; height: 26px;
+            background: rgba(255,255,255,0.92); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; color: #718096; cursor: pointer; z-index: 5;
+            transition: all 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .course-info-icon:hover { background: #fff; color: #45B5AA; box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
+        .course-info-tooltip {
+            display: none; position: absolute; top: 110%; right: -4px;
+            background: #fff; border: 1px solid #E8ECF1; border-radius: 10px;
+            padding: 14px 16px; min-width: 240px; max-width: 300px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12); font-size: 0.82rem;
+            z-index: 10; text-align: left; color: #2D3748; line-height: 1.6;
+        }
+        .course-info-icon:hover .course-info-tooltip { display: block; }
+        .course-info-tooltip code {
+            background: #F4F6F9; padding: 2px 8px; border-radius: 4px;
+            font-family: 'SF Mono','Fira Code',monospace; font-size: 0.85em;
+        }
+        .course-info-tooltip .tip-label { font-size: 0.72rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; }
+        .course-info-tooltip a { color: #45B5AA; word-break: break-all; }
+    </style>
 </head>
 <body data-view="student" data-active="home">
 
@@ -125,21 +150,14 @@
     function isAPCourse(title) {
         return /\bAP\b/.test((title || '').trim()) || (title || '').toLowerCase().includes('advanced placement');
     }
-    /* Extract lesson count from PP suffix: "AP US History - PP100" → 100 */
-    function ppLessons(title) {
-        const m = (title || '').match(/PP(\d+)/i);
-        return m ? parseInt(m[1]) : 0;
-    }
-    function getLessons(c) { return c.totalLessons || ppLessons(c.title); }
     function isLessonCourse(c) {
+        // Must be AP + Timeback-native (no external app) + have lesson data
         if (!isAPCourse(c.title)) return false;
-        const lessons = getLessons(c);
-        if (lessons <= 0) return false;
+        if ((c.totalLessons || 0) <= 0) return false;
         const app = (c.appName || '').toLowerCase().trim();
-        if (!app) return true;
+        if (!app) return true; // no external app = Timeback-hosted
         if (NATIVE_APPS.some(n => app.includes(n) || n.includes(app))) return true;
-        if (app.includes('powerpath') || app.includes('power path') || /^pp/i.test(app)) return true;
-        return false;
+        return false; // has external app = remote (e.g. CS AP)
     }
 
     /* ---- State ------------------------------------------------------------ */
@@ -147,7 +165,7 @@
     let xpByCourseIdx = {};    // { 0: 13, 1: 25, ... } — XP per course index (daily/weekly)
     let fullYearXpIdx = {};    // { 0: 500, 1: 1200, ... } — full-year XP for unit estimation
     let currentPeriod = 'today';
-    let userProfilesMap = {};  // { vendorId: { username, appName, domain, launchUrl } }
+    let userProfilesMap = {};  // { vendorId: { username, password, appName, domain, launchUrl } }
 
     // Timeback-native app names (XP reported here for courses without their own app)
     const NATIVE_APPS = ['timeback dash', 'alpha timeback', 'alphalearn', 'timeback'];
@@ -197,31 +215,23 @@
             let progressText, progressLabel, pct;
 
             if (lessonBased) {
-                // Lesson-based course: show daily lesson goal progress
+                // Lesson-based course: show lesson progress + daily pace from goal
                 const totalXp = c.totalXp || 1;
-                const totalLessons = getLessons(c);
+                const totalLessons = c.totalLessons;
                 const yearXp = fullYearXpIdx[i] || 0;
-                const totalDone = Math.min(Math.round((yearXp / totalXp) * totalLessons), totalLessons);
+                const done = Math.min(Math.round((yearXp / totalXp) * totalLessons), totalLessons);
+                pct = totalLessons > 0 ? Math.min((done / totalLessons) * 100, 100) : 0;
 
+                // If a goal is set, show lessons/day needed
                 if (savedGoal && savedGoal.endDate) {
-                    // Has a goal: show today's lessons vs daily target
-                    const rem = Math.max(totalLessons - totalDone, 0);
+                    const rem = Math.max(totalLessons - done, 0);
                     const excl = savedGoal.excludeNonSchoolDays !== false;
                     const days = countSchoolDays(savedGoal.endDate, excl);
-                    const dailyTarget = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
-
-                    // Estimate today's lessons from today's XP
-                    const xpPerLesson = totalLessons > 0 ? totalXp / totalLessons : 1;
-                    const todayXp = xpByCourseIdx[i] || 0;
-                    const todayLessons = Math.min(Math.round(todayXp / xpPerLesson), dailyTarget);
-
-                    pct = dailyTarget > 0 ? Math.min((todayLessons / dailyTarget) * 100, 100) : 0;
-                    progressText = `${todayLessons} / ${dailyTarget} lessons`;
-                    progressLabel = 'TODAY';
+                    const lpd = days > 0 && rem > 0 ? (rem / days).toFixed(1) : 0;
+                    progressText = `${done} / ${totalLessons} lessons`;
+                    progressLabel = lpd > 0 ? `${lpd}/DAY` : 'PROGRESS';
                 } else {
-                    // No goal: show overall progress
-                    pct = totalLessons > 0 ? Math.min((totalDone / totalLessons) * 100, 100) : 0;
-                    progressText = `${totalDone} / ${totalLessons} lessons`;
+                    progressText = `${done} / ${totalLessons} lessons`;
                     progressLabel = 'PROGRESS';
                 }
             } else {
@@ -234,8 +244,32 @@
                 progressLabel = periodLabel;
             }
 
+            // Check if external course with credentials
+            const vKey = c._vendorKey || '';
+            const profile = vKey ? (userProfilesMap[vKey] || null) : null;
+            const isExternal = !!vKey;
+            const launchUrl = profile ? profile.launchUrl : '';
+            const credUsername = profile ? profile.username : '';
+            const credPassword = profile ? profile.password : '';
+            const platformName = profile ? profile.appName : (c.appName || '');
+
+            // Build info icon tooltip (only for external courses with profile data)
+            let infoIconHTML = '';
+            if (isExternal && (credUsername || launchUrl || platformName)) {
+                infoIconHTML = `<div class="course-info-icon" onclick="event.stopPropagation();" title="Course credentials">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <div class="course-info-tooltip">
+                        ${platformName ? `<div><span class="tip-label">Platform</span><br><strong>${esc(platformName)}</strong></div>` : ''}
+                        ${credUsername ? `<div style="margin-top:6px;"><span class="tip-label">Username</span><br><code>${esc(credUsername)}</code></div>` : ''}
+                        ${credPassword ? `<div style="margin-top:6px;"><span class="tip-label">Password</span><br><code>${esc(credPassword)}</code></div>` : `<div style="margin-top:6px;font-size:0.78rem;color:#718096;"><i class="fa-solid fa-shield-halved" style="margin-right:4px;"></i>SSO — no separate password needed</div>`}
+                        ${launchUrl ? `<div style="margin-top:8px;"><a href="${esc(launchUrl)}" target="_blank">${esc(launchUrl)}</a></div>` : ''}
+                    </div>
+                </div>`;
+            }
+
             return `
-                <div class="course-card" data-course-index="${i}" style="cursor:pointer;">
+                <div class="course-card" data-course-index="${i}" ${isExternal && launchUrl ? `data-launch-url="${esc(launchUrl)}"` : ''} style="cursor:pointer;position:relative;">
+                    ${infoIconHTML}
                     <div class="course-card-image card-theme-${color}">
                         <div class="course-card-illustration"><i class="fa-solid ${icon}"></i></div>
                     </div>
@@ -305,6 +339,7 @@
                 const cred = (p.credentials && p.credentials[0]) || {};
                 userProfilesMap[vendorId] = {
                     username: cred.username || '',
+                    password: cred.password || '',
                     appName: (p.app && p.app.name) || p.description || '',
                     domain: appDomains[0] || '',
                     launchUrl: appDomains[0] ? 'https://' + appDomains[0] : '',
@@ -361,10 +396,9 @@
                 const totalLessons = metrics.totalLessons || cMetrics.totalLessons || cMeta.totalLessons || 0;
                 const totalXp = metrics.totalXp || cMetrics.totalXp || cMeta.totalXp || 0;
 
-                // Vendor key for matching to userProfiles
-                const vendorKey = cMeta.primaryApp
-                    || (typeof pApp === 'object' && pApp.id ? pApp.id : '')
-                    || '';
+                // Vendor key: used to match course → userProfiles for credentials
+                const vendorKey = cMeta.primaryApp || cMeta.app || cMeta.vendor
+                    || (typeof pApp === 'object' && pApp.id ? pApp.id : '') || '';
 
                 const item = {
                     title,
@@ -423,7 +457,6 @@
             // Fetch full-year XP (for lesson course progress estimation)
             const hasLessonCourses = courses.some(c => isLessonCourse(c));
             if (hasLessonCourses) {
-                // NOTE: getLessons() parses PP suffix if API totalLessons is 0
                 await loadFullYearXp(email);
             }
 
@@ -512,10 +545,14 @@
                     }
                     xpByCourseIdx[i] = matched;
                 } else if (!appName && Object.keys(subjApps).length) {
-                    // No app — sum ALL XP for this subject
-                    let totalSubjXp = 0;
-                    for (const xp of Object.values(subjApps)) totalSubjXp += xp;
-                    xpByCourseIdx[i] = totalSubjXp || xpBySubject[c.subject] || 0;
+                    // No app — Timeback-native course: sum XP from native apps
+                    let nativeXp = 0;
+                    for (const [key, xp] of Object.entries(subjApps)) {
+                        if (NATIVE_APPS.some(n => key.includes(n) || n.includes(key))) {
+                            nativeXp += xp;
+                        }
+                    }
+                    xpByCourseIdx[i] = nativeXp;
                 } else {
                     // Fallback: use subject-level XP if factsByApp had nothing
                     xpByCourseIdx[i] = xpBySubject[c.subject] || 0;
@@ -578,10 +615,11 @@
                     }
                     fullYearXpIdx[i] = matched;
                 } else if (!appName && Object.keys(subjApps).length) {
-                    // No app — sum ALL XP for this subject
-                    let total = 0;
-                    for (const xp of Object.values(subjApps)) total += xp;
-                    fullYearXpIdx[i] = total || xpBySubject[c.subject] || 0;
+                    let nativeXp = 0;
+                    for (const [key, xp] of Object.entries(subjApps)) {
+                        if (NATIVE_APPS.some(n => key.includes(n) || n.includes(key))) nativeXp += xp;
+                    }
+                    fullYearXpIdx[i] = nativeXp;
                 } else {
                     fullYearXpIdx[i] = xpBySubject[c.subject] || 0;
                 }
@@ -607,7 +645,7 @@
         return String(val);
     }
 
-    /* ---- Course detail modal --------------------------------------------- */
+    /* ---- Course detail modal (internal courses only) ---------------------- */
     function openCourseModal(index) {
         const modal = document.getElementById('course-modal');
         if (!modal) return;
@@ -615,47 +653,19 @@
             const c = allCourses[index];
             if (!c) return;
 
-            const body  = document.getElementById('course-modal-body');
+            const body = document.getElementById('course-modal-body');
             document.getElementById('course-modal-title').textContent = c.title || 'Course Details';
 
-            const meta = c._metadata || {};
-
-            // Look up credentials and launch URL from userProfiles
-            const vendorKey = c._vendorKey || '';
-            const profile = vendorKey ? (userProfilesMap[vendorKey] || null) : null;
-            const hasExternalApp = profile && profile.launchUrl;
-            const isInternal = !vendorKey || !profile;
-
-            const username = profile ? profile.username : '';
-            const appName = profile ? profile.appName : (c.appName || '');
-            const loginUrl = profile ? profile.launchUrl : '';
-
-            // Build credential / access section
-            let credentialsHTML = '';
-            if (hasExternalApp) {
-                credentialsHTML = `
-                    <div style="margin-bottom:20px;">
-                        <h3 style="font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#A0AEC0;margin-bottom:12px;">
-                            <i class="fa-solid fa-key" style="margin-right:6px;"></i>Course Credentials
-                        </h3>
-                        <div style="background:#F4F6F9;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;">
-                            ${appName ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Platform</span><span style="font-size:0.95rem;color:#2D3748;font-weight:500;">${esc(appName)}</span></div>` : ''}
-                            ${username ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Username</span><span style="font-family:'SF Mono','Fira Code',monospace;font-size:0.9rem;color:#2D3748;background:#fff;padding:4px 10px;border-radius:6px;border:1px solid #E8ECF1;display:inline-block;">${esc(username)}</span></div>` : ''}
-                            ${loginUrl ? `<div><span style="font-size:0.78rem;font-weight:600;color:#718096;display:block;margin-bottom:2px;">Course URL</span><a href="${esc(loginUrl)}" target="_blank" style="font-size:0.88rem;color:#45B5AA;word-break:break-all;">${esc(loginUrl)}</a></div>` : ''}
-                        </div>
-                    </div>`;
-            }
-            // Internal courses: no credentials section shown
+            const titleEsc = esc(c.title || 'Untitled Course');
+            const subjectEsc = esc(c.subject || '');
+            const xpEarned = Math.round(xpByCourseIdx[index] || 0);
+            const goal = currentPeriod === 'today' ? (c.dailyXpGoal || 0) : (c.dailyXpGoal || 0) * 5;
 
             // Build metadata display
             let metaDetailsHTML = '';
+            const meta = c._metadata || {};
             const displayMeta = {};
             try {
-                // Include profile info if available
-                if (profile) {
-                    if (profile.appName) displayMeta['App'] = profile.appName;
-                    if (profile.domain) displayMeta['Domain'] = profile.domain;
-                }
                 for (const [k, v] of Object.entries(meta)) {
                     if (v === null || v === undefined || v === '') continue;
                     if (typeof v !== 'object') {
@@ -666,12 +676,10 @@
                             displayMeta[`${k}.${k2}`] = String(v2);
                         }
                     } else {
-                        displayMeta[k] = v.filter(x => x !== null && x !== undefined && typeof x !== 'object').join(', ');
+                        displayMeta[k] = v.filter(x => x != null && typeof x !== 'object').join(', ');
                     }
                 }
-            } catch (metaErr) {
-                // Silently skip metadata errors
-            }
+            } catch (e) { /* skip */ }
 
             if (Object.keys(displayMeta).length > 0) {
                 metaDetailsHTML = `
@@ -686,38 +694,6 @@
                             `).join('')}
                         </div>
                     </details>`;
-            }
-
-            // XP info
-            const xpEarned = Math.round(xpByCourseIdx[index] || 0);
-            const goal = currentPeriod === 'today' ? (c.dailyXpGoal || 0) : (c.dailyXpGoal || 0) * 5;
-            const titleEsc = esc(c.title || 'Untitled Course');
-            const subjectEsc = esc(c.subject || '');
-
-            // Build bottom action buttons
-            let actionButtonsHTML = '';
-            if (hasExternalApp) {
-                actionButtonsHTML = `
-                    <div style="display:flex;gap:10px;margin-top:20px;">
-                        <a href="${esc(loginUrl)}" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#45B5AA;color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;text-decoration:none;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#389E94'" onmouseout="this.style.background='#45B5AA'">
-                            Go to Course <i class="fa-solid fa-arrow-right"></i>
-                        </a>
-                        <button onclick="closeCourseModal()" style="padding:12px 20px;background:#F4F6F9;color:#718096;border:none;border-radius:10px;font-size:0.95rem;font-weight:500;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#E8ECF1'" onmouseout="this.style.background='#F4F6F9'">
-                            Close
-                        </button>
-                    </div>`;
-            } else {
-                // Internal course: just a close button
-                actionButtonsHTML = `
-                    <div style="margin-top:20px;">
-                        ${isInternal ? `<div style="background:#F4F6F9;border-radius:10px;padding:16px;text-align:center;color:#718096;font-size:0.88rem;margin-bottom:12px;">
-                            <i class="fa-solid fa-circle-check" style="color:#45B5AA;margin-right:6px;"></i>
-                            This is an AlphaLearn internal course. Progress is tracked automatically.
-                        </div>` : ''}
-                        <button onclick="closeCourseModal()" style="width:100%;padding:12px 20px;background:#F4F6F9;color:#718096;border:none;border-radius:10px;font-size:0.95rem;font-weight:500;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#E8ECF1'" onmouseout="this.style.background='#F4F6F9'">
-                            Close
-                        </button>
-                    </div>`;
             }
 
             body.innerHTML = `
@@ -746,15 +722,21 @@
                     </div>
                 </div>
 
-                ${credentialsHTML}
+                <div style="background:#F4F6F9;border-radius:10px;padding:16px;text-align:center;color:#718096;font-size:0.88rem;margin-bottom:16px;">
+                    <i class="fa-solid fa-circle-check" style="color:#45B5AA;margin-right:6px;"></i>
+                    This is an AlphaLearn internal course. Progress is tracked automatically.
+                </div>
+
                 ${metaDetailsHTML}
-                ${actionButtonsHTML}
+
+                <button onclick="closeCourseModal()" style="width:100%;padding:12px 20px;background:#F4F6F9;color:#718096;border:none;border-radius:10px;font-size:0.95rem;font-weight:500;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#E8ECF1'" onmouseout="this.style.background='#F4F6F9'">
+                    Close
+                </button>
             `;
 
             modal.classList.add('open');
         } catch (err) {
             console.error('[AlphaLearn] Error opening course modal:', err);
-            // Still show the modal with an error message so user gets feedback
             const body = document.getElementById('course-modal-body');
             if (body) {
                 body.innerHTML = `
@@ -774,13 +756,23 @@
         if (m) m.classList.remove('open');
     }
 
-    // Course card click via event delegation (more robust than inline onclick)
+    // Course card click: external → launch URL directly, internal → open modal
     document.addEventListener('click', function(e) {
+        // Don't trigger card click if user clicked the info icon
+        if (e.target.closest('.course-info-icon')) return;
+
         var card = e.target.closest('.course-card[data-course-index]');
         if (card) {
             e.preventDefault();
-            var idx = parseInt(card.getAttribute('data-course-index'), 10);
-            if (!isNaN(idx)) openCourseModal(idx);
+            var launchUrl = card.getAttribute('data-launch-url');
+            if (launchUrl) {
+                // External course: open in new tab directly
+                window.open(launchUrl, '_blank', 'noopener');
+            } else {
+                // Internal course: open detail modal
+                var idx = parseInt(card.getAttribute('data-course-index'), 10);
+                if (!isNaN(idx)) openCourseModal(idx);
+            }
         }
     });
 
