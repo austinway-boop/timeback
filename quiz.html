@@ -134,14 +134,35 @@
 
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
-        // ── Load quiz content from QTI API ──
-        // Pass subject/title/grade so the backend can search the QTI catalog
-        if (qtiUrl || testId) {
-            var loaded = await loadAllQuestions(qtiUrl, testId, subject, gradeLevel);
+        // ── 1. PowerPath adaptive flow (primary for all assessments) ──
+        // PowerPath accepts the bank ID as "lesson" and creates an adaptive attempt
+        if (userId && testId) {
+            try {
+                area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Starting assessment...</div>';
+                var startResp = await fetch('/api/quiz-session?action=start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ studentId: userId, testId: testId, subject: subject, grade: gradeLevel }),
+                });
+                var startData = await startResp.json();
+                if (startData.attemptId || startData.id) {
+                    quizState.attemptId = startData.attemptId || startData.id;
+                    await loadNextQuestion();
+                    return;
+                }
+                console.warn('PowerPath start response:', JSON.stringify(startData));
+            } catch(e) {
+                console.warn('PowerPath attempt failed:', e.message);
+            }
+        }
+
+        // ── 2. QTI direct fetch (for direct QTI URLs only) ──
+        if (qtiUrl) {
+            var loaded = await loadAllQuestions(qtiUrl, '', subject, gradeLevel);
             if (loaded) return;
         }
 
-        // ── Local FRQ fallback (when QTI has no content for this ID) ──
+        // ── 3. Local FRQ fallback ──
         if (testId || subject) {
             showLocalAssessment(quizState.title, subject, gradeLevel);
             return;
