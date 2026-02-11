@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
     <style>
+        /* Settings-specific styles */
         .api-status {
             display: inline-flex; align-items: center; gap: 6px;
             margin-top: 8px; font-size: 0.78rem; font-weight: 600;
@@ -18,6 +19,115 @@
         .api-status.connected { background: #E8F5E9; color: #2E7D32; }
         .api-status.error { background: #FFF3E0; color: #E65100; }
         .api-status.checking { background: var(--color-bg); color: var(--color-text-muted); }
+
+        /* Form elements */
+        .form-group { margin-bottom: 16px; }
+        .form-label {
+            display: block; font-size: 0.82rem; font-weight: 600;
+            color: var(--color-text-secondary); margin-bottom: 6px;
+        }
+        .form-input, .form-select {
+            width: 100%; padding: 10px 14px;
+            border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+            background: var(--color-surface); color: var(--color-text);
+            font-size: 0.9rem; outline: none;
+            transition: border-color var(--transition);
+        }
+        .form-input:focus, .form-select:focus { border-color: var(--color-primary); }
+
+        .btn-save {
+            padding: 10px 28px; border: none; border-radius: var(--radius-sm);
+            background: var(--color-primary); color: #fff; font-weight: 600;
+            font-size: 0.9rem; cursor: pointer; transition: background var(--transition);
+        }
+        .btn-save:hover { background: var(--color-primary-dark); }
+
+        .save-toast {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 20px; font-size: 0.82rem;
+            font-weight: 600; background: #E8F5E9; color: #2E7D32;
+            margin-left: 12px; opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .save-toast.show { opacity: 1; }
+
+        /* Toggle switches */
+        .toggle-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 0; border-bottom: 1px solid var(--color-border);
+        }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-weight: 500; font-size: 0.92rem; }
+        .toggle-desc { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 2px; }
+
+        .toggle-switch {
+            position: relative; width: 44px; height: 24px; cursor: pointer;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-track {
+            position: absolute; inset: 0; background: var(--color-border);
+            border-radius: 12px; transition: background 0.2s ease;
+        }
+        .toggle-track::after {
+            content: ''; position: absolute; width: 18px; height: 18px;
+            left: 3px; top: 3px; border-radius: 50%; background: white;
+            transition: transform 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .toggle-switch input:checked + .toggle-track { background: var(--color-primary); }
+        .toggle-switch input:checked + .toggle-track::after { transform: translateX(20px); }
+
+        /* Role hierarchy */
+        .role-hierarchy { display: flex; flex-direction: column; gap: 12px; }
+        .role-tier {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 14px 16px; background: var(--color-bg);
+            border-radius: var(--radius-sm);
+        }
+        .role-tier-icon {
+            width: 40px; height: 40px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; flex-shrink: 0;
+        }
+        .role-tier-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+        .role-tier-desc { font-size: 0.82rem; color: var(--color-text-secondary); line-height: 1.4; }
+
+        /* Admin users list */
+        .admin-user-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 0; border-bottom: 1px solid var(--color-border);
+        }
+        .admin-user-row:last-child { border-bottom: none; }
+
+        /* Integrations status rows */
+        .endpoint-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 0; border-bottom: 1px solid var(--color-border);
+        }
+        .endpoint-row:last-child { border-bottom: none; }
+        .endpoint-name { font-weight: 500; font-size: 0.9rem; }
+        .endpoint-url { font-size: 0.78rem; color: var(--color-text-muted); font-family: 'SF Mono', monospace; }
+
+        /* Theme preview */
+        .theme-options { display: flex; gap: 12px; margin-bottom: 16px; }
+        .theme-option {
+            flex: 1; padding: 16px; border: 2px solid var(--color-border);
+            border-radius: var(--radius-sm); cursor: pointer; text-align: center;
+            transition: all var(--transition);
+        }
+        .theme-option.selected { border-color: var(--color-primary); background: var(--color-primary-light); }
+        .theme-option:hover { border-color: var(--color-primary); }
+        .theme-preview {
+            width: 100%; height: 50px; border-radius: 6px; margin-bottom: 8px;
+        }
+        .theme-option-label { font-size: 0.85rem; font-weight: 600; }
+
+        .color-swatches { display: flex; gap: 8px; margin-top: 8px; }
+        .color-swatch {
+            width: 28px; height: 28px; border-radius: 50%;
+            border: 2px solid transparent; cursor: pointer;
+            transition: all var(--transition);
+        }
+        .color-swatch.selected { border-color: var(--color-text); transform: scale(1.15); }
     </style>
 </head>
 <body data-view="admin" data-active="settings">
@@ -32,27 +142,27 @@
                 </div>
 
                 <div class="settings-grid">
-                    <div class="settings-card">
+                    <div class="settings-card" onclick="openSettings('organization')">
                         <div class="settings-card-icon"><i class="fa-solid fa-school"></i></div>
                         <h3>Organization</h3>
                         <p>Manage school name, timezone, and general settings</p>
                     </div>
-                    <div class="settings-card">
+                    <div class="settings-card" onclick="openSettings('admin-users')">
                         <div class="settings-card-icon"><i class="fa-solid fa-user-shield"></i></div>
                         <h3>Admin Users</h3>
                         <p>Invite and manage administrator accounts</p>
                     </div>
-                    <div class="settings-card">
+                    <div class="settings-card" onclick="openSettings('permissions')">
                         <div class="settings-card-icon"><i class="fa-solid fa-key"></i></div>
                         <h3>Permissions</h3>
                         <p>Configure permission groups and access levels</p>
                     </div>
-                    <div class="settings-card">
+                    <div class="settings-card" onclick="openSettings('notifications')">
                         <div class="settings-card-icon"><i class="fa-solid fa-bell"></i></div>
                         <h3>Notifications</h3>
                         <p>Set up email and in-app notification preferences</p>
                     </div>
-                    <div class="settings-card" id="integrations-card">
+                    <div class="settings-card" onclick="openSettings('integrations')">
                         <div class="settings-card-icon"><i class="fa-solid fa-plug"></i></div>
                         <h3>Integrations</h3>
                         <p>Connect external tools and LTI providers</p>
@@ -60,11 +170,22 @@
                             <span class="api-status checking"><i class="fa-solid fa-spinner fa-spin"></i> Checking API...</span>
                         </div>
                     </div>
-                    <div class="settings-card">
+                    <div class="settings-card" onclick="openSettings('appearance')">
                         <div class="settings-card-icon"><i class="fa-solid fa-palette"></i></div>
                         <h3>Appearance</h3>
                         <p>Customize branding, themes, and seasonal settings</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- Single shared modal -->
+            <div class="modal-overlay" id="settings-modal">
+                <div class="modal" style="max-width:580px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="settings-modal-title">Settings</h2>
+                        <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" id="settings-modal-body"></div>
                 </div>
             </div>
         </main>
@@ -74,7 +195,316 @@
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
     <script>
-    // Check Timeback API connectivity
+    /* ====================================================================
+       Settings Page — All Cards Functional
+       ==================================================================== */
+    let adminUsers = null; // lazy-loaded
+
+    function esc(str) {
+        if (str == null) return '';
+        const div = document.createElement('div');
+        div.textContent = String(str);
+        return div.innerHTML;
+    }
+
+    function openSettingsModal(title, html) {
+        document.getElementById('settings-modal-title').textContent = title;
+        document.getElementById('settings-modal-body').innerHTML = html;
+        document.getElementById('settings-modal').classList.add('open');
+    }
+
+    function closeSettingsModal() {
+        document.getElementById('settings-modal').classList.remove('open');
+    }
+    document.getElementById('settings-modal').addEventListener('click', function (e) {
+        if (e.target === this) closeSettingsModal();
+    });
+
+    function showSaveToast(id) {
+        const el = document.getElementById(id);
+        if (el) { el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2000); }
+    }
+
+    /* ---- Router --------------------------------------------------------- */
+    async function openSettings(section) {
+        switch (section) {
+            case 'organization':    openOrganization(); break;
+            case 'admin-users':     await openAdminUsers(); break;
+            case 'permissions':     openPermissions(); break;
+            case 'notifications':   openNotifications(); break;
+            case 'integrations':    await openIntegrations(); break;
+            case 'appearance':      openAppearance(); break;
+        }
+    }
+
+    /* ==== Organization =================================================== */
+    function openOrganization() {
+        const schoolName = localStorage.getItem('al_school_name') || 'Alpha School';
+        const timezone   = localStorage.getItem('al_timezone') || 'America/Chicago';
+
+        openSettingsModal('Organization', `
+            <div class="form-group">
+                <label class="form-label">School Name</label>
+                <input type="text" class="form-input" id="org-name" value="${esc(schoolName)}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Timezone</label>
+                <select class="form-select" id="org-timezone">
+                    ${['America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Anchorage','Pacific/Honolulu']
+                        .map(tz => `<option value="${tz}" ${tz === timezone ? 'selected' : ''}>${tz.replace('_',' ')}</option>`).join('')}
+                </select>
+            </div>
+            <div style="display:flex;align-items:center;margin-top:20px;">
+                <button class="btn-save" onclick="saveOrganization()">Save Changes</button>
+                <span class="save-toast" id="org-toast"><i class="fa-solid fa-circle-check"></i> Saved</span>
+            </div>
+        `);
+    }
+
+    window.saveOrganization = function () {
+        localStorage.setItem('al_school_name', document.getElementById('org-name').value);
+        localStorage.setItem('al_timezone', document.getElementById('org-timezone').value);
+        showSaveToast('org-toast');
+    };
+
+    /* ==== Admin Users ==================================================== */
+    async function openAdminUsers() {
+        openSettingsModal('Admin Users', '<div style="text-align:center;padding:24px;"><div class="loading-spinner" style="margin:0 auto 12px;"></div>Loading admins...</div>');
+
+        if (!adminUsers) {
+            try {
+                const resp = await fetch('/api/users');
+                const data = await resp.json();
+                adminUsers = (data.users || []).filter(u => u.role === 'administrator');
+            } catch (e) {
+                document.getElementById('settings-modal-body').innerHTML = '<p class="error-text">Failed to load users.</p>';
+                return;
+            }
+        }
+
+        const list = adminUsers.length
+            ? adminUsers.map(u => `
+                <div class="admin-user-row">
+                    <div class="user-cell-avatar">${esc((u.givenName||'?')[0].toUpperCase())}</div>
+                    <div style="flex:1;">
+                        <div class="user-cell-name">${esc(u.givenName)} ${esc(u.familyName)}</div>
+                        <div class="user-cell-username">${esc(u.email || u.username || '')}</div>
+                    </div>
+                    <span class="role-badge role-admin">administrator</span>
+                </div>`).join('')
+            : '<div style="text-align:center;padding:20px;color:var(--color-text-muted);">No administrator accounts found.</div>';
+
+        document.getElementById('settings-modal-body').innerHTML = `
+            <p style="font-size:0.88rem;color:var(--color-text-secondary);margin-bottom:16px;">
+                ${adminUsers.length} administrator${adminUsers.length !== 1 ? 's' : ''} found in Timeback.
+            </p>
+            ${list}
+            <div style="margin-top:16px;border-top:1px solid var(--color-border);padding-top:16px;">
+                <button class="btn-save" style="opacity:0.5;cursor:not-allowed;" disabled>
+                    <i class="fa-solid fa-plus"></i> Add Admin (Coming Soon)
+                </button>
+            </div>
+        `;
+    }
+
+    /* ==== Permissions ==================================================== */
+    function openPermissions() {
+        const roles = [
+            { name: 'Superadmin', icon: 'fa-crown', color: 'stat-icon-purple', desc: 'Full access to all features. Can manage other admins, configure integrations, and access all data.' },
+            { name: 'Administrator', icon: 'fa-user-shield', color: 'stat-icon-teal', desc: 'Manage students, courses, and view analytics. Cannot configure integrations or manage other admins.' },
+            { name: 'Teacher', icon: 'fa-chalkboard-user', color: 'stat-icon-blue', desc: 'View assigned classes and students. Can assign tests and view results for their classes.' },
+            { name: 'Student', icon: 'fa-graduation-cap', color: 'stat-icon-orange', desc: 'Access assigned courses, take tests, and view personal progress.' },
+        ];
+
+        openSettingsModal('Permissions & Roles', `
+            <p style="font-size:0.88rem;color:var(--color-text-secondary);margin-bottom:16px;">
+                Role hierarchy determines what each user type can access. Roles are assigned through the Timeback/OneRoster system.
+            </p>
+            <div class="role-hierarchy">
+                ${roles.map((r, i) => `
+                    <div class="role-tier">
+                        <div class="role-tier-icon ${r.color}"><i class="fa-solid ${r.icon}"></i></div>
+                        <div>
+                            <div class="role-tier-name">${r.name}</div>
+                            <div class="role-tier-desc">${r.desc}</div>
+                        </div>
+                    </div>`).join('')}
+            </div>
+            <p style="font-size:0.78rem;color:var(--color-text-muted);margin-top:16px;text-align:center;">
+                <i class="fa-solid fa-info-circle"></i> Role editing will be available in a future update.
+            </p>
+        `);
+    }
+
+    /* ==== Notifications ================================================== */
+    function openNotifications() {
+        const prefs = JSON.parse(localStorage.getItem('al_notifications') || '{}');
+        const emailOn = prefs.email !== false;
+        const inappOn = prefs.inapp !== false;
+        const weeklyOn = prefs.weekly || false;
+
+        openSettingsModal('Notifications', `
+            <div>
+                <div class="toggle-row">
+                    <div>
+                        <div class="toggle-label">Email Notifications</div>
+                        <div class="toggle-desc">Receive email alerts for important events</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notif-email" ${emailOn ? 'checked' : ''}>
+                        <span class="toggle-track"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <div>
+                        <div class="toggle-label">In-App Notifications</div>
+                        <div class="toggle-desc">Show notification badges and alerts in the UI</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notif-inapp" ${inappOn ? 'checked' : ''}>
+                        <span class="toggle-track"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <div>
+                        <div class="toggle-label">Weekly Reports</div>
+                        <div class="toggle-desc">Receive a weekly summary of student progress</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notif-weekly" ${weeklyOn ? 'checked' : ''}>
+                        <span class="toggle-track"></span>
+                    </label>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;margin-top:20px;">
+                <button class="btn-save" onclick="saveNotifications()">Save Preferences</button>
+                <span class="save-toast" id="notif-toast"><i class="fa-solid fa-circle-check"></i> Saved</span>
+            </div>
+        `);
+    }
+
+    window.saveNotifications = function () {
+        localStorage.setItem('al_notifications', JSON.stringify({
+            email: document.getElementById('notif-email').checked,
+            inapp: document.getElementById('notif-inapp').checked,
+            weekly: document.getElementById('notif-weekly').checked,
+        }));
+        showSaveToast('notif-toast');
+    };
+
+    /* ==== Integrations =================================================== */
+    async function openIntegrations() {
+        const endpoints = [
+            { name: 'Users',       url: '/api/users',      key: 'users' },
+            { name: 'Courses',     url: '/api/courses',    key: 'courses' },
+            { name: 'Classes',     url: '/api/classes',    key: 'classes' },
+            { name: 'Enrollments', url: '/api/enrollments', key: 'enrollments' },
+            { name: 'Line Items',  url: '/api/line-items', key: 'lineItems' },
+        ];
+
+        openSettingsModal('Integrations & API Status', `
+            <div class="form-group">
+                <label class="form-label">API Base URL</label>
+                <div class="form-input" style="background:var(--color-bg);cursor:default;">${window.location.origin}/api</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Cognito Domain</label>
+                <div class="form-input" style="background:var(--color-bg);cursor:default;">alphaschool.auth.us-east-1.amazoncognito.com</div>
+            </div>
+            <div style="margin-top:20px;">
+                <label class="form-label">Endpoint Status</label>
+                <div id="endpoint-list">
+                    ${endpoints.map(ep => `
+                        <div class="endpoint-row">
+                            <div>
+                                <div class="endpoint-name">${ep.name}</div>
+                                <div class="endpoint-url">${ep.url}</div>
+                            </div>
+                            <span class="api-status checking" id="ep-${ep.key}"><i class="fa-solid fa-spinner fa-spin"></i></span>
+                        </div>`).join('')}
+                </div>
+            </div>
+        `);
+
+        // Test each endpoint
+        for (const ep of endpoints) {
+            try {
+                const resp = await fetch(ep.url);
+                const el = document.getElementById(`ep-${ep.key}`);
+                if (el) {
+                    if (resp.ok) {
+                        el.className = 'api-status connected';
+                        el.innerHTML = '<i class="fa-solid fa-circle-check"></i> OK';
+                    } else {
+                        el.className = 'api-status error';
+                        el.innerHTML = `<i class="fa-solid fa-xmark"></i> ${resp.status}`;
+                    }
+                }
+            } catch (e) {
+                const el = document.getElementById(`ep-${ep.key}`);
+                if (el) {
+                    el.className = 'api-status error';
+                    el.innerHTML = '<i class="fa-solid fa-xmark"></i> Failed';
+                }
+            }
+        }
+    }
+
+    /* ==== Appearance ===================================================== */
+    function openAppearance() {
+        const theme = localStorage.getItem('al_theme') || 'light';
+        const accent = localStorage.getItem('al_accent') || '#45B5AA';
+        const accents = ['#45B5AA', '#4A90D9', '#6C5CE7', '#E65100', '#AD1457', '#2E7D32'];
+
+        openSettingsModal('Appearance', `
+            <div class="form-group">
+                <label class="form-label">Theme</label>
+                <div class="theme-options">
+                    <div class="theme-option ${theme === 'light' ? 'selected' : ''}" onclick="selectTheme('light')">
+                        <div class="theme-preview" style="background:linear-gradient(135deg,#F4F6F9,#FFFFFF);border:1px solid var(--color-border);"></div>
+                        <div class="theme-option-label">Light</div>
+                    </div>
+                    <div class="theme-option ${theme === 'dark' ? 'selected' : ''}" onclick="selectTheme('dark')">
+                        <div class="theme-preview" style="background:linear-gradient(135deg,#1A202C,#2D3748);border:1px solid #4A5568;"></div>
+                        <div class="theme-option-label">Dark (Preview)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Accent Color</label>
+                <div class="color-swatches">
+                    ${accents.map(c => `<div class="color-swatch ${c === accent ? 'selected' : ''}" style="background:${c};" onclick="selectAccent('${c}')"></div>`).join('')}
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;margin-top:20px;">
+                <button class="btn-save" onclick="saveAppearance()">Save Preferences</button>
+                <span class="save-toast" id="appearance-toast"><i class="fa-solid fa-circle-check"></i> Saved</span>
+            </div>
+        `);
+    }
+
+    let selectedTheme  = localStorage.getItem('al_theme') || 'light';
+    let selectedAccent = localStorage.getItem('al_accent') || '#45B5AA';
+
+    window.selectTheme = function (t) {
+        selectedTheme = t;
+        document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('selected'));
+        event.currentTarget.classList.add('selected');
+    };
+
+    window.selectAccent = function (c) {
+        selectedAccent = c;
+        document.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
+        event.currentTarget.classList.add('selected');
+    };
+
+    window.saveAppearance = function () {
+        localStorage.setItem('al_theme', selectedTheme);
+        localStorage.setItem('al_accent', selectedAccent);
+        showSaveToast('appearance-toast');
+    };
+
+    /* ==== Initial API status check (for the card badge) ================== */
     document.addEventListener('DOMContentLoaded', async function () {
         const indicator = document.getElementById('api-status-indicator');
         try {

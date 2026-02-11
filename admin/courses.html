@@ -12,25 +12,17 @@
     <style>
         /* --- Courses page inline styles --- */
         .course-admin-card { cursor: pointer; position: relative; }
-        .course-admin-actions {
-            display: flex; gap: 8px; margin-top: 10px;
-        }
+        .course-admin-actions { display: flex; gap: 8px; margin-top: 10px; }
         .course-admin-actions .btn-sm {
             padding: 6px 14px; border: none; border-radius: 20px;
             font-size: 0.78rem; font-weight: 600; cursor: pointer;
             transition: all var(--transition);
         }
-        .btn-assign {
-            background: var(--color-primary-light); color: var(--color-primary-dark);
-        }
+        .btn-assign { background: var(--color-primary-light); color: var(--color-primary-dark); }
         .btn-assign:hover { background: var(--color-primary); color: #fff; }
-        .btn-detail {
-            background: var(--color-bg); color: var(--color-text-secondary);
-        }
+        .btn-detail { background: var(--color-bg); color: var(--color-text-secondary); }
         .btn-detail:hover { background: var(--color-border); color: var(--color-text); }
-        .course-admin-classes {
-            font-size: 0.82rem; color: var(--color-text-muted); margin-top: 6px;
-        }
+        .course-admin-classes { font-size: 0.82rem; color: var(--color-text-muted); margin-top: 6px; }
 
         /* Assign modal student list */
         .student-list { max-height: 280px; overflow-y: auto; margin-top: 12px; }
@@ -41,9 +33,7 @@
         }
         .student-list-item:hover { background: var(--color-bg); }
         .student-list-item.selected { background: var(--color-primary-light); }
-        .student-list-item .user-cell-avatar {
-            width: 32px; height: 32px; font-size: 0.8rem;
-        }
+        .student-list-item .user-cell-avatar { width: 32px; height: 32px; font-size: 0.8rem; }
         .assign-confirm { margin-top: 16px; text-align: center; }
         .assign-confirm .btn-primary {
             padding: 10px 28px; border: none; border-radius: var(--radius-sm);
@@ -51,12 +41,7 @@
             font-size: 0.9rem; cursor: pointer; transition: background var(--transition);
         }
         .assign-confirm .btn-primary:hover { background: var(--color-primary-dark); }
-        .assign-confirm .btn-primary:disabled {
-            opacity: 0.5; cursor: not-allowed;
-        }
-        .assign-success {
-            text-align: center; padding: 32px 16px;
-        }
+        .assign-success { text-align: center; padding: 32px 16px; }
         .assign-success i { font-size: 2.5rem; color: var(--color-primary); margin-bottom: 12px; }
         .assign-success p { font-size: 0.95rem; color: var(--color-text); }
         .assign-success .subtitle { font-size: 0.82rem; color: var(--color-text-muted); margin-top: 4px; }
@@ -71,7 +56,6 @@
         }
         .detail-tab.active { background: var(--color-text); color: #fff; }
         .detail-tab:hover:not(.active) { background: var(--color-bg); }
-
         .detail-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
         .detail-table th {
             text-align: left; padding: 8px 12px; font-size: 0.78rem;
@@ -79,14 +63,8 @@
             text-transform: uppercase; letter-spacing: 0.5px;
             border-bottom: 1px solid var(--color-border); background: var(--color-bg);
         }
-        .detail-table td {
-            padding: 10px 12px; font-size: 0.88rem;
-            border-bottom: 1px solid var(--color-border);
-        }
-        .detail-empty {
-            text-align: center; padding: 24px; color: var(--color-text-muted);
-            font-size: 0.88rem;
-        }
+        .detail-table td { padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid var(--color-border); }
+        .detail-empty { text-align: center; padding: 24px; color: var(--color-text-muted); font-size: 0.88rem; }
 
         /* Subject tag pills */
         .subject-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -98,8 +76,18 @@
         .subject-tag .tag-count {
             background: var(--color-border); border-radius: 50%; width: 18px; height: 18px;
             display: inline-flex; align-items: center; justify-content: center;
-            font-size: 0.68rem; font-weight: 700; color: var(--color-text-secondary);
+            font-size: 0.68rem; font-weight: 700;
         }
+
+        /* Skeleton course cards */
+        .skeleton-course-card {
+            background: var(--color-surface); border-radius: var(--radius);
+            box-shadow: var(--shadow); overflow: hidden;
+        }
+        .skeleton-course-image {
+            height: 100px;
+        }
+        .skeleton-course-body { padding: 16px; }
     </style>
 </head>
 <body data-view="admin" data-active="courses">
@@ -138,7 +126,6 @@
                     </div>
                 </div>
 
-                <!-- Subject breakdown -->
                 <div id="subject-breakdown" style="margin-bottom: 20px;"></div>
 
                 <!-- Controls -->
@@ -159,13 +146,8 @@
                     </div>
                 </div>
 
-                <div class="results-info"><span id="courses-count">Loading courses from Timeback...</span></div>
-                <div class="course-admin-grid" id="courses-grid">
-                    <div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--color-text-muted);">
-                        <div class="loading-spinner" style="margin:0 auto 12px;"></div>
-                        Loading courses...
-                    </div>
-                </div>
+                <div class="results-info"><span id="courses-count">Loading courses...</span></div>
+                <div class="course-admin-grid" id="courses-grid"></div>
             </div>
 
             <!-- Course Detail Modal -->
@@ -197,7 +179,7 @@
     <script src="/js/app.js"></script>
     <script>
     /* ====================================================================
-       Courses Page – Full Course Management
+       Courses Page – Full Course Management with Caching
        ==================================================================== */
     const THEMES = ['teal', 'purple', 'pink', 'orange'];
     const ICONS = {
@@ -205,13 +187,14 @@
         reading: 'fa-book-open-reader', geography: 'fa-globe-americas',
         biology: 'fa-dna', tech: 'fa-laptop-code', default: 'fa-graduation-cap',
     };
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
     let allCourses = [];
     let allClasses = [];
     let allUsers   = [];
     let filteredCourses = [];
 
-    /* ---- HTML escaping for safety --------------------------------------- */
+    /* ---- Helpers --------------------------------------------------------- */
     function esc(str) {
         if (str == null) return '';
         const div = document.createElement('div');
@@ -231,10 +214,63 @@
         return ICONS.default;
     }
 
+    /* ---- Cache ---------------------------------------------------------- */
+    function getCache(key) {
+        try {
+            const raw = sessionStorage.getItem(key);
+            if (!raw) return null;
+            const cached = JSON.parse(raw);
+            if (Date.now() - cached.ts > CACHE_TTL) {
+                sessionStorage.removeItem(key);
+                return null;
+            }
+            return cached.data;
+        } catch { return null; }
+    }
+
+    function setCache(key, data) {
+        try {
+            sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
+        } catch { /* quota exceeded, ignore */ }
+    }
+
+    /* ---- Skeleton Cards ------------------------------------------------- */
+    function showSkeletonCards(count) {
+        const colors = ['card-theme-teal', 'card-theme-purple', 'card-theme-pink', 'card-theme-orange'];
+        document.getElementById('courses-grid').innerHTML = Array.from({ length: count }, (_, i) => `
+            <div class="skeleton-course-card">
+                <div class="skeleton-course-image skeleton ${colors[i % 4]}" style="height:100px;opacity:0.3;"></div>
+                <div class="skeleton-course-body">
+                    <div class="skeleton skeleton-text lg" style="width:70%;margin-bottom:10px;"></div>
+                    <div class="skeleton skeleton-text" style="width:50%;margin-bottom:8px;"></div>
+                    <div class="skeleton skeleton-text sm" style="width:35%;margin-bottom:10px;"></div>
+                    <div class="skeleton skeleton-text xs" style="width:25%;"></div>
+                </div>
+            </div>`).join('');
+    }
+
     /* ---- Bootstrap ------------------------------------------------------- */
     document.addEventListener('DOMContentLoaded', async function () {
+        // Check cache first for instant render
+        const cachedCourses = getCache('al_courses');
+        const cachedClasses = getCache('al_classes');
+
+        if (cachedCourses && cachedClasses) {
+            allCourses = cachedCourses;
+            allClasses = cachedClasses;
+            updateStats();
+            populateGradeFilter();
+            filterAndRender();
+            // Refresh in background (non-blocking)
+            refreshData(true);
+        } else {
+            showSkeletonCards(6);
+            await refreshData(false);
+        }
+    });
+
+    async function refreshData(silent) {
         try {
-            // Fetch courses and classes in parallel
             const [coursesResp, classesResp] = await Promise.all([
                 fetch('/api/courses'),
                 fetch('/api/classes')
@@ -245,19 +281,19 @@
             allCourses = coursesData.courses || [];
             allClasses = classesData.classes  || [];
 
-            // Populate stats
+            setCache('al_courses', allCourses);
+            setCache('al_classes', allClasses);
+
             updateStats();
-
-            // Populate grade filter from available grades
-            populateGradeFilter();
-
-            // Initial render
+            if (!silent) populateGradeFilter();
             filterAndRender();
         } catch (e) {
-            document.getElementById('courses-grid').innerHTML =
-                '<div style="grid-column:1/-1;text-align:center;padding:48px;color:#E53E3E;"><i class="fa-solid fa-circle-exclamation"></i> Failed to load courses</div>';
+            if (!silent) {
+                document.getElementById('courses-grid').innerHTML =
+                    '<div style="grid-column:1/-1;text-align:center;padding:48px;color:#E53E3E;"><i class="fa-solid fa-circle-exclamation"></i> Failed to load courses</div>';
+            }
         }
-    });
+    }
 
     /* ---- Stats ---------------------------------------------------------- */
     function updateStats() {
@@ -265,13 +301,8 @@
         document.getElementById('stat-active').textContent = allCourses.filter(c => c.status === 'active').length;
         document.getElementById('stat-classes').textContent = allClasses.length;
 
-        // Subject breakdown
         const subjectMap = {};
-        allCourses.forEach(c => {
-            (c.subjects || []).forEach(s => {
-                subjectMap[s] = (subjectMap[s] || 0) + 1;
-            });
-        });
+        allCourses.forEach(c => (c.subjects || []).forEach(s => { subjectMap[s] = (subjectMap[s] || 0) + 1; }));
         const entries = Object.entries(subjectMap).sort((a, b) => b[1] - a[1]);
         if (entries.length) {
             document.getElementById('subject-breakdown').innerHTML = `
@@ -282,11 +313,13 @@
         }
     }
 
-    /* ---- Grade Filter Populator ----------------------------------------- */
+    /* ---- Grade Filter --------------------------------------------------- */
     function populateGradeFilter() {
         const gradeSet = new Set();
         allCourses.forEach(c => (c.grades || []).forEach(g => gradeSet.add(g)));
         const gradeSelect = document.getElementById('grade-filter');
+        // Clear existing options except the first "All Grades"
+        while (gradeSelect.options.length > 1) gradeSelect.remove(1);
         Array.from(gradeSet).sort().forEach(g => {
             const opt = document.createElement('option');
             opt.value = g;
@@ -302,18 +335,16 @@
         const gradeFilter  = document.getElementById('grade-filter').value;
 
         filteredCourses = allCourses.filter(c => {
-            const title      = (c.title || '').toLowerCase();
-            const code       = (c.courseCode || '').toLowerCase();
-            const subjects   = (c.subjects || []).join(' ').toLowerCase();
-            const matchText  = !query || title.includes(query) || code.includes(query) || subjects.includes(query);
-            const matchStatus = !statusFilter || c.status === statusFilter;
-            const matchGrade  = !gradeFilter  || (c.grades || []).includes(gradeFilter);
-            return matchText && matchStatus && matchGrade;
+            const title    = (c.title || '').toLowerCase();
+            const code     = (c.courseCode || '').toLowerCase();
+            const subjects = (c.subjects || []).join(' ').toLowerCase();
+            return (!query || title.includes(query) || code.includes(query) || subjects.includes(query))
+                && (!statusFilter || c.status === statusFilter)
+                && (!gradeFilter  || (c.grades || []).includes(gradeFilter));
         });
 
         document.getElementById('courses-count').textContent =
             `${filteredCourses.length} course${filteredCourses.length !== 1 ? 's' : ''} found`;
-
         renderGrid();
     }
 
@@ -328,7 +359,7 @@
             const color  = THEMES[i % THEMES.length];
             const icon   = guessIcon(c.title);
             const status = c.status || 'active';
-            const grades = esc((c.grades || []).join(', ')) || '—';
+            const grades = esc((c.grades || []).join(', ')) || '\u2014';
             const subjects = esc((c.subjects || []).join(', '));
             const classCount = allClasses.filter(cl => cl.courseSourcedId === c.sourcedId).length;
             const sid = esc(c.sourcedId);
@@ -362,15 +393,12 @@
         }).join('');
     }
 
-    /* ---- Search & Filter Listeners -------------------------------------- */
+    /* ---- Listeners ------------------------------------------------------ */
     document.getElementById('course-search').addEventListener('input', debounce(filterAndRender, 250));
     document.getElementById('status-filter').addEventListener('change', filterAndRender);
     document.getElementById('grade-filter').addEventListener('change', filterAndRender);
 
-    function debounce(fn, ms) {
-        let t;
-        return function (...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); };
-    }
+    function debounce(fn, ms) { let t; return function (...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); }; }
 
     /* ====================================================================
        Course Detail Modal
@@ -381,146 +409,88 @@
         modal.classList.add('open');
 
         const course = allCourses.find(c => c.sourcedId === courseId);
-        if (!course) {
-            body.innerHTML = '<p class="error-text">Course not found.</p>';
-            return;
-        }
+        if (!course) { body.innerHTML = '<p class="error-text">Course not found.</p>'; return; }
 
         document.getElementById('detail-modal-title').textContent = course.title || 'Course Details';
-
         const courseClasses = allClasses.filter(cl => cl.courseSourcedId === courseId);
-        const grades   = esc((course.grades || []).join(', ')) || '—';
-        const subjects = esc((course.subjects || []).join(', ')) || '—';
-        const lastMod  = course.dateLastModified
-            ? new Date(course.dateLastModified).toLocaleDateString()
-            : '—';
+        const grades   = esc((course.grades || []).join(', ')) || '\u2014';
+        const subjects = esc((course.subjects || []).join(', ')) || '\u2014';
+        const lastMod  = course.dateLastModified ? new Date(course.dateLastModified).toLocaleDateString() : '\u2014';
 
-        // Render course info and classes immediately (already in memory)
-        // Line items tab shows a skeleton placeholder until the fetch completes
-        function renderModal(lineItems, lineItemsLoading) {
+        function renderModal(lineItems, loading) {
             body.innerHTML = `
                 <div class="modal-detail-grid">
-                    <div class="detail-item"><span class="detail-label">Title</span><span class="detail-value">${esc(course.title) || '—'}</span></div>
-                    <div class="detail-item"><span class="detail-label">Course Code</span><span class="detail-value">${esc(course.courseCode) || '—'}</span></div>
+                    <div class="detail-item"><span class="detail-label">Title</span><span class="detail-value">${esc(course.title) || '\u2014'}</span></div>
+                    <div class="detail-item"><span class="detail-label">Course Code</span><span class="detail-value">${esc(course.courseCode) || '\u2014'}</span></div>
                     <div class="detail-item"><span class="detail-label">Subjects</span><span class="detail-value">${subjects}</span></div>
                     <div class="detail-item"><span class="detail-label">Grades</span><span class="detail-value">${grades}</span></div>
-                    <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value"><span class="status-badge status-${esc(course.status)}">${esc(course.status) || '—'}</span></span></div>
+                    <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value"><span class="status-badge status-${esc(course.status)}">${esc(course.status) || '\u2014'}</span></span></div>
                     <div class="detail-item"><span class="detail-label">Last Modified</span><span class="detail-value">${lastMod}</span></div>
                     <div class="detail-item full-width"><span class="detail-label">Source ID</span><span class="detail-value monospace">${esc(course.sourcedId)}</span></div>
                 </div>
-
                 ${course.metadata ? `<div style="margin-bottom:16px;"><span class="detail-label">Metadata</span><pre style="font-size:0.8rem;background:var(--color-bg);padding:12px;border-radius:var(--radius-sm);overflow-x:auto;max-height:120px;">${esc(JSON.stringify(course.metadata, null, 2))}</pre></div>` : ''}
-
                 <div class="detail-tabs">
-                    <button class="detail-tab active" onclick="switchDetailTab(this, 'classes-tab')">Classes (${courseClasses.length})</button>
-                    <button class="detail-tab" onclick="switchDetailTab(this, 'lineitems-tab')">Line Items${lineItemsLoading ? '' : ' (' + lineItems.length + ')'}</button>
+                    <button class="detail-tab active" onclick="switchDetailTab(this,'classes-tab')">Classes (${courseClasses.length})</button>
+                    <button class="detail-tab" onclick="switchDetailTab(this,'lineitems-tab')">Line Items${loading ? '' : ' (' + lineItems.length + ')'}</button>
                 </div>
-
                 <div id="classes-tab">
-                    ${courseClasses.length ? `
-                    <table class="detail-table">
-                        <thead><tr><th>Title</th><th>Code</th><th>Type</th><th>Status</th></tr></thead>
-                        <tbody>
-                            ${courseClasses.map(cl => `
-                                <tr>
-                                    <td>${esc(cl.title) || '—'}</td>
-                                    <td>${esc(cl.classCode) || '—'}</td>
-                                    <td>${esc(cl.classType) || '—'}</td>
-                                    <td><span class="status-badge status-${esc(cl.status)}">${esc(cl.status) || '—'}</span></td>
-                                </tr>`).join('')}
-                        </tbody>
-                    </table>` : '<div class="detail-empty">No classes associated with this course.</div>'}
+                    ${courseClasses.length ? `<table class="detail-table"><thead><tr><th>Title</th><th>Code</th><th>Type</th><th>Status</th></tr></thead><tbody>${courseClasses.map(cl => `<tr><td>${esc(cl.title)||'\u2014'}</td><td>${esc(cl.classCode)||'\u2014'}</td><td>${esc(cl.classType)||'\u2014'}</td><td><span class="status-badge status-${esc(cl.status)}">${esc(cl.status)||'\u2014'}</span></td></tr>`).join('')}</tbody></table>` : '<div class="detail-empty">No classes associated with this course.</div>'}
                 </div>
-
                 <div id="lineitems-tab" style="display:none;">
-                    ${lineItemsLoading ? `
-                    <div style="padding:8px 0;">
-                        <div class="skeleton" style="height:34px;border-radius:6px;margin-bottom:8px;"></div>
-                        <div class="skeleton" style="height:38px;border-radius:6px;margin-bottom:4px;"></div>
-                        <div class="skeleton" style="height:38px;border-radius:6px;margin-bottom:4px;"></div>
-                        <div class="skeleton" style="height:38px;border-radius:6px;"></div>
-                    </div>` :
-                    (lineItems.length ? `
-                    <table class="detail-table">
-                        <thead><tr><th>Title</th><th>Due Date</th><th>Max Score</th><th>Status</th></tr></thead>
-                        <tbody>
-                            ${lineItems.map(li => `
-                                <tr>
-                                    <td>${esc(li.title) || '—'}</td>
-                                    <td>${li.dueDate ? new Date(li.dueDate).toLocaleDateString() : '—'}</td>
-                                    <td>${li.resultValueMax != null ? esc(li.resultValueMax) : '—'}</td>
-                                    <td><span class="status-badge status-${esc(li.status)}">${esc(li.status) || '—'}</span></td>
-                                </tr>`).join('')}
-                        </tbody>
-                    </table>` : '<div class="detail-empty">No line items found for this course\'s classes.</div>')}
-                </div>
-            `;
+                    ${loading ? '<div style="padding:8px 0;"><div class="skeleton" style="height:34px;border-radius:6px;margin-bottom:8px;"></div><div class="skeleton" style="height:38px;border-radius:6px;margin-bottom:4px;"></div><div class="skeleton" style="height:38px;border-radius:6px;"></div></div>' :
+                    (lineItems.length ? `<table class="detail-table"><thead><tr><th>Title</th><th>Due Date</th><th>Max Score</th><th>Status</th></tr></thead><tbody>${lineItems.map(li => `<tr><td>${esc(li.title)||'\u2014'}</td><td>${li.dueDate ? new Date(li.dueDate).toLocaleDateString() : '\u2014'}</td><td>${li.resultValueMax != null ? esc(li.resultValueMax) : '\u2014'}</td><td><span class="status-badge status-${esc(li.status)}">${esc(li.status)||'\u2014'}</span></td></tr>`).join('')}</tbody></table>` : '<div class="detail-empty">No line items found.</div>')}
+                </div>`;
         }
 
-        // Show course info + classes immediately, skeleton for line items
         renderModal([], true);
-
-        // Fetch line items in background, then update just that tab
         let lineItems = [];
         try {
             const liResp = await fetch('/api/line-items');
             const liData = await liResp.json();
             const classIds = new Set(courseClasses.map(cl => cl.sourcedId));
             lineItems = (liData.lineItems || []).filter(li => classIds.has(li.classSourcedId));
-        } catch (e) { /* line items unavailable */ }
-
+        } catch (e) { }
         renderModal(lineItems, false);
     }
 
     function switchDetailTab(btn, tabId) {
         btn.parentElement.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById('classes-tab').style.display    = tabId === 'classes-tab' ? '' : 'none';
-        document.getElementById('lineitems-tab').style.display  = tabId === 'lineitems-tab' ? '' : 'none';
+        document.getElementById('classes-tab').style.display = tabId === 'classes-tab' ? '' : 'none';
+        document.getElementById('lineitems-tab').style.display = tabId === 'lineitems-tab' ? '' : 'none';
     }
 
-    function closeDetailModal() {
-        document.getElementById('detail-modal').classList.remove('open');
-    }
-    document.getElementById('detail-modal').addEventListener('click', function (e) {
-        if (e.target === this) closeDetailModal();
-    });
+    function closeDetailModal() { document.getElementById('detail-modal').classList.remove('open'); }
+    document.getElementById('detail-modal').addEventListener('click', function (e) { if (e.target === this) closeDetailModal(); });
 
     /* ====================================================================
        Assign to Student Modal
        ==================================================================== */
-    let assignCourseId     = null;
-    let assignSelectedUser = null;
+    let assignCourseId = null, assignSelectedUser = null;
 
     async function openAssignModal(courseId) {
-        assignCourseId     = courseId;
+        assignCourseId = courseId;
         assignSelectedUser = null;
         const course = allCourses.find(c => c.sourcedId === courseId);
-        const modal  = document.getElementById('assign-modal');
-        const body   = document.getElementById('assign-modal-body');
+        const modal = document.getElementById('assign-modal');
+        const body = document.getElementById('assign-modal-body');
 
         document.getElementById('assign-modal-title').textContent = course ? `Assign: ${course.title}` : 'Assign Course';
         modal.classList.add('open');
 
-        // Only show loading if we actually need to fetch users
         if (!allUsers.length) {
-            body.innerHTML = '<div style="text-align:center;padding:32px;"><div class="skeleton" style="width:100%;height:40px;border-radius:8px;margin-bottom:12px;"></div><div style="display:flex;flex-direction:column;gap:6px;"><div style="display:flex;align-items:center;gap:12px;padding:10px 12px;"><div class="skeleton skeleton-circle" style="width:32px;height:32px;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:55%;margin-bottom:4px;"></div><div class="skeleton skeleton-text sm" style="width:40%;"></div></div></div><div style="display:flex;align-items:center;gap:12px;padding:10px 12px;"><div class="skeleton skeleton-circle" style="width:32px;height:32px;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:65%;margin-bottom:4px;"></div><div class="skeleton skeleton-text sm" style="width:35%;"></div></div></div><div style="display:flex;align-items:center;gap:12px;padding:10px 12px;"><div class="skeleton skeleton-circle" style="width:32px;height:32px;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:48%;margin-bottom:4px;"></div><div class="skeleton skeleton-text sm" style="width:38%;"></div></div></div></div></div>';
+            body.innerHTML = '<div style="text-align:center;padding:32px;"><div class="loading-spinner" style="margin:0 auto 12px;"></div>Loading students...</div>';
             try {
                 const resp = await fetch('/api/users');
                 const data = await resp.json();
                 allUsers = (data.users || []).filter(u => u.role === 'student');
-            } catch (e) {
-                body.innerHTML = '<p class="error-text">Failed to load students.</p>';
-                return;
-            }
+            } catch (e) { body.innerHTML = '<p class="error-text">Failed to load students.</p>'; return; }
         }
-
         renderAssignModal(course);
     }
 
-    function renderAssignModal(course) {
-        const body = document.getElementById('assign-modal-body');
-        body.innerHTML = `
+    function renderAssignModal() {
+        document.getElementById('assign-modal-body').innerHTML = `
             <div class="search-box" style="max-width:100%;margin-bottom:0;">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 <input type="text" id="assign-search" class="search-input" placeholder="Search students..." oninput="filterAssignList()">
@@ -528,75 +498,45 @@
             <div class="student-list" id="assign-student-list"></div>
             <div class="assign-confirm" id="assign-confirm" style="display:none;">
                 <button class="btn-primary" id="assign-btn" onclick="confirmAssign()">Assign Course</button>
-            </div>
-        `;
+            </div>`;
         filterAssignList();
     }
 
     function filterAssignList() {
         const query = (document.getElementById('assign-search')?.value || '').toLowerCase();
-        const list  = document.getElementById('assign-student-list');
+        const list = document.getElementById('assign-student-list');
         const filtered = allUsers.filter(u => {
             const name = `${u.givenName || ''} ${u.familyName || ''}`.toLowerCase();
             return !query || name.includes(query) || (u.email || '').toLowerCase().includes(query);
         });
-
-        if (!filtered.length) {
-            list.innerHTML = '<div class="detail-empty">No students found.</div>';
-            return;
-        }
-
+        if (!filtered.length) { list.innerHTML = '<div class="detail-empty">No students found.</div>'; return; }
         list.innerHTML = filtered.slice(0, 50).map(u => {
             const name = `${u.givenName || ''} ${u.familyName || ''}`.trim();
-            const selected = assignSelectedUser && assignSelectedUser.sourcedId === u.sourcedId;
-            return `
-                <div class="student-list-item ${selected ? 'selected' : ''}" onclick="selectStudent('${esc(u.sourcedId)}')">
-                    <div class="user-cell-avatar">${esc((u.givenName || '?')[0].toUpperCase())}</div>
-                    <div>
-                        <div class="user-cell-name">${esc(name)}</div>
-                        <div class="user-cell-username">${esc(u.email || u.username || '')}</div>
-                    </div>
-                </div>`;
+            const sel = assignSelectedUser && assignSelectedUser.sourcedId === u.sourcedId;
+            return `<div class="student-list-item ${sel ? 'selected' : ''}" onclick="selectStudent('${esc(u.sourcedId)}')"><div class="user-cell-avatar">${esc((u.givenName||'?')[0].toUpperCase())}</div><div><div class="user-cell-name">${esc(name)}</div><div class="user-cell-username">${esc(u.email||u.username||'')}</div></div></div>`;
         }).join('');
     }
 
     function selectStudent(userId) {
         assignSelectedUser = allUsers.find(u => u.sourcedId === userId);
         filterAssignList();
-
-        const confirmEl = document.getElementById('assign-confirm');
+        const el = document.getElementById('assign-confirm');
         if (assignSelectedUser) {
             const course = allCourses.find(c => c.sourcedId === assignCourseId);
-            const studentName = `${assignSelectedUser.givenName || ''} ${assignSelectedUser.familyName || ''}`.trim();
-            const courseName  = course ? course.title : 'this course';
-            confirmEl.style.display = '';
-            document.getElementById('assign-btn').textContent = `Assign "${courseName}" to ${studentName}`;
-        } else {
-            confirmEl.style.display = 'none';
-        }
+            el.style.display = '';
+            document.getElementById('assign-btn').textContent = `Assign "${course ? course.title : 'course'}" to ${assignSelectedUser.givenName} ${assignSelectedUser.familyName}`;
+        } else { el.style.display = 'none'; }
     }
 
     function confirmAssign() {
         const course = allCourses.find(c => c.sourcedId === assignCourseId);
-        const studentName = esc(`${assignSelectedUser.givenName || ''} ${assignSelectedUser.familyName || ''}`.trim());
-        const courseName  = esc(course ? course.title : 'this course');
-
-        const body = document.getElementById('assign-modal-body');
-        body.innerHTML = `
-            <div class="assign-success">
-                <i class="fa-solid fa-circle-check"></i>
-                <p><strong>${courseName}</strong> assigned to <strong>${studentName}</strong></p>
-                <p class="subtitle">Assignment requested (API integration pending) — will be synced when enrollment endpoint is available.</p>
-            </div>
-        `;
+        const sn = esc(`${assignSelectedUser.givenName||''} ${assignSelectedUser.familyName||''}`.trim());
+        const cn = esc(course ? course.title : 'this course');
+        document.getElementById('assign-modal-body').innerHTML = `<div class="assign-success"><i class="fa-solid fa-circle-check"></i><p><strong>${cn}</strong> assigned to <strong>${sn}</strong></p><p class="subtitle">Assignment requested (API integration pending).</p></div>`;
     }
 
-    function closeAssignModal() {
-        document.getElementById('assign-modal').classList.remove('open');
-    }
-    document.getElementById('assign-modal').addEventListener('click', function (e) {
-        if (e.target === this) closeAssignModal();
-    });
+    function closeAssignModal() { document.getElementById('assign-modal').classList.remove('open'); }
+    document.getElementById('assign-modal').addEventListener('click', function (e) { if (e.target === this) closeAssignModal(); });
     </script>
 </body>
 </html>
