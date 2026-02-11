@@ -142,6 +142,12 @@
 
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
+        // Admin detection — admins can skip ahead through locked content
+        var userRole = (localStorage.getItem('alphalearn_role') || '').toLowerCase();
+        var userEmail = (localStorage.getItem('alphalearn_email') || '').toLowerCase();
+        var isAdmin = userRole.includes('admin') || userRole.includes('administrator')
+            || userEmail === 'twsevenyw@gmail.com' || userEmail === 'austin.way@alpha.school';
+
         // Set page title
         document.title = 'AlphaLearn - ' + courseTitle;
 
@@ -225,6 +231,15 @@
 
         // ── Build content sections ──
         var contentHTML = '';
+
+        // ── Admin mode banner ──
+        if (isAdmin) {
+            contentHTML += '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:linear-gradient(135deg,#FFF8E1,#FFF3E0);border:1px solid #FFE082;border-radius:var(--radius);margin-bottom:16px;">' +
+                '<i class="fa-solid fa-shield-halved" style="color:#F57F17;font-size:1.1rem;"></i>' +
+                '<div style="flex:1;"><span style="font-weight:700;font-size:0.88rem;color:#E65100;">Admin Mode</span>' +
+                '<span style="font-size:0.8rem;color:#BF360C;margin-left:8px;">All content unlocked — sequential locks bypassed</span></div>' +
+            '</div>';
+        }
 
         // ── Daily Goals (student-friendly) ──
         var hasGoals = goals.dailyXp || goals.dailyLessons || goals.dailyActiveMinutes || goals.dailyAccuracy || goals.dailyMasteredUnits;
@@ -402,7 +417,7 @@
                         if (progressByTitle[lcTitle] || localStorage.getItem(lcLocalKey) === 'true') unitDone++;
                     }
                     var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
-                    var unitLocked = !prevUnitComplete;
+                    var unitLocked = isAdmin ? false : !prevUnitComplete;
                     var unitId = 'unit-' + mi;
 
                     // Unit header (clickable to expand/collapse)
@@ -429,7 +444,7 @@
                             var localKey = 'completed_' + (lesson.id || lesson.sourcedId || lTitle);
                             var isLocalDone = localStorage.getItem(localKey) === 'true';
                             isDone = isDone || isLocalDone;
-                            var lessonLocked = !prevLessonDone;
+                            var lessonLocked = isAdmin ? false : !prevLessonDone;
                             var resources = lesson.componentResources || [];
 
                             // Detect assessment type from lesson title (APS, Quiz, Test, etc.)
@@ -456,8 +471,9 @@
                                 else if (rurl && !rurl.includes('flashcard.com')) { pillUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(lTitle); }
                                 else if (resId) { pillUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=' + encodeURIComponent(rtype || 'assessment') + '&title=' + encodeURIComponent(lTitle); }
 
+                                var isGenuineQuiz = rtype && (rtype.includes('assess') || rtype.includes('quiz') || rtype.includes('test'));
                                 var effectiveType = rtype || (isAssessmentTitle ? 'assessment' : '');
-                                resDetails.push({ type: effectiveType, url: rurl, pillUrl: pillUrl, title: rTitle2, label: resLabel(effectiveType, rurl) });
+                                resDetails.push({ type: effectiveType, url: rurl, pillUrl: pillUrl, title: rTitle2, label: resLabel(effectiveType, rurl), _genuineQuiz: isGenuineQuiz });
 
                                 if (!openUrl && pillUrl) openUrl = pillUrl;
                             }
@@ -473,13 +489,13 @@
                             }
                             // If we have an openUrl but no resource details, add a synthetic entry so the pill renders
                             if (resDetails.length === 0 && openUrl) {
-                                resDetails.push({ type: 'assessment', url: '', pillUrl: openUrl, title: lTitle, label: 'Quiz' });
+                                resDetails.push({ type: 'assessment', url: '', pillUrl: openUrl, title: lTitle, label: 'Quiz', _genuineQuiz: true });
                             }
 
                             // Per-resource completion tracking
                             var nonQuizCount = 0, nonQuizDoneCount = 0;
                             for (var rci = 0; rci < resDetails.length; rci++) {
-                                var isQuizRes = (resDetails[rci].label === 'Quiz');
+                                var isQuizRes = !!resDetails[rci]._genuineQuiz;
                                 resDetails[rci]._isQuiz = isQuizRes;
                                 if (!isQuizRes) {
                                     nonQuizCount++;
