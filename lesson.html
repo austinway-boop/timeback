@@ -55,14 +55,28 @@
             border: 1px solid var(--color-border);
             overflow: hidden; min-height: 400px;
         }
-        .lesson-content iframe {
-            flex: 1; width: 100%; border: none;
-            min-height: 500px;
+        /* Video: 16:9 aspect ratio, centered, max 720px */
+        .video-wrap {
+            width: 100%; max-width: 720px; margin: 24px auto;
+            aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden;
+            background: #000;
         }
-        .lesson-content .article-frame {
-            flex: 1; width: 100%; border: none;
-            min-height: 500px; background: #fff;
+        .video-wrap iframe { width: 100%; height: 100%; border: none; }
+
+        /* Article: rendered HTML content */
+        .article-wrap {
+            flex: 1; padding: 32px 40px; overflow-y: auto;
+            font-size: 1rem; line-height: 1.8; color: var(--color-text);
         }
+        .article-wrap img { max-width: 100%; border-radius: 8px; margin: 12px 0; }
+        .article-wrap h1, .article-wrap h2, .article-wrap h3 { margin: 20px 0 10px; }
+        .article-wrap p { margin-bottom: 14px; }
+        .article-loading {
+            display: flex; align-items: center; justify-content: center;
+            padding: 60px; color: var(--color-text-muted);
+            flex-direction: column; gap: 12px;
+        }
+        .article-loading i { font-size: 1.5rem; }
         .lesson-placeholder {
             flex: 1; display: flex; flex-direction: column;
             align-items: center; justify-content: center;
@@ -217,17 +231,18 @@
         var url = step.resource.url || step.resource.pillUrl || '';
 
         if (step.type === 'Video') {
-            // Embed video as iframe (YouTube, Vimeo, etc.)
+            // Embed video in a 16:9 container, centered
             var embedUrl = toEmbedUrl(url);
             if (embedUrl) {
-                contentEl.innerHTML = '<iframe src="' + esc(embedUrl) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>';
+                contentEl.innerHTML = '<div class="video-wrap"><iframe src="' + esc(embedUrl) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>';
             } else {
                 contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-video"></i><p>Video</p><p class="sub"><a href="' + esc(url) + '" target="_blank" style="color:var(--color-primary);">Open video in new tab</a></p></div>';
             }
         } else if (step.type === 'Article') {
-            // Embed article as iframe
+            // Fetch article content through our API proxy (PowerPath URLs need auth)
             if (url) {
-                contentEl.innerHTML = '<iframe class="article-frame" src="' + esc(url) + '" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>';
+                contentEl.innerHTML = '<div class="article-loading"><i class="fa-solid fa-spinner fa-spin"></i><span>Loading article...</span></div>';
+                fetchArticle(url, contentEl);
             } else {
                 contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content</p><p class="sub">No article URL available for this lesson.</p></div>';
             }
@@ -240,6 +255,28 @@
                 '<p class="sub">Click "Start Quiz" to begin the assessment for this lesson.</p>' +
             '</div>';
         }
+    }
+
+    function fetchArticle(url, contentEl) {
+        fetch('/api/article-proxy?url=' + encodeURIComponent(url))
+            .then(function(resp) {
+                if (!resp.ok) throw new Error('Failed to load article');
+                return resp.text();
+            })
+            .then(function(html) {
+                if (html && html.trim().length > 0) {
+                    contentEl.innerHTML = '<div class="article-wrap">' + html + '</div>';
+                } else {
+                    contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content is empty.</p><p class="sub"><a href="' + esc(url) + '" target="_blank" style="color:var(--color-primary);">Try opening in new tab</a></p></div>';
+                }
+            })
+            .catch(function(err) {
+                console.warn('[Lesson] Article fetch failed:', err);
+                contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i>' +
+                    '<p style="font-weight:600;color:var(--color-text);">Article</p>' +
+                    '<p class="sub">Could not load article content.</p>' +
+                    '<a href="' + esc(url) + '" target="_blank" style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:10px 20px;background:var(--color-primary);color:#fff;border-radius:var(--radius-sm);font-weight:600;text-decoration:none;font-size:0.88rem;"><i class="fa-solid fa-external-link"></i> Open Article</a></div>';
+            });
     }
 
     function goNext() {
