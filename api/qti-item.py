@@ -70,21 +70,27 @@ class handler(BaseHTTPRequestHandler):
                 data, st = _fetch(direct_url, headers)
 
                 if data:
-                    # Check if this is an assessment-test with question refs
+                    # Detect assessment-test in multiple possible locations
                     test = data.get("qti-assessment-test")
+                    if not test and isinstance(data.get("content"), dict):
+                        test = data["content"].get("qti-assessment-test")
+                    
+                    # Also detect top-level qti-test-part (different API response format)
+                    top_parts = data.get("qti-test-part")
+                    if not test and top_parts:
+                        test = {"qti-test-part": top_parts, "_attributes": {"title": data.get("title", "")}}
+
                     if test:
-                        # Extract question hrefs and fetch them
                         questions = self._fetch_assessment_questions(test, headers)
-                        title = (test.get("_attributes") or {}).get("title", "")
+                        title = data.get("title") or (test.get("_attributes") or {}).get("title", "")
                         send_json(self, {"data": {"title": title, "questions": questions, "totalQuestions": len(questions)}, "success": True})
                         return
 
-                    # Check if this is a stimulus
+                    # Stimulus
                     if data.get("qti-assessment-stimulus"):
                         send_json(self, {"data": data, "success": True})
                         return
 
-                    # Otherwise return as-is
                     send_json(self, {"data": data, "success": True})
                     return
 
@@ -150,13 +156,16 @@ class handler(BaseHTTPRequestHandler):
                 if not isinstance(refs, list):
                     refs = [refs]
                 for ref in refs:
-                    href = (ref.get("_attributes") or {}).get("href", "")
+                    # Handle both formats: {href: "..."} and {_attributes: {href: "..."}}
+                    href = ref.get("href", "")
+                    if not href:
+                        href = (ref.get("_attributes") or {}).get("href", "")
                     if href:
                         hrefs.append(href)
 
-        # Fetch individual questions (limit to 30 to avoid timeout)
+        # Fetch individual questions (limit to 20 to avoid Vercel timeout)
         questions = []
-        for href in hrefs[:30]:
+        for href in hrefs[:20]:
             data, st = _fetch(href, headers)
             if data:
                 questions.append(data)
