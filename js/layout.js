@@ -54,12 +54,8 @@
     if (!sidebar) return;
 
     const studentNav = [
-        { id: 'home',     icon: 'fa-house',   label: 'Home',             href: '/dashboard' },
-        { id: 'goals',    icon: 'fa-bullseye', label: 'Goals', children: [
-            { id: 'goals-progress', icon: 'fa-chart-line', label: 'Progress',  href: '/goals#progress' },
-            { id: 'goals-set',      icon: 'fa-sliders',    label: 'Set Goals', href: '/goals#set' },
-        ]},
-        { id: 'badges',   icon: 'fa-award',   label: 'Badges',           href: '#' },
+        { id: 'home',     icon: 'fa-house',    label: 'Home',   href: '/dashboard' },
+        { id: 'goals',    icon: 'fa-bullseye',  label: 'Goals',  href: '/goals' },
     ];
 
     const adminNav = [
