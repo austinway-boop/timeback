@@ -288,7 +288,7 @@ function cntDays(end, excl) {
 
 function lessonCard(c, i) {
     const th  = THEMES[i % 4];
-    const g   = ld()[c._goalKey] || {};
+    const g   = GOALS[c._enrollmentId] || {};
     const has = !!g.endDate;
 
     const done      = MASTERED[i] || 0;
@@ -319,7 +319,7 @@ function lessonCard(c, i) {
         paceHtml = `<div class="gc-goal ${cls}"><div class="gc-goal-pace">${txt}</div></div>`;
     }
 
-    return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
+    return `<div class="gc" data-i="${i}" data-eid="${c._enrollmentId}">
         <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;border-radius:12px 12px 0 0;"><img src="${getCardImage(c.title, c.appName)}" alt="${c.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;"></div>
         <div class="gc-b">
             <div class="gc-name">${c.title}</div>
@@ -347,8 +347,8 @@ function lessonCard(c, i) {
    =================================================================== */
 
 function xpCard(c, i) {
-    const g   = ld()[c._goalKey] || {};
-    const has = !!g.type;
+    const g   = GOALS[c._enrollmentId] || {};
+    const has = !!g.target;
 
     const xpE       = Math.round(XP[i] || 0);
     const totalXp   = c.totalXp || 0;
@@ -364,7 +364,7 @@ function xpCard(c, i) {
         }
     }
 
-    return `<div class="gc" data-i="${i}" data-k="${c._goalKey}">
+    return `<div class="gc" data-i="${i}" data-eid="${c._enrollmentId}">
         <div class="course-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;height:130px;border-radius:12px 12px 0 0;"><img src="${getCardImage(c.title, c.appName)}" alt="${c.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;"></div>
         <div class="gc-b">
             <div class="gc-name">${c.title}</div>
@@ -415,37 +415,45 @@ function previewL(i) {
    SAVE / CLEAR
    =================================================================== */
 
-function saveL(i) {
+async function saveL(i) {
     const card = document.querySelector(`.gc[data-i="${i}"]`);
     const tgt  = parseInt(card.querySelector('.gl-tgt').value) || 0;
     const dt   = card.querySelector('.gl-date').value;
     if (!tgt) { toast('Enter target units.'); return; }
     if (!dt)  { toast('Pick an end date.'); return; }
     const excl = card.querySelector('.gl-sch').checked;
-    const g = ld();
-    g[card.dataset.k] = { type: 'lessons', target: tgt, endDate: dt, excludeNonSchoolDays: excl };
-    sv(g);
-    toast('Goal saved!');
+    const eid  = card.dataset.eid;
+
+    const btn = card.querySelector('.btn-c');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+
+    const ok = await apiSaveGoal(eid, { target: tgt, endDate: dt, excludeNonSchoolDays: excl });
+    btn.disabled = false;
+    toast(ok ? 'Goal saved!' : 'Failed to save goal.');
     render();
 }
 
-function saveXP(i) {
+async function saveXP(i) {
     const card = document.querySelector(`.gc[data-i="${i}"]`);
     const tgt  = parseInt(card.querySelector('.gx-tgt').value) || 0;
     if (!tgt) { toast('Enter target XP.'); return; }
-    const g = ld();
-    g[card.dataset.k] = { type: 'xp', target: tgt };
-    sv(g);
-    toast('Goal saved!');
+    const eid  = card.dataset.eid;
+
+    const btn = card.querySelector('.btn-c');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+
+    const ok = await apiSaveGoal(eid, { target: tgt });
+    btn.disabled = false;
+    toast(ok ? 'Goal saved!' : 'Failed to save goal.');
     render();
 }
 
-function clearG(i) {
+async function clearG(i) {
     const card = document.querySelector(`.gc[data-i="${i}"]`);
-    const g = ld();
-    delete g[card.dataset.k];
-    sv(g);
-    toast('Goal cleared.');
+    const eid  = card.dataset.eid;
+
+    const ok = await apiSaveGoal(eid, { clear: true });
+    toast(ok ? 'Goal cleared.' : 'Failed to clear goal.');
     render();
 }
 
@@ -494,6 +502,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             return;
         }
         const uid = lu.user.sourcedId;
+        currentUserId = uid;
         localStorage.setItem('alphalearn_userId', uid);
 
         /* 2. Use pre-fetched enrollments or fetch now */
@@ -556,6 +565,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         const startParam = `${fmtD(soy)}T00:00:00Z`;
         const endParam   = `${fmtD(now)}T23:59:59Z`;
 
+        // Fetch goals from KV API in parallel with analytics
+        const goalsPromise = fetch(`/api/goals?userId=${encodeURIComponent(uid)}`)
+            .then(r => r.json())
+            .then(d => { GOALS = d.goals || {}; })
+            .catch(e => console.warn('[AlphaLearn] Goals unavailable:', e.message));
+
         // Fire per-enrollment analytics calls in parallel for every course with an enrollment ID
         const analyticsPromises = ALL.map((c, i) => {
             if (!c._enrollmentId) return Promise.resolve(null);
@@ -566,7 +581,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
 
         try {
-            const results = await Promise.all(analyticsPromises);
+            const [results] = await Promise.all([Promise.all(analyticsPromises), goalsPromise]);
             const cache = {};
 
             for (const r of results) {
