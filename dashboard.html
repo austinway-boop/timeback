@@ -321,7 +321,11 @@
         document.getElementById('course-grid').innerHTML = courses.map((c, i) => {
             const color     = COURSE_THEMES[i % COURSE_THEMES.length];
             const name      = c.title || 'Untitled Course';
-            const savedGoal = savedGoals[c._enrollmentId] || null;
+            const savedGoal = savedGoals[c._enrollmentId]
+                || savedGoals[c._goalKey]
+                || savedGoals[(c._raw || {}).id]
+                || savedGoals[(c._raw || {}).sourcedId]
+                || null;
             const lessonBased = isLessonCourse(c);
 
             let progressText, progressLabel, pct;
@@ -346,7 +350,11 @@
                 }
             } else {
                 // Non-lesson course: show daily/weekly XP
-                const kvGoal = savedGoals[c._enrollmentId] || {};
+                const kvGoal = savedGoals[c._enrollmentId]
+                    || savedGoals[c._goalKey]
+                    || savedGoals[(c._raw || {}).id]
+                    || savedGoals[(c._raw || {}).sourcedId]
+                    || {};
                 const dailyGoal = kvGoal.dailyXp || c.dailyXpGoal || 0;
                 const xpEarned = Math.round(xpByCourseIdx[i] || 0);
                 const goal = currentPeriod === 'today' ? dailyGoal : dailyGoal * 5;
