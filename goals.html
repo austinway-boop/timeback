@@ -164,7 +164,7 @@ function isTimeback(c) {
     if (/^pp/i.test(a) || a.includes('powerpath')) return true;
     return false;
 }
-function isLesson(c) { return c.totalLessons > 0 || (isAP(c.title) && isTimeback(c)); }
+function isLesson(c) { return isAP(c.title) && isTimeback(c); }
 
 /* ---- State ------------------------------------------------------------ */
 
@@ -648,6 +648,18 @@ document.addEventListener('DOMContentLoaded', async function () {
         } catch (e) {
             console.warn('[AlphaLearn] Per-enrollment analytics:', e.message);
         }
+
+        /* 4. For AP lesson courses still missing totalLessons, fetch from course API */
+        const missingTotal = ALL.map((c, i) => {
+            if (!isLesson(c) || c.totalLessons > 0) return null;
+            const courseId = (c._course && (c._course.sourcedId || c._course.id)) || '';
+            if (!courseId) return null;
+            return fetch(`/api/course-info?courseId=${encodeURIComponent(courseId)}`)
+                .then(r => r.json())
+                .then(d => { if (d.totalLessons) ALL[i].totalLessons = d.totalLessons; })
+                .catch(() => null);
+        }).filter(Boolean);
+        if (missingTotal.length) await Promise.all(missingTotal);
 
         render();
 
