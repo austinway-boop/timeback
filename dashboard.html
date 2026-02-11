@@ -227,6 +227,14 @@
                     </div>
                 </div>`;
         }).join('');
+
+        // Attach click handlers directly to each card element
+        document.querySelectorAll('#course-grid .course-card[data-course-index]').forEach(function(card) {
+            card.addEventListener('click', function() {
+                var idx = parseInt(this.getAttribute('data-course-index'), 10);
+                if (!isNaN(idx)) openCourseModal(idx);
+            });
+        });
     }
 
     function showError(msg) {
@@ -556,10 +564,12 @@
 
     /* ---- Course detail modal --------------------------------------------- */
     function openCourseModal(index) {
+        console.log('[AlphaLearn] openCourseModal called with index:', index);
         const modal = document.getElementById('course-modal');
+        if (!modal) { alert('Error: course-modal element not found'); return; }
         try {
             const c = allCourses[index];
-            if (!c) return;
+            if (!c) { console.warn('[AlphaLearn] No course at index', index); return; }
 
             const body  = document.getElementById('course-modal-body');
             document.getElementById('course-modal-title').textContent = c.title || 'Course Details';
@@ -708,9 +718,10 @@
                 </div>
             `;
 
-            modal.style.display = 'flex';
+            if (modal) modal.style.display = 'flex';
         } catch (err) {
             console.error('[AlphaLearn] Error opening course modal:', err);
+            alert('Course modal error: ' + (err.message || err));
             // Still show the modal with an error message so user gets feedback
             const body = document.getElementById('course-modal-body');
             if (body) {
@@ -722,7 +733,7 @@
                         <button onclick="closeCourseModal()" style="margin-top:16px;padding:10px 24px;background:#F4F6F9;color:#718096;border:none;border-radius:8px;font-size:0.9rem;font-weight:500;cursor:pointer;">Close</button>
                     </div>`;
             }
-            modal.style.display = 'flex';
+            if (modal) modal.style.display = 'flex';
         }
     }
 
