@@ -29,7 +29,8 @@
             box-shadow: 0 6px 16px rgba(0,0,0,0.12); font-size: 0.82rem;
             z-index: 10; text-align: left; color: #2D3748; line-height: 1.5;
         }
-        .course-info-icon:hover .course-info-tooltip { display: block; }
+        .course-info-icon:hover .course-info-tooltip,
+        .course-info-tooltip.locked { display: block; }
         .course-info-tooltip code {
             background: #F4F6F9; padding: 2px 6px; border-radius: 4px;
             font-family: 'SF Mono','Fira Code',monospace; font-size: 0.85em;
@@ -372,19 +373,21 @@
             const profile = vKey ? (userProfilesMap[vKey] || {}) : {};
             const isExternal = !!vKey;
             const launchUrl = profile.launchUrl || '';
-            const credUsername = creds.username || '';
+            // Username: try userIds first, then userProfiles
+            const credUsername = creds.username || profile.username || '';
             const credPassword = creds.password || '';
             const platformName = profile.appName || c.appName || '';
 
-            // Build compact info icon tooltip (for external courses with credentials)
+            // Build info icon tooltip (click to lock, click outside to dismiss)
             let infoIconHTML = '';
-            if (isExternal && (credUsername || credPassword || launchUrl)) {
-                infoIconHTML = `<div class="course-info-icon" onclick="event.stopPropagation();" title="Login info">
+            if (isExternal && (credUsername || launchUrl || platformName)) {
+                infoIconHTML = `<div class="course-info-icon" data-tip-id="tip-${i}" onclick="event.stopPropagation(); toggleTooltip('tip-${i}');" title="Login info">
                     <i class="fa-solid fa-key"></i>
-                    <div class="course-info-tooltip">
-                        ${credUsername ? `<div class="tip-row"><span class="tip-label">User</span> <code>${esc(credUsername)}</code></div>` : ''}
-                        ${credPassword ? `<div class="tip-row"><span class="tip-label">Pass</span> <code>${esc(credPassword)}</code></div>` : ''}
-                        ${launchUrl ? `<div style="margin-top:4px;"><a href="${esc(launchUrl)}" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square" style="margin-right:4px;font-size:0.7rem;"></i>Open ${esc(platformName || 'site')}</a></div>` : ''}
+                    <div class="course-info-tooltip" id="tip-${i}">
+                        ${platformName ? `<div style="font-weight:700;margin-bottom:6px;font-size:0.88rem;">${esc(platformName)}</div>` : ''}
+                        ${credUsername ? `<div class="tip-row"><span class="tip-label">Username</span> <code>${esc(credUsername)}</code></div>` : ''}
+                        ${credPassword ? `<div class="tip-row"><span class="tip-label">Password</span> <code>${esc(credPassword)}</code></div>` : `<div class="tip-row"><span class="tip-label">Password</span> <a href="https://alpha.timeback.com/app" target="_blank" style="font-size:0.8rem;">View on Timeback</a></div>`}
+                        ${launchUrl ? `<div style="margin-top:6px;border-top:1px solid #E8ECF1;padding-top:6px;"><a href="${esc(launchUrl)}" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square" style="margin-right:4px;font-size:0.7rem;"></i>Open ${esc(platformName || 'site')}</a></div>` : ''}
                     </div>
                 </div>`;
             }
@@ -495,10 +498,12 @@
                 const vendorId = p.vendorId || p.applicationId || '';
                 if (!vendorId) continue;
                 const appDomains = (p.app && p.app.domain) || [];
+                const pCred = (p.credentials && p.credentials[0]) || {};
                 userProfilesMap[vendorId] = {
                     appName: (p.app && p.app.name) || p.description || '',
                     domain: appDomains[0] || '',
                     launchUrl: appDomains[0] ? 'https://' + appDomains[0] : '',
+                    username: pCred.username || '',
                 };
             }
 
@@ -821,6 +826,22 @@
     }
 
     /* ---- HTML escape helper ---------------------------------------------- */
+    /** Toggle tooltip locked state (click to pin, click outside to dismiss) */
+    function toggleTooltip(tipId) {
+        var tip = document.getElementById(tipId);
+        if (!tip) return;
+        var isLocked = tip.classList.contains('locked');
+        // Close all other locked tooltips first
+        document.querySelectorAll('.course-info-tooltip.locked').forEach(function(t) { t.classList.remove('locked'); });
+        if (!isLocked) tip.classList.add('locked');
+    }
+    // Click outside to dismiss locked tooltips
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.course-info-icon')) {
+            document.querySelectorAll('.course-info-tooltip.locked').forEach(function(t) { t.classList.remove('locked'); });
+        }
+    });
+
     function esc(str) {
         if (str === null || str === undefined) return '';
         if (typeof str !== 'string') str = String(str);
