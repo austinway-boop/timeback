@@ -268,154 +268,156 @@
                 '</div>';
         }
 
-        // ── Course content: link to Timeback platform where actual units live ──
-        var timebackCourseUrl = 'https://alpha.timeback.com/app';
-        contentHTML += '<div class="content-card">' +
-            '<a href="' + esc(timebackCourseUrl) + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:16px;padding:20px;background:linear-gradient(135deg,var(--color-primary-light),#E0F7F4);border-radius:var(--radius);text-decoration:none;transition:all 0.2s;border:2px solid var(--color-primary);cursor:pointer;" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(69,181,170,0.3)\'" onmouseout="this.style.transform=\'none\';this.style.boxShadow=\'none\'">' +
-                '<div style="width:56px;height:56px;border-radius:14px;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;"><i class="fa-solid fa-rocket"></i></div>' +
-                '<div style="flex:1;">' +
-                    '<div style="font-weight:700;font-size:1.05rem;color:var(--color-text);margin-bottom:4px;">Open Course Content</div>' +
-                    '<div style="font-size:0.85rem;color:var(--color-text-secondary);">View all units, lessons, quizzes, and track your progress on the Timeback platform</div>' +
-                '</div>' +
-                '<i class="fa-solid fa-arrow-right" style="font-size:1.2rem;color:var(--color-primary);"></i>' +
-            '</a>' +
-        '</div>';
-
-        // ── Assignments section (fetched from API if available) ──
-        contentHTML += '<div class="content-card" id="lessons-section"><h2><i class="fa-solid fa-clipboard-list" style="color:var(--color-primary);margin-right:8px;"></i>Assignments</h2><div style="text-align:center;padding:20px;color:var(--color-text-muted);"><div class="loading-spinner" style="margin:0 auto 8px;width:24px;height:24px;"></div>Loading...</div></div>';
+        // ── Content section: units, assignments, resources (loaded from API) ──
+        contentHTML += '<div class="content-card" id="content-section">' +
+            '<div style="text-align:center;padding:30px;color:var(--color-text-muted);">' +
+                '<div class="loading-spinner" style="margin:0 auto 8px;width:28px;height:28px;"></div>' +
+                'Loading course content...' +
+            '</div></div>';
 
         document.getElementById('course-content').innerHTML = contentHTML;
 
-        // Fetch assignments from multiple sources
+        // Fetch ALL course content from our backend (OneRoster + EduBridge)
         try {
             var enrollmentId = enrollment.id || enrollment.sourcedId || '';
             var courseSourcedId = course.sourcedId || course.id || '';
-            var assignments = [];
 
-            // Source 1: Try Timeback server functions (assignments + syllabus)
-            try {
-                var tbParams = 'type=all';
-                if (enrollmentId) tbParams += '&enrollmentId=' + encodeURIComponent(enrollmentId);
-                if (courseSourcedId) tbParams += '&courseId=' + encodeURIComponent(courseSourcedId);
-                if (userId) tbParams += '&userId=' + encodeURIComponent(userId);
-                var tbResp = await fetch('/api/course-content?' + tbParams);
-                if (tbResp.ok) {
-                    var tbData = await tbResp.json();
-                    // Parse assignments from Timeback response
-                    var tbAssignments = tbData.assignments;
-                    if (tbAssignments && !tbAssignments.error) {
-                        var items = Array.isArray(tbAssignments) ? tbAssignments : (tbAssignments.data || tbAssignments.assignments || tbAssignments.items || []);
-                        for (var ti = 0; ti < items.length; ti++) {
-                            var item = items[ti];
-                            assignments.push({
-                                title: item.title || item.name || item.label || 'Assignment ' + (ti + 1),
-                                score: item.score || item.grade || '',
-                                scoreStatus: item.status || item.scoreStatus || '',
-                                scoreDate: item.completedAt || item.scoreDate || item.date || '',
-                                maxScore: item.maxScore || item.totalPoints || item.resultValueMax || '',
-                                dueDate: item.dueDate || item.deadline || '',
-                            });
-                        }
-                    }
-                    // Parse syllabus
-                    var tbSyllabus = tbData.syllabus;
-                    if (tbSyllabus && !tbSyllabus.error && assignments.length === 0) {
-                        var units = Array.isArray(tbSyllabus) ? tbSyllabus : (tbSyllabus.data || tbSyllabus.units || tbSyllabus.modules || tbSyllabus.lessons || []);
-                        for (var si = 0; si < units.length; si++) {
-                            var unit = units[si];
-                            assignments.push({
-                                title: unit.title || unit.name || 'Unit ' + (si + 1),
-                                score: unit.progress || unit.score || '',
-                                scoreStatus: unit.status || '',
-                                scoreDate: '',
-                                maxScore: unit.totalPoints || '',
-                                dueDate: '',
-                            });
-                        }
-                    }
+            var contentUrl = '/api/course-content?';
+            if (courseSourcedId) contentUrl += 'courseId=' + encodeURIComponent(courseSourcedId);
+            if (enrollmentId) contentUrl += '&enrollmentId=' + encodeURIComponent(enrollmentId);
+            if (userId) contentUrl += '&userId=' + encodeURIComponent(userId);
+
+            var contentResp = await fetch(contentUrl);
+            var contentData = contentResp.ok ? await contentResp.json() : {};
+
+            var contentEl = document.getElementById('content-section');
+            if (!contentEl) return;
+
+            var html = '';
+
+            // Render units (from EduBridge)
+            var units = contentData.units || [];
+            if (Array.isArray(units) && units.length > 0) {
+                html += '<h2><i class="fa-solid fa-layer-group" style="color:var(--color-primary);margin-right:8px;"></i>Units (' + units.length + ')</h2>';
+                html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+                for (var u = 0; u < units.length; u++) {
+                    var unit = typeof units[u] === 'object' ? units[u] : {};
+                    html += '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
+                        '<div style="width:36px;height:36px;border-radius:50%;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;">' + (u+1) + '</div>' +
+                        '<div style="flex:1;"><div style="font-weight:600;font-size:0.9rem;">' + esc(unit.title || unit.name || 'Unit ' + (u+1)) + '</div>' +
+                        (unit.description ? '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + esc(unit.description) + '</div>' : '') +
+                        '</div>' +
+                        (unit.status ? '<span style="font-size:0.78rem;font-weight:600;color:var(--color-primary);">' + esc(unit.status) + '</span>' : '') +
+                    '</div>';
                 }
-            } catch(e) { console.warn('[Course] Timeback content fetch:', e.message); }
-
-            // Source 2: OneRoster line items + results (fallback)
-            if (assignments.length === 0) {
-                try {
-                    var responses = await Promise.all([
-                        fetch('/api/line-items').catch(function() { return null; }),
-                        fetch('/api/results?userId=' + encodeURIComponent(userId)).catch(function() { return null; })
-                    ]);
-                    var allLineItems = [];
-                    var studentResults = [];
-                    try { if (responses[0] && responses[0].ok) { var lid = await responses[0].json(); allLineItems = lid.lineItems || []; } } catch(e) {}
-                    try { if (responses[1] && responses[1].ok) { var rd = await responses[1].json(); studentResults = rd.results || []; } } catch(e) {}
-
-                    var liMap = {};
-                    for (var j = 0; j < allLineItems.length; j++) { liMap[allLineItems[j].sourcedId] = allLineItems[j]; }
-
-                    // From student results
-                    for (var r = 0; r < studentResults.length; r++) {
-                        var result = studentResults[r];
-                        var lineItem = liMap[result.lineItemSourcedId] || {};
-                        assignments.push({
-                            title: lineItem.title || 'Assignment',
-                            score: result.score || '',
-                            scoreStatus: result.scoreStatus || '',
-                            scoreDate: result.scoreDate || '',
-                            maxScore: lineItem.resultValueMax || '',
-                            dueDate: lineItem.dueDate || '',
-                        });
-                    }
-
-                    // From class line items
-                    if (assignments.length === 0 && courseSourcedId) {
-                        try {
-                            var classResp = await fetch('/api/classes');
-                            if (classResp.ok) {
-                                var classData = await classResp.json();
-                                var matchIds = (classData.classes || []).filter(function(cl) { return cl.courseSourcedId === courseSourcedId; }).map(function(cl) { return cl.sourcedId; });
-                                if (matchIds.length > 0) {
-                                    assignments = allLineItems.filter(function(li) { return matchIds.indexOf(li.classSourcedId) !== -1; }).map(function(li) { return { title: li.title, dueDate: li.dueDate, maxScore: li.resultValueMax }; });
-                                }
-                            }
-                        } catch(e) {}
-                    }
-                } catch(e) {}
+                html += '</div>';
             }
 
-            // Render assignments
-            var lessonsEl = document.getElementById('lessons-section');
-            if (lessonsEl) {
-                if (assignments.length > 0) {
-                    var aHTML = '<h2><i class="fa-solid fa-clipboard-list" style="color:var(--color-primary);margin-right:8px;"></i>Assignments (' + assignments.length + ')</h2>';
-                    aHTML += '<div style="display:flex;flex-direction:column;gap:10px;">';
-                    for (var ai = 0; ai < assignments.length; ai++) {
-                        var a = assignments[ai];
-                        var dateStr = a.scoreDate ? a.scoreDate.split('T')[0] : (a.dueDate ? 'Due: ' + a.dueDate.split('T')[0] : '');
-                        var scoreColor = a.scoreStatus === 'fullyGraded' ? '#2E7D32' : 'var(--color-primary)';
-                        aHTML += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
-                            '<div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--color-primary-light);color:var(--color-primary-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-file-lines"></i></div>' +
-                            '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.9rem;">' + esc(a.title) + '</div>' +
-                            (dateStr ? '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + esc(dateStr) + '</div>' : '') +
-                            '</div>' +
-                            (a.score ? '<span style="font-weight:700;color:' + scoreColor + ';font-size:0.95rem;">' + esc(String(a.score)) + (a.maxScore ? ' / ' + esc(String(a.maxScore)) : '') + '</span>' : (a.maxScore ? '<span style="color:var(--color-text-muted);font-size:0.85rem;">' + esc(String(a.maxScore)) + ' pts</span>' : '')) +
-                            '</div>';
-                    }
-                    aHTML += '</div>';
-                    lessonsEl.innerHTML = aHTML;
-                } else {
-                    lessonsEl.innerHTML =
-                        '<h2><i class="fa-solid fa-clipboard-list" style="color:var(--color-primary);margin-right:8px;"></i>Recent Activity</h2>' +
-                        '<div style="padding:16px;background:var(--color-bg);border-radius:var(--radius-sm);color:var(--color-text-secondary);font-size:0.88rem;">' +
-                            '<p style="margin:0;">Use the <strong>"Open Course Content"</strong> button above to view all units, lessons, and quizzes for this course.</p>' +
+            // Render syllabus (from EduBridge)
+            var syllabus = contentData.syllabus;
+            if (syllabus && typeof syllabus === 'object') {
+                var syllItems = syllabus.modules || syllabus.units || syllabus.lessons || syllabus.data || (Array.isArray(syllabus) ? syllabus : []);
+                if (syllItems.length > 0) {
+                    html += '<h2 style="margin-top:20px;"><i class="fa-solid fa-book-open" style="color:var(--color-primary);margin-right:8px;"></i>Syllabus (' + syllItems.length + ')</h2>';
+                    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+                    for (var s = 0; s < syllItems.length; s++) {
+                        var si = typeof syllItems[s] === 'object' ? syllItems[s] : {};
+                        html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
+                            '<div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--color-purple-light);color:#6C5CE7;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-bookmark"></i></div>' +
+                            '<div style="flex:1;font-weight:600;font-size:0.9rem;">' + esc(si.title || si.name || 'Module ' + (s+1)) + '</div>' +
                         '</div>';
+                    }
+                    html += '</div>';
                 }
             }
+
+            // Render line items (assignments/tests from OneRoster)
+            var lineItems = contentData.lineItems || [];
+            if (lineItems.length > 0) {
+                html += '<h2 style="margin-top:20px;"><i class="fa-solid fa-clipboard-list" style="color:var(--color-primary);margin-right:8px;"></i>Assignments (' + lineItems.length + ')</h2>';
+                html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+                for (var li = 0; li < lineItems.length; li++) {
+                    var item = lineItems[li];
+                    var dueDate = item.dueDate ? item.dueDate.split('T')[0] : '';
+                    html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
+                        '<div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--color-primary-light);color:var(--color-primary-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-file-lines"></i></div>' +
+                        '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.9rem;">' + esc(item.title || 'Assignment') + '</div>' +
+                        (dueDate ? '<div style="font-size:0.78rem;color:var(--color-text-muted);">Due: ' + esc(dueDate) + '</div>' : '') +
+                        '</div>' +
+                        (item.resultValueMax ? '<span style="color:var(--color-text-muted);font-size:0.85rem;">' + esc(item.resultValueMax) + ' pts</span>' : '') +
+                    '</div>';
+                }
+                html += '</div>';
+            }
+
+            // Render student results
+            var results = contentData.results || [];
+            if (results.length > 0) {
+                html += '<h2 style="margin-top:20px;"><i class="fa-solid fa-chart-bar" style="color:var(--color-primary);margin-right:8px;"></i>Your Results (' + results.length + ')</h2>';
+                html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+                for (var ri = 0; ri < results.length; ri++) {
+                    var r = results[ri];
+                    var rDate = r.scoreDate ? r.scoreDate.split('T')[0] : '';
+                    var statusColor = r.scoreStatus === 'fullyGraded' ? '#2E7D32' : 'var(--color-primary)';
+                    html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
+                        '<div style="width:36px;height:36px;border-radius:var(--radius-sm);background:#E8F5E9;color:#2E7D32;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-check"></i></div>' +
+                        '<div style="flex:1;min-width:0;">' +
+                        '<div style="font-weight:600;font-size:0.9rem;">' + esc(r.lineItemSourcedId || 'Result') + '</div>' +
+                        (rDate ? '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + esc(rDate) + '</div>' : '') +
+                        '</div>' +
+                        (r.score ? '<span style="font-weight:700;color:' + statusColor + ';font-size:0.95rem;">' + esc(r.score) + '</span>' : '') +
+                    '</div>';
+                }
+                html += '</div>';
+            }
+
+            // Render resources
+            var resources = contentData.resources || [];
+            if (resources.length > 0) {
+                html += '<h2 style="margin-top:20px;"><i class="fa-solid fa-book" style="color:var(--color-primary);margin-right:8px;"></i>Resources (' + resources.length + ')</h2>';
+                html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+                for (var re = 0; re < resources.length; re++) {
+                    var res = typeof resources[re] === 'object' ? resources[re] : {};
+                    html += '<div style="padding:12px 16px;background:var(--color-bg);border-radius:var(--radius-sm);font-weight:500;font-size:0.9rem;">' + esc(res.title || res.name || JSON.stringify(res).substring(0, 100)) + '</div>';
+                }
+                html += '</div>';
+            }
+
+            // Render EduBridge content if available
+            var ebContent = contentData.eduBridgeContent;
+            if (ebContent && typeof ebContent === 'object') {
+                var ebItems = ebContent.data || ebContent.content || ebContent.lessons || ebContent.units || (Array.isArray(ebContent) ? ebContent : []);
+                if (ebItems.length > 0) {
+                    html += '<h2 style="margin-top:20px;"><i class="fa-solid fa-graduation-cap" style="color:var(--color-primary);margin-right:8px;"></i>Course Content (' + ebItems.length + ')</h2>';
+                    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+                    for (var eb = 0; eb < ebItems.length; eb++) {
+                        var ebi = typeof ebItems[eb] === 'object' ? ebItems[eb] : {};
+                        html += '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--color-bg);border-radius:var(--radius-sm);">' +
+                            '<div style="width:36px;height:36px;border-radius:50%;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;">' + (eb+1) + '</div>' +
+                            '<div style="flex:1;font-weight:600;font-size:0.9rem;">' + esc(ebi.title || ebi.name || 'Lesson ' + (eb+1)) + '</div>' +
+                        '</div>';
+                    }
+                    html += '</div>';
+                }
+            }
+
+            // If nothing at all was found
+            if (!html) {
+                html = '<div style="text-align:center;padding:30px;color:var(--color-text-muted);">' +
+                    '<i class="fa-solid fa-search" style="font-size:1.5rem;margin-bottom:10px;display:block;opacity:0.4;"></i>' +
+                    '<p style="margin:0 0 8px;">No content data returned from the API for this course.</p>' +
+                    '<p style="margin:0;font-size:0.82rem;">Course ID: <code>' + esc(courseSourcedId) + '</code></p>' +
+                    '<a href="https://alpha.timeback.com/app" target="_blank" style="display:inline-block;margin-top:12px;color:var(--color-primary);font-weight:600;">Open on Timeback Platform</a>' +
+                '</div>';
+            }
+
+            contentEl.innerHTML = html;
+
         } catch(e) {
-            console.error('[Course] Assignment fetch error:', e);
-            var lessonsEl = document.getElementById('lessons-section');
-            if (lessonsEl) {
-                lessonsEl.innerHTML =
-                    '<h2><i class="fa-solid fa-clipboard-list" style="color:var(--color-primary);margin-right:8px;"></i>Assignments</h2>' +
-                    '<div style="text-align:center;padding:24px;color:var(--color-text-muted);"><p>Could not load assignments.</p></div>';
+            console.error('[Course] Content fetch error:', e);
+            var contentEl = document.getElementById('content-section');
+            if (contentEl) {
+                contentEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--color-text-muted);"><p>Error loading content: ' + esc(e.message) + '</p></div>';
             }
         }
     });
