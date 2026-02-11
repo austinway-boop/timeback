@@ -159,7 +159,14 @@
 
         // Fallback: load all questions from QTI API
         if (qtiUrl || testId) {
-            await loadAllQuestions(qtiUrl, testId);
+            var loaded = await loadAllQuestions(qtiUrl, testId);
+            if (loaded) return;
+        }
+
+        // Final fallback: local FRQ assessment for end-of-unit assessments
+        // (PowerPath bank IDs like HUMG20-xxx-bank-v1 have no QTI content)
+        if (testId || subject) {
+            showLocalAssessment(quizState.title, subject, gradeLevel);
             return;
         }
 
@@ -305,8 +312,8 @@
         if (isCorrect) {
             quizState.correct++;
             quizState.streak++;
-            // Streak multiplier: x1.0, x1.375, x1.75, x2.125, x2.5 max at 5
-            var multiplier = Math.min(2.5, 1 + (quizState.streak - 1) * 0.375);
+            // Streak multiplier: base 5pts, +0.2x per streak, cap x2
+            var multiplier = quizState.streak <= 3 ? 1 : Math.min(2.5, 1 + (quizState.streak - 3) * 0.75);
             pointsChange = Math.round(5 * multiplier);
             quizState.ppScore = Math.min(100, quizState.ppScore + pointsChange);
             quizState.xpEarned += 1;
@@ -320,7 +327,7 @@
         var feedbackEl = document.getElementById('feedback');
         if (feedbackEl) {
             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-            var streakText = isCorrect && quizState.streak > 1 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (Math.min(2.5, 1 + (quizState.streak - 1) * 0.375)).toFixed(1) + ')</span>' : '';
+            var streakText = isCorrect && quizState.streak > 3 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (quizState.streak <= 3 ? 1 : Math.min(2.5, 1 + (quizState.streak - 3) * 0.75)).toFixed(1) + ')</span>' : '';
             feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong>' + streakText : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong> <span style="font-size:0.85rem;">Streak reset</span>') +
                 (feedback ? '<p style="margin-top:8px;">' + feedback + '</p>' : '');
         }
@@ -409,6 +416,7 @@
     }
 
     // ── Fallback: load all questions at once from QTI (when PowerPath adaptive fails) ──
+    // Returns true if content was loaded, false if not
     async function loadAllQuestions(qtiUrl, testId) {
         area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading quiz...</div>';
         try {
@@ -418,10 +426,7 @@
             var resp = await fetch(apiUrl);
             var result = await resp.json();
             if (!result.success || !result.data) {
-                area.innerHTML = '<div class="loading-msg"><i class="fa-solid fa-circle-exclamation" style="font-size:1.5rem;margin-bottom:8px;display:block;color:#E53E3E;"></i>' +
-                    'Could not load quiz content.<br><span style="font-size:0.8rem;color:var(--color-text-muted);">' + esc(result.error || '') + '</span>' +
-                    '<div style="margin-top:16px;"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button></div></div>';
-                return;
+                return false; // Signal caller to try next fallback
             }
             var data = result.data;
 
@@ -560,7 +565,7 @@
                         if (isCorrect) {
                             quizState.correct++;
                             quizState.streak++;
-                            var multiplier = Math.min(2.5, 1 + (quizState.streak - 1) * 0.375);
+                            var multiplier = quizState.streak <= 3 ? 1 : Math.min(2.5, 1 + (quizState.streak - 3) * 0.75);
                             pointsChange = Math.round(5 * multiplier);
                             quizState.ppScore = Math.min(100, quizState.ppScore + pointsChange);
                             quizState.xpEarned += q.isFRQ ? 2 : 1;
@@ -587,7 +592,7 @@
                             });
                             var feedbackEl = document.getElementById('feedback');
                             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-                            var streakText = isCorrect && quizState.streak > 1 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (Math.min(2.5, 1 + (quizState.streak - 1) * 0.375)).toFixed(1) + ')</span>' : '';
+                            var streakText = isCorrect && quizState.streak > 3 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (quizState.streak <= 3 ? 1 : Math.min(2.5, 1 + (quizState.streak - 3) * 0.75)).toFixed(1) + ')</span>' : '';
                             feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong>' + streakText : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
                         }
 
