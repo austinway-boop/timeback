@@ -233,23 +233,67 @@
         starmath:    'https://global-zone08.renaissance-go.com',
     };
 
-    /** Determine if a course is external based on its app/title/vendor identifiers */
+    /** Determine if a course is external based on its app/title/vendor identifiers.
+     *  Uses three layers of detection so no external course slips through:
+     *    1. Name/title/vendorKey substring match against known external apps
+     *    2. vendorKey matches a userProfile (profiles only exist for external apps)
+     *    3. appName is set but is NOT a native/timeback app → must be external
+     */
     function isExternalCourse(c) {
+        // Layer 1 — matches a known external app by name/title/vendorKey
         var appId = [c.appName, c._vendorKey, c.title].filter(Boolean).join(' ');
         var appKey = matchApp(appId) || matchApp(c.title || '');
-        return appKey && EXTERNAL_APP_KEYS.has(appKey);
+        if (appKey && EXTERNAL_APP_KEYS.has(appKey)) return true;
+
+        // Layer 2 — vendorKey has a matching userProfile with a launchUrl
+        var vKey = c._vendorKey || '';
+        if (vKey && userProfilesMap[vKey] && userProfilesMap[vKey].launchUrl) return true;
+
+        // Layer 3 — appName is NOT a timeback-native app → external
+        //   (isTimeback returns true when appName is empty — that's fine,
+        //    those are generic timeback courses that belong on the internal page)
+        if (!isTimeback(c)) return true;
+
+        // Layer 4 — fuzzy: vendorKey or appName matches any profile's appName
+        if (vKey || c.appName) {
+            var needle = (c.appName || vKey || '').toLowerCase().replace(/[\s_-]/g, '');
+            for (var vid in userProfilesMap) {
+                var pName = (userProfilesMap[vid].appName || '').toLowerCase().replace(/[\s_-]/g, '');
+                if (pName && needle && (pName.includes(needle) || needle.includes(pName))) return true;
+            }
+        }
+
+        return false;
     }
 
-    /** Get the best available external URL for a course */
+    /** Get the best available external URL for a course.
+     *  Tries multiple strategies so we always have a URL to open. */
     function getExternalUrl(c) {
-        // 1. Try the userProfiles launch URL (most accurate — comes from the API)
+        // 1. Exact vendorKey → userProfile launch URL (most accurate)
         var vKey = c._vendorKey || '';
-        var profile = vKey ? (userProfilesMap[vKey] || {}) : {};
-        if (profile.launchUrl) return profile.launchUrl.replace(/\/+$/, '');
-        // 2. Fall back to known app URL
+        if (vKey && userProfilesMap[vKey] && userProfilesMap[vKey].launchUrl) {
+            return userProfilesMap[vKey].launchUrl.replace(/\/+$/, '');
+        }
+
+        // 2. Known app fallback URL by substring match
         var appId = [c.appName, c._vendorKey, c.title].filter(Boolean).join(' ');
         var appKey = matchApp(appId) || matchApp(c.title || '');
-        return (appKey && KNOWN_APP_URLS[appKey]) || '';
+        if (appKey && KNOWN_APP_URLS[appKey]) return KNOWN_APP_URLS[appKey];
+
+        // 3. Fuzzy match: search all userProfiles for one whose appName
+        //    overlaps with this course's appName or vendorKey
+        var needle = (c.appName || vKey || '').toLowerCase().replace(/[\s_-]/g, '');
+        if (needle) {
+            for (var vid in userProfilesMap) {
+                var prof = userProfilesMap[vid];
+                var pName = (prof.appName || '').toLowerCase().replace(/[\s_-]/g, '');
+                if (pName && (pName.includes(needle) || needle.includes(pName)) && prof.launchUrl) {
+                    return prof.launchUrl.replace(/\/+$/, '');
+                }
+            }
+        }
+
+        return '';
     }
 
     /** Match an app name string against the known app keys */
