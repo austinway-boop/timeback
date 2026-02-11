@@ -473,23 +473,51 @@
                     var ci = body['qti-choice-interaction'] || {};
                     var isFRQ = !!eti && !ci['qti-simple-choice'];
 
-                    // Extract prompt — check multiple possible locations
-                    var prompt = ci['qti-prompt'] || body['qti-prompt'] || (eti && eti['qti-prompt']) || {};
+                    // Extract prompt — check ALL possible locations
                     var promptText = '';
-                    if (prompt.p) {
-                        var ps = Array.isArray(prompt.p) ? prompt.p : [prompt.p];
-                        promptText = ps.map(function(p) {
-                            return '<p>' + (typeof p === 'string' ? p : (p['_'] || renderNode(p))) + '</p>';
-                        }).join('');
+
+                    // Try qti-prompt inside interactions or body
+                    var promptSources = [
+                        ci['qti-prompt'], body['qti-prompt'], eti && eti['qti-prompt'],
+                        qi['qti-prompt'], qi.prompt, qi.question, qi.text,
+                    ];
+                    for (var ps = 0; ps < promptSources.length; ps++) {
+                        var src = promptSources[ps];
+                        if (!src) continue;
+                        if (typeof src === 'string' && src.length > 3) { promptText = src; break; }
+                        if (src.p) {
+                            var pArr = Array.isArray(src.p) ? src.p : [src.p];
+                            promptText = pArr.map(function(p) {
+                                return '<p>' + (typeof p === 'string' ? p : (p['_'] || renderNode(p))) + '</p>';
+                            }).join('');
+                            if (promptText) break;
+                        }
+                        if (typeof src === 'object') {
+                            var rendered = renderNode(src);
+                            if (rendered && rendered.length > 3) { promptText = rendered; break; }
+                        }
                     }
-                    if (!promptText && typeof prompt === 'string') promptText = prompt;
+
+                    // Try item body content (minus interactions)
                     if (!promptText) {
                         var bc = JSON.parse(JSON.stringify(body));
                         delete bc['qti-choice-interaction'];
                         delete bc['qti-extended-text-interaction'];
                         delete bc['qti-response-declaration'];
                         delete bc['qti-outcome-declaration'];
+                        delete bc['_attributes'];
                         promptText = renderNode(bc);
+                    }
+
+                    // Try item title or content fields
+                    if (!promptText) {
+                        promptText = qi.title || attrs.title || q.title || '';
+                    }
+
+                    // Try rendering the entire qi content
+                    if (!promptText && qi.content) {
+                        var qiBody = qi.content['qti-item-body'] || qi.content;
+                        promptText = renderNode(qiBody);
                     }
 
                     // FRQ: get expected lines
