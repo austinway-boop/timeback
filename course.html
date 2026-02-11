@@ -273,62 +273,102 @@
 
         document.getElementById('course-content').innerHTML = contentHTML;
 
-        // Fetch assignments: combine line items + student results
+        // Fetch assignments from multiple sources
         try {
-            // Fetch line items AND student results in parallel
-            var [liResponse, resultsResponse] = await Promise.all([
-                fetch('/api/line-items').catch(function() { return null; }),
-                fetch('/api/results?userId=' + encodeURIComponent(userId)).catch(function() { return null; })
-            ]);
-
-            var allLineItems = [];
-            var studentResults = [];
-            try { if (liResponse && liResponse.ok) { var lid = await liResponse.json(); allLineItems = lid.lineItems || []; } } catch(e) {}
-            try { if (resultsResponse && resultsResponse.ok) { var rd = await resultsResponse.json(); studentResults = rd.results || []; } } catch(e) {}
-
-            // Build line item lookup by sourcedId
-            var liMap = {};
-            for (var j = 0; j < allLineItems.length; j++) {
-                liMap[allLineItems[j].sourcedId] = allLineItems[j];
-            }
-
-            // Build assignment list from student results (shows actual work the student has done)
+            var enrollmentId = enrollment.id || enrollment.sourcedId || '';
+            var courseSourcedId = course.sourcedId || course.id || '';
             var assignments = [];
-            for (var r = 0; r < studentResults.length; r++) {
-                var result = studentResults[r];
-                var lineItem = liMap[result.lineItemSourcedId] || {};
-                assignments.push({
-                    title: lineItem.title || 'Assignment',
-                    score: result.score || '',
-                    scoreStatus: result.scoreStatus || '',
-                    scoreDate: result.scoreDate || '',
-                    maxScore: lineItem.resultValueMax || '',
-                    dueDate: lineItem.dueDate || '',
-                });
-            }
 
-            // If no results-based assignments, try matching line items by class
-            if (assignments.length === 0) {
-                var courseSourcedId = course.sourcedId || course.id || '';
-                if (courseSourcedId) {
-                    try {
-                        var classResp = await fetch('/api/classes');
-                        if (classResp.ok) {
-                            var classData = await classResp.json();
-                            var matchingClassIds = (classData.classes || [])
-                                .filter(function(cl) { return cl.courseSourcedId === courseSourcedId; })
-                                .map(function(cl) { return cl.sourcedId; });
-
-                            if (matchingClassIds.length > 0) {
-                                assignments = allLineItems
-                                    .filter(function(li) { return matchingClassIds.indexOf(li.classSourcedId) !== -1; })
-                                    .map(function(li) { return { title: li.title, dueDate: li.dueDate, maxScore: li.resultValueMax }; });
-                            }
+            // Source 1: Try Timeback server functions (assignments + syllabus)
+            try {
+                var tbParams = 'type=all';
+                if (enrollmentId) tbParams += '&enrollmentId=' + encodeURIComponent(enrollmentId);
+                if (courseSourcedId) tbParams += '&courseId=' + encodeURIComponent(courseSourcedId);
+                if (userId) tbParams += '&userId=' + encodeURIComponent(userId);
+                var tbResp = await fetch('/api/course-content?' + tbParams);
+                if (tbResp.ok) {
+                    var tbData = await tbResp.json();
+                    // Parse assignments from Timeback response
+                    var tbAssignments = tbData.assignments;
+                    if (tbAssignments && !tbAssignments.error) {
+                        var items = Array.isArray(tbAssignments) ? tbAssignments : (tbAssignments.data || tbAssignments.assignments || tbAssignments.items || []);
+                        for (var ti = 0; ti < items.length; ti++) {
+                            var item = items[ti];
+                            assignments.push({
+                                title: item.title || item.name || item.label || 'Assignment ' + (ti + 1),
+                                score: item.score || item.grade || '',
+                                scoreStatus: item.status || item.scoreStatus || '',
+                                scoreDate: item.completedAt || item.scoreDate || item.date || '',
+                                maxScore: item.maxScore || item.totalPoints || item.resultValueMax || '',
+                                dueDate: item.dueDate || item.deadline || '',
+                            });
                         }
-                    } catch(e) {}
+                    }
+                    // Parse syllabus
+                    var tbSyllabus = tbData.syllabus;
+                    if (tbSyllabus && !tbSyllabus.error && assignments.length === 0) {
+                        var units = Array.isArray(tbSyllabus) ? tbSyllabus : (tbSyllabus.data || tbSyllabus.units || tbSyllabus.modules || tbSyllabus.lessons || []);
+                        for (var si = 0; si < units.length; si++) {
+                            var unit = units[si];
+                            assignments.push({
+                                title: unit.title || unit.name || 'Unit ' + (si + 1),
+                                score: unit.progress || unit.score || '',
+                                scoreStatus: unit.status || '',
+                                scoreDate: '',
+                                maxScore: unit.totalPoints || '',
+                                dueDate: '',
+                            });
+                        }
+                    }
                 }
+            } catch(e) { console.warn('[Course] Timeback content fetch:', e.message); }
+
+            // Source 2: OneRoster line items + results (fallback)
+            if (assignments.length === 0) {
+                try {
+                    var responses = await Promise.all([
+                        fetch('/api/line-items').catch(function() { return null; }),
+                        fetch('/api/results?userId=' + encodeURIComponent(userId)).catch(function() { return null; })
+                    ]);
+                    var allLineItems = [];
+                    var studentResults = [];
+                    try { if (responses[0] && responses[0].ok) { var lid = await responses[0].json(); allLineItems = lid.lineItems || []; } } catch(e) {}
+                    try { if (responses[1] && responses[1].ok) { var rd = await responses[1].json(); studentResults = rd.results || []; } } catch(e) {}
+
+                    var liMap = {};
+                    for (var j = 0; j < allLineItems.length; j++) { liMap[allLineItems[j].sourcedId] = allLineItems[j]; }
+
+                    // From student results
+                    for (var r = 0; r < studentResults.length; r++) {
+                        var result = studentResults[r];
+                        var lineItem = liMap[result.lineItemSourcedId] || {};
+                        assignments.push({
+                            title: lineItem.title || 'Assignment',
+                            score: result.score || '',
+                            scoreStatus: result.scoreStatus || '',
+                            scoreDate: result.scoreDate || '',
+                            maxScore: lineItem.resultValueMax || '',
+                            dueDate: lineItem.dueDate || '',
+                        });
+                    }
+
+                    // From class line items
+                    if (assignments.length === 0 && courseSourcedId) {
+                        try {
+                            var classResp = await fetch('/api/classes');
+                            if (classResp.ok) {
+                                var classData = await classResp.json();
+                                var matchIds = (classData.classes || []).filter(function(cl) { return cl.courseSourcedId === courseSourcedId; }).map(function(cl) { return cl.sourcedId; });
+                                if (matchIds.length > 0) {
+                                    assignments = allLineItems.filter(function(li) { return matchIds.indexOf(li.classSourcedId) !== -1; }).map(function(li) { return { title: li.title, dueDate: li.dueDate, maxScore: li.resultValueMax }; });
+                                }
+                            }
+                        } catch(e) {}
+                    }
+                } catch(e) {}
             }
 
+            // Render assignments
             var lessonsEl = document.getElementById('lessons-section');
             if (lessonsEl) {
                 if (assignments.length > 0) {
@@ -343,7 +383,7 @@
                             '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.9rem;">' + esc(a.title) + '</div>' +
                             (dateStr ? '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + esc(dateStr) + '</div>' : '') +
                             '</div>' +
-                            (a.score ? '<span style="font-weight:700;color:' + scoreColor + ';font-size:0.95rem;">' + esc(a.score) + (a.maxScore ? ' / ' + esc(a.maxScore) : '') + '</span>' : (a.maxScore ? '<span style="color:var(--color-text-muted);font-size:0.85rem;">' + esc(a.maxScore) + ' pts</span>' : '')) +
+                            (a.score ? '<span style="font-weight:700;color:' + scoreColor + ';font-size:0.95rem;">' + esc(String(a.score)) + (a.maxScore ? ' / ' + esc(String(a.maxScore)) : '') + '</span>' : (a.maxScore ? '<span style="color:var(--color-text-muted);font-size:0.85rem;">' + esc(String(a.maxScore)) + ' pts</span>' : '')) +
                             '</div>';
                     }
                     aHTML += '</div>';
@@ -352,12 +392,12 @@
                     lessonsEl.innerHTML =
                         '<h2><i class="fa-solid fa-clipboard-list" style="color:var(--color-primary);margin-right:8px;"></i>Assignments</h2>' +
                         '<div style="text-align:center;padding:24px;color:var(--color-text-muted);">' +
-                            '<i class="fa-solid fa-check-circle" style="font-size:1.5rem;margin-bottom:8px;display:block;color:var(--color-primary);opacity:0.5;"></i>' +
-                            '<p>No individual assignments found. Your progress is tracked through XP and daily goals.</p>' +
+                            '<p>Assignment data is managed on the <a href="https://alpha.timeback.com/app" target="_blank" style="color:var(--color-primary);font-weight:600;">Timeback platform</a>.</p>' +
                         '</div>';
                 }
             }
         } catch(e) {
+            console.error('[Course] Assignment fetch error:', e);
             var lessonsEl = document.getElementById('lessons-section');
             if (lessonsEl) {
                 lessonsEl.innerHTML =
