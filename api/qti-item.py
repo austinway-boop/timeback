@@ -61,6 +61,70 @@ def _try_fetch(urls, headers):
     return None, 404
 
 
+def _resolve_powerpath_to_qti(pp_id, headers, errors):
+    """Resolve a PowerPath resource ID to its QTI test/item ID.
+
+    PowerPath items have metadata containing qti_test_id or qti_item_id.
+    Fetches from /api/v1/old-powerpath/fetch-item-details/?item_id=...
+    and also tries /powerpath/items/{id} to get the mapping.
+
+    Returns the QTI ID if found, otherwise the original ID unchanged.
+    """
+    resolve_urls = [
+        f"{API_BASE}/api/v1/old-powerpath/fetch-item-details/?item_id={pp_id}",
+        f"{API_BASE}/powerpath/items/{pp_id}",
+        f"{API_BASE}/powerpath/resources/{pp_id}",
+        f"{API_BASE}/powerpath/content/{pp_id}",
+    ]
+
+    for url in resolve_urls:
+        try:
+            data, st = _fetch(url, headers)
+            if not data or not isinstance(data, dict):
+                continue
+
+            # Look for QTI ID in multiple possible locations
+            meta = data.get("metadata") or {}
+            qti_id = (
+                meta.get("qti_test_id")
+                or meta.get("qti_item_id")
+                or meta.get("qtiTestId")
+                or meta.get("qtiItemId")
+                or meta.get("qti_id")
+                or meta.get("qtiId")
+                or data.get("qti_test_id")
+                or data.get("qti_item_id")
+                or data.get("qtiTestId")
+                or data.get("qtiItemId")
+                or data.get("qti_id")
+                or data.get("qtiId")
+                or ""
+            )
+            if qti_id:
+                return str(qti_id)
+
+            # Also check for a nested content URL that IS the QTI resource
+            content_url = (
+                meta.get("content_url")
+                or meta.get("url")
+                or data.get("content_url")
+                or data.get("url")
+                or data.get("lti_url")
+                or ""
+            )
+            if content_url and ("qti" in content_url or "assessment" in content_url):
+                # Extract QTI ID from URL: .../assessment-tests/some-qti-id
+                parts = content_url.rstrip("/").split("/")
+                if parts:
+                    return parts[-1]
+
+        except Exception:
+            continue
+
+    errors.append(f"Could not resolve PowerPath ID '{pp_id}' to QTI ID")
+    return pp_id
+
+
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
@@ -121,11 +185,24 @@ class handler(BaseHTTPRequestHandler):
                     )
                     return
 
+            # ── Resolve PowerPath ID → QTI ID ─────────────────────
+            # PowerPath resource IDs (like "HUMG20-r173056-bank-v1") are NOT QTI IDs.
+            # We need to fetch item details from PowerPath to get the real qti_test_id.
+            original_id = item_id
+            qti_id = _resolve_powerpath_to_qti(item_id, headers, errors)
+            if qti_id and qti_id != item_id:
+                item_id = qti_id
+
             # ── Fetch by ID ───────────────────────────────────────
             if item_type in ("assessment", "assessments", "assessment-test", "assessment-tests"):
                 result = self._fetch_assessment(item_id, headers, errors)
                 if result:
                     return
+                # If resolved ID failed, try original ID too
+                if item_id != original_id:
+                    result = self._fetch_assessment(original_id, headers, errors)
+                    if result:
+                        return
 
             elif item_type in ("stimulus", "stimuli"):
                 result = self._fetch_stimulus(item_id, headers, errors)
@@ -141,27 +218,31 @@ class handler(BaseHTTPRequestHandler):
             }
             seg = type_segments.get(item_type, "items")
 
-            urls_to_try = [
-                # Documented QTI endpoints
-                f"{API_BASE}/api/v1/qti/{seg}/{item_id}/",
-                f"{API_BASE}/api/v1/qti/{seg}/{item_id}",
-                # Legacy paths
-                f"{QTI_BASE}/api/{seg}/{item_id}",
-                f"{QTI_BASE}/qti/v3/{seg}/{item_id}",
-                f"{API_BASE}/qti/v3/{seg}/{item_id}",
-                # PowerPath fallback
-                f"{API_BASE}/powerpath/items/{item_id}",
-            ]
+            # Try both resolved QTI ID and original PowerPath ID
+            ids_to_try = [item_id]
+            if original_id != item_id:
+                ids_to_try.append(original_id)
 
-            data, st = _try_fetch(urls_to_try, headers)
-            if data:
-                result = _process_response(self, data, headers)
-                if result:
+            for try_id in ids_to_try:
+                urls_to_try = [
+                    # Documented QTI endpoints
+                    f"{API_BASE}/api/v1/qti/{seg}/{try_id}/",
+                    f"{API_BASE}/api/v1/qti/{seg}/{try_id}",
+                    # Legacy paths
+                    f"{QTI_BASE}/api/{seg}/{try_id}",
+                    f"{QTI_BASE}/qti/v3/{seg}/{try_id}",
+                    f"{API_BASE}/qti/v3/{seg}/{try_id}",
+                ]
+
+                data, st = _try_fetch(urls_to_try, headers)
+                if data:
+                    result = _process_response(self, data, headers)
+                    if result:
+                        return
+                    send_json(self, {"data": data, "success": True})
                     return
-                send_json(self, {"data": data, "success": True})
-                return
 
-            errors.append("Not found at any endpoint")
+            errors.append(f"Not found (tried IDs: {', '.join(ids_to_try)})")
             send_json(
                 self,
                 {"error": "; ".join(errors), "success": False},
@@ -213,7 +294,35 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"data": data, "success": True})
             return True
 
-        # 3. PowerPath assessments endpoint
+        # 3. PowerPath fetch-item-details (resolves to actual content)
+        detail_urls = [
+            f"{API_BASE}/api/v1/old-powerpath/fetch-item-details/?item_id={test_id}",
+            f"{API_BASE}/powerpath/items/{test_id}",
+        ]
+        data, st = _try_fetch(detail_urls, headers)
+        if data and isinstance(data, dict):
+            # Item details may contain questions directly or a content URL
+            questions = data.get("questions", data.get("items", []))
+            if questions:
+                send_json(self, {
+                    "data": {"title": data.get("title", ""), "questions": questions, "totalQuestions": len(questions)},
+                    "success": True,
+                })
+                return True
+            # May contain a content/body with rendered HTML or QTI structure
+            body = data.get("body") or data.get("content") or data.get("html") or ""
+            if body:
+                send_json(self, {"data": data, "success": True})
+                return True
+            # May contain a qti_id we haven't tried yet
+            meta = data.get("metadata") or {}
+            nested_qti = meta.get("qti_test_id") or meta.get("qti_id") or data.get("qti_id") or ""
+            if nested_qti and nested_qti != test_id:
+                result = self._fetch_assessment(str(nested_qti), headers, errors)
+                if result:
+                    return True
+
+        # 4. PowerPath assessments/quizzes endpoint
         pp_urls = [
             f"{API_BASE}/powerpath/assessments/{test_id}",
             f"{API_BASE}/powerpath/quizzes/{test_id}",
