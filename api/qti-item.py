@@ -138,6 +138,9 @@ class handler(BaseHTTPRequestHandler):
         item_id = params.get("id", "").strip()
         item_type = params.get("type", "items").strip().lower()
         direct_url = params.get("url", "").strip()
+        search_subject = params.get("subject", "").strip()
+        search_title = params.get("title", "").strip()
+        search_grade = params.get("grade", "").strip()
 
         if not item_id and not direct_url:
             send_json(self, {"error": "Need id or url"}, 400)
@@ -195,12 +198,12 @@ class handler(BaseHTTPRequestHandler):
 
             # ── Fetch by ID ───────────────────────────────────────
             if item_type in ("assessment", "assessments", "assessment-test", "assessment-tests"):
-                result = self._fetch_assessment(item_id, headers, errors)
+                result = self._fetch_assessment(item_id, headers, errors, search_subject, search_title, search_grade)
                 if result:
                     return
                 # If resolved ID failed, try original ID too
                 if item_id != original_id:
-                    result = self._fetch_assessment(original_id, headers, errors)
+                    result = self._fetch_assessment(original_id, headers, errors, search_subject, search_title, search_grade)
                     if result:
                         return
 
@@ -254,7 +257,7 @@ class handler(BaseHTTPRequestHandler):
 
     # ── Assessment fetching ───────────────────────────────────
 
-    def _fetch_assessment(self, test_id, headers, errors):
+    def _fetch_assessment(self, test_id, headers, errors, search_subject="", search_title="", search_grade=""):
         """Fetch an assessment test and its questions. Returns True if handled."""
 
         # 1. Direct QTI fetch (documented endpoints)
@@ -277,10 +280,12 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"data": data, "success": True})
                 return True
 
-        # 2. Search Resources API for QTI items matching this PowerPath ID
-        #    The Resources API maps PowerPath IDs to QTI content
-        resource_data = self._search_resources_for_qti(test_id, headers, errors)
-        if resource_data:
+        # 2. Search QTI catalog by subject/title/keywords
+        catalog_result = self._search_qti_catalog(
+            test_id, headers, errors,
+            subject=search_subject, title=search_title, grade=search_grade,
+        )
+        if catalog_result:
             return True
 
         # 3. PowerPath item details (may contain embedded content)
@@ -354,92 +359,109 @@ class handler(BaseHTTPRequestHandler):
 
     # ── Resources API search ─────────────────────────────────
 
-    def _search_resources_for_qti(self, pp_id, headers, errors):
-        """Search the OneRoster Resources API for QTI items matching a PowerPath ID.
+    def _search_qti_catalog(self, pp_id, headers, errors, subject="", title="", grade=""):
+        """Search the QTI assessment-tests catalog for content matching a PowerPath ID.
 
-        The Resources API at /ims/oneroster/resources/v1p2/resources contains
-        items with metadata linking PowerPath IDs to QTI content.
+        Uses the documented endpoints:
+          GET https://qti.alpha-1edtech.ai/api/assessment-tests?limit=100
+          GET https://qti.alpha-1edtech.ai/api/assessment-items?limit=100
+          GET https://api.alpha-1edtech.ai/ims/oneroster/resources/v1p2/resources?limit=1000
 
-        Extracts the course code from the PowerPath ID (e.g. HUMG20 from
-        HUMG20-r173056-bank-v1) and searches for matching assessment items.
+        Searches by subject, title keywords, and course code extracted from the PowerPath ID.
         """
-        # Extract course code prefix from PowerPath ID (e.g. "HUMG20")
-        code = pp_id.split("-")[0] if "-" in pp_id else ""
-        if not code:
+        # Build search keywords from the PowerPath ID and provided metadata
+        code = pp_id.split("-")[0] if "-" in pp_id else ""  # e.g. "HUMG20"
+        keywords = set()
+        if code:
+            keywords.add(code.lower())
+        if title:
+            # Extract meaningful words from title like "End of Unit 1 Assessment"
+            for word in title.lower().split():
+                if len(word) > 2 and word not in ("the", "and", "for", "end"):
+                    keywords.add(word)
+        if subject:
+            for word in subject.lower().split():
+                if len(word) > 2:
+                    keywords.add(word)
+
+        # Map course codes to search terms
+        code_map = {
+            "humg": ["human geography", "geography", "social studies"],
+            "math": ["math", "algebra", "geometry"],
+            "engl": ["english", "language arts", "ela"],
+            "sci": ["science", "biology", "chemistry", "physics"],
+            "hist": ["history", "social studies"],
+        }
+        for prefix, terms in code_map.items():
+            if code.lower().startswith(prefix):
+                for t in terms:
+                    keywords.update(t.split())
+
+        if not keywords:
+            errors.append("No search keywords available")
             return False
 
         try:
-            # Search resources for this course code
-            resp = requests.get(
-                f"{API_BASE}/ims/oneroster/resources/v1p2/resources",
-                headers=headers,
-                params={"limit": 200, "filter": f"title~'{code}'"},
-                timeout=8,
-            )
-            if resp.status_code != 200:
-                # Try without filter (get all and search locally)
-                resp = requests.get(
-                    f"{API_BASE}/ims/oneroster/resources/v1p2/resources",
-                    headers=headers,
-                    params={"limit": 500},
-                    timeout=8,
-                )
+            # 1. Search QTI assessment-tests catalog
+            data, st = _fetch(f"{QTI_BASE}/api/assessment-tests?limit=100", headers)
+            if data:
+                tests = data if isinstance(data, list) else data.get("assessment-tests", data.get("tests", data.get("items", [])))
+                if isinstance(tests, list):
+                    for test in tests:
+                        test_title = (test.get("title") or test.get("name") or "").lower()
+                        test_id = test.get("sourcedId") or test.get("id") or test.get("identifier") or ""
+                        # Check if test title matches any of our keywords
+                        match_count = sum(1 for kw in keywords if kw in test_title or kw in str(test_id).lower())
+                        if match_count >= 2:
+                            # Found a match — fetch the full test
+                            if test_id:
+                                full, fst = _fetch(f"{QTI_BASE}/api/assessment-tests/{test_id}", headers)
+                                if full:
+                                    inner = full.get("qti-assessment-test", full) if isinstance(full, dict) else full
+                                    if isinstance(inner, dict) and (inner.get("qti-test-part") or inner.get("testParts")):
+                                        questions = self._resolve_questions(inner, headers)
+                                        t = full.get("title") or (inner.get("_attributes") or {}).get("title", "")
+                                        send_json(self, {
+                                            "data": {"title": t or title, "questions": questions, "totalQuestions": len(questions)},
+                                            "success": True,
+                                        })
+                                        return True
+                                    send_json(self, {"data": full, "success": True})
+                                    return True
 
-            if resp.status_code != 200:
-                errors.append(f"Resources API: {resp.status_code}")
-                return False
-
-            resources = resp.json().get("resources", [])
-
-            # Find resources matching this course code that have QTI content
-            matching_qti_ids = []
-            for res in resources:
-                title = (res.get("title") or "").lower()
-                res_id = res.get("sourcedId") or ""
-                meta = res.get("metadata") or {}
-                res_type = (meta.get("type") or "").lower()
-
-                # Match by course code in title or ID
-                if code.lower() not in title and code.lower() not in res_id.lower():
-                    continue
-
-                # Look for assessment/quiz type resources
-                if "assessment" in res_type or "quiz" in res_type or "test" in res_type or "frq" in res_type:
-                    # This resource's sourcedId might be a valid QTI item ID
-                    matching_qti_ids.append(res_id)
-                    continue
-
-                # Check if metadata has a QTI reference
-                qti_ref = meta.get("qti_id") or meta.get("qtiId") or meta.get("qti_test_id") or ""
-                if qti_ref:
-                    matching_qti_ids.append(qti_ref)
-
-            if not matching_qti_ids:
-                errors.append(f"No QTI items found for course {code}")
-                return False
-
-            # Fetch the first matching QTI item
-            for qti_id in matching_qti_ids[:5]:
-                for endpoint in ["assessment-tests", "assessment-items"]:
-                    data, st = _fetch(f"{QTI_BASE}/api/{endpoint}/{qti_id}", headers)
-                    if data:
-                        test = data.get("qti-assessment-test", data) if isinstance(data, dict) else data
-                        if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
-                            questions = self._resolve_questions(test, headers)
-                            title = data.get("title") or (test.get("_attributes") or {}).get("title", "")
+            # 2. Search QTI assessment-items catalog
+            data, st = _fetch(f"{QTI_BASE}/api/assessment-items?limit=100", headers)
+            if data:
+                items = data if isinstance(data, list) else data.get("assessment-items", data.get("items", []))
+                if isinstance(items, list):
+                    matching = []
+                    for item in items:
+                        item_title = (item.get("title") or item.get("name") or "").lower()
+                        item_id = item.get("sourcedId") or item.get("id") or item.get("identifier") or ""
+                        match_count = sum(1 for kw in keywords if kw in item_title or kw in str(item_id).lower())
+                        if match_count >= 2:
+                            matching.append(item)
+                    if matching:
+                        # Fetch full content for matched items
+                        questions = []
+                        for m in matching[:10]:
+                            mid = m.get("sourcedId") or m.get("id") or m.get("identifier") or ""
+                            if mid:
+                                full, fst = _fetch(f"{QTI_BASE}/api/assessment-items/{mid}", headers)
+                                if full:
+                                    questions.append(full)
+                        if questions:
                             send_json(self, {
                                 "data": {"title": title, "questions": questions, "totalQuestions": len(questions)},
                                 "success": True,
                             })
                             return True
-                        send_json(self, {"data": data, "success": True})
-                        return True
 
-            errors.append(f"Found {len(matching_qti_ids)} resource IDs but none resolved to QTI content")
+            errors.append(f"No matching QTI content found for keywords: {', '.join(list(keywords)[:5])}")
             return False
 
         except Exception as e:
-            errors.append(f"Resources search: {e}")
+            errors.append(f"QTI catalog search: {e}")
             return False
 
     # ── Question resolution from test structure ───────────────
