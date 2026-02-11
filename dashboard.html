@@ -274,22 +274,29 @@
     });
 
     /* ---- Fetch XP from EduBridge analytics -------------------------------- */
+    function localDateStr(d) {
+        // Use LOCAL date (not UTC) so "today" matches the user's timezone
+        const yyyy = d.getFullYear();
+        const mm   = String(d.getMonth() + 1).padStart(2, '0');
+        const dd   = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
     async function loadXp(email, period) {
         currentPeriod = period;
         const now = new Date();
         let startDate, endDate;
 
         if (period === 'today') {
-            const d = now.toISOString().split('T')[0];
+            const d = localDateStr(now);
             startDate = d + 'T00:00:00Z';
             endDate   = d + 'T23:59:59Z';
         } else {
-            // This week: go back to last Monday (or 7 days)
             const dayOfWeek = now.getDay();
             const monday = new Date(now);
             monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
-            startDate = monday.toISOString().split('T')[0] + 'T00:00:00Z';
-            endDate   = now.toISOString().split('T')[0] + 'T23:59:59Z';
+            startDate = localDateStr(monday) + 'T00:00:00Z';
+            endDate   = localDateStr(now) + 'T23:59:59Z';
         }
 
         try {
@@ -298,8 +305,9 @@
             );
             const data = await resp.json();
             const factsByApp = data.factsByApp || {};
+            const facts      = data.facts || {};
 
-            // Build lookup: { subject: { appNameLower: totalXp } }
+            // Build per-app lookup: { subject: { appNameLower: totalXp } }
             const xpMap = {};
             for (const dayData of Object.values(factsByApp)) {
                 for (const [subject, apps] of Object.entries(dayData)) {
@@ -312,17 +320,25 @@
                 }
             }
 
-            // Match XP to each course by its app name
+            // Also build a subject-level fallback from facts
+            const xpBySubject = {};
+            for (const dayFacts of Object.values(facts)) {
+                for (const [subject, info] of Object.entries(dayFacts)) {
+                    const xp = (info.activityMetrics || {}).xpEarned || 0;
+                    xpBySubject[subject] = (xpBySubject[subject] || 0) + xp;
+                }
+            }
+
+            // Match XP to each course
             xpByCourseIdx = {};
             for (let i = 0; i < allCourses.length; i++) {
                 const c = allCourses[i];
                 const subjApps = xpMap[c.subject] || {};
                 const appName = (c.appName || '').toLowerCase();
 
-                if (appName) {
+                if (appName && Object.keys(subjApps).length) {
                     // Course has a known app — find matching factsByApp key
                     let matched = subjApps[appName] || 0;
-                    // Try partial match (e.g. "math_academy" matches "math academy")
                     if (!matched) {
                         const normalized = appName.replace(/_/g, ' ');
                         for (const [key, xp] of Object.entries(subjApps)) {
@@ -333,8 +349,8 @@
                         }
                     }
                     xpByCourseIdx[i] = matched;
-                } else {
-                    // No app — Timeback-native course: sum XP from native apps for this subject
+                } else if (!appName && Object.keys(subjApps).length) {
+                    // No app — Timeback-native course: sum XP from native apps
                     let nativeXp = 0;
                     for (const [key, xp] of Object.entries(subjApps)) {
                         if (NATIVE_APPS.some(n => key.includes(n) || n.includes(key))) {
@@ -342,6 +358,9 @@
                         }
                     }
                     xpByCourseIdx[i] = nativeXp;
+                } else {
+                    // Fallback: use subject-level XP if factsByApp had nothing
+                    xpByCourseIdx[i] = xpBySubject[c.subject] || 0;
                 }
             }
         } catch (err) {
