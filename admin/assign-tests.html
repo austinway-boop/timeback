@@ -13,138 +13,75 @@
     <link rel="preload" href="/css/style.css" as="style">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* ── Hero ─────────────────────────────────────────────── */
-        .hero-banner {
-            position: relative; border-radius: var(--radius);
-            overflow: hidden; margin-bottom: 24px; box-shadow: var(--shadow);
-        }
-        .hero-banner img { width: 100%; height: 150px; object-fit: cover; display: block; }
-        .hero-overlay {
-            position: absolute; inset: 0;
-            background: linear-gradient(135deg, rgba(69,181,170,0.88), rgba(56,158,148,0.82));
-            display: flex; align-items: center; padding: 0 32px;
-        }
-        .hero-overlay h1 { font-size: 1.7rem; font-weight: 700; color: #fff; margin: 0 0 4px; }
-        .hero-overlay p { font-size: 0.95rem; color: rgba(255,255,255,0.85); margin: 0; }
+        .hero-banner { position:relative; border-radius:var(--radius); overflow:hidden; margin-bottom:24px; box-shadow:var(--shadow); }
+        .hero-banner img { width:100%; height:150px; object-fit:cover; display:block; }
+        .hero-overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(69,181,170,0.88),rgba(56,158,148,0.82)); display:flex; align-items:center; padding:0 32px; }
+        .hero-overlay h1 { font-size:1.7rem; font-weight:700; color:#fff; margin:0 0 4px; }
+        .hero-overlay p { font-size:0.95rem; color:rgba(255,255,255,0.85); margin:0; }
 
-        /* ── Search ───────────────────────────────────────────── */
-        .search-wrap { position: relative; margin-bottom: 20px; }
-        .search-wrap .search-icon {
-            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-            color: var(--color-text-muted); font-size: 0.9rem; pointer-events: none;
-        }
-        .search-wrap input {
-            width: 100%; padding: 10px 14px 10px 40px;
-            border: 1px solid var(--color-border); border-radius: var(--radius-sm);
-            background: var(--color-surface); color: var(--color-text);
-            font-size: 0.9rem; outline: none; transition: border-color var(--transition);
-            box-shadow: var(--shadow);
-        }
-        .search-wrap input:focus { border-color: var(--color-primary); }
-        .search-wrap input::placeholder { color: var(--color-text-muted); }
+        .search-wrap { position:relative; margin-bottom:20px; }
+        .search-wrap .search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--color-text-muted); font-size:0.9rem; pointer-events:none; }
+        .search-wrap input { width:100%; padding:10px 14px 10px 40px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-surface); color:var(--color-text); font-size:0.9rem; outline:none; transition:border-color var(--transition); box-shadow:var(--shadow); }
+        .search-wrap input:focus { border-color:var(--color-primary); }
+        .search-wrap input::placeholder { color:var(--color-text-muted); }
 
-        .search-dropdown {
-            position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;
-            background: #fff; border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
-            max-height: 320px; overflow-y: auto; display: none; margin-top: 4px;
-        }
-        .search-dropdown.open { display: block; }
-        .search-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 14px; cursor: pointer;
-            border-bottom: 1px solid var(--color-border); transition: background 0.1s;
-        }
-        .search-item:last-child { border-bottom: none; }
-        .search-item:hover { background: var(--color-primary-light); }
-        .search-item-name { font-weight: 600; font-size: 0.9rem; color: var(--color-text); }
-        .search-item-email { font-size: 0.8rem; color: var(--color-text-muted); }
-        .search-empty { padding: 20px; text-align: center; color: var(--color-text-muted); font-size: 0.85rem; }
+        .search-dropdown { position:absolute; top:100%; left:0; right:0; z-index:1000; background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-sm); box-shadow:var(--shadow-md); max-height:320px; overflow-y:auto; display:none; margin-top:4px; }
+        .search-dropdown.open { display:block; }
+        .search-item { display:flex; align-items:center; gap:12px; padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--color-border); transition:background 0.1s; }
+        .search-item:last-child { border-bottom:none; }
+        .search-item:hover { background:var(--color-primary-light); }
+        .search-item-name { font-weight:600; font-size:0.9rem; color:var(--color-text); }
+        .search-item-email { font-size:0.8rem; color:var(--color-text-muted); }
+        .search-empty { padding:20px; text-align:center; color:var(--color-text-muted); font-size:0.85rem; }
 
-        /* ── Student chip ─────────────────────────────────────── */
-        .student-chip {
-            display: inline-flex; align-items: center; gap: 8px;
-            background: var(--color-primary-light); color: var(--color-primary-dark);
-            padding: 6px 14px; border-radius: 20px;
-            font-size: 0.85rem; font-weight: 600; margin-bottom: 20px;
-        }
+        .student-chip { display:inline-flex; align-items:center; gap:8px; background:var(--color-primary-light); color:var(--color-primary-dark); padding:6px 14px; border-radius:20px; font-size:0.85rem; font-weight:600; margin-bottom:20px; }
 
-        /* ── Two column grid ──────────────────────────────────── */
-        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 
-        /* ── Panel card ───────────────────────────────────────── */
-        .panel-card {
-            background: var(--color-surface); border-radius: var(--radius);
-            box-shadow: var(--shadow); overflow: hidden;
-        }
-        .panel-card .card-header {
-            padding: 16px 20px; border-bottom: 1px solid var(--color-border);
-        }
-        .panel-card .card-title { font-size: 1.05rem; font-weight: 600; margin: 0; }
-        .panel-card .card-title i { color: var(--color-primary); margin-right: 8px; }
-        .panel-body { padding: 16px 20px; max-height: 500px; overflow-y: auto; }
+        .panel-card { background:var(--color-surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+        .panel-card .card-header { padding:16px 20px; border-bottom:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between; }
+        .panel-card .card-title { font-size:1.05rem; font-weight:600; margin:0; }
+        .panel-card .card-title i { color:var(--color-primary); margin-right:8px; }
+        .panel-body { padding:16px 20px; max-height:520px; overflow-y:auto; }
 
-        /* ── Course row (clickable test) ──────────────────────── */
-        .course-row {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 12px; border-radius: var(--radius-sm);
-            border: 1px solid var(--color-border);
-            margin-bottom: 8px; transition: all var(--transition);
-        }
-        .course-row:last-child { margin-bottom: 0; }
-        .course-row-info { flex: 1; min-width: 0; }
-        .course-row-title { font-weight: 600; font-size: 0.88rem; color: var(--color-text); }
-        .course-row-meta { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 1px; }
-        .course-row .assign-row-btn {
-            padding: 5px 14px; border: none; border-radius: var(--radius-sm);
-            font-size: 0.78rem; font-weight: 600; cursor: pointer;
-            transition: all var(--transition); white-space: nowrap;
-        }
-        .assign-row-btn.assign {
-            background: var(--color-primary); color: #fff;
-        }
-        .assign-row-btn.assign:hover { background: var(--color-primary-dark); }
-        .assign-row-btn.pending {
-            background: #FFF8E1; color: #F57F17; cursor: default;
-        }
-        .assign-row-btn.completed {
-            background: #E8F5E9; color: #2E7D32; cursor: default;
-        }
-        .assign-row-btn.assigning {
-            background: var(--color-border); color: var(--color-text-muted); cursor: wait;
-        }
+        /* Filter bar */
+        .filter-bar { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+        .filter-chip { padding:5px 12px; border:1px solid var(--color-border); border-radius:20px; background:var(--color-surface); color:var(--color-text-secondary); font-size:0.78rem; font-weight:600; cursor:pointer; transition:all var(--transition); }
+        .filter-chip:hover { border-color:var(--color-primary); color:var(--color-primary); }
+        .filter-chip.active { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
 
-        /* ── Pending test row ─────────────────────────────────── */
-        .pending-row {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 12px; border-radius: var(--radius-sm);
-            background: var(--color-bg); margin-bottom: 8px;
-        }
-        .pending-row:last-child { margin-bottom: 0; }
-        .pending-row-info { flex: 1; }
-        .pending-row-title { font-weight: 600; font-size: 0.88rem; }
-        .pending-row-meta { font-size: 0.78rem; color: var(--color-text-muted); }
-        .remove-btn {
-            padding: 4px 10px; border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm); background: transparent;
-            color: var(--color-text-muted); font-size: 0.75rem; font-weight: 600;
-            cursor: pointer; transition: all var(--transition);
-        }
-        .remove-btn:hover { border-color: #E53E3E; color: #E53E3E; background: #FFF5F5; }
+        /* Test row */
+        .test-row { display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:var(--radius-sm); border:1px solid var(--color-border); margin-bottom:6px; transition:all var(--transition); }
+        .test-row:last-child { margin-bottom:0; }
+        .test-row-info { flex:1; min-width:0; }
+        .test-row-title { font-weight:600; font-size:0.88rem; color:var(--color-text); }
+        .test-row-meta { font-size:0.75rem; color:var(--color-text-muted); }
+        .test-btn { padding:4px 12px; border:none; border-radius:var(--radius-sm); font-size:0.75rem; font-weight:600; cursor:pointer; transition:all var(--transition); white-space:nowrap; }
+        .test-btn.assign { background:var(--color-primary); color:#fff; }
+        .test-btn.assign:hover { background:var(--color-primary-dark); }
+        .test-btn.assigned { background:#FFF8E1; color:#F57F17; cursor:default; }
+        .test-btn.completed { background:#E8F5E9; color:#2E7D32; cursor:default; }
+        .test-btn.failed { background:#FFF3E0; color:#E65100; cursor:default; }
+        .test-btn.loading { background:var(--color-border); color:var(--color-text-muted); cursor:wait; }
 
-        /* ── Feedback ─────────────────────────────────────────── */
-        .feedback {
-            margin-top: 10px; padding: 9px 12px; border-radius: var(--radius-sm);
-            font-size: 0.85rem; font-weight: 500; display: none;
-        }
-        .feedback.success { display: block; background: #E8F5E9; color: #2E7D32; }
-        .feedback.error   { display: block; background: #FFF5F5; color: #E53E3E; }
+        /* Pending row */
+        .pending-row { display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:var(--radius-sm); background:var(--color-bg); margin-bottom:6px; }
+        .pending-row:last-child { margin-bottom:0; }
+        .pending-row-info { flex:1; }
+        .pending-row-title { font-weight:600; font-size:0.88rem; }
+        .pending-row-meta { font-size:0.75rem; color:var(--color-text-muted); }
+        .remove-btn { padding:3px 10px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:transparent; color:var(--color-text-muted); font-size:0.72rem; font-weight:600; cursor:pointer; transition:all var(--transition); }
+        .remove-btn:hover { border-color:#E53E3E; color:#E53E3E; background:#FFF5F5; }
 
-        .empty-state { text-align: center; padding: 32px 16px; color: var(--color-text-muted); }
-        .empty-state i { font-size: 1.6rem; margin-bottom: 8px; display: block; opacity: 0.3; }
-        .empty-state p { font-size: 0.85rem; margin: 0; }
+        .feedback { margin:10px 20px 16px; padding:9px 12px; border-radius:var(--radius-sm); font-size:0.85rem; font-weight:500; display:none; }
+        .feedback.success { display:block; background:#E8F5E9; color:#2E7D32; }
+        .feedback.error { display:block; background:#FFF5F5; color:#E53E3E; }
 
-        @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+        .empty-state { text-align:center; padding:32px 16px; color:var(--color-text-muted); }
+        .empty-state i { font-size:1.6rem; margin-bottom:8px; display:block; opacity:0.3; }
+        .empty-state p { font-size:0.85rem; margin:0; }
+
+        @media(max-width:900px) { .two-col { grid-template-columns:1fr; } }
     </style>
 </head>
 <body data-view="admin" data-active="assign-tests">
@@ -153,7 +90,6 @@
     <nav class="sidebar" id="sidebar"></nav>
     <main class="main-content">
         <div>
-            <!-- Hero -->
             <div class="hero-banner">
                 <img src="/img/assign-tests-header.png" alt="">
                 <div class="hero-overlay">
@@ -164,43 +100,36 @@
                 </div>
             </div>
 
-            <!-- Student Search -->
             <div class="search-wrap">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 <input type="text" id="student-search" placeholder="Search for a student by name or email..." autocomplete="off">
                 <div class="search-dropdown" id="search-dropdown"></div>
             </div>
 
-            <!-- Selected student chip -->
             <div id="student-chip" style="display:none;"></div>
 
-            <!-- Panels (hidden until student picked) -->
             <div class="two-col" id="panels" style="display:none;">
-
-                <!-- Left: Available Tests from Enrollments -->
+                <!-- Available Tests -->
                 <div class="panel-card">
                     <div class="card-header">
                         <h2 class="card-title"><i class="fa-solid fa-clipboard-check"></i>Available Tests</h2>
                     </div>
-                    <div class="panel-body" id="available-tests">
-                        <div class="empty-state">
-                            <i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i>
-                            <p>Loading courses...</p>
+                    <div class="panel-body">
+                        <div class="filter-bar" id="filter-bar"></div>
+                        <div id="tests-list">
+                            <div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading...</p></div>
                         </div>
                     </div>
-                    <div id="assign-feedback" style="padding:0 20px 16px;"></div>
+                    <div id="assign-feedback"></div>
                 </div>
 
-                <!-- Right: Pending Test Assignments -->
+                <!-- Pending / Existing Assignments -->
                 <div class="panel-card">
                     <div class="card-header">
-                        <h2 class="card-title"><i class="fa-solid fa-hourglass-half"></i>Pending Tests</h2>
+                        <h2 class="card-title"><i class="fa-solid fa-hourglass-half"></i>Student's Tests</h2>
                     </div>
                     <div class="panel-body" id="pending-tests">
-                        <div class="empty-state">
-                            <i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i>
-                            <p>Loading...</p>
-                        </div>
+                        <div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading...</p></div>
                     </div>
                 </div>
             </div>
@@ -212,327 +141,281 @@
 <script src="/js/layout.js?v=2"></script>
 <script src="/js/app.js"></script>
 <script>
-/* ==================================================================
-   State
-   ================================================================== */
+/* ── State ─────────────────────────────────────────────────── */
 var cachedStudents = [];
 var selectedStudent = null;
-var enrolledCourses = [];      // from /api/enrollments
-var pendingAssignments = [];   // from /api/assign-test GET
+var existingAssignments = [];  // from GET /powerpath/test-assignments
+var activeFilter = 'all';
 
 function esc(s) {
     if (s == null) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/* ==================================================================
-   Init
-   ================================================================== */
+/* ── Test catalog: subject → valid grades (from Mastery Track) ── */
+var TEST_CATALOG = [
+    { subject: 'Reading',        grades: ['3','4','5','6','7','8','9','10','11','12'] },
+    { subject: 'Math',           grades: ['3','4','5','6','7','8','9','10','11','12'] },
+    { subject: 'Writing',        grades: ['3','4','5','6','7','8'] },
+    { subject: 'Language',       grades: ['3','4','5','6','7','8'] },
+    { subject: 'Science',        grades: ['3','4','5','6','7','8'] },
+    { subject: 'Social Studies', grades: ['3','4','5','6','7','8'] },
+    { subject: 'Vocabulary',     grades: ['3','4','5','6','7','8','9','10','11','12'] },
+    { subject: 'FastMath',       grades: ['3','4','5','6','7','8','9','10','11','12'] },
+];
+
+var ALL_SUBJECTS = TEST_CATALOG.map(function(t) { return t.subject; });
+
+/* Build flat list of all tests */
+var ALL_TESTS = [];
+TEST_CATALOG.forEach(function(cat) {
+    cat.grades.forEach(function(g) {
+        ALL_TESTS.push({ subject: cat.subject, grade: g, name: cat.subject + ' Grade ' + g });
+    });
+});
+
+/* ── Init ──────────────────────────────────────────────────── */
 var searchInput, searchTimer;
 
 document.addEventListener('DOMContentLoaded', async function() {
     searchInput = document.getElementById('student-search');
-
     searchInput.addEventListener('input', function() {
         clearTimeout(searchTimer);
         var q = this.value.trim();
-        if (q.length < 1) { closeDropdown(); return; }
+        if (q.length < 1) { closeDD(); return; }
         searchTimer = setTimeout(function() { doSearch(q); }, 150);
     });
-
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.search-wrap')) closeDropdown();
-    });
+    document.addEventListener('click', function(e) { if (!e.target.closest('.search-wrap')) closeDD(); });
 
     try {
-        var resp = await fetch('/api/users');
-        var data = await resp.json();
-        cachedStudents = (data.users || []).filter(function(u) {
-            return (u.role || '').toLowerCase() === 'student';
-        });
+        var r = await fetch('/api/users');
+        var d = await r.json();
+        cachedStudents = (d.users || []).filter(function(u) { return (u.role || '').toLowerCase() === 'student'; });
     } catch(e) {}
 });
 
-/* ==================================================================
-   Search
-   ================================================================== */
-function doSearch(query) {
-    var q = query.toLowerCase();
-    if (q.includes('@')) {
-        fetch('/api/user-lookup?email=' + encodeURIComponent(query))
+/* ── Search ────────────────────────────────────────────────── */
+function doSearch(q) {
+    var lq = q.toLowerCase();
+    if (lq.includes('@')) {
+        fetch('/api/user-lookup?email=' + encodeURIComponent(q))
             .then(function(r) { return r.json(); })
-            .then(function(d) { renderDropdown(d.user ? [d.user] : []); })
-            .catch(function() { renderDropdown([]); });
+            .then(function(d) { renderDD(d.user ? [d.user] : []); })
+            .catch(function() { renderDD([]); });
         return;
     }
-    var results = cachedStudents.filter(function(u) {
+    var res = cachedStudents.filter(function(u) {
         var f = (u.givenName || '').toLowerCase(), l = (u.familyName || '').toLowerCase();
-        return f.includes(q) || l.includes(q) || (f + ' ' + l).includes(q)
-            || (u.email || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q);
+        return f.includes(lq) || l.includes(lq) || (f + ' ' + l).includes(lq)
+            || (u.email || '').toLowerCase().includes(lq) || (u.username || '').toLowerCase().includes(lq);
     });
-    renderDropdown(results.slice(0, 30));
+    renderDD(res.slice(0, 30));
 }
 
-function renderDropdown(results) {
+function renderDD(list) {
     var dd = document.getElementById('search-dropdown');
-    if (!results.length) {
-        dd.innerHTML = '<div class="search-empty">No students found.</div>';
-        dd.classList.add('open'); return;
-    }
-    dd.innerHTML = results.map(function(u) {
-        var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
+    if (!list.length) { dd.innerHTML = '<div class="search-empty">No students found.</div>'; dd.classList.add('open'); return; }
+    dd.innerHTML = list.map(function(u) {
+        var nm = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
         return '<div class="search-item" data-id="' + esc(u.sourcedId) + '" onclick="pickStudent(this)">' +
             '<div class="user-cell-avatar">' + esc((u.givenName || '?')[0].toUpperCase()) + '</div>' +
-            '<div style="flex:1;min-width:0;"><div class="search-item-name">' + esc(name) +
+            '<div style="flex:1;min-width:0;"><div class="search-item-name">' + esc(nm) +
             '</div><div class="search-item-email">' + esc(u.email || '') + '</div></div></div>';
     }).join('');
     dd.classList.add('open');
 }
 
-function closeDropdown() { document.getElementById('search-dropdown').classList.remove('open'); }
+function closeDD() { document.getElementById('search-dropdown').classList.remove('open'); }
 
-/* ==================================================================
-   Pick Student
-   ================================================================== */
+/* ── Pick Student ──────────────────────────────────────────── */
 function pickStudent(el) {
     var id = el.getAttribute('data-id');
     var user = cachedStudents.find(function(u) { return u.sourcedId === id; });
     if (!user) {
         var n = el.querySelector('.search-item-name'), e = el.querySelector('.search-item-email');
-        user = { sourcedId: id, givenName: n ? n.textContent : '', familyName: '', email: e ? e.textContent : '', role: 'student' };
+        user = { sourcedId: id, givenName: n ? n.textContent : '', familyName: '', email: e ? e.textContent : '' };
     }
 
     selectedStudent = user;
-    closeDropdown();
+    existingAssignments = [];
+    closeDD();
 
-    var name = ((user.givenName || '') + ' ' + (user.familyName || '')).trim();
-    searchInput.value = name;
+    var nm = ((user.givenName || '') + ' ' + (user.familyName || '')).trim();
+    searchInput.value = nm;
 
     document.getElementById('student-chip').style.display = '';
     document.getElementById('student-chip').innerHTML =
-        '<div class="student-chip"><i class="fa-solid fa-user-check"></i>' + esc(name) + ' &mdash; ' + esc(user.email || '') + '</div>';
+        '<div class="student-chip"><i class="fa-solid fa-user-check"></i>' + esc(nm) + ' &mdash; ' + esc(user.email || '') + '</div>';
 
     document.getElementById('panels').style.display = '';
-
-    // Reset
-    enrolledCourses = [];
-    pendingAssignments = [];
-    document.getElementById('available-tests').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading courses...</p></div>';
+    document.getElementById('tests-list').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading tests...</p></div>';
     document.getElementById('pending-tests').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading...</p></div>';
     clearFeedback();
 
-    loadStudentData(user.sourcedId);
+    // Build filter bar
+    renderFilters();
+
+    // Fetch existing assignments
+    loadAssignments(user.sourcedId);
 }
 
-/* ==================================================================
-   Load Data
-   ================================================================== */
-async function loadStudentData(studentId) {
+/* ── Filters ───────────────────────────────────────────────── */
+function renderFilters() {
+    var bar = document.getElementById('filter-bar');
+    bar.innerHTML = '<span class="filter-chip active" onclick="setFilter(\'all\',this)">All</span>' +
+        ALL_SUBJECTS.map(function(s) {
+            return '<span class="filter-chip" onclick="setFilter(\'' + esc(s) + '\',this)">' + esc(s) + '</span>';
+        }).join('');
+}
+
+function setFilter(f, el) {
+    activeFilter = f;
+    document.querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
+    if (el) el.classList.add('active');
+    renderTests();
+}
+
+/* ── Load Assignments ──────────────────────────────────────── */
+async function loadAssignments(studentId) {
     try {
-        var [enrollResp, assignResp] = await Promise.all([
-            fetch('/api/enrollments?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }),
-            fetch('/api/assign-test?student=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { testAssignments: [] }; }),
-        ]);
+        var resp = await fetch('/api/assign-test?student=' + encodeURIComponent(studentId));
+        var data = await resp.json();
+        existingAssignments = data.testAssignments || [];
+    } catch(e) {
+        existingAssignments = [];
+    }
+    renderTests();
+    renderPending();
+}
 
-        // Parse enrollments — extract real courses (not manual XP, hole-filling, school rows)
-        var raw = enrollResp.data || enrollResp.enrollments || enrollResp.courses || (Array.isArray(enrollResp) ? enrollResp : []);
-        enrolledCourses = [];
+/* ── Render Available Tests ────────────────────────────────── */
+function renderTests() {
+    var el = document.getElementById('tests-list');
 
-        for (var i = 0; i < raw.length; i++) {
-            var e = raw[i];
-            var c = e.course || {};
-            var title = (c.title || '').trim();
-            var subjects = c.subjects || [];
-            var grades = c.grades || [];
+    // Build lookup of existing assignments: "subject|grade" → status
+    var statusMap = {};
+    existingAssignments.forEach(function(a) {
+        var key = (a.subject || '').toLowerCase() + '|' + (a.grade || '');
+        statusMap[key] = a.assignmentStatus || 'assigned';
+    });
 
-            // Skip junk
-            if (!title) continue;
-            if (title.startsWith('Manual XP')) continue;
-            if (title.includes('Hole-Filling')) continue;
-            if (!subjects.length) continue;
-
-            enrolledCourses.push({
-                id: e.id || e.sourcedId || '',
-                title: title,
-                subject: subjects[0] || '',
-                grades: grades,
-                app: ((c.primaryApp || {}).name || (c.metadata || {}).primaryApp || (c.metadata || {}).app || ''),
-                status: e.status || 'active',
-            });
-        }
-
-        // Pending test assignments from PowerPath
-        pendingAssignments = assignResp.testAssignments || [];
-
-    } catch(err) {
-        console.warn('[Admin] Error loading data:', err.message);
+    // Filter tests
+    var tests = ALL_TESTS;
+    if (activeFilter !== 'all') {
+        tests = tests.filter(function(t) { return t.subject === activeFilter; });
     }
 
-    renderAvailableTests();
-    renderPendingTests();
-}
-
-/* ==================================================================
-   Render Available Tests (from enrollments)
-   ================================================================== */
-function renderAvailableTests() {
-    var el = document.getElementById('available-tests');
-
-    if (!enrolledCourses.length) {
-        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-graduation-cap"></i><p>No enrolled courses found.</p></div>';
+    if (!tests.length) {
+        el.innerHTML = '<div class="empty-state"><p>No tests match this filter.</p></div>';
         return;
     }
 
-    // Build a set of pending subject|grade keys to mark status
-    var pendingKeys = new Set();
-    for (var p = 0; p < pendingAssignments.length; p++) {
-        var pa = pendingAssignments[p];
-        var pk = ((pa.subject || '') + '|' + (pa.grade || '')).toLowerCase();
-        pendingKeys.add(pk);
-    }
-
-    el.innerHTML = enrolledCourses.map(function(c, idx) {
-        var gradeStr = (c.grades || []).join(', ');
-        var meta = c.subject + (gradeStr ? ' &middot; Grade ' + gradeStr : '') + (c.app ? ' &middot; ' + esc(c.app) : '');
-
-        // Check if any grade for this course is already pending
-        var isPending = false;
-        for (var g = 0; g < (c.grades || []).length; g++) {
-            if (pendingKeys.has((c.subject + '|' + c.grades[g]).toLowerCase())) {
-                isPending = true; break;
-            }
-        }
-
+    el.innerHTML = tests.map(function(t, idx) {
+        var key = t.subject.toLowerCase() + '|' + t.grade;
+        var status = statusMap[key] || '';
         var btnHtml;
-        if (isPending) {
-            btnHtml = '<span class="assign-row-btn pending"><i class="fa-solid fa-clock" style="margin-right:4px;"></i>Pending</span>';
+
+        if (status === 'completed') {
+            btnHtml = '<span class="test-btn completed"><i class="fa-solid fa-check" style="margin-right:3px;"></i>Completed</span>';
+        } else if (status === 'assigned' || status === 'in_progress') {
+            btnHtml = '<span class="test-btn assigned"><i class="fa-solid fa-clock" style="margin-right:3px;"></i>Pending</span>';
+        } else if (status === 'failed') {
+            btnHtml = '<span class="test-btn failed"><i class="fa-solid fa-rotate" style="margin-right:3px;"></i>Failed</span>';
         } else {
-            btnHtml = '<button class="assign-row-btn assign" id="assign-btn-' + idx + '" onclick="assignTest(' + idx + ')"><i class="fa-solid fa-plus" style="margin-right:4px;"></i>Assign</button>';
+            btnHtml = '<button class="test-btn assign" id="tbtn-' + idx + '" onclick="assignTest(\'' + esc(t.subject) + '\',\'' + esc(t.grade) + '\',' + idx + ')"><i class="fa-solid fa-plus" style="margin-right:3px;"></i>Assign</button>';
         }
 
-        return '<div class="course-row">' +
-            '<div class="course-row-info">' +
-                '<div class="course-row-title">' + esc(c.title) + '</div>' +
-                '<div class="course-row-meta">' + meta + '</div>' +
-            '</div>' +
-            btnHtml +
-        '</div>';
+        return '<div class="test-row">' +
+            '<div class="test-row-info">' +
+                '<div class="test-row-title">' + esc(t.name) + '</div>' +
+                '<div class="test-row-meta">' + esc(t.subject) + ' &middot; Grade ' + esc(t.grade) + '</div>' +
+            '</div>' + btnHtml + '</div>';
     }).join('');
 }
 
-/* ==================================================================
-   Render Pending Tests (from PowerPath)
-   ================================================================== */
-function renderPendingTests() {
+/* ── Render Pending/Existing ───────────────────────────────── */
+function renderPending() {
     var el = document.getElementById('pending-tests');
 
-    if (!pendingAssignments.length) {
-        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle"></i><p>No pending tests for this student.</p></div>';
+    if (!existingAssignments.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle"></i><p>No test assignments for this student.</p></div>';
         return;
     }
 
-    el.innerHTML = pendingAssignments.map(function(a, idx) {
-        var title = a.title || a.name || ((a.subject || '') + ' Grade ' + (a.grade || ''));
-        var meta = (a.subject || '') + (a.grade ? ' &middot; Grade ' + a.grade : '') + (a.status ? ' &middot; ' + a.status : '');
-        var aid = a.id || a.sourcedId || a.assignmentId || '';
+    el.innerHTML = existingAssignments.map(function(a, idx) {
+        var title = a.testName || ((a.subject || '') + ' Grade ' + (a.grade || ''));
+        var status = a.assignmentStatus || 'assigned';
+        var statusLabel = status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
+        var date = a.assignedAt ? new Date(a.assignedAt).toLocaleDateString() : '';
+        var statusClass = status === 'completed' ? 'status-active' : status === 'failed' ? 'status-tobedeleted' : 'status-testing';
 
         return '<div class="pending-row">' +
             '<div class="pending-row-info">' +
                 '<div class="pending-row-title">' + esc(title) + '</div>' +
-                '<div class="pending-row-meta">' + esc(meta) + '</div>' +
+                '<div class="pending-row-meta"><span class="status-badge ' + statusClass + '">' + esc(statusLabel) + '</span>' +
+                    (date ? ' &middot; ' + esc(date) : '') + '</div>' +
             '</div>' +
-            '<button class="remove-btn" onclick="removeAssignment(' + idx + ')"><i class="fa-solid fa-xmark" style="margin-right:3px;"></i>Remove</button>' +
+            (status !== 'completed' ? '<button class="remove-btn" onclick="removeAssignment(' + idx + ')"><i class="fa-solid fa-xmark"></i></button>' : '') +
         '</div>';
     }).join('');
 }
 
-/* ==================================================================
-   Assign Test
-   ================================================================== */
-async function assignTest(idx) {
-    var course = enrolledCourses[idx];
-    if (!course || !selectedStudent) return;
-
-    var grade = (course.grades || [])[0] || '';
-    if (!course.subject || !grade) {
-        showFeedback('This course is missing subject or grade info.', 'error');
-        return;
-    }
-
-    var btn = document.getElementById('assign-btn-' + idx);
-    if (btn) { btn.className = 'assign-row-btn assigning'; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true; }
+/* ── Assign Test ───────────────────────────────────────────── */
+async function assignTest(subject, grade, idx) {
+    if (!selectedStudent) return;
+    var btn = document.getElementById('tbtn-' + idx);
+    if (btn) { btn.className = 'test-btn loading'; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
     clearFeedback();
 
     try {
         var resp = await fetch('/api/assign-test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                student: selectedStudent.sourcedId,
-                subject: course.subject,
-                grade: grade,
-                type: 'test-assignment',
-            }),
+            body: JSON.stringify({ student: selectedStudent.sourcedId, subject: subject, grade: grade }),
         });
         var data = await resp.json().catch(function() { return {}; });
 
         if (resp.ok && data.success) {
             showFeedback(data.message || 'Test assigned!', 'success');
-            // Add to pending
-            pendingAssignments.push({
-                title: course.title,
-                subject: course.subject,
-                grade: grade,
-                id: (data.response && data.response.id) || '',
+            existingAssignments.push({
+                sourcedId: (data.response && data.response.assignmentId) || '',
+                subject: subject, grade: grade,
+                assignmentStatus: 'assigned',
+                assignedAt: new Date().toISOString(),
+                testName: subject + ' Grade ' + grade,
             });
-            renderAvailableTests();
-            renderPendingTests();
+            renderTests();
+            renderPending();
         } else {
-            var errMsg = data.error || data.message || 'Assignment failed.';
-            showFeedback(errMsg, 'error');
-            if (btn) { btn.className = 'assign-row-btn assign'; btn.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:4px;"></i>Assign'; btn.disabled = false; }
+            showFeedback(data.error || data.message || 'Assignment failed.', 'error');
+            if (btn) { btn.className = 'test-btn assign'; btn.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:3px;"></i>Assign'; }
         }
     } catch(e) {
-        showFeedback('Network error — the API may be slow. Try again.', 'error');
-        if (btn) { btn.className = 'assign-row-btn assign'; btn.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:4px;"></i>Assign'; btn.disabled = false; }
+        showFeedback('Network error. Try again.', 'error');
+        if (btn) { btn.className = 'test-btn assign'; btn.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:3px;"></i>Assign'; }
     }
 }
 
-/* ==================================================================
-   Remove Assignment
-   ================================================================== */
+/* ── Remove Assignment ─────────────────────────────────────── */
 async function removeAssignment(idx) {
-    var a = pendingAssignments[idx];
-    if (!a || !selectedStudent) return;
-
-    pendingAssignments.splice(idx, 1);
-    renderPendingTests();
-    renderAvailableTests();
+    var a = existingAssignments[idx];
+    if (!a) return;
+    existingAssignments.splice(idx, 1);
+    renderPending();
+    renderTests();
 
     try {
         await fetch('/api/assign-test', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                assignmentId: a.id || a.sourcedId || a.assignmentId || '',
-                student: selectedStudent.sourcedId,
-                subject: a.subject || '',
-                grade: a.grade || '',
-            }),
+            body: JSON.stringify({ assignmentId: a.sourcedId || '', student: selectedStudent ? selectedStudent.sourcedId : '', subject: a.subject || '', grade: a.grade || '' }),
         });
     } catch(e) {}
 }
 
-/* ==================================================================
-   Feedback
-   ================================================================== */
-function showFeedback(msg, type) {
-    var el = document.getElementById('assign-feedback');
-    el.innerHTML = '<div class="feedback ' + type + '">' + esc(msg) + '</div>';
-}
-function clearFeedback() {
-    document.getElementById('assign-feedback').innerHTML = '';
-}
+/* ── Feedback ──────────────────────────────────────────────── */
+function showFeedback(msg, type) { document.getElementById('assign-feedback').innerHTML = '<div class="feedback ' + type + '">' + esc(msg) + '</div>'; }
+function clearFeedback() { document.getElementById('assign-feedback').innerHTML = ''; }
 </script>
 </body>
 </html>
