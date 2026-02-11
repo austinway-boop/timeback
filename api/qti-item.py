@@ -250,16 +250,10 @@ class handler(BaseHTTPRequestHandler):
                     )
                     return
 
-            # ── Resolve PowerPath ID → QTI ID ─────────────────────
-            # PowerPath resource IDs (like "HUMG20-r173056-bank-v1") are NOT QTI IDs.
-            # We need to fetch item details from PowerPath to get the real qti_test_id.
-            original_id = item_id
-            qti_id = _resolve_powerpath_to_qti(item_id, headers, errors)
-            if qti_id and qti_id != item_id:
-                item_id = qti_id
-
             # ── Fetch by ID ───────────────────────────────────────
-            if item_type in ("assessment", "assessments", "assessment-test", "assessment-tests"):
+            # _fetch_assessment handles bank→QTI ID transformation internally
+            original_id = item_id
+            if item_type in ("assessment", "assessments", "assessment-test", "assessment-tests", "assessment-bank"):
                 result = self._fetch_assessment(item_id, headers, errors, search_subject, search_title, search_grade)
                 if result:
                     return
