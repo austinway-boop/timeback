@@ -379,23 +379,28 @@
             let progressText, progressLabel, pct;
 
             if (lessonBased) {
-                /* AP course — show daily lessons done vs daily goal */
-                const totalDone = masteredIdx[i] || 0;
+                /* AP course — show daily questions done vs scaled goal */
+                const totalMastered = masteredIdx[i] || 0;
                 const total = c.totalLessons || (savedGoal && savedGoal.target) || 0;
-                const todayLessons = unitsByCourseIdx[i] || 0;
+                const periodQuestions = unitsByCourseIdx[i] || 0;
+                // full-year totalQuestions for this course (from loadFullYearXp cache)
+                const yearQuestions = fullYearXpIdx['q_' + i] || 0;
 
                 if (savedGoal && savedGoal.endDate && total > 0) {
-                    const rem = Math.max(total - totalDone, 0);
+                    const rem = Math.max(total - totalMastered, 0);
                     const excl = savedGoal.excludeNonSchoolDays !== false;
                     const days = countSchoolDays(savedGoal.endDate, excl);
-                    const daily = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
-                    const periodGoal = currentPeriod === 'today' ? daily : daily * 5;
-                    pct = periodGoal > 0 ? Math.min((todayLessons / periodGoal) * 100, 100) : (rem <= 0 ? 100 : 0);
-                    progressText = rem <= 0 ? 'Complete!' : `${todayLessons} / ${periodGoal} lessons`;
+                    const dailyLessons = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
+                    // Scale to questions: use user's own avg questions/lesson
+                    const qPerLesson = totalMastered > 0 ? Math.round(yearQuestions / totalMastered) : 20;
+                    const dailyQ = dailyLessons * qPerLesson;
+                    const periodGoal = currentPeriod === 'today' ? dailyQ : dailyQ * 5;
+                    pct = periodGoal > 0 ? Math.min((periodQuestions / periodGoal) * 100, 100) : (rem <= 0 ? 100 : 0);
+                    progressText = rem <= 0 ? 'Complete!' : `${periodQuestions} / ${periodGoal} questions`;
                     progressLabel = rem <= 0 ? 'DONE' : periodLabel;
                 } else {
                     pct = 0;
-                    progressText = `${todayLessons} lessons ${currentPeriod === 'today' ? 'today' : 'this week'}`;
+                    progressText = `${periodQuestions} questions ${currentPeriod === 'today' ? 'today' : 'this week'}`;
                     progressLabel = '<a href="/goals" style="color:var(--color-primary);text-decoration:none;font-weight:600;font-size:0.78rem;" onclick="event.stopPropagation()">Set Goal &rarr;</a>';
                 }
             } else {
@@ -708,84 +713,74 @@
             const factsByApp = data.factsByApp || {};
             const facts      = data.facts || {};
 
-            // Build per-app lookup: { subject: { appNameLower: { xp, lessons } } }
-            const xpMap = {}, lessonMap = {};
+            // Build per-app lookup for XP
+            const xpMap = {};
             for (const dayData of Object.values(factsByApp)) {
                 for (const [subject, apps] of Object.entries(dayData)) {
                     if (!xpMap[subject]) xpMap[subject] = {};
-                    if (!lessonMap[subject]) lessonMap[subject] = {};
                     for (const [appName, info] of Object.entries(apps)) {
                         const am = info.activityMetrics || {};
                         const key = appName.toLowerCase();
                         xpMap[subject][key] = (xpMap[subject][key] || 0) + (am.xpEarned || 0);
-                        lessonMap[subject][key] = (lessonMap[subject][key] || 0) + (am.masteredUnits || 0);
                     }
                 }
             }
 
             // Also build a subject-level fallback from facts
-            const xpBySubject = {}, lessonsBySubject = {};
+            const xpBySubject = {};
             for (const dayFacts of Object.values(facts)) {
                 for (const [subject, info] of Object.entries(dayFacts)) {
                     const am = info.activityMetrics || {};
                     xpBySubject[subject] = (xpBySubject[subject] || 0) + (am.xpEarned || 0);
-                    lessonsBySubject[subject] = (lessonsBySubject[subject] || 0) + (am.masteredUnits || 0);
                 }
             }
 
-            // Match XP + lessons to each course
+            // Match XP to each course
             xpByCourseIdx = {};
             unitsByCourseIdx = {};
             for (let i = 0; i < allCourses.length; i++) {
                 const c = allCourses[i];
                 const subjApps = xpMap[c.subject] || {};
-                const subjLessons = lessonMap[c.subject] || {};
                 const appName = (c.appName || '').toLowerCase();
 
                 if (appName && Object.keys(subjApps).length) {
                     let matchedXp = subjApps[appName] || 0;
-                    let matchedL  = subjLessons[appName] || 0;
-                    if (!matchedXp && !matchedL) {
+                    if (!matchedXp) {
                         const normalized = appName.replace(/_/g, ' ');
                         for (const [key, xp] of Object.entries(subjApps)) {
                             if (key === normalized || key.includes(normalized) || normalized.includes(key)) {
                                 matchedXp = xp;
-                                matchedL  = subjLessons[key] || 0;
                                 break;
                             }
                         }
                     }
                     xpByCourseIdx[i] = matchedXp;
-                    unitsByCourseIdx[i] = matchedL;
                 } else if (!appName && Object.keys(subjApps).length) {
-                    let nativeXp = 0, nativeL = 0;
+                    let nativeXp = 0;
                     for (const [key, xp] of Object.entries(subjApps)) {
                         if (NATIVE_APPS.some(n => key.includes(n) || n.includes(key))) {
                             nativeXp += xp;
-                            nativeL  += subjLessons[key] || 0;
                         }
                     }
                     xpByCourseIdx[i] = nativeXp;
-                    unitsByCourseIdx[i] = nativeL;
                 } else {
                     xpByCourseIdx[i] = xpBySubject[c.subject] || 0;
-                    unitsByCourseIdx[i] = lessonsBySubject[c.subject] || 0;
                 }
             }
 
-            // Also fetch per-enrollment for AP courses (accurate per-course mastered lessons)
+            // Fetch per-enrollment analytics for AP courses: get totalQuestions for the period
             const lessonFetches = allCourses.map((c, idx) => {
                 if (!isLessonCourse(c) || !c._enrollmentId) return null;
                 return fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}`)
                     .then(r => r.json())
                     .then(d => {
-                        let lessons = 0;
+                        let q = 0;
                         for (const dayFacts of Object.values(d.facts || {})) {
                             for (const info of Object.values(dayFacts)) {
-                                lessons += (info.activityMetrics || {}).masteredUnits || 0;
+                                q += (info.activityMetrics || {}).totalQuestions || 0;
                             }
                         }
-                        unitsByCourseIdx[idx] = lessons;
+                        unitsByCourseIdx[idx] = q;
                     })
                     .catch(() => null);
             }).filter(Boolean);
@@ -862,11 +857,12 @@
                     const facts      = data.facts || {};
                     const factsByApp = data.factsByApp || {};
 
-                    let totalXp = 0, totalMastered = 0;
+                    let totalXp = 0, totalMastered = 0, totalQ = 0;
                     for (const dayFacts of Object.values(facts)) {
                         for (const info of Object.values(dayFacts)) {
                             const am = info.activityMetrics || {};
                             totalXp      += am.xpEarned || 0;
+                            totalQ       += am.totalQuestions || 0;
                             totalMastered += am.masteredUnits || am.lessonsCompleted || am.completedLessons
                                 || am.unitsCompleted || am.completedUnits || 0;
                         }
@@ -883,6 +879,7 @@
                         }
                     }
                     fullYearXpIdx[i] = Math.max(totalXp, appXp);
+                    fullYearXpIdx['q_' + i] = totalQ; // year total questions for ratio calc
                     masteredIdx[i]   = Math.max(totalMastered, appMastered);
                 }
             }
