@@ -34,23 +34,18 @@
         .search-item-email { font-size:0.8rem; color:var(--color-text-muted); }
         .search-empty { padding:20px; text-align:center; color:var(--color-text-muted); font-size:0.85rem; }
 
-        .student-chip { display:inline-flex; align-items:center; gap:8px; background:var(--color-primary-light); color:var(--color-primary-dark); padding:6px 14px; border-radius:20px; font-size:0.85rem; font-weight:600; margin-bottom:20px; }
-
         .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 
         .panel-card { background:var(--color-surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
-        .panel-card .card-header { padding:16px 20px; border-bottom:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between; }
-        .panel-card .card-title { font-size:1.05rem; font-weight:600; margin:0; }
+        .panel-card .card-header { padding:16px 20px; border-bottom:1px solid var(--color-border); display:flex; align-items:center; gap:12px; }
+        .panel-card .card-title { font-size:1.05rem; font-weight:600; margin:0; flex:1; }
         .panel-card .card-title i { color:var(--color-primary); margin-right:8px; }
         .panel-body { padding:16px 20px; max-height:520px; overflow-y:auto; }
 
-        /* Filter bar */
-        .filter-bar { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-        .filter-chip { padding:5px 12px; border:1px solid var(--color-border); border-radius:20px; background:var(--color-surface); color:var(--color-text-secondary); font-size:0.78rem; font-weight:600; cursor:pointer; transition:all var(--transition); }
-        .filter-chip:hover { border-color:var(--color-primary); color:var(--color-primary); }
-        .filter-chip.active { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
+        /* Subject filter dropdown */
+        .filter-select { padding:6px 10px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-surface); color:var(--color-text); font-size:0.82rem; outline:none; cursor:pointer; font-family:inherit; }
+        .filter-select:focus { border-color:var(--color-primary); }
 
-        /* Test row */
         .test-row { display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:var(--radius-sm); border:1px solid var(--color-border); margin-bottom:6px; transition:all var(--transition); }
         .test-row:last-child { margin-bottom:0; }
         .test-row-info { flex:1; min-width:0; }
@@ -64,7 +59,6 @@
         .test-btn.failed { background:#FFF3E0; color:#E65100; cursor:default; }
         .test-btn.loading { background:var(--color-border); color:var(--color-text-muted); cursor:wait; }
 
-        /* Pending row */
         .pending-row { display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:var(--radius-sm); background:var(--color-bg); margin-bottom:6px; }
         .pending-row:last-child { margin-bottom:0; }
         .pending-row-info { flex:1; }
@@ -106,31 +100,23 @@
                 <div class="search-dropdown" id="search-dropdown"></div>
             </div>
 
-            <div id="student-chip" style="display:none;"></div>
-
             <div class="two-col" id="panels" style="display:none;">
-                <!-- Available Tests -->
                 <div class="panel-card">
                     <div class="card-header">
                         <h2 class="card-title"><i class="fa-solid fa-clipboard-check"></i>Available Tests</h2>
+                        <select class="filter-select" id="subject-filter" onchange="renderTests()">
+                            <option value="all">All Subjects</option>
+                        </select>
                     </div>
-                    <div class="panel-body">
-                        <div class="filter-bar" id="filter-bar"></div>
-                        <div id="tests-list">
-                            <div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading...</p></div>
-                        </div>
-                    </div>
+                    <div class="panel-body" id="tests-list"></div>
                     <div id="assign-feedback"></div>
                 </div>
 
-                <!-- Pending / Existing Assignments -->
                 <div class="panel-card">
                     <div class="card-header">
                         <h2 class="card-title"><i class="fa-solid fa-hourglass-half"></i>Student's Tests</h2>
                     </div>
-                    <div class="panel-body" id="pending-tests">
-                        <div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading...</p></div>
-                    </div>
+                    <div class="panel-body" id="pending-tests"></div>
                 </div>
             </div>
         </div>
@@ -141,19 +127,16 @@
 <script src="/js/layout.js?v=2"></script>
 <script src="/js/app.js"></script>
 <script>
-/* ── State ─────────────────────────────────────────────────── */
 var cachedStudents = [];
 var selectedStudent = null;
-var existingAssignments = [];  // from GET /powerpath/test-assignments
-var enrolledKeys = new Set();  // "subject|grade" combos student is enrolled in
-var activeFilter = 'all';
+var existingAssignments = [];
 
 function esc(s) {
     if (s == null) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/* ── Test catalog: subject → valid grades (from Mastery Track) ── */
+/* ── Test catalog ──────────────────────────────────────────── */
 var TEST_CATALOG = [
     { subject: 'Reading',        grades: ['3','4','5','6','7','8','9','10','11','12'] },
     { subject: 'Math',           grades: ['3','4','5','6','7','8','9','10','11','12'] },
@@ -165,9 +148,6 @@ var TEST_CATALOG = [
     { subject: 'FastMath',       grades: ['3','4','5','6','7','8','9','10','11','12'] },
 ];
 
-var ALL_SUBJECTS = TEST_CATALOG.map(function(t) { return t.subject; });
-
-/* Build flat list of all tests */
 var ALL_TESTS = [];
 TEST_CATALOG.forEach(function(cat) {
     cat.grades.forEach(function(g) {
@@ -184,9 +164,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         clearTimeout(searchTimer);
         var q = this.value.trim();
         if (q.length < 1) { closeDD(); return; }
-        searchTimer = setTimeout(function() { doSearch(q); }, 150);
+        // Start showing results immediately as you type
+        searchTimer = setTimeout(function() { doSearch(q); }, 100);
     });
     document.addEventListener('click', function(e) { if (!e.target.closest('.search-wrap')) closeDD(); });
+
+    // Build subject filter dropdown
+    var sel = document.getElementById('subject-filter');
+    TEST_CATALOG.forEach(function(cat) {
+        var opt = document.createElement('option');
+        opt.value = cat.subject;
+        opt.textContent = cat.subject;
+        sel.appendChild(opt);
+    });
 
     try {
         var r = await fetch('/api/users');
@@ -244,125 +234,43 @@ function pickStudent(el) {
     var nm = ((user.givenName || '') + ' ' + (user.familyName || '')).trim();
     searchInput.value = nm;
 
-    document.getElementById('student-chip').style.display = '';
-    document.getElementById('student-chip').innerHTML =
-        '<div class="student-chip"><i class="fa-solid fa-user-check"></i>' + esc(nm) + ' &mdash; ' + esc(user.email || '') + '</div>';
-
     document.getElementById('panels').style.display = '';
     document.getElementById('tests-list').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading tests...</p></div>';
     document.getElementById('pending-tests').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading...</p></div>';
+    document.getElementById('subject-filter').value = 'all';
     clearFeedback();
 
-    // Build filter bar
-    renderFilters();
-
-    // Fetch existing assignments
     loadAssignments(user.sourcedId);
 }
 
-/* ── Filters (only subjects student is enrolled in) ────────── */
-function renderFilters() {
-    var bar = document.getElementById('filter-bar');
-
-    // Only show subjects where the student has at least one enrolled grade
-    var enrolledSubjects = ALL_SUBJECTS.filter(function(s) {
-        return ALL_TESTS.some(function(t) {
-            return t.subject === s && enrolledKeys.has(t.subject.toLowerCase() + '|' + t.grade);
-        });
-    });
-
-    if (!enrolledSubjects.length) {
-        bar.innerHTML = '';
-        return;
-    }
-
-    activeFilter = 'all';
-    bar.innerHTML = '<span class="filter-chip active" onclick="setFilter(\'all\',this)">All</span>' +
-        enrolledSubjects.map(function(s) {
-            return '<span class="filter-chip" onclick="setFilter(\'' + esc(s) + '\',this)">' + esc(s) + '</span>';
-        }).join('');
-}
-
-function setFilter(f, el) {
-    activeFilter = f;
-    document.querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
-    if (el) el.classList.add('active');
-    renderTests();
-}
-
-/* ── Load Enrollments + Assignments in parallel ───────────── */
+/* ── Load Assignments ──────────────────────────────────────── */
 async function loadAssignments(studentId) {
-    enrolledKeys = new Set();
     existingAssignments = [];
-
     try {
-        var [assignResp, enrollResp] = await Promise.all([
-            fetch('/api/assign-test?student=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { testAssignments: [] }; }),
-            fetch('/api/enrollments?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return {}; }),
-        ]);
-
-        existingAssignments = assignResp.testAssignments || [];
-
-        // Parse enrollments to find which subject+grade combos this student has
-        var raw = enrollResp.data || enrollResp.enrollments || enrollResp.courses || (Array.isArray(enrollResp) ? enrollResp : []);
-        for (var i = 0; i < raw.length; i++) {
-            var e = raw[i];
-            var c = e.course || {};
-            var title = (c.title || '').trim();
-            var subjects = c.subjects || [];
-            var grades = c.grades || [];
-
-            if (!title || !subjects.length) continue;
-            if (title.startsWith('Manual XP') || title.includes('Hole-Filling')) continue;
-
-            var subj = subjects[0] || '';
-            for (var g = 0; g < grades.length; g++) {
-                enrolledKeys.add(subj.toLowerCase() + '|' + grades[g]);
-            }
-        }
-
-        // Also count any existing test assignments as "enrolled" (they already have one)
-        for (var j = 0; j < existingAssignments.length; j++) {
-            var a = existingAssignments[j];
-            if (a.subject && a.grade) {
-                enrolledKeys.add((a.subject).toLowerCase() + '|' + a.grade);
-            }
-        }
-    } catch(e) {
-        console.warn('[Admin] Error loading data:', e.message);
-    }
-
-    renderFilters();
+        var resp = await fetch('/api/assign-test?student=' + encodeURIComponent(studentId));
+        var data = await resp.json();
+        existingAssignments = data.testAssignments || [];
+    } catch(e) {}
     renderTests();
     renderPending();
 }
 
-/* ── Render Available Tests (only enrolled combos) ─────────── */
+/* ── Render All Tests ──────────────────────────────────────── */
 function renderTests() {
     var el = document.getElementById('tests-list');
+    var filter = document.getElementById('subject-filter').value;
 
-    // Build lookup of existing assignments: "subject|grade" → status
+    // Build status lookup from existing assignments
     var statusMap = {};
     existingAssignments.forEach(function(a) {
         var key = (a.subject || '').toLowerCase() + '|' + (a.grade || '');
         statusMap[key] = a.assignmentStatus || 'assigned';
     });
 
-    // Only show tests where the student is enrolled in that subject+grade
-    var tests = ALL_TESTS.filter(function(t) {
-        return enrolledKeys.has(t.subject.toLowerCase() + '|' + t.grade);
-    });
-
-    // Apply subject filter
-    if (activeFilter !== 'all') {
-        tests = tests.filter(function(t) { return t.subject === activeFilter; });
-    }
-
-    if (!tests.length) {
-        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><p>No assignable tests for this student' +
-            (activeFilter !== 'all' ? ' in ' + activeFilter : '') +
-            '.<br><span style="font-size:0.78rem;">Tests require a matching course enrollment.</span></p></div>';
-        return;
+    // Show ALL tests, filtered by dropdown
+    var tests = ALL_TESTS;
+    if (filter !== 'all') {
+        tests = tests.filter(function(t) { return t.subject === filter; });
     }
 
     el.innerHTML = tests.map(function(t, idx) {
@@ -371,7 +279,7 @@ function renderTests() {
         var btnHtml;
 
         if (status === 'completed') {
-            btnHtml = '<span class="test-btn completed"><i class="fa-solid fa-check" style="margin-right:3px;"></i>Completed</span>';
+            btnHtml = '<span class="test-btn completed"><i class="fa-solid fa-check" style="margin-right:3px;"></i>Done</span>';
         } else if (status === 'assigned' || status === 'in_progress') {
             btnHtml = '<span class="test-btn assigned"><i class="fa-solid fa-clock" style="margin-right:3px;"></i>Pending</span>';
         } else if (status === 'failed') {
@@ -383,17 +291,15 @@ function renderTests() {
         return '<div class="test-row">' +
             '<div class="test-row-info">' +
                 '<div class="test-row-title">' + esc(t.name) + '</div>' +
-                '<div class="test-row-meta">' + esc(t.subject) + ' &middot; Grade ' + esc(t.grade) + '</div>' +
             '</div>' + btnHtml + '</div>';
     }).join('');
 }
 
-/* ── Render Pending/Existing ───────────────────────────────── */
+/* ── Render Student's Existing Tests ───────────────────────── */
 function renderPending() {
     var el = document.getElementById('pending-tests');
-
     if (!existingAssignments.length) {
-        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle"></i><p>No test assignments for this student.</p></div>';
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle"></i><p>No test assignments yet.</p></div>';
         return;
     }
 
@@ -415,7 +321,7 @@ function renderPending() {
     }).join('');
 }
 
-/* ── Assign Test ───────────────────────────────────────────── */
+/* ── Assign ────────────────────────────────────────────────── */
 async function assignTest(subject, grade, idx) {
     if (!selectedStudent) return;
     var btn = document.getElementById('tbtn-' + idx);
@@ -451,14 +357,13 @@ async function assignTest(subject, grade, idx) {
     }
 }
 
-/* ── Remove Assignment ─────────────────────────────────────── */
+/* ── Remove ────────────────────────────────────────────────── */
 async function removeAssignment(idx) {
     var a = existingAssignments[idx];
     if (!a) return;
     existingAssignments.splice(idx, 1);
     renderPending();
     renderTests();
-
     try {
         await fetch('/api/assign-test', {
             method: 'DELETE',
@@ -468,7 +373,6 @@ async function removeAssignment(idx) {
     } catch(e) {}
 }
 
-/* ── Feedback ──────────────────────────────────────────────── */
 function showFeedback(msg, type) { document.getElementById('assign-feedback').innerHTML = '<div class="feedback ' + type + '">' + esc(msg) + '</div>'; }
 function clearFeedback() { document.getElementById('assign-feedback').innerHTML = ''; }
 </script>
