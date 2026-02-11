@@ -134,19 +134,15 @@
 
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
-        // Try PowerPath adaptive quiz flow first
-        // Pass subject + gradeLevel (documented PowerPath API needs these, not just testId)
-        if (userId && (testId || (subject && gradeLevel))) {
+        // ── PowerPath adaptive flow (primary) ──
+        // PowerPath IDs (like HUMG20-xxx-bank-v1) go to PowerPath API which
+        // creates an attempt and returns QTI content via getNextQuestion.
+        if (userId && testId) {
             try {
-                var startBody = { studentId: userId };
-                if (testId) startBody.testId = testId;
-                if (subject) startBody.subject = subject;
-                if (gradeLevel) startBody.gradeLevel = gradeLevel;
-
                 var startResp = await fetch('/api/quiz-session?action=start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(startBody),
+                    body: JSON.stringify({ studentId: userId, testId: testId }),
                 });
                 var startData = await startResp.json();
                 if (startData.attemptId || startData.id) {
@@ -157,14 +153,13 @@
             } catch(e) { console.warn('PowerPath attempt failed:', e.message); }
         }
 
-        // Fallback: load all questions from QTI API
-        if (qtiUrl || testId) {
-            var loaded = await loadAllQuestions(qtiUrl, testId);
+        // ── QTI direct fetch (only for QTI URLs, not PowerPath IDs) ──
+        if (qtiUrl) {
+            var loaded = await loadAllQuestions(qtiUrl, '');
             if (loaded) return;
         }
 
-        // Final fallback: local FRQ assessment for end-of-unit assessments
-        // (PowerPath bank IDs like HUMG20-xxx-bank-v1 have no QTI content)
+        // ── Local FRQ fallback (when PowerPath can't create attempt) ──
         if (testId || subject) {
             showLocalAssessment(quizState.title, subject, gradeLevel);
             return;
