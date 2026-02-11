@@ -379,20 +379,18 @@
             let progressText, progressLabel, pct;
 
             if (lessonBased) {
-                /* AP course — show daily/weekly pace progress */
+                /* AP course — show overall progress bar + daily pace as label */
                 const totalDone = masteredIdx[i] || 0;
                 const total = c.totalLessons || (savedGoal && savedGoal.target) || 0;
-                const periodUnits = unitsByCourseIdx[i] || 0;
 
                 if (savedGoal && savedGoal.endDate && total > 0) {
                     const rem = Math.max(total - totalDone, 0);
                     const excl = savedGoal.excludeNonSchoolDays !== false;
                     const days = countSchoolDays(savedGoal.endDate, excl);
                     const daily = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
-                    const periodGoal = currentPeriod === 'today' ? daily : daily * 5;
-                    pct = periodGoal > 0 ? Math.min((periodUnits / periodGoal) * 100, 100) : (rem <= 0 ? 100 : 0);
-                    progressText = rem <= 0 ? 'Complete!' : `${periodUnits} / ${periodGoal} units`;
-                    progressLabel = rem <= 0 ? 'DONE' : (days > 0 ? periodLabel : 'OVERDUE');
+                    pct = total > 0 ? Math.min((totalDone / total) * 100, 100) : 0;
+                    progressText = `${totalDone} / ${total} units`;
+                    progressLabel = rem <= 0 ? 'DONE' : (days > 0 ? `${daily}/day` : 'OVERDUE');
                 } else {
                     pct = total > 0 ? Math.min((totalDone / total) * 100, 100) : 0;
                     progressText = `${totalDone} units mastered`;
