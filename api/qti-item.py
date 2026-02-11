@@ -257,70 +257,57 @@ class handler(BaseHTTPRequestHandler):
     def _fetch_assessment(self, test_id, headers, errors):
         """Fetch an assessment test and its questions. Returns True if handled."""
 
-        # 1. Try /api/v1/qti/assessment-tests/{id}/questions/ (direct questions)
-        questions_urls = [
-            f"{API_BASE}/api/v1/qti/assessment-tests/{test_id}/questions/",
-            f"{API_BASE}/api/v1/qti/assessment-tests/{test_id}/questions",
-            f"{QTI_BASE}/api/assessment-tests/{test_id}/questions",
-        ]
-        data, st = _try_fetch(questions_urls, headers)
-        if data:
-            questions = data if isinstance(data, list) else data.get("questions", data.get("items", []))
-            send_json(self, {
-                "data": {"title": data.get("title", ""), "questions": questions, "totalQuestions": len(questions)},
-                "success": True,
-            })
-            return True
-
-        # 2. Try /api/v1/qti/assessment-tests/{id}/ (test structure → resolve refs)
-        test_urls = [
-            f"{API_BASE}/api/v1/qti/assessment-tests/{test_id}/",
-            f"{API_BASE}/api/v1/qti/assessment-tests/{test_id}",
-            f"{QTI_BASE}/api/assessment-tests/{test_id}",
-            f"{QTI_BASE}/qti/v3/assessment-tests/{test_id}",
-        ]
-        data, st = _try_fetch(test_urls, headers)
-        if data:
-            test = data.get("qti-assessment-test", data)
-            if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
-                questions = self._resolve_questions(test, headers)
-                title = data.get("title") or (test.get("_attributes") or {}).get("title", "")
-                send_json(self, {
-                    "data": {"title": title, "questions": questions, "totalQuestions": len(questions)},
-                    "success": True,
-                })
-                return True
-            # Return raw data if structure not recognized
-            send_json(self, {"data": data, "success": True})
-            return True
-
-        # 3. PowerPath fetch-item-details (resolves to actual content)
-        detail_urls = [
-            f"{API_BASE}/api/v1/old-powerpath/fetch-item-details/?item_id={test_id}",
-            f"{API_BASE}/powerpath/items/{test_id}",
-        ]
-        data, st = _try_fetch(detail_urls, headers)
-        if data and isinstance(data, dict):
-            # Item details may contain questions directly or a content URL
-            questions = data.get("questions", data.get("items", []))
-            if questions:
-                send_json(self, {
-                    "data": {"title": data.get("title", ""), "questions": questions, "totalQuestions": len(questions)},
-                    "success": True,
-                })
-                return True
-            # May contain a content/body with rendered HTML or QTI structure
-            body = data.get("body") or data.get("content") or data.get("html") or ""
-            if body:
+        # 1. Direct QTI fetch (documented endpoints)
+        #    GET https://qti.alpha-1edtech.ai/api/assessment-tests/{id}
+        #    GET https://qti.alpha-1edtech.ai/api/assessment-items/{id}
+        for endpoint in ["assessment-tests", "assessment-items"]:
+            data, st = _fetch(f"{QTI_BASE}/api/{endpoint}/{test_id}", headers)
+            if data:
+                # Check if it's a test with parts → resolve questions
+                test = data.get("qti-assessment-test", data) if isinstance(data, dict) else data
+                if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
+                    questions = self._resolve_questions(test, headers)
+                    title = data.get("title") or (test.get("_attributes") or {}).get("title", "")
+                    send_json(self, {
+                        "data": {"title": title, "questions": questions, "totalQuestions": len(questions)},
+                        "success": True,
+                    })
+                    return True
+                # Single item or raw data
                 send_json(self, {"data": data, "success": True})
                 return True
-            # May contain a qti_id we haven't tried yet
-            meta = data.get("metadata") or {}
-            nested_qti = meta.get("qti_test_id") or meta.get("qti_id") or data.get("qti_id") or ""
-            if nested_qti and nested_qti != test_id:
-                result = self._fetch_assessment(str(nested_qti), headers, errors)
-                if result:
+
+        # 2. Search Resources API for QTI items matching this PowerPath ID
+        #    The Resources API maps PowerPath IDs to QTI content
+        resource_data = self._search_resources_for_qti(test_id, headers, errors)
+        if resource_data:
+            return True
+
+        # 3. PowerPath item details (may contain embedded content)
+        for url in [
+            f"{API_BASE}/api/v1/old-powerpath/fetch-item-details/?item_id={test_id}",
+            f"{API_BASE}/powerpath/items/{test_id}",
+        ]:
+            data, st = _fetch(url, headers)
+            if data and isinstance(data, dict):
+                questions = data.get("questions", data.get("items", []))
+                if questions:
+                    send_json(self, {
+                        "data": {"title": data.get("title", ""), "questions": questions, "totalQuestions": len(questions)},
+                        "success": True,
+                    })
                     return True
+                body = data.get("body") or data.get("content") or data.get("html") or ""
+                if body:
+                    send_json(self, {"data": data, "success": True})
+                    return True
+                # Check for nested QTI ID
+                meta = data.get("metadata") or {}
+                nested_qti = meta.get("qti_test_id") or meta.get("qti_id") or data.get("qti_id") or ""
+                if nested_qti and nested_qti != test_id:
+                    result = self._fetch_assessment(str(nested_qti), headers, errors)
+                    if result:
+                        return True
 
         # 4. PowerPath assessments/quizzes endpoint
         pp_urls = [
@@ -364,6 +351,96 @@ class handler(BaseHTTPRequestHandler):
             return True
         errors.append(f"Stimulus {stim_id} not found")
         return False
+
+    # ── Resources API search ─────────────────────────────────
+
+    def _search_resources_for_qti(self, pp_id, headers, errors):
+        """Search the OneRoster Resources API for QTI items matching a PowerPath ID.
+
+        The Resources API at /ims/oneroster/resources/v1p2/resources contains
+        items with metadata linking PowerPath IDs to QTI content.
+
+        Extracts the course code from the PowerPath ID (e.g. HUMG20 from
+        HUMG20-r173056-bank-v1) and searches for matching assessment items.
+        """
+        # Extract course code prefix from PowerPath ID (e.g. "HUMG20")
+        code = pp_id.split("-")[0] if "-" in pp_id else ""
+        if not code:
+            return False
+
+        try:
+            # Search resources for this course code
+            resp = requests.get(
+                f"{API_BASE}/ims/oneroster/resources/v1p2/resources",
+                headers=headers,
+                params={"limit": 200, "filter": f"title~'{code}'"},
+                timeout=8,
+            )
+            if resp.status_code != 200:
+                # Try without filter (get all and search locally)
+                resp = requests.get(
+                    f"{API_BASE}/ims/oneroster/resources/v1p2/resources",
+                    headers=headers,
+                    params={"limit": 500},
+                    timeout=8,
+                )
+
+            if resp.status_code != 200:
+                errors.append(f"Resources API: {resp.status_code}")
+                return False
+
+            resources = resp.json().get("resources", [])
+
+            # Find resources matching this course code that have QTI content
+            matching_qti_ids = []
+            for res in resources:
+                title = (res.get("title") or "").lower()
+                res_id = res.get("sourcedId") or ""
+                meta = res.get("metadata") or {}
+                res_type = (meta.get("type") or "").lower()
+
+                # Match by course code in title or ID
+                if code.lower() not in title and code.lower() not in res_id.lower():
+                    continue
+
+                # Look for assessment/quiz type resources
+                if "assessment" in res_type or "quiz" in res_type or "test" in res_type or "frq" in res_type:
+                    # This resource's sourcedId might be a valid QTI item ID
+                    matching_qti_ids.append(res_id)
+                    continue
+
+                # Check if metadata has a QTI reference
+                qti_ref = meta.get("qti_id") or meta.get("qtiId") or meta.get("qti_test_id") or ""
+                if qti_ref:
+                    matching_qti_ids.append(qti_ref)
+
+            if not matching_qti_ids:
+                errors.append(f"No QTI items found for course {code}")
+                return False
+
+            # Fetch the first matching QTI item
+            for qti_id in matching_qti_ids[:5]:
+                for endpoint in ["assessment-tests", "assessment-items"]:
+                    data, st = _fetch(f"{QTI_BASE}/api/{endpoint}/{qti_id}", headers)
+                    if data:
+                        test = data.get("qti-assessment-test", data) if isinstance(data, dict) else data
+                        if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
+                            questions = self._resolve_questions(test, headers)
+                            title = data.get("title") or (test.get("_attributes") or {}).get("title", "")
+                            send_json(self, {
+                                "data": {"title": title, "questions": questions, "totalQuestions": len(questions)},
+                                "success": True,
+                            })
+                            return True
+                        send_json(self, {"data": data, "success": True})
+                        return True
+
+            errors.append(f"Found {len(matching_qti_ids)} resource IDs but none resolved to QTI content")
+            return False
+
+        except Exception as e:
+            errors.append(f"Resources search: {e}")
+            return False
 
     # ── Question resolution from test structure ───────────────
 

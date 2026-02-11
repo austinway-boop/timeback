@@ -135,14 +135,14 @@
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
         // ── Load quiz content from QTI API ──
-        // PowerPath assessment endpoints don't exist on our API host,
-        // so we load questions from QTI and run the PowerPath 100 scoring locally.
-        if (qtiUrl) {
-            var loaded = await loadAllQuestions(qtiUrl, '');
+        // Try QTI for both direct URLs AND PowerPath IDs (qti-item resolves
+        // PowerPath IDs via the Resources API to find matching QTI content)
+        if (qtiUrl || testId) {
+            var loaded = await loadAllQuestions(qtiUrl, testId);
             if (loaded) return;
         }
 
-        // ── Local FRQ fallback (when PowerPath can't create attempt) ──
+        // ── Local FRQ fallback (when QTI has no content for this ID) ──
         if (testId || subject) {
             showLocalAssessment(quizState.title, subject, gradeLevel);
             return;
