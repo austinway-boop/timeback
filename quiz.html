@@ -175,12 +175,21 @@
         var stimulus = q.stimulus || q.passage || q.reading || '';
         if (typeof stimulus === 'object') stimulus = renderNode(stimulus);
 
+        var accuracy = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+        var accColor = accuracy >= 90 ? '#2E7D32' : accuracy >= 80 ? '#F9A825' : accuracy > 0 ? '#E53E3E' : 'var(--color-text-muted)';
+
         var html = '<div class="quiz-header">' +
             '<div class="quiz-title">' + esc(quizState.title) + '</div>' +
             '<div class="quiz-score"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP</div>' +
         '</div>' +
-        '<div class="quiz-status">Question ' + quizState.questionNum + ' · ' + quizState.correct + '/' + quizState.total + ' correct</div>' +
-        '<div class="quiz-progress-bar"><div class="quiz-progress-fill" style="width:' + (quizState.total > 0 ? Math.round((quizState.correct/quizState.total)*100) : 0) + '%;"></div></div>';
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+            '<div class="quiz-status">Question ' + quizState.questionNum + '</div>' +
+            '<div style="display:flex;gap:16px;font-size:0.85rem;font-weight:600;">' +
+                '<span>' + quizState.correct + '/' + quizState.total + ' correct</span>' +
+                '<span style="color:' + accColor + ';">' + accuracy + '% accuracy</span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="quiz-progress-bar"><div class="quiz-progress-fill" style="width:' + accuracy + '%;background:' + accColor + ';"></div></div>';
 
         if (stimulus) {
             html += '<div class="stimulus-box">' + stimulus + '</div>';
@@ -282,19 +291,27 @@
     function showResults() {
         var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
         var passed = pct >= 90;
+        var noXp = pct < 80;
+
+        // Calculate XP: no XP below 80% accuracy
+        if (noXp) quizState.xpEarned = 0;
 
         area.innerHTML = '<div class="result-card">' +
-            '<div style="font-size:3rem;margin-bottom:8px;">' + (passed ? '🎉' : '📝') + '</div>' +
+            '<div style="font-size:3rem;margin-bottom:8px;">' + (passed ? '🎉' : pct >= 80 ? '👍' : '📝') + '</div>' +
             '<div class="result-score">' + pct + '%</div>' +
-            '<div class="result-label">' + (passed ? 'Mastery Achieved!' : 'Keep Practicing') + '</div>' +
-            '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned</div>' +
+            '<div class="result-label">' + (passed ? 'Mastery Achieved!' : pct >= 80 ? 'Good Work!' : 'Keep Practicing') + '</div>' +
+            '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned' + (noXp ? ' (need ≥80% for XP)' : '') + '</div>' +
             '<div class="result-details">' +
                 '<div class="result-stat"><div class="result-stat-val" style="color:#2E7D32;">' + quizState.correct + '</div><div class="result-stat-label">Correct</div></div>' +
-                '<div class="result-stat"><div class="result-stat-val">' + quizState.total + '</div><div class="result-stat-label">Total</div></div>' +
-                '<div class="result-stat"><div class="result-stat-val">' + pct + '%</div><div class="result-stat-label">Accuracy</div></div>' +
+                '<div class="result-stat"><div class="result-stat-val">' + (quizState.total - quizState.correct) + '</div><div class="result-stat-label">Incorrect</div></div>' +
+                '<div class="result-stat"><div class="result-stat-val">' + quizState.total + '</div><div class="result-stat-label">Questions</div></div>' +
+                '<div class="result-stat"><div class="result-stat-val" style="color:' + (passed ? '#2E7D32' : pct >= 80 ? '#F9A825' : '#E53E3E') + ';">' + pct + '%</div><div class="result-stat-label">Accuracy</div></div>' +
             '</div>' +
-            (pct < 90 ? '<div style="margin-top:20px;font-size:0.88rem;color:var(--color-text-muted);">Need ≥90% to advance. <strong>' + (90 - pct) + '% more needed.</strong></div>' : '') +
+            (passed ? '<div style="margin-top:16px;padding:12px 20px;background:#E8F5E9;border-radius:10px;color:#1B5E20;font-size:0.9rem;"><i class="fa-solid fa-check-circle" style="margin-right:6px;"></i>This lesson is now marked as complete. You can proceed to the next lesson.</div>' : '') +
+            (!passed && pct >= 80 ? '<div style="margin-top:16px;font-size:0.88rem;color:var(--color-text-muted);">Need ≥90% for mastery. You earned XP but need <strong>' + (90 - pct) + '% more</strong> to advance.</div>' : '') +
+            (!passed && pct < 80 ? '<div style="margin-top:16px;font-size:0.88rem;color:#E53E3E;">Below 80% — no XP awarded. Review the material and try again.</div>' : '') +
             '<div style="margin-top:24px;display:flex;gap:12px;justify-content:center;">' +
+                (passed ? '<button class="quiz-btn quiz-btn-primary" onclick="history.back()"><i class="fa-solid fa-arrow-right"></i> Continue to Next Lesson</button>' : '<button class="quiz-btn quiz-btn-primary" onclick="location.reload()"><i class="fa-solid fa-redo"></i> Try Again</button>') +
                 '<button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button>' +
             '</div>' +
         '</div>';
@@ -306,6 +323,16 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({attemptId: quizState.attemptId}),
             }).catch(function(){});
+        }
+
+        // Auto-mark lesson as complete if mastery achieved
+        if (passed) {
+            var params = new URLSearchParams(window.location.search);
+            var lessonTitle = params.get('title') || '';
+            var lessonId = params.get('id') || params.get('testId') || '';
+            if (lessonTitle || lessonId) {
+                localStorage.setItem('completed_' + (lessonId || lessonTitle), 'true');
+            }
         }
     }
 
@@ -395,20 +422,44 @@
                         quizState.answered = true;
                         quizState.total++;
                         var isCorrect = quizState.selectedChoice === q.correctId;
-                        if (isCorrect) { quizState.correct++; quizState.xpEarned += 1; }
+                        if (isCorrect) {
+                            quizState.correct++;
+                            // XP: 1 XP per minute of focused learning. Estimate ~1 min per question.
+                            quizState.xpEarned += 1;
+                        }
                         var fb = q.feedbackMap[quizState.selectedChoice] || '';
 
+                        // Highlight correct and incorrect
                         document.querySelectorAll('.choice').forEach(function(c) {
                             if (c.dataset.id === quizState.selectedChoice) c.classList.add(isCorrect ? 'correct' : 'incorrect');
                             if (c.dataset.id === q.correctId) c.classList.add('correct');
                         });
+
+                        // Show feedback
                         var feedbackEl = document.getElementById('feedback');
                         feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
                         feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
+
+                        // Update score displays
+                        var acc = Math.round((quizState.correct / quizState.total) * 100);
                         document.querySelector('.quiz-score').innerHTML = '<i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP';
+
                         var btn = document.getElementById('submit-btn');
-                        btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Next Question';
-                        btn.onclick = function() { currentIdx++; showStaticQuestion(); };
+
+                        // Check mastery: ≥90% accuracy after at least 10 questions = mastery achieved
+                        if (quizState.total >= 10 && acc >= 90) {
+                            // Award bonus XP for mastery
+                            quizState.xpEarned += 5;
+                            btn.innerHTML = '<i class="fa-solid fa-trophy"></i> Mastery Achieved! See Results';
+                            btn.onclick = function() { showResults(); };
+                        } else if (currentIdx + 1 >= allQ.length) {
+                            // End of questions
+                            btn.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> See Results';
+                            btn.onclick = function() { showResults(); };
+                        } else {
+                            btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Next Question';
+                            btn.onclick = function() { currentIdx++; showStaticQuestion(); };
+                        }
                     };
                 }
                 showStaticQuestion();
