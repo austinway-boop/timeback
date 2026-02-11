@@ -138,12 +138,184 @@
             return;
         }
 
-        // Parse and render the QTI content
-        var html = '<h1 class="quiz-title">' + esc(data.title || data.identifier || title) + '</h1>';
+        // ── Render QTI JSON to HTML ──
+        function renderNode(node) {
+            if (!node) return '';
+            if (typeof node === 'string') return '<p>' + node + '</p>';
+            if (Array.isArray(node)) return node.map(renderNode).join('');
 
-        // Check for body/content/stimulus text
-        var body = data.body || data.content || data.stimulus || data.itemBody || data.passage || '';
-        if (typeof body === 'object') body = body.content || body.body || JSON.stringify(body);
+            var html = '';
+            for (var key in node) {
+                if (key.startsWith('_')) continue; // skip _attributes, _text
+                var val = node[key];
+
+                // Handle text with bold
+                if (key === '_' || key === '#text' || key === '_text') {
+                    html += val;
+                    continue;
+                }
+                if (key === 'strong' || key === 'b') {
+                    html += '<strong>' + (typeof val === 'string' ? val : renderNode(val)) + '</strong>';
+                    continue;
+                }
+                if (key === 'em' || key === 'i') {
+                    html += '<em>' + (typeof val === 'string' ? val : renderNode(val)) + '</em>';
+                    continue;
+                }
+
+                // Headings
+                if (key === 'h1' || key === 'h2' || key === 'h3' || key === 'h4') {
+                    var items = Array.isArray(val) ? val : [val];
+                    for (var i = 0; i < items.length; i++) {
+                        html += '<' + key + ' style="margin:20px 0 10px;color:var(--color-text);">' + (typeof items[i] === 'string' ? items[i] : renderNode(items[i])) + '</' + key + '>';
+                    }
+                    continue;
+                }
+
+                // Paragraphs
+                if (key === 'p') {
+                    var paras = Array.isArray(val) ? val : [val];
+                    for (var i = 0; i < paras.length; i++) {
+                        var p = paras[i];
+                        if (typeof p === 'string') {
+                            html += '<p style="margin:0 0 12px;line-height:1.7;">' + p + '</p>';
+                        } else if (typeof p === 'object') {
+                            var pText = p['_'] || p['_text'] || p['#text'] || '';
+                            var bold = p['strong'] || p['b'] || '';
+                            if (bold) pText = pText.replace(bold, '<strong>' + bold + '</strong>');
+                            if (!pText) pText = renderNode(p);
+                            html += '<p style="margin:0 0 12px;line-height:1.7;">' + pText + '</p>';
+                        }
+                    }
+                    continue;
+                }
+
+                // Figures/images
+                if (key === 'figure') {
+                    var figs = Array.isArray(val) ? val : [val];
+                    for (var i = 0; i < figs.length; i++) {
+                        var fig = figs[i];
+                        var img = fig.img || {};
+                        var imgAttrs = img['_attributes'] || img;
+                        var src = imgAttrs.src || imgAttrs.href || '';
+                        var alt = imgAttrs.alt || '';
+                        var caption = fig.figcaption || '';
+                        if (src) {
+                            html += '<figure style="margin:16px 0;text-align:center;">' +
+                                '<img src="' + esc(src) + '" alt="' + esc(alt) + '" style="max-width:100%;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">' +
+                                (caption ? '<figcaption style="font-size:0.82rem;color:var(--color-text-muted);margin-top:8px;font-weight:600;">' + esc(caption) + '</figcaption>' : '') +
+                                '</figure>';
+                        }
+                    }
+                    continue;
+                }
+
+                // Images directly
+                if (key === 'img') {
+                    var imgA = val['_attributes'] || val;
+                    html += '<img src="' + esc(imgA.src || '') + '" alt="' + esc(imgA.alt || '') + '" style="max-width:100%;border-radius:8px;margin:8px 0;">';
+                    continue;
+                }
+
+                // Tables
+                if (key === 'table') {
+                    var tables = Array.isArray(val) ? val : [val];
+                    for (var ti = 0; ti < tables.length; ti++) {
+                        var tbl = tables[ti];
+                        html += '<div style="overflow-x:auto;margin:16px 0;"><table style="width:100%;border-collapse:collapse;font-size:0.88rem;">';
+                        // thead
+                        var thead = tbl.thead;
+                        if (thead) {
+                            html += '<thead>';
+                            var hRows = thead.tr ? (Array.isArray(thead.tr) ? thead.tr : [thead.tr]) : [];
+                            for (var r = 0; r < hRows.length; r++) {
+                                html += '<tr>';
+                                var ths = hRows[r].th || [];
+                                if (!Array.isArray(ths)) ths = [ths];
+                                for (var c = 0; c < ths.length; c++) {
+                                    html += '<th style="padding:8px 12px;border:1px solid var(--color-border);background:var(--color-bg);font-weight:600;text-align:left;">' + (typeof ths[c] === 'string' ? ths[c] : renderNode(ths[c])) + '</th>';
+                                }
+                                html += '</tr>';
+                            }
+                            html += '</thead>';
+                        }
+                        // tbody
+                        var tbody = tbl.tbody;
+                        if (tbody) {
+                            html += '<tbody>';
+                            var bRows = tbody.tr ? (Array.isArray(tbody.tr) ? tbody.tr : [tbody.tr]) : [];
+                            for (var r = 0; r < bRows.length; r++) {
+                                html += '<tr>';
+                                var tds = bRows[r].td || [];
+                                if (!Array.isArray(tds)) tds = [tds];
+                                for (var c = 0; c < tds.length; c++) {
+                                    var cell = tds[c];
+                                    var cellText = '';
+                                    if (typeof cell === 'string') cellText = cell;
+                                    else if (Array.isArray(cell)) cellText = cell.join('<br>');
+                                    else cellText = renderNode(cell);
+                                    html += '<td style="padding:8px 12px;border:1px solid var(--color-border);vertical-align:top;">' + cellText + '</td>';
+                                }
+                                html += '</tr>';
+                            }
+                            html += '</tbody>';
+                        }
+                        html += '</table></div>';
+                    }
+                    continue;
+                }
+
+                // Lists
+                if (key === 'ul' || key === 'ol') {
+                    var lists = Array.isArray(val) ? val : [val];
+                    for (var li = 0; li < lists.length; li++) {
+                        var items = lists[li].li || [];
+                        if (!Array.isArray(items)) items = [items];
+                        html += '<' + key + ' style="margin:8px 0 12px 20px;">';
+                        for (var j = 0; j < items.length; j++) {
+                            html += '<li style="margin-bottom:4px;">' + (typeof items[j] === 'string' ? items[j] : renderNode(items[j])) + '</li>';
+                        }
+                        html += '</' + key + '>';
+                    }
+                    continue;
+                }
+
+                // Nested div
+                if (key === 'div') {
+                    var divs = Array.isArray(val) ? val : [val];
+                    for (var i = 0; i < divs.length; i++) {
+                        html += renderNode(divs[i]);
+                    }
+                    continue;
+                }
+
+                // Anything else with object value - recurse
+                if (typeof val === 'object' && val !== null) {
+                    html += renderNode(val);
+                }
+            }
+            return html;
+        }
+
+        // Detect content type and extract the right data
+        var stimulus = data['qti-assessment-stimulus'] || null;
+        var assessmentItem = data['qti-assessment-item'] || null;
+        var assessmentTest = data['qti-assessment-test'] || null;
+
+        var html = '<h1 class="quiz-title">' + esc(data.title || (stimulus && stimulus['_attributes'] && stimulus['_attributes'].title) || title) + '</h1>';
+
+        // ── Stimulus (reading passage) ──
+        if (stimulus) {
+            var stimBody = stimulus['qti-stimulus-body'] || {};
+            html += '<div class="stimulus-content">' + renderNode(stimBody) + '</div>';
+        }
+
+        // ── Check for body/content from other formats ──
+        var body = data.body || data.content || data.itemBody || data.passage || '';
+        if (!stimulus && body) {
+            if (typeof body === 'object') html += '<div class="stimulus-content">' + renderNode(body) + '</div>';
+            else html += '<div class="stimulus-content">' + body + '</div>';
+        }
 
         // Parse questions -- handle QTI 3.0 format
         var questions = data.questions || data.items || [];
