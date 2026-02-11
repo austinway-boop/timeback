@@ -762,9 +762,20 @@
                                 quizExtra: quizExtra
                             };
 
+                            var actAllDone = (doneRes === totalRes && totalRes > 0);
+                            var actCls = 'act-text' + (actAllDone ? ' complete' : '');
+                            var actIcon = actAllDone ? 'fa-circle-check' : 'fa-circle';
+                            var statsHtml = '';
+                            if (isDone || doneRes > 0) {
+                                statsHtml = '<div class="lesson-stats">' +
+                                    '<span class="' + actCls + '"><i class="fa-solid ' + actIcon + '"></i> ' + doneRes + '/' + totalRes + ' Activities</span>' +
+                                '</div>';
+                            }
+
                             var rowClick = lessonLocked ? '' : ' onclick="openLesson(\'' + lessonDataKey + '\')"';
                             html += '<div class="lesson-row"' + rowClick + '>' +
                                 '<div class="lesson-info"><div class="lesson-title">' + esc(lTitle) + '</div></div>' +
+                                statsHtml +
                             '</div>';
 
                             html += '</div>'; // tl-item
