@@ -177,20 +177,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     } catch(e) {}
 });
 
-/* ── Search ────────────────────────────────────────────────── */
+/* ── Search (all local, no API calls) ──────────────────────── */
 function doSearch(q) {
     var lq = q.toLowerCase();
-    if (lq.includes('@')) {
-        fetch('/api/user-lookup?email=' + encodeURIComponent(q))
-            .then(function(r) { return r.json(); })
-            .then(function(d) { renderDD(d.user ? [d.user] : []); })
-            .catch(function() { renderDD([]); });
-        return;
-    }
     var res = cachedStudents.filter(function(u) {
-        var f = (u.givenName || '').toLowerCase(), l = (u.familyName || '').toLowerCase();
-        return f.includes(lq) || l.includes(lq) || (f + ' ' + l).includes(lq)
-            || (u.email || '').toLowerCase().includes(lq) || (u.username || '').toLowerCase().includes(lq);
+        var f = (u.givenName || '').toLowerCase();
+        var l = (u.familyName || '').toLowerCase();
+        var full = f + ' ' + l;
+        var email = (u.email || '').toLowerCase();
+        var uname = (u.username || '').toLowerCase();
+        return f.includes(lq) || l.includes(lq) || full.includes(lq)
+            || email.includes(lq) || uname.includes(lq);
     });
     renderDD(res.slice(0, 30));
 }
