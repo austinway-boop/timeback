@@ -327,7 +327,7 @@
             let progressText, progressLabel, pct;
 
             if (lessonBased) {
-                // Lesson-based AP course: show daily pace goal
+                /* AP course — show daily pace as the main number */
                 const done = masteredIdx[i] || 0;
                 const total = c.totalLessons || 0;
 
@@ -336,7 +336,7 @@
                     const excl = savedGoal.excludeNonSchoolDays !== false;
                     const days = countSchoolDays(savedGoal.endDate, excl);
                     const daily = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
-                    pct = daily > 0 ? 0 : (rem <= 0 ? 100 : 0); // no daily tracking yet
+                    pct = total > 0 ? Math.min((done / total) * 100, 100) : 0;
                     progressText = rem <= 0 ? 'Complete!' : `${daily} units today`;
                     progressLabel = rem > 0 && days > 0 ? `${done}/${total} total` : (rem <= 0 ? 'DONE' : 'OVERDUE');
                 } else {
