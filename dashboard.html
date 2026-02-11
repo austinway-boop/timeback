@@ -33,13 +33,6 @@
         }
         .course-info-tooltip .tip-label { font-size: 0.72rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; }
         .course-info-tooltip a { color: #45B5AA; word-break: break-all; }
-        .show-pw-btn {
-            border: 1px solid #45B5AA; background: #fff; color: #45B5AA;
-            padding: 2px 10px; border-radius: 4px; font-size: 0.78rem;
-            font-weight: 600; cursor: pointer; transition: all 0.2s;
-        }
-        .show-pw-btn:hover { background: #45B5AA; color: #fff; }
-        .show-pw-btn:disabled { opacity: 0.5; cursor: wait; }
     </style>
 </head>
 <body data-view="student" data-active="home">
@@ -371,22 +364,23 @@
 
             // Check if external course with credentials
             const vKey = c._vendorKey || '';
-            const profile = vKey ? (userProfilesMap[vKey] || null) : null;
+            const creds = vKey ? (credentialsMap[vKey] || {}) : {};
+            const profile = vKey ? (userProfilesMap[vKey] || {}) : {};
             const isExternal = !!vKey;
-            const launchUrl = profile ? profile.launchUrl : '';
-            const credUsername = profile ? profile.username : '';
-            const credPassword = profile ? profile.password : '';
-            const platformName = profile ? profile.appName : (c.appName || '');
+            const launchUrl = profile.launchUrl || '';
+            const credUsername = creds.username || '';
+            const credPassword = creds.password || '';
+            const platformName = profile.appName || c.appName || '';
 
-            // Build info icon tooltip (only for external courses with profile data)
+            // Build info icon tooltip (for external courses with any credential/profile data)
             let infoIconHTML = '';
-            if (isExternal && (credUsername || launchUrl || platformName)) {
+            if (isExternal && (credUsername || credPassword || launchUrl || platformName)) {
                 infoIconHTML = `<div class="course-info-icon" onclick="event.stopPropagation();" title="Course credentials">
                     <i class="fa-solid fa-circle-info"></i>
                     <div class="course-info-tooltip">
                         ${platformName ? `<div><span class="tip-label">Platform</span><br><strong>${esc(platformName)}</strong></div>` : ''}
                         ${credUsername ? `<div style="margin-top:6px;"><span class="tip-label">Username</span><br><code>${esc(credUsername)}</code></div>` : ''}
-                        <div style="margin-top:6px;"><span class="tip-label">Password</span><br>${profile && profile.credentialId ? `<button class="show-pw-btn" onclick="event.stopPropagation(); decryptPassword('${esc(currentUserId)}', '${esc(profile.credentialId)}', this)">Show Password</button>` : `<span style="color:#A0AEC0;font-style:italic;">Not available</span>`}</div>
+                        <div style="margin-top:6px;"><span class="tip-label">Password</span><br>${credPassword ? `<code>${esc(credPassword)}</code>` : `<span style="color:#A0AEC0;font-style:italic;">N/A</span>`}</div>
                         ${launchUrl ? `<div style="margin-top:8px;"><a href="${esc(launchUrl)}" target="_blank">${esc(launchUrl)}</a></div>` : ''}
                     </div>
                 </div>`;
@@ -456,47 +450,34 @@
 
             // Cache the sourcedId so future page loads can skip the lookup
             localStorage.setItem('alphalearn_userId', userId);
-            currentUserId = userId;
 
-            // Build userProfiles map from initial lookup data
+            // Build credentials map from userIds (primary source: username + password)
+            const userIds = lookupData.user.userIds || [];
+            for (const uid of userIds) {
+                const type = uid.type || '';
+                const identifier = uid.identifier || '';
+                if (!type || !identifier) continue;
+                if (type.endsWith('_password')) {
+                    const platform = type.replace('_password', '');
+                    if (!credentialsMap[platform]) credentialsMap[platform] = {};
+                    credentialsMap[platform].password = identifier;
+                } else {
+                    if (!credentialsMap[type]) credentialsMap[type] = {};
+                    credentialsMap[type].username = identifier;
+                }
+            }
+
+            // Build userProfiles map (for app name + launch URL)
             const profiles = lookupData.user.userProfiles || [];
             for (const p of profiles) {
                 const vendorId = p.vendorId || p.applicationId || '';
                 if (!vendorId) continue;
                 const appDomains = (p.app && p.app.domain) || [];
-                const cred = (p.credentials && p.credentials[0]) || {};
                 userProfilesMap[vendorId] = {
-                    username: cred.username || '',
-                    credentialId: cred.id || '',
                     appName: (p.app && p.app.name) || p.description || '',
                     domain: appDomains[0] || '',
                     launchUrl: appDomains[0] ? 'https://' + appDomains[0] : '',
                 };
-            }
-
-            // Also fetch from dedicated credentials endpoint for more thorough extraction
-            try {
-                const credResp = await fetch(`/api/user-credentials?email=${encodeURIComponent(email)}`);
-                if (credResp.ok) {
-                    const credData = await credResp.json();
-                    for (const cp of (credData.profiles || [])) {
-                        const vId = cp.vendorId || '';
-                        if (!vId) continue;
-                        // Merge: prefer values from dedicated endpoint, fill in gaps
-                        const existing = userProfilesMap[vId] || {};
-                        const rawCreds = cp.rawCredentials || [];
-                        const firstRawCred = rawCreds[0] || {};
-                        userProfilesMap[vId] = {
-                            username: cp.username || existing.username || '',
-                            credentialId: firstRawCred.id || existing.credentialId || '',
-                            appName: cp.appName || existing.appName || '',
-                            domain: cp.domain || existing.domain || '',
-                            launchUrl: cp.launchUrl || existing.launchUrl || '',
-                        };
-                    }
-                }
-            } catch (e) {
-                // Credentials endpoint not available - continue with what we have
             }
 
             /* 2. Fetch enrolled courses via EduBridge */
@@ -824,28 +805,6 @@
         if (val === null || val === undefined) return '';
         if (typeof val === 'object') return '';
         return String(val);
-    }
-
-    /** Decrypt a credential password on demand */
-    async function decryptPassword(userId, credentialId, btn) {
-        btn.textContent = 'Loading...';
-        btn.disabled = true;
-        var tbLink = `<a href="https://alpha.timeback.com/app" target="_blank" rel="noopener" style="color:#45B5AA;font-size:0.82rem;font-weight:600;text-decoration:none;">View on Timeback <i class="fa-solid fa-external-link-alt" style="font-size:0.7rem;margin-left:2px;"></i></a>`;
-        try {
-            var resp = await fetch('/api/decrypt-credential?userId=' + encodeURIComponent(userId) + '&credentialId=' + encodeURIComponent(credentialId));
-            if (!resp.ok) { btn.outerHTML = tbLink; return; }
-            var data = await resp.json();
-            if (data.success && data.password) {
-                var pw = typeof data.password === 'string' ? data.password
-                    : (data.password && data.password.result) ? data.password.result
-                    : JSON.stringify(data.password);
-                btn.outerHTML = '<code style="background:#F4F6F9;padding:2px 8px;border-radius:4px;font-family:monospace;font-size:0.85em;">' + esc(pw) + '</code>';
-            } else {
-                btn.outerHTML = tbLink;
-            }
-        } catch (e) {
-            btn.outerHTML = tbLink;
-        }
     }
 
     /* ---- Course detail modal (internal courses only) ---------------------- */
