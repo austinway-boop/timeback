@@ -61,6 +61,44 @@ def _try_fetch(urls, headers):
     return None, 404
 
 
+def _match_items(items, target_subject, code, title_lower):
+    """Score and rank QTI items by relevance to the search criteria."""
+    scored = []
+    for item in items:
+        t = (item.get("title") or item.get("name") or "").lower()
+        iid = (item.get("identifier") or item.get("id") or "").lower()
+        score = 0
+        if target_subject and target_subject in t:
+            score += 3
+        if code and code in iid:
+            score += 3
+        if code and code in t:
+            score += 2
+        # Match unit number from title (e.g. "unit 1" in both)
+        import re
+        title_units = re.findall(r'unit\s*(\d+)', title_lower)
+        item_units = re.findall(r'unit\s*(\d+)', t)
+        if title_units and item_units and title_units[0] == item_units[0]:
+            score += 4
+        if score >= 3:
+            scored.append((score, item))
+    scored.sort(key=lambda x: -x[0])
+    return [s[1] for s in scored]
+
+
+def _fetch_full_items(items, headers):
+    """Fetch full QTI content for a list of item stubs."""
+    questions = []
+    for item in items:
+        iid = item.get("identifier") or item.get("id") or ""
+        if not iid:
+            continue
+        full, st = _fetch(f"{QTI_BASE}/api/assessment-items/{iid}", headers)
+        if full:
+            questions.append(full)
+    return questions
+
+
 def _resolve_powerpath_to_qti(pp_id, headers, errors):
     """Resolve a PowerPath resource ID to its QTI test/item ID.
 
@@ -360,104 +398,92 @@ class handler(BaseHTTPRequestHandler):
     # ── Resources API search ─────────────────────────────────
 
     def _search_qti_catalog(self, pp_id, headers, errors, subject="", title="", grade=""):
-        """Search the QTI assessment-tests catalog for content matching a PowerPath ID.
+        """Search the QTI catalog for content matching a PowerPath assessment.
 
-        Uses the documented endpoints:
-          GET https://qti.alpha-1edtech.ai/api/assessment-tests?limit=100
-          GET https://qti.alpha-1edtech.ai/api/assessment-items?limit=100
-          GET https://api.alpha-1edtech.ai/ims/oneroster/resources/v1p2/resources?limit=1000
+        QTI API format (qti.alpha-1edtech.ai/api):
+          GET /assessment-tests?limit=20&page=1  → {items:[], total, page, pages}
+          GET /assessment-items?limit=20&type=extended-text  → FRQs only
+          GET /assessment-items/{id}  → full item with QTI content
 
-        Searches by subject, title keywords, and course code extracted from the PowerPath ID.
+        Matches by course code from PowerPath ID and subject/title keywords.
         """
-        # Build search keywords from the PowerPath ID and provided metadata
-        code = pp_id.split("-")[0] if "-" in pp_id else ""  # e.g. "HUMG20"
-        keywords = set()
-        if code:
-            keywords.add(code.lower())
-        if title:
-            # Extract meaningful words from title like "End of Unit 1 Assessment"
-            for word in title.lower().split():
-                if len(word) > 2 and word not in ("the", "and", "for", "end"):
-                    keywords.add(word)
-        if subject:
-            for word in subject.lower().split():
-                if len(word) > 2:
-                    keywords.add(word)
+        code = pp_id.split("-")[0].lower() if "-" in pp_id else ""
+        title_lower = (title or "").lower()
 
-        # Map course codes to search terms
-        code_map = {
-            "humg": ["human geography", "geography", "social studies"],
-            "math": ["math", "algebra", "geometry"],
-            "engl": ["english", "language arts", "ela"],
-            "sci": ["science", "biology", "chemistry", "physics"],
-            "hist": ["history", "social studies"],
+        # Map course codes to specific search terms
+        code_subjects = {
+            "humg": "geography", "hist": "history", "govt": "government",
+            "math": "math", "engl": "english", "sci": "science",
+            "read": "reading", "writ": "writing", "lang": "language",
         }
-        for prefix, terms in code_map.items():
-            if code.lower().startswith(prefix):
-                for t in terms:
-                    keywords.update(t.split())
+        target_subject = ""
+        for prefix, subj in code_subjects.items():
+            if code.startswith(prefix):
+                target_subject = subj
+                break
+        if not target_subject and subject:
+            target_subject = subject.lower().split()[0]  # First word of subject
 
-        if not keywords:
-            errors.append("No search keywords available")
-            return False
+        # Determine if this is an FRQ (extended-text) or MCQ assessment
+        is_frq = "frq" in title_lower or "free response" in title_lower or "essay" in title_lower
 
         try:
-            # 1. Search QTI assessment-tests catalog
-            data, st = _fetch(f"{QTI_BASE}/api/assessment-tests?limit=100", headers)
-            if data:
-                tests = data if isinstance(data, list) else data.get("assessment-tests", data.get("tests", data.get("items", [])))
-                if isinstance(tests, list):
-                    for test in tests:
-                        test_title = (test.get("title") or test.get("name") or "").lower()
-                        test_id = test.get("sourcedId") or test.get("id") or test.get("identifier") or ""
-                        # Check if test title matches any of our keywords
-                        match_count = sum(1 for kw in keywords if kw in test_title or kw in str(test_id).lower())
-                        if match_count >= 2:
-                            # Found a match — fetch the full test
-                            if test_id:
-                                full, fst = _fetch(f"{QTI_BASE}/api/assessment-tests/{test_id}", headers)
-                                if full:
-                                    inner = full.get("qti-assessment-test", full) if isinstance(full, dict) else full
-                                    if isinstance(inner, dict) and (inner.get("qti-test-part") or inner.get("testParts")):
-                                        questions = self._resolve_questions(inner, headers)
-                                        t = full.get("title") or (inner.get("_attributes") or {}).get("title", "")
-                                        send_json(self, {
-                                            "data": {"title": t or title, "questions": questions, "totalQuestions": len(questions)},
-                                            "success": True,
-                                        })
-                                        return True
-                                    send_json(self, {"data": full, "success": True})
-                                    return True
-
-            # 2. Search QTI assessment-items catalog
-            data, st = _fetch(f"{QTI_BASE}/api/assessment-items?limit=100", headers)
-            if data:
-                items = data if isinstance(data, list) else data.get("assessment-items", data.get("items", []))
-                if isinstance(items, list):
-                    matching = []
-                    for item in items:
-                        item_title = (item.get("title") or item.get("name") or "").lower()
-                        item_id = item.get("sourcedId") or item.get("id") or item.get("identifier") or ""
-                        match_count = sum(1 for kw in keywords if kw in item_title or kw in str(item_id).lower())
-                        if match_count >= 2:
-                            matching.append(item)
-                    if matching:
-                        # Fetch full content for matched items
-                        questions = []
-                        for m in matching[:10]:
-                            mid = m.get("sourcedId") or m.get("id") or m.get("identifier") or ""
-                            if mid:
-                                full, fst = _fetch(f"{QTI_BASE}/api/assessment-items/{mid}", headers)
-                                if full:
-                                    questions.append(full)
+            # 1. Try FRQ items first (type=extended-text filter)
+            if is_frq or "bank" in pp_id.lower():
+                data, st = _fetch(
+                    f"{QTI_BASE}/api/assessment-items?type=extended-text&limit=50",
+                    headers,
+                )
+                if data and isinstance(data, dict):
+                    items = data.get("items", [])
+                    matched = _match_items(items, target_subject, code, title_lower)
+                    if matched:
+                        questions = _fetch_full_items(matched[:10], headers)
                         if questions:
                             send_json(self, {
-                                "data": {"title": title, "questions": questions, "totalQuestions": len(questions)},
+                                "data": {"title": title, "questions": questions, "totalQuestions": len(questions), "type": "frq"},
                                 "success": True,
                             })
                             return True
 
-            errors.append(f"No matching QTI content found for keywords: {', '.join(list(keywords)[:5])}")
+            # 2. Search assessment-tests catalog
+            data, st = _fetch(f"{QTI_BASE}/api/assessment-tests?limit=100", headers)
+            if data and isinstance(data, dict):
+                tests = data.get("items", [])
+                matched_test = _match_items(tests, target_subject, code, title_lower)
+                if matched_test:
+                    # Fetch the full test and resolve its questions
+                    tid = matched_test[0].get("identifier") or matched_test[0].get("id") or ""
+                    if tid:
+                        full, fst = _fetch(f"{QTI_BASE}/api/assessment-tests/{tid}", headers)
+                        if full:
+                            inner = full.get("qti-assessment-test", full) if isinstance(full, dict) else full
+                            if isinstance(inner, dict) and (inner.get("qti-test-part") or inner.get("testParts")):
+                                questions = self._resolve_questions(inner, headers)
+                                t = full.get("title") or (inner.get("_attributes") or {}).get("title", "")
+                                send_json(self, {
+                                    "data": {"title": t or title, "questions": questions, "totalQuestions": len(questions)},
+                                    "success": True,
+                                })
+                                return True
+                            send_json(self, {"data": full, "success": True})
+                            return True
+
+            # 3. Broad search of assessment-items (all types)
+            data, st = _fetch(f"{QTI_BASE}/api/assessment-items?limit=100", headers)
+            if data and isinstance(data, dict):
+                items = data.get("items", [])
+                matched = _match_items(items, target_subject, code, title_lower)
+                if matched:
+                    questions = _fetch_full_items(matched[:10], headers)
+                    if questions:
+                        send_json(self, {
+                            "data": {"title": title, "questions": questions, "totalQuestions": len(questions)},
+                            "success": True,
+                        })
+                        return True
+
+            errors.append(f"No QTI content found for {target_subject or code or 'search'}")
             return False
 
         except Exception as e:
