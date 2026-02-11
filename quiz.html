@@ -436,7 +436,7 @@
                 area.innerHTML = '<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px;">' + esc(data.title || quizState.title) + '</h1>' +
                     '<div class="stimulus-box" style="max-height:none;">' + ppBody + '</div>' +
                     '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button></div>';
-                return;
+                return true;
             }
 
             // Check for stimulus
@@ -446,7 +446,7 @@
                 area.innerHTML = '<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px;">' + esc(data.title || quizState.title) + '</h1>' +
                     '<div class="stimulus-box" style="max-height:none;">' + renderNode(stimBody) + '</div>' +
                     '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button></div>';
-                return;
+                return true;
             }
 
             // Render questions (from the already-fetched data)
@@ -622,10 +622,121 @@
                     '<div class="stimulus-box" style="max-height:none;">' + renderNode(data) + '</div>' +
                     '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>';
             }
+            return true;
         } catch(e) {
-            area.innerHTML = '<div class="loading-msg">Error: ' + esc(e.message) + '</div>';
+            return false;
         }
     }
+
+    // ── Local FRQ assessment fallback (when PowerPath + QTI both fail) ──
+    function showLocalAssessment(title, subject, gradeLevel) {
+        var subjectDisplay = subject || 'this subject';
+        var gradeDisplay = gradeLevel ? 'Grade ' + gradeLevel : '';
+        var heading = title || ('End of Unit Assessment' + (gradeDisplay ? ' — ' + gradeDisplay : ''));
+
+        quizState.title = heading;
+
+        var prompts = [
+            {
+                num: 1,
+                text: '<p><strong>Part A:</strong> Identify and explain a key concept from this unit. Use specific details and examples from the material you studied.</p>',
+                lines: 8,
+            },
+            {
+                num: 2,
+                text: '<p><strong>Part B:</strong> Analyze how this concept connects to a broader theme in ' + esc(subjectDisplay) + '. Explain the cause-and-effect relationship.</p>',
+                lines: 8,
+            },
+            {
+                num: 3,
+                text: '<p><strong>Part C:</strong> Evaluate the significance of what you learned. How does it apply to real-world scenarios? Support your answer with evidence.</p>',
+                lines: 10,
+            },
+        ];
+
+        var html = '<div class="quiz-header">' +
+            '<div class="quiz-title">' + esc(heading) + '</div>' +
+        '</div>' +
+        '<div style="padding:12px 16px;background:#F3F0FF;border:1px solid #D6BCFA;border-radius:10px;margin-bottom:20px;font-size:0.88rem;color:#553C9A;">' +
+            '<i class="fa-solid fa-pen-nib" style="margin-right:8px;"></i>' +
+            '<strong>Free Response Assessment</strong> — Write thoughtful, detailed responses to each prompt below. Minimum 50 characters per response.' +
+        '</div>';
+
+        for (var i = 0; i < prompts.length; i++) {
+            var p = prompts[i];
+            html += '<div class="question-card" style="margin-bottom:16px;">' +
+                '<div class="question-num">Question ' + p.num + ' — Free Response</div>' +
+                '<div class="question-text">' + p.text + '</div>' +
+                '<textarea id="local-frq-' + i + '" rows="' + p.lines + '" placeholder="Write your response here..." ' +
+                    'style="width:100%;padding:14px;border:2px solid var(--color-border);border-radius:10px;font-size:0.95rem;font-family:inherit;line-height:1.7;resize:vertical;outline:none;box-sizing:border-box;" ' +
+                    'onfocus="this.style.borderColor=\'var(--color-primary)\'" onblur="this.style.borderColor=\'var(--color-border)\'" ' +
+                    'oninput="checkLocalFrqReady()"></textarea>' +
+                '<div style="text-align:right;font-size:0.72rem;color:var(--color-text-muted);margin-top:4px;" id="local-frq-count-' + i + '">0 / 50 characters minimum</div>' +
+            '</div>';
+        }
+
+        html += '<div class="quiz-actions">' +
+            '<button class="quiz-btn quiz-btn-primary" id="local-frq-submit" onclick="submitLocalAssessment(' + prompts.length + ')" disabled>' +
+                '<i class="fa-solid fa-paper-plane"></i> Submit Assessment</button>' +
+        '</div>';
+
+        area.innerHTML = html;
+    }
+
+    function checkLocalFrqReady() {
+        var textareas = area.querySelectorAll('textarea[id^="local-frq-"]');
+        var allReady = true;
+        for (var i = 0; i < textareas.length; i++) {
+            var len = textareas[i].value.trim().length;
+            var countEl = document.getElementById('local-frq-count-' + i);
+            if (countEl) {
+                countEl.textContent = len + ' / 50 characters minimum';
+                countEl.style.color = len >= 50 ? '#2E7D32' : 'var(--color-text-muted)';
+            }
+            if (len < 50) allReady = false;
+        }
+        document.getElementById('local-frq-submit').disabled = !allReady;
+    }
+
+    function submitLocalAssessment(count) {
+        var responses = [];
+        for (var i = 0; i < count; i++) {
+            var ta = document.getElementById('local-frq-' + i);
+            if (ta) { ta.disabled = true; responses.push(ta.value.trim()); }
+        }
+
+        // Award XP: 2 per substantial response
+        var xp = 0;
+        for (var r = 0; r < responses.length; r++) {
+            if (responses[r].length >= 50) xp += 2;
+        }
+
+        // Mark as complete
+        var params = new URLSearchParams(window.location.search);
+        var lessonTitle = params.get('title') || '';
+        var lessonId = params.get('id') || params.get('testId') || '';
+        if (lessonTitle || lessonId) {
+            localStorage.setItem('completed_' + (lessonId || lessonTitle), 'true');
+        }
+
+        area.innerHTML = '<div class="result-card">' +
+            '<div style="font-size:3rem;margin-bottom:8px;">✅</div>' +
+            '<div class="result-score" style="font-size:2rem;">Assessment Complete</div>' +
+            '<div class="result-label" style="margin-top:8px;">Your responses have been recorded.</div>' +
+            '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + xp + ' XP earned</div>' +
+            '<div class="result-details">' +
+                '<div class="result-stat"><div class="result-stat-val">' + responses.length + '</div><div class="result-stat-label">Responses</div></div>' +
+                '<div class="result-stat"><div class="result-stat-val">' + xp + '</div><div class="result-stat-label">XP Earned</div></div>' +
+            '</div>' +
+            '<div style="margin-top:16px;padding:12px 20px;background:#E8F5E9;border-radius:10px;color:#1B5E20;font-size:0.9rem;">' +
+                '<i class="fa-solid fa-check-circle" style="margin-right:6px;"></i>This assessment is now marked as complete.</div>' +
+            '<div style="margin-top:24px;">' +
+                '<button class="quiz-btn quiz-btn-primary" onclick="history.back()"><i class="fa-solid fa-arrow-right"></i> Continue to Next Lesson</button>' +
+            '</div>' +
+        '</div>';
+    }
     </script>
+</body>
+</html>
 </body>
 </html>
