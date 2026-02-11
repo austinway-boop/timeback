@@ -249,6 +249,22 @@
         return COURSE_IMAGES.default;
     }
 
+    function guessDotColor(title, appName) {
+        // 1. Check app name first
+        const app = matchApp(appName) || matchApp(title);
+        if (app && APP_DOT_COLORS[app]) return APP_DOT_COLORS[app];
+        // 2. Fall back to subject keywords
+        const t = (title || '').toLowerCase();
+        if (t.includes('math') || t.includes('algebra') || t.includes('calculus')) return SUBJECT_DOT_COLORS.math;
+        if (t.includes('chem') || t.includes('physics'))                          return SUBJECT_DOT_COLORS.science;
+        if (t.includes('bio'))                                                     return SUBJECT_DOT_COLORS.biology;
+        if (t.includes('read') || t.includes('ela') || t.includes('english'))     return SUBJECT_DOT_COLORS.reading;
+        if (t.includes('lang') || t.includes('composition') || t.includes('writing')) return SUBJECT_DOT_COLORS.language;
+        if (t.includes('geo') || t.includes('history') || t.includes('social'))   return SUBJECT_DOT_COLORS.geography;
+        if (t.includes('code') || t.includes('tech'))                              return SUBJECT_DOT_COLORS.tech;
+        return SUBJECT_DOT_COLORS.default;
+    }
+
     /* ---- AP Timeback-hosted course detection ------------------------------ */
     function isAPCourse(title) { return /\bAP\b/.test((title || '').trim()); }
     function isTimeback(c) {
@@ -410,6 +426,7 @@
             const appId = [c.appName, platformName, c._vendorKey].filter(Boolean).join(' ');
             const icon = guessIcon(c.title || '', appId);
             const subjectImg = guessSubjectImage(c.title || '', appId);
+            const dotColor = guessDotColor(c.title || '', appId);
             console.log(`[Card ${i}] title="${name}" appId="${appId}" matched=${matchApp(appId)||matchApp(name)||'none'} img=${subjectImg}`);
 
             return `
@@ -419,7 +436,7 @@
                     </div>
                     <div class="course-card-body">
                         <div class="course-card-header">
-                            <span class="status-dot blue"></span>
+                            <span class="status-dot" style="background:${dotColor}"></span>
                             <span class="course-card-name">${name}</span>
                         </div>
                         <div class="course-card-xp">
