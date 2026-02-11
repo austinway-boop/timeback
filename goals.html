@@ -392,59 +392,59 @@
         return { cls:'at-risk', label:'At risk' };
     }
 
-    /* ---- Build an AP course card (unit-based) --------------------------- */
+    /* ---- Build an AP course card (unit-based, fully automatic) ---------- */
     function renderAPCard(c, i) {
         const theme = COURSE_THEMES[i % COURSE_THEMES.length];
         const icon = guessIcon(c.title);
         const goal = loadGoals()[c._goalKey] || {};
-        const hasGoal = !!goal.type;
+        const hasGoal = !!goal.endDate;
 
-        // Unit progress estimation from XP
+        // Unit progress — auto-calculated from API data
         const totalXp = c.totalXp || 1;
         const totalUnits = c.totalLessons || 0;
         const xpEarned = xpData[i] || 0;
         const xpPerUnit = totalUnits > 0 ? totalXp / totalUnits : 0;
         const unitsCompleted = totalUnits > 0 ? Math.min(Math.round((xpEarned / totalXp) * totalUnits), totalUnits) : 0;
-        const unitTarget = goal.target || totalUnits;
+        const remaining = Math.max(totalUnits - unitsCompleted, 0);
+        const pct = totalUnits > 0 ? Math.min((unitsCompleted / totalUnits) * 100, 100) : 0;
 
-        const pct = unitTarget > 0 ? Math.min((unitsCompleted / unitTarget) * 100, 100) : 0;
-        const remaining = Math.max(unitTarget - unitsCompleted, 0);
-
-        // Pacing
-        let statusObj = { cls:'no-goal', label:'No goal' };
+        // Pacing (only if end date is set)
+        let statusObj = { cls:'no-goal', label:'Set a date' };
         let pacingText = '';
-        if (hasGoal && goal.endDate) {
-            const days = countDays(goal.endDate, goal.excludeNonSchoolDays !== false);
+        if (hasGoal) {
+            const excl = goal.excludeNonSchoolDays !== false;
+            const days = countDays(goal.endDate, excl);
             const eff = days.school || 1;
             const unitsPerDay = remaining > 0 ? (remaining / eff) : 0;
             const xpPerDay = Math.round(unitsPerDay * xpPerUnit);
-            const idealPerDay = unitTarget / (days.total || 1);
+            const idealPerDay = totalUnits / (days.total || 1);
             statusObj = getStatus(pct, unitsPerDay, idealPerDay, days.school, remaining);
-            const dayType = (goal.excludeNonSchoolDays !== false) ? 'school day' : 'day';
+            const dayType = excl ? 'school day' : 'day';
             if (remaining > 0 && days.school > 0) {
                 pacingText = `~${unitsPerDay.toFixed(1)} units/${dayType} (~${xpPerDay} XP/day) &middot; ${days.school} ${dayType}s left`;
             } else if (remaining <= 0) {
-                pacingText = 'Goal reached!';
+                pacingText = 'Course complete!';
             } else {
                 pacingText = 'End date has passed.';
             }
         }
 
         return `
-        <div class="goal-card" data-idx="${i}" data-key="${c._goalKey}" data-type="ap">
+        <div class="goal-card" data-idx="${i}" data-key="${c._goalKey}" data-type="ap"
+             data-total-units="${totalUnits}" data-xp-per-unit="${Math.round(xpPerUnit)}" data-remaining="${remaining}">
             <div class="course-card-image ${THEME_BG[theme]}">
                 <div class="course-card-illustration"><i class="fa-solid ${icon}"></i></div>
             </div>
             <div class="goal-card-body">
                 <div class="goal-card-name">${c.title}</div>
-                <div class="goal-card-subject">${c.subject} &middot; Unit Goal</div>
+                <div class="goal-card-subject">${c.subject} &middot; ${totalUnits} total units</div>
 
                 <div class="goal-progress-row">
-                    <span class="goal-progress-label">${unitsCompleted} / ${unitTarget} units</span>
-                    <span class="goal-progress-badge ${statusObj.cls}">${statusObj.label}</span>
+                    <span class="goal-progress-label">${unitsCompleted} / ${totalUnits} units</span>
+                    <span class="goal-progress-badge ${statusObj.cls}">${remaining > 0 ? remaining + ' remaining' : 'Done'}</span>
                 </div>
                 <div class="goal-bar">
-                    <div class="goal-bar-fill ${hasGoal ? statusObj.cls : 'none'}" style="width:${pct}%"></div>
+                    <div class="goal-bar-fill ${hasGoal ? statusObj.cls : 'on-track'}" style="width:${pct}%"></div>
                 </div>
 
                 <div class="goal-pacing ${pacingText ? 'show' : ''}" id="pacing-${i}">
@@ -452,34 +452,22 @@
                     <span>${pacingText}</span>
                 </div>
 
-                <div class="goal-row">
-                    <div class="goal-field">
-                        <label class="goal-label">Target Units</label>
-                        <input type="number" class="goal-input goal-target" min="1"
-                               value="${goal.target || ''}"
-                               placeholder="${totalUnits || 18}"
-                               oninput="livePreview(${i},'ap')">
-                    </div>
-                    <div class="goal-field">
-                        <label class="goal-label">End Date</label>
-                        <input type="date" class="goal-input goal-date"
-                               value="${goal.endDate || ''}"
-                               min="${formatDate(new Date())}"
-                               onchange="livePreview(${i},'ap')">
-                    </div>
+                <div class="goal-field">
+                    <label class="goal-label">Finish by</label>
+                    <input type="date" class="goal-input goal-date"
+                           value="${goal.endDate || ''}"
+                           min="${formatDate(new Date())}"
+                           onchange="livePreviewAP(${i}); autoSaveAP(${i})">
                 </div>
 
                 <label class="goal-check">
                     <input type="checkbox" class="goal-school"
                            ${(goal.excludeNonSchoolDays !== false) ? 'checked' : ''}
-                           onchange="livePreview(${i},'ap')">
+                           onchange="livePreviewAP(${i}); autoSaveAP(${i})">
                     School days only (exclude weekends &amp; holidays)
                 </label>
 
-                <div class="goal-actions">
-                    <button class="btn-save" onclick="saveGoal(${i},'units')"><i class="fa-solid fa-check"></i> ${hasGoal ? 'Update' : 'Save'}</button>
-                    ${hasGoal ? `<button class="btn-remove" onclick="removeGoal(${i})"><i class="fa-solid fa-trash-can"></i></button>` : ''}
-                </div>
+                ${hasGoal ? `<button class="btn-remove" style="width:100%;" onclick="removeGoal(${i})"><i class="fa-solid fa-xmark"></i> Clear date</button>` : ''}
             </div>
         </div>`;
     }
@@ -543,34 +531,68 @@
                         <input type="number" class="goal-input goal-target" min="1"
                                value="${goal.target || ''}"
                                placeholder="e.g. 500"
-                               oninput="livePreview(${i},'xp')">
+                               oninput="livePreviewXP(${i})">
                     </div>
                     <div class="goal-field">
                         <label class="goal-label">End Date</label>
                         <input type="date" class="goal-input goal-date"
                                value="${goal.endDate || ''}"
                                min="${formatDate(new Date())}"
-                               onchange="livePreview(${i},'xp')">
+                               onchange="livePreviewXP(${i})">
                     </div>
                 </div>
 
                 <label class="goal-check">
                     <input type="checkbox" class="goal-school"
                            ${(goal.excludeNonSchoolDays !== false) ? 'checked' : ''}
-                           onchange="livePreview(${i},'xp')">
+                           onchange="livePreviewXP(${i})">
                     School days only (exclude weekends &amp; holidays)
                 </label>
 
                 <div class="goal-actions">
-                    <button class="btn-save" onclick="saveGoal(${i},'xp')"><i class="fa-solid fa-check"></i> ${hasGoal ? 'Update' : 'Save'}</button>
+                    <button class="btn-save" onclick="saveGoalXP(${i})"><i class="fa-solid fa-check"></i> ${hasGoal ? 'Update' : 'Save'}</button>
                     ${hasGoal ? `<button class="btn-remove" onclick="removeGoal(${i})"><i class="fa-solid fa-trash-can"></i></button>` : ''}
                 </div>
             </div>
         </div>`;
     }
 
-    /* ---- Live preview pacing -------------------------------------------- */
-    function livePreview(idx, type) {
+    /* ---- Live preview: AP (auto from remaining units) ------------------- */
+    function livePreviewAP(idx) {
+        const card = document.querySelector(`.goal-card[data-idx="${idx}"]`);
+        if (!card) return;
+        const endDate = card.querySelector('.goal-date').value;
+        const excludeNonSchool = card.querySelector('.goal-school').checked;
+        const pacing = document.getElementById(`pacing-${idx}`);
+        const span = pacing.querySelector('span');
+        const remaining = parseInt(card.dataset.remaining) || 0;
+        const xpPerUnit = parseInt(card.dataset.xpPerUnit) || 0;
+
+        if (!endDate) { pacing.classList.remove('show'); return; }
+
+        const days = countDays(endDate, excludeNonSchool);
+        const dayType = excludeNonSchool ? 'school day' : 'day';
+
+        if (days.school <= 0) {
+            span.textContent = 'End date has passed or is today.';
+            pacing.classList.add('show');
+            return;
+        }
+
+        if (remaining <= 0) {
+            span.textContent = 'Course complete!';
+            pacing.classList.add('show');
+            return;
+        }
+
+        const unitsPerDay = (remaining / days.school).toFixed(1);
+        const xpPerDay = Math.round(unitsPerDay * xpPerUnit);
+        span.innerHTML = `~${unitsPerDay} units/${dayType} (~${xpPerDay} XP/day) &middot; ${days.school} ${dayType}s left`;
+        pacing.classList.add('show');
+    }
+
+    /* ---- Live preview: XP ----------------------------------------------- */
+    function livePreviewXP(idx) {
         const card = document.querySelector(`.goal-card[data-idx="${idx}"]`);
         if (!card) return;
         const target = parseInt(card.querySelector('.goal-target').value) || 0;
@@ -590,46 +612,51 @@
             return;
         }
 
-        if (type === 'ap') {
-            const c = allCourses[idx];
-            const totalXp = c.totalXp || 1;
-            const totalUnits = c.totalLessons || 1;
-            const xpPerUnit = totalXp / totalUnits;
-            const unitsPerDay = (target / days.school).toFixed(1);
-            const xpPerDay = Math.round(unitsPerDay * xpPerUnit);
-            span.innerHTML = `~${unitsPerDay} units/${dayType} (~${xpPerDay} XP/day) &middot; ${days.school} ${dayType}s left`;
-        } else {
-            const xpPerDay = Math.round(target / days.school);
-            span.innerHTML = `~${xpPerDay} XP/${dayType} &middot; ${days.school} ${dayType}s left`;
-        }
+        const xpPerDay = Math.round(target / days.school);
+        span.innerHTML = `~${xpPerDay} XP/${dayType} &middot; ${days.school} ${dayType}s left`;
         pacing.classList.add('show');
     }
 
-    /* ---- Save / Remove -------------------------------------------------- */
-    function saveGoal(idx, type) {
+    /* ---- Auto-save AP goal (just date + school days) -------------------- */
+    function autoSaveAP(idx) {
+        const card = document.querySelector(`.goal-card[data-idx="${idx}"]`);
+        const endDate = card.querySelector('.goal-date').value;
+        if (!endDate) return; // don't save if no date picked yet
+        const excludeNonSchoolDays = card.querySelector('.goal-school').checked;
+        const totalUnits = parseInt(card.dataset.totalUnits) || 0;
+        const key = card.dataset.key;
+        const goals = loadGoals();
+        goals[key] = { type: 'units', target: totalUnits, endDate, excludeNonSchoolDays };
+        saveGoals(goals);
+        showToast('Goal saved!');
+    }
+
+    /* ---- Save XP goal --------------------------------------------------- */
+    function saveGoalXP(idx) {
         const card = document.querySelector(`.goal-card[data-idx="${idx}"]`);
         const target = parseInt(card.querySelector('.goal-target').value) || 0;
         const endDate = card.querySelector('.goal-date').value;
         const excludeNonSchoolDays = card.querySelector('.goal-school').checked;
 
-        if (!target || target <= 0) { showToast('Enter a target value.'); return; }
+        if (!target || target <= 0) { showToast('Enter a target XP.'); return; }
         if (!endDate) { showToast('Pick an end date.'); return; }
 
         const key = card.dataset.key;
         const goals = loadGoals();
-        goals[key] = { type, target, endDate, excludeNonSchoolDays };
+        goals[key] = { type: 'xp', target, endDate, excludeNonSchoolDays };
         saveGoals(goals);
         showToast('Goal saved!');
         renderAll();
     }
 
+    /* ---- Remove goal ---------------------------------------------------- */
     function removeGoal(idx) {
         const card = document.querySelector(`.goal-card[data-idx="${idx}"]`);
         const key = card.dataset.key;
         const goals = loadGoals();
         delete goals[key];
         saveGoals(goals);
-        showToast('Goal removed.');
+        showToast('Goal cleared.');
         renderAll();
     }
 

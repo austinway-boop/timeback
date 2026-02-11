@@ -170,9 +170,8 @@
                 const totalUnits = c.totalLessons;
                 const yearXp = fullYearXpIdx[i] || 0;
                 const unitsCompleted = Math.min(Math.round((yearXp / totalXp) * totalUnits), totalUnits);
-                const unitTarget = (savedGoal && savedGoal.target) ? savedGoal.target : totalUnits;
-                pct = unitTarget > 0 ? Math.min((unitsCompleted / unitTarget) * 100, 100) : 0;
-                progressText = `${unitsCompleted} / ${unitTarget} units`;
+                pct = totalUnits > 0 ? Math.min((unitsCompleted / totalUnits) * 100, 100) : 0;
+                progressText = `${unitsCompleted} / ${totalUnits} units`;
                 progressLabel = 'PROGRESS';
             } else {
                 // Non-AP: show daily/weekly XP
