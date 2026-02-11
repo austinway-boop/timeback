@@ -467,7 +467,7 @@
         }
 
         // XP info
-        const xpEarned = Math.round(xpBySubject[c.subject] || 0);
+        const xpEarned = Math.round(xpByCourseIdx[index] || 0);
         const goal = currentPeriod === 'today' ? (c.dailyXpGoal || 0) : (c.dailyXpGoal || 0) * 5;
 
         body.innerHTML = `
