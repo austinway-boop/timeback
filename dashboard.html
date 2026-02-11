@@ -379,21 +379,23 @@
             let progressText, progressLabel, pct;
 
             if (lessonBased) {
-                /* AP course — show overall progress bar + daily pace as label */
+                /* AP course — show daily lessons done vs daily goal */
                 const totalDone = masteredIdx[i] || 0;
                 const total = c.totalLessons || (savedGoal && savedGoal.target) || 0;
+                const todayLessons = unitsByCourseIdx[i] || 0;
 
                 if (savedGoal && savedGoal.endDate && total > 0) {
                     const rem = Math.max(total - totalDone, 0);
                     const excl = savedGoal.excludeNonSchoolDays !== false;
                     const days = countSchoolDays(savedGoal.endDate, excl);
                     const daily = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
-                    pct = total > 0 ? Math.min((totalDone / total) * 100, 100) : 0;
-                    progressText = `${totalDone} / ${total} units`;
-                    progressLabel = rem <= 0 ? 'DONE' : (days > 0 ? `${daily}/day` : 'OVERDUE');
+                    const periodGoal = currentPeriod === 'today' ? daily : daily * 5;
+                    pct = periodGoal > 0 ? Math.min((todayLessons / periodGoal) * 100, 100) : (rem <= 0 ? 100 : 0);
+                    progressText = rem <= 0 ? 'Complete!' : `${todayLessons} / ${periodGoal} lessons`;
+                    progressLabel = rem <= 0 ? 'DONE' : periodLabel;
                 } else {
-                    pct = total > 0 ? Math.min((totalDone / total) * 100, 100) : 0;
-                    progressText = `${totalDone} units mastered`;
+                    pct = 0;
+                    progressText = `${todayLessons} lessons ${currentPeriod === 'today' ? 'today' : 'this week'}`;
                     progressLabel = '<a href="/goals" style="color:var(--color-primary);text-decoration:none;font-weight:600;font-size:0.78rem;" onclick="event.stopPropagation()">Set Goal &rarr;</a>';
                 }
             } else {
@@ -704,96 +706,84 @@
             const factsByApp = data.factsByApp || {};
             const facts      = data.facts || {};
 
-            // Build per-app lookup: { subject: { appNameLower: { xp, units } } }
-            const xpMap = {}, unitMap = {};
+            // Build per-app lookup: { subject: { appNameLower: { xp, lessons } } }
+            const xpMap = {}, lessonMap = {};
             for (const dayData of Object.values(factsByApp)) {
                 for (const [subject, apps] of Object.entries(dayData)) {
                     if (!xpMap[subject]) xpMap[subject] = {};
-                    if (!unitMap[subject]) unitMap[subject] = {};
+                    if (!lessonMap[subject]) lessonMap[subject] = {};
                     for (const [appName, info] of Object.entries(apps)) {
                         const am = info.activityMetrics || {};
-                        const xp = am.xpEarned || 0;
-                        const units = am.masteredUnits || am.lessonsCompleted || am.completedLessons || am.unitsCompleted || am.completedUnits || 0;
                         const key = appName.toLowerCase();
-                        xpMap[subject][key] = (xpMap[subject][key] || 0) + xp;
-                        unitMap[subject][key] = (unitMap[subject][key] || 0) + units;
+                        xpMap[subject][key] = (xpMap[subject][key] || 0) + (am.xpEarned || 0);
+                        lessonMap[subject][key] = (lessonMap[subject][key] || 0) + (am.totalQuestions || 0);
                     }
                 }
             }
 
             // Also build a subject-level fallback from facts
-            const xpBySubject = {}, unitsBySubject = {};
+            const xpBySubject = {}, lessonsBySubject = {};
             for (const dayFacts of Object.values(facts)) {
                 for (const [subject, info] of Object.entries(dayFacts)) {
                     const am = info.activityMetrics || {};
                     xpBySubject[subject] = (xpBySubject[subject] || 0) + (am.xpEarned || 0);
-                    unitsBySubject[subject] = (unitsBySubject[subject] || 0) + (am.masteredUnits || am.lessonsCompleted || am.completedLessons || am.unitsCompleted || am.completedUnits || 0);
+                    lessonsBySubject[subject] = (lessonsBySubject[subject] || 0) + (am.totalQuestions || 0);
                 }
             }
 
-            // Match XP + units to each course
+            // Match XP + lessons to each course
             xpByCourseIdx = {};
             unitsByCourseIdx = {};
             for (let i = 0; i < allCourses.length; i++) {
                 const c = allCourses[i];
                 const subjApps = xpMap[c.subject] || {};
-                const subjUnits = unitMap[c.subject] || {};
+                const subjLessons = lessonMap[c.subject] || {};
                 const appName = (c.appName || '').toLowerCase();
 
                 if (appName && Object.keys(subjApps).length) {
                     let matchedXp = subjApps[appName] || 0;
-                    let matchedU  = subjUnits[appName] || 0;
-                    if (!matchedXp) {
+                    let matchedL  = subjLessons[appName] || 0;
+                    if (!matchedXp && !matchedL) {
                         const normalized = appName.replace(/_/g, ' ');
                         for (const [key, xp] of Object.entries(subjApps)) {
                             if (key === normalized || key.includes(normalized) || normalized.includes(key)) {
                                 matchedXp = xp;
-                                matchedU  = subjUnits[key] || 0;
+                                matchedL  = subjLessons[key] || 0;
                                 break;
                             }
                         }
                     }
                     xpByCourseIdx[i] = matchedXp;
-                    unitsByCourseIdx[i] = matchedU;
+                    unitsByCourseIdx[i] = matchedL;
                 } else if (!appName && Object.keys(subjApps).length) {
-                    let nativeXp = 0, nativeU = 0;
+                    let nativeXp = 0, nativeL = 0;
                     for (const [key, xp] of Object.entries(subjApps)) {
                         if (NATIVE_APPS.some(n => key.includes(n) || n.includes(key))) {
                             nativeXp += xp;
-                            nativeU  += subjUnits[key] || 0;
+                            nativeL  += subjLessons[key] || 0;
                         }
                     }
                     xpByCourseIdx[i] = nativeXp;
-                    unitsByCourseIdx[i] = nativeU;
+                    unitsByCourseIdx[i] = nativeL;
                 } else {
                     xpByCourseIdx[i] = xpBySubject[c.subject] || 0;
-                    unitsByCourseIdx[i] = unitsBySubject[c.subject] || 0;
+                    unitsByCourseIdx[i] = lessonsBySubject[c.subject] || 0;
                 }
             }
 
-            // Fetch per-enrollment analytics for AP lesson courses (accurate daily mastered units)
+            // Also fetch per-enrollment for AP courses (more accurate per-course)
             const lessonFetches = allCourses.map((c, idx) => {
                 if (!isLessonCourse(c) || !c._enrollmentId) return null;
                 return fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}`)
                     .then(r => r.json())
                     .then(d => {
-                        let units = 0;
+                        let lessons = 0;
                         for (const dayFacts of Object.values(d.facts || {})) {
                             for (const info of Object.values(dayFacts)) {
-                                const am = info.activityMetrics || {};
-                                units += am.masteredUnits || am.lessonsCompleted || am.completedLessons || am.unitsCompleted || am.completedUnits || 0;
+                                lessons += (info.activityMetrics || {}).totalQuestions || 0;
                             }
                         }
-                        for (const dayData of Object.values(d.factsByApp || {})) {
-                            for (const apps of Object.values(dayData)) {
-                                for (const info of Object.values(apps)) {
-                                    const am = info.activityMetrics || {};
-                                    const u = am.masteredUnits || am.lessonsCompleted || am.completedLessons || am.unitsCompleted || am.completedUnits || 0;
-                                    if (u > units) units = u;
-                                }
-                            }
-                        }
-                        if (units > 0) unitsByCourseIdx[idx] = units;
+                        unitsByCourseIdx[idx] = lessons;
                     })
                     .catch(() => null);
             }).filter(Boolean);
