@@ -90,7 +90,6 @@
    ========================================================================= */
 
 const THEMES = ['teal', 'purple', 'pink', 'orange'];
-const SKEY   = 'alphalearn_goals';
 const NATIVE = ['timeback dash', 'alpha timeback', 'alphalearn', 'timeback'];
 const TBG    = { teal: 'card-theme-teal', purple: 'card-theme-purple', pink: 'card-theme-pink', orange: 'card-theme-orange' };
 
@@ -98,18 +97,21 @@ const TBG    = { teal: 'card-theme-teal', purple: 'card-theme-purple', pink: 'ca
 
 /* Per-app images and icon overrides */
 const APP_IMAGES = {
-    egumpp:'/img/apps/egumpp.png', runestone:'/img/apps/runestone.png',
+    gumpp:'/img/apps/egumpp.png', runestone:'/img/apps/runestone.png',
     newsela:'/img/apps/newsela.png', khan:'/img/apps/khan.png',
     readtheory:'/img/apps/readtheory.png', commonlit:'/img/apps/commonlit.png',
-    knewton:'/img/apps/knewton.png', lalilo:'/img/apps/lalilo.png',
-    rocket:'/img/apps/rocketmath.png', zearn:'/img/apps/zearn.png',
-    renaissance:'/img/apps/renaissance.png', powerpath:'/img/apps/powerpath.png',
+    knewton:'/img/apps/knewton.png', alta:'/img/apps/knewton.png',
+    lalilo:'/img/apps/lalilo.png', rocketmath:'/img/apps/rocketmath.png',
+    zearn:'/img/apps/zearn.png', renaissance:'/img/apps/renaissance.png',
+    starreading:'/img/apps/renaissance.png', starmath:'/img/apps/renaissance.png',
+    powerpath:'/img/apps/powerpath.png',
 };
 const APP_ICON_MAP = {
-    egumpp:'fa-book-open', runestone:'fa-laptop-code', newsela:'fa-book-open-reader',
+    gumpp:'fa-book-open', runestone:'fa-laptop-code', newsela:'fa-book-open-reader',
     khan:'fa-calculator', readtheory:'fa-book-open-reader', commonlit:'fa-book-open-reader',
-    knewton:'fa-calculator', lalilo:'fa-book-open-reader', rocket:'fa-calculator',
-    zearn:'fa-calculator', renaissance:'fa-graduation-cap', powerpath:'fa-calculator',
+    knewton:'fa-calculator', alta:'fa-calculator', lalilo:'fa-book-open-reader',
+    rocketmath:'fa-calculator', zearn:'fa-calculator', renaissance:'fa-graduation-cap',
+    starreading:'fa-book-open-reader', starmath:'fa-calculator', powerpath:'fa-calculator',
 };
 const SUBJ_IMAGES = {
     math:'/img/subjects/math.png', science:'/img/subjects/science.png',
@@ -120,7 +122,9 @@ const SUBJ_IMAGES = {
 
 function matchApp(s) {
     const a = (s || '').toLowerCase().replace(/[\s_-]/g, '');
-    for (const k of Object.keys(APP_IMAGES)) { if (a.includes(k)) return k; }
+    if (!a) return null;
+    const keys = Object.keys(APP_IMAGES).sort((a, b) => b.length - a.length);
+    for (const k of keys) { if (a.includes(k)) return k; }
     return null;
 }
 
@@ -164,12 +168,26 @@ function isLesson(c) { return c.totalLessons > 0 || (isAP(c.title) && isTimeback
 
 /* ---- State ------------------------------------------------------------ */
 
-let ALL = [], XP = {}, MASTERED = {};
+let ALL = [], XP = {}, MASTERED = {}, GOALS = {};
+let currentUserId = '';
 
-/* ---- LocalStorage ----------------------------------------------------- */
+/* ---- API-backed goal storage ------------------------------------------ */
 
-function ld() { try { return JSON.parse(localStorage.getItem(SKEY)) || {}; } catch { return {}; } }
-function sv(g) { localStorage.setItem(SKEY, JSON.stringify(g)); }
+async function apiSaveGoal(enrollmentId, goalData) {
+    try {
+        const resp = await fetch('/api/goals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUserId, enrollmentId, ...goalData }),
+        });
+        const data = await resp.json();
+        if (data.goals) GOALS = data.goals;
+        return !!data.ok;
+    } catch (e) {
+        console.error('[AlphaLearn] Goal save failed:', e);
+        return false;
+    }
+}
 
 /* ---- UI helpers ------------------------------------------------------- */
 

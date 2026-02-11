@@ -152,41 +152,51 @@
     };
 
     /* Per-app images: checked FIRST before subject fallback */
+    /* Per-app images — keys are substrings matched against title + appName + vendorKey */
     const APP_IMAGES = {
-        egumpp:      '/img/apps/egumpp.png',
+        gumpp:       '/img/apps/egumpp.png',       // matches GUMPP, EGUMPP, e-gumpp
         runestone:   '/img/apps/runestone.png',
         newsela:     '/img/apps/newsela.png',
         khan:        '/img/apps/khan.png',
         readtheory:  '/img/apps/readtheory.png',
         commonlit:   '/img/apps/commonlit.png',
         knewton:     '/img/apps/knewton.png',
+        alta:        '/img/apps/knewton.png',      // "Alta" alone also matches Knewton Alta
         lalilo:      '/img/apps/lalilo.png',
-        rocket:      '/img/apps/rocketmath.png',
+        rocketmath:  '/img/apps/rocketmath.png',
         zearn:       '/img/apps/zearn.png',
         renaissance: '/img/apps/renaissance.png',
+        starreading: '/img/apps/renaissance.png',   // Star Reading = Renaissance
+        starmath:    '/img/apps/renaissance.png',    // Star Math = Renaissance
         powerpath:   '/img/apps/powerpath.png',
     };
 
     /* Per-app icon overrides (correct subject for each app) */
     const APP_ICON_MAP = {
-        egumpp:      'fa-book-open',       // English grammar/writing
+        gumpp:       'fa-book-open',       // English grammar/writing
         runestone:   'fa-laptop-code',     // Computer Science
         newsela:     'fa-book-open-reader',// Reading / ELA
         khan:        'fa-calculator',      // Math (primarily)
         readtheory:  'fa-book-open-reader',// Reading comprehension
         commonlit:   'fa-book-open-reader',// Reading / Literature
         knewton:     'fa-calculator',      // Math / Statistics
+        alta:        'fa-calculator',      // Knewton Alta
         lalilo:      'fa-book-open-reader',// Reading / Literacy
-        rocket:      'fa-calculator',      // Math fluency
+        rocketmath:  'fa-calculator',      // Math fluency
         zearn:       'fa-calculator',      // Math
         renaissance: 'fa-graduation-cap',  // Assessment (Reading+Math)
+        starreading: 'fa-book-open-reader',
+        starmath:    'fa-calculator',
         powerpath:   'fa-calculator',      // Math
     };
 
     /** Match an app name string against the known app keys */
     function matchApp(appName) {
         const a = (appName || '').toLowerCase().replace(/[\s_-]/g, '');
-        for (const key of Object.keys(APP_IMAGES)) {
+        if (!a) return null;
+        // Check longest keys first to avoid false positives (e.g. "alta" inside "saltation")
+        const keys = Object.keys(APP_IMAGES).sort((a, b) => b.length - a.length);
+        for (const key of keys) {
             if (a.includes(key)) return key;
         }
         return null;
@@ -248,12 +258,8 @@
     // Timeback-native app names (XP reported here for courses without their own app)
     const NATIVE_APPS = ['timeback dash', 'alpha timeback', 'alphalearn', 'timeback'];
 
-    // Goals from localStorage (set on goals page)
-    const GOALS_KEY = 'alphalearn_goals';
-    function loadSavedGoals() {
-        try { return JSON.parse(localStorage.getItem(GOALS_KEY)) || {}; }
-        catch (e) { return {}; }
-    }
+    // Goals loaded from API (Upstash KV) — populated in DOMContentLoaded
+    let savedGoals = {};
 
     // US school holidays for a school year starting in September of year y
     function getSchoolHolidays(y) {
@@ -327,13 +333,11 @@
             return;
         }
         const periodLabel = currentPeriod === 'today' ? 'TODAY' : 'THIS WEEK';
-        const savedGoals = loadSavedGoals();
 
         document.getElementById('course-grid').innerHTML = courses.map((c, i) => {
             const color     = COURSE_THEMES[i % COURSE_THEMES.length];
             const name      = c.title || 'Untitled Course';
-            const goalKey   = c._goalKey || '';
-            const savedGoal = savedGoals[goalKey] || null;
+            const savedGoal = savedGoals[c._enrollmentId] || null;
             const lessonBased = isLessonCourse(c);
 
             let progressText, progressLabel, pct;
@@ -354,11 +358,11 @@
                     progressLabel = rem > 0 && days > 0 ? `~${pace}/${dayT}` : (rem <= 0 ? 'DONE' : 'OVERDUE');
                 } else {
                     pct = tgt > 0 ? Math.min((done / tgt) * 100, 100) : 0;
-                    progressText = `${done}${tgt > 0 ? ' / ' + tgt : ''} units`;
-                    progressLabel = 'SET GOAL';
+                    progressText = `${done} units mastered`;
+                    progressLabel = '<a href="/goals" style="color:var(--color-primary);text-decoration:none;font-weight:600;font-size:0.78rem;" onclick="event.stopPropagation()">Set Goal &rarr;</a>';
                 }
             } else {
-                // Non-AP: show daily/weekly XP
+                // Non-lesson course: show daily/weekly XP only
                 const dailyGoal = c.dailyXpGoal || 0;
                 const xpEarned = Math.round(xpByCourseIdx[i] || 0);
                 const goal = currentPeriod === 'today' ? dailyGoal : dailyGoal * 5;
@@ -619,11 +623,16 @@
                     </div>`).join('');
             }
 
-            /* 5. Store courses globally, fetch full-year XP AND daily XP in parallel */
+            /* 5. Store courses globally, fetch goals + full-year XP + daily XP in parallel */
             allCourses = courses;
 
             const hasLessonCourses = courses.some(c => isLessonCourse(c));
             await Promise.all([
+                // Load goals from KV API
+                fetch(`/api/goals?userId=${encodeURIComponent(userId)}`)
+                    .then(r => r.json())
+                    .then(d => { savedGoals = d.goals || {}; })
+                    .catch(e => { console.warn('[AlphaLearn] Goals unavailable:', e.message); }),
                 hasLessonCourses ? loadFullYearXp(email) : Promise.resolve(),
                 loadXp(email, 'today'),
             ]);
