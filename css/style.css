@@ -178,6 +178,7 @@ img { max-width: 100%; display: block; }
     transform: rotate(90deg);
 }
 .nav-item-parent.active > a {
+    background: transparent;
     color: var(--color-primary-dark);
     font-weight: 600;
 }

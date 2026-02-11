@@ -121,13 +121,27 @@
         return COURSE_ICONS.default;
     }
 
+    /* ---- AP detection ----------------------------------------------------- */
+    function isAPCourse(title) {
+        const t = (title || '').trim();
+        return /\bAP\b/.test(t) || t.toLowerCase().includes('advanced placement');
+    }
+
     /* ---- State ------------------------------------------------------------ */
     let allCourses = [];       // set once after enrollment fetch
-    let xpByCourseIdx = {};    // { 0: 13, 1: 25, ... } — XP per course index
+    let xpByCourseIdx = {};    // { 0: 13, 1: 25, ... } — XP per course index (daily/weekly)
+    let fullYearXpIdx = {};    // { 0: 500, 1: 1200, ... } — full-year XP for unit estimation
     let currentPeriod = 'today';
 
     // Timeback-native app names (XP reported here for courses without their own app)
     const NATIVE_APPS = ['timeback dash', 'alpha timeback', 'alphalearn', 'timeback'];
+
+    // Goals from localStorage (set on goals page)
+    const GOALS_KEY = 'alphalearn_goals';
+    function loadSavedGoals() {
+        try { return JSON.parse(localStorage.getItem(GOALS_KEY)) || {}; }
+        catch { return {}; }
+    }
 
     /* ---- Render ----------------------------------------------------------- */
     function renderCourses() {
@@ -138,17 +152,37 @@
             return;
         }
         const periodLabel = currentPeriod === 'today' ? 'TODAY' : 'THIS WEEK';
+        const savedGoals = loadSavedGoals();
 
         document.getElementById('course-grid').innerHTML = courses.map((c, i) => {
             const color     = COURSE_THEMES[i % COURSE_THEMES.length];
             const icon      = guessIcon(c.title || '');
             const name      = c.title || 'Untitled Course';
-            const dailyGoal = c.dailyXpGoal || 0;
+            const goalKey   = c._goalKey || '';
+            const savedGoal = savedGoals[goalKey] || null;
+            const ap        = isAPCourse(c.title);
 
-            // Look up XP earned for THIS specific course
-            const xpEarned  = Math.round(xpByCourseIdx[i] || 0);
-            const goal      = currentPeriod === 'today' ? dailyGoal : dailyGoal * 5;
-            const pct       = goal > 0 ? Math.min((xpEarned / goal) * 100, 100) : 0;
+            let progressText, progressLabel, pct;
+
+            if (ap && c.totalLessons > 0) {
+                // AP course: show unit progress (estimated from full-year XP)
+                const totalXp = c.totalXp || 1;
+                const totalUnits = c.totalLessons;
+                const yearXp = fullYearXpIdx[i] || 0;
+                const unitsCompleted = Math.min(Math.round((yearXp / totalXp) * totalUnits), totalUnits);
+                const unitTarget = (savedGoal && savedGoal.target) ? savedGoal.target : totalUnits;
+                pct = unitTarget > 0 ? Math.min((unitsCompleted / unitTarget) * 100, 100) : 0;
+                progressText = `${unitsCompleted} / ${unitTarget} units`;
+                progressLabel = 'PROGRESS';
+            } else {
+                // Non-AP: show daily/weekly XP
+                const dailyGoal = c.dailyXpGoal || 0;
+                const xpEarned = Math.round(xpByCourseIdx[i] || 0);
+                const goal = currentPeriod === 'today' ? dailyGoal : dailyGoal * 5;
+                pct = goal > 0 ? Math.min((xpEarned / goal) * 100, 100) : 0;
+                progressText = `${xpEarned} / ${goal} XP`;
+                progressLabel = periodLabel;
+            }
 
             return `
                 <div class="course-card" onclick="openCourseModal(${i})" style="cursor:pointer;">
@@ -161,8 +195,8 @@
                             <span class="course-card-name">${name}</span>
                         </div>
                         <div class="course-card-xp">
-                            <span class="xp-progress">${xpEarned} / ${goal} XP</span>
-                            <span class="xp-period">${periodLabel}</span>
+                            <span class="xp-progress">${progressText}</span>
+                            <span class="xp-period">${progressLabel}</span>
                         </div>
                         <div class="progress-bar">
                             <div class="progress-fill" style="width: ${pct}%"></div>
@@ -256,6 +290,7 @@
                     totalXp:      metrics.totalXp || 0,
                     totalLessons: metrics.totalLessons || 0,
                     dailyXpGoal:  goals.dailyXp || 0,
+                    _goalKey:     e.sourcedId || course.sourcedId || title,
                     // Store full enrollment + course data for credential display
                     _raw: e,
                     _course: course,
@@ -302,8 +337,15 @@
                     </div>`).join('');
             }
 
-            /* 5. Store courses globally and fetch XP for today */
+            /* 5. Store courses globally, fetch full-year XP for AP unit tracking, then daily XP */
             allCourses = courses;
+
+            // Fetch full-year XP (for AP unit progress estimation)
+            const hasAP = courses.some(c => isAPCourse(c.title));
+            if (hasAP) {
+                await loadFullYearXp(email);
+            }
+
             await loadXp(email, 'today');
 
         } catch (err) {
@@ -408,6 +450,70 @@
         }
 
         renderCourses();
+    }
+
+    /* ---- Full-year XP for AP unit estimation ------------------------------ */
+    async function loadFullYearXp(email) {
+        try {
+            const now = new Date();
+            const startOfYear = new Date(now.getFullYear(), 7, 1); // Aug 1
+            if (startOfYear > now) startOfYear.setFullYear(startOfYear.getFullYear() - 1);
+            const startDate = localDateStr(startOfYear) + 'T00:00:00Z';
+            const endDate   = localDateStr(now) + 'T23:59:59Z';
+
+            const resp = await fetch(`/api/analytics?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}`);
+            const data = await resp.json();
+            const factsByApp = data.factsByApp || {};
+            const facts = data.facts || {};
+
+            const xpMap = {};
+            for (const dayData of Object.values(factsByApp)) {
+                for (const [subject, apps] of Object.entries(dayData)) {
+                    if (!xpMap[subject]) xpMap[subject] = {};
+                    for (const [appName, info] of Object.entries(apps)) {
+                        const xp = (info.activityMetrics || {}).xpEarned || 0;
+                        const key = appName.toLowerCase();
+                        xpMap[subject][key] = (xpMap[subject][key] || 0) + xp;
+                    }
+                }
+            }
+            const xpBySubject = {};
+            for (const dayFacts of Object.values(facts)) {
+                for (const [subject, info] of Object.entries(dayFacts)) {
+                    const xp = (info.activityMetrics || {}).xpEarned || 0;
+                    xpBySubject[subject] = (xpBySubject[subject] || 0) + xp;
+                }
+            }
+
+            fullYearXpIdx = {};
+            for (let i = 0; i < allCourses.length; i++) {
+                const c = allCourses[i];
+                if (!isAPCourse(c.title)) continue; // only needed for AP
+                const subjApps = xpMap[c.subject] || {};
+                const appName = (c.appName || '').toLowerCase();
+                if (appName && Object.keys(subjApps).length) {
+                    let matched = subjApps[appName] || 0;
+                    if (!matched) {
+                        const normalized = appName.replace(/_/g, ' ');
+                        for (const [key, xp] of Object.entries(subjApps)) {
+                            if (key === normalized || key.includes(normalized) || normalized.includes(key)) { matched = xp; break; }
+                        }
+                    }
+                    fullYearXpIdx[i] = matched;
+                } else if (!appName && Object.keys(subjApps).length) {
+                    let nativeXp = 0;
+                    for (const [key, xp] of Object.entries(subjApps)) {
+                        if (NATIVE_APPS.some(n => key.includes(n) || n.includes(key))) nativeXp += xp;
+                    }
+                    fullYearXpIdx[i] = nativeXp;
+                } else {
+                    fullYearXpIdx[i] = xpBySubject[c.subject] || 0;
+                }
+            }
+        } catch (err) {
+            console.warn('[AlphaLearn] Full-year XP unavailable:', err.message);
+            fullYearXpIdx = {};
+        }
     }
 
     /* ---- HTML escape helper ---------------------------------------------- */
