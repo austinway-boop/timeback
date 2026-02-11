@@ -125,6 +125,31 @@
     .fact-item { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--color-bg); border-radius:var(--radius-sm); }
     .fact-label { font-weight:600; font-size:0.88rem; }
     .fact-value { font-weight:700; font-size:0.95rem; color:var(--color-primary); }
+
+    /* Course Picker — searchable, paginated dropdown */
+    .course-picker { position:relative; flex:1; }
+    .course-picker-trigger { display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-surface); cursor:pointer; font-size:0.88rem; color:var(--color-text); min-height:38px; transition:border-color var(--transition); user-select:none; }
+    .course-picker-trigger:hover { border-color:var(--color-primary); }
+    .course-picker-trigger.open { border-color:var(--color-primary); border-bottom-left-radius:0; border-bottom-right-radius:0; }
+    .course-picker-trigger .placeholder { color:var(--color-text-muted); }
+    .course-picker-trigger i { font-size:0.7rem; color:var(--color-text-muted); transition:transform 0.2s; flex-shrink:0; margin-left:8px; }
+    .course-picker-trigger.open i { transform:rotate(180deg); }
+    .course-picker-dropdown { position:absolute; top:100%; left:0; right:0; background:var(--color-surface); border:1px solid var(--color-primary); border-top:none; border-radius:0 0 var(--radius-sm) var(--radius-sm); box-shadow:var(--shadow-lg); z-index:100; display:none; flex-direction:column; max-height:300px; }
+    .course-picker-dropdown.open { display:flex; }
+    .course-picker-search-wrap { padding:8px; border-bottom:1px solid var(--color-border); position:relative; flex-shrink:0; }
+    .course-picker-search-wrap i { position:absolute; left:18px; top:50%; transform:translateY(-50%); font-size:0.75rem; color:var(--color-text-muted); pointer-events:none; }
+    .course-picker-search-wrap input { width:100%; padding:7px 10px 7px 32px; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.85rem; outline:none; background:var(--color-bg); color:var(--color-text); box-sizing:border-box; }
+    .course-picker-search-wrap input:focus { border-color:var(--color-primary); }
+    .course-picker-list { overflow-y:auto; flex:1; max-height:200px; }
+    .course-picker-item { padding:9px 12px; font-size:0.85rem; cursor:pointer; transition:background 0.15s; border-bottom:1px solid var(--color-border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .course-picker-item:last-child { border-bottom:none; }
+    .course-picker-item:hover { background:var(--color-primary-light); }
+    .course-picker-item.selected { background:var(--color-primary-light); color:var(--color-primary-dark); font-weight:600; }
+    .course-picker-footer { flex-shrink:0; border-top:1px solid var(--color-border); text-align:center; padding:6px 8px; }
+    .course-picker-footer:empty { display:none; }
+    .course-picker-load-more { display:inline-block; padding:5px 16px; border:1px solid var(--color-primary); border-radius:var(--radius-sm); background:transparent; color:var(--color-primary); font-size:0.8rem; font-weight:600; cursor:pointer; transition:all var(--transition); }
+    .course-picker-load-more:hover { background:var(--color-primary); color:white; }
+    .course-picker-status { padding:14px; text-align:center; font-size:0.82rem; color:var(--color-text-muted); }
     </style>
 </head>
 <body data-view="admin" data-active="students">
@@ -228,7 +253,20 @@
                 <div class="overlay-header"><h3><i class="fa-solid fa-book" style="color:var(--color-primary); margin-right:8px;"></i>Assign Course</h3><button class="modal-close" onclick="closeBulkCourse()">&times;</button></div>
                 <div class="overlay-body">
                     <p style="font-size:0.85rem; color:var(--color-text-secondary); margin-bottom:12px;" id="bulk-course-target"></p>
-                    <select class="form-select" id="bulk-course-select"><option value="">Loading courses...</option></select>
+                    <div class="course-picker" id="bulk-course-picker">
+                        <div class="course-picker-trigger" onclick="toggleCoursePicker('bulk')">
+                            <span class="course-picker-text placeholder">Select a course...</span>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <div class="course-picker-dropdown" id="bulk-course-dropdown">
+                            <div class="course-picker-search-wrap">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" placeholder="Search courses..." oninput="onCourseSearch('bulk',this.value)">
+                            </div>
+                            <div class="course-picker-list" id="bulk-course-list"></div>
+                            <div class="course-picker-footer" id="bulk-course-footer"></div>
+                        </div>
+                    </div>
                     <div class="alert" id="bulk-course-alert"></div>
                 </div>
                 <div class="overlay-footer">
@@ -277,10 +315,131 @@ let currentPage = 1;
 let sortField = 'name';
 let sortDir = 'asc';
 let currentStudentId = null;
-let coursesCache = null;
 let lineItemsCache = null;
 let selectedIds = new Set();
 let assignTargetUsers = [];
+
+/* =====================================================================
+   Course Picker — searchable, paginated dropdown (loads 10 at a time)
+   ===================================================================== */
+const coursePickers = {
+    modal: { courses:[], offset:0, hasMore:true, loading:false, selectedId:'', selectedTitle:'', searchQuery:'', searchTimeout:null },
+    bulk:  { courses:[], offset:0, hasMore:true, loading:false, selectedId:'', selectedTitle:'', searchQuery:'', searchTimeout:null },
+};
+const COURSES_PER_PAGE = 10;
+
+function initCoursePicker(pickerId) {
+    const state = coursePickers[pickerId];
+    state.courses=[]; state.offset=0; state.hasMore=true;
+    state.loading=false; state.selectedId=''; state.selectedTitle='';
+    state.searchQuery=''; clearTimeout(state.searchTimeout);
+    const picker = document.getElementById(`${pickerId}-course-picker`);
+    if (!picker) return;
+    const txt = picker.querySelector('.course-picker-text');
+    if (txt) { txt.textContent='Select a course...'; txt.classList.add('placeholder'); }
+    const inp = picker.querySelector('input[type="text"]');
+    if (inp) inp.value='';
+    const btnId = pickerId==='modal' ? 'modal-course-btn' : 'bulk-course-confirm';
+    const btn = document.getElementById(btnId);
+    if (btn) btn.disabled=true;
+    loadCoursesForPicker(pickerId, false);
+}
+
+function toggleCoursePicker(pickerId) {
+    const dropdown = document.getElementById(`${pickerId}-course-dropdown`);
+    const trigger = document.getElementById(`${pickerId}-course-picker`).querySelector('.course-picker-trigger');
+    const wasOpen = dropdown.classList.contains('open');
+    closeAllCoursePickers();
+    if (!wasOpen) {
+        trigger.classList.add('open');
+        dropdown.classList.add('open');
+        const inp = dropdown.querySelector('input');
+        if (inp) setTimeout(() => inp.focus(), 50);
+    }
+}
+
+function closeAllCoursePickers() {
+    document.querySelectorAll('.course-picker-dropdown.open').forEach(d => {
+        d.classList.remove('open');
+        const t = d.parentElement.querySelector('.course-picker-trigger');
+        if (t) t.classList.remove('open');
+    });
+}
+
+async function loadCoursesForPicker(pickerId, append) {
+    const state = coursePickers[pickerId];
+    if (state.loading) return;
+    state.loading = true;
+    const list = document.getElementById(`${pickerId}-course-list`);
+    const footer = document.getElementById(`${pickerId}-course-footer`);
+    if (!append) {
+        state.offset=0; state.courses=[];
+        if (list) list.innerHTML='<div class="course-picker-status"><div class="loading-spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto 6px;"></div>Loading courses...</div>';
+    }
+    if (footer) footer.innerHTML='';
+    try {
+        const params = new URLSearchParams({limit:COURSES_PER_PAGE, offset:state.offset});
+        if (state.searchQuery) params.set('q', state.searchQuery);
+        const resp = await fetch(`/api/courses-search?${params}`);
+        const data = await resp.json();
+        const newCourses = data.courses || [];
+        state.courses = append ? state.courses.concat(newCourses) : newCourses;
+        state.hasMore = data.hasMore !== false && newCourses.length === COURSES_PER_PAGE;
+        state.offset += newCourses.length;
+        renderCoursePicker(pickerId);
+    } catch {
+        if (!append && list) list.innerHTML='<div class="course-picker-status"><i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>Failed to load courses.</div>';
+        if (footer) footer.innerHTML='';
+    }
+    state.loading = false;
+}
+
+function renderCoursePicker(pickerId) {
+    const state = coursePickers[pickerId];
+    const list = document.getElementById(`${pickerId}-course-list`);
+    const footer = document.getElementById(`${pickerId}-course-footer`);
+    if (!list) return;
+    if (state.courses.length===0) {
+        list.innerHTML='<div class="course-picker-status">No courses found.</div>';
+        if (footer) footer.innerHTML='';
+        return;
+    }
+    list.innerHTML = state.courses.map(c => {
+        const sel = c.sourcedId===state.selectedId ? ' selected' : '';
+        return `<div class="course-picker-item${sel}" data-id="${esc(c.sourcedId)}" onclick="selectCourse('${pickerId}',this.dataset.id)">${esc(c.title||'Untitled')}</div>`;
+    }).join('');
+    if (footer) footer.innerHTML = state.hasMore
+        ? `<button class="course-picker-load-more" onclick="loadCoursesForPicker('${pickerId}',true)">Load More</button>`
+        : '';
+}
+
+function selectCourse(pickerId, courseId) {
+    const state = coursePickers[pickerId];
+    const course = state.courses.find(c => c.sourcedId===courseId);
+    state.selectedId = courseId;
+    state.selectedTitle = course ? (course.title||'Untitled') : '';
+    const txt = document.getElementById(`${pickerId}-course-picker`).querySelector('.course-picker-text');
+    if (txt) { txt.textContent=state.selectedTitle; txt.classList.remove('placeholder'); }
+    const list = document.getElementById(`${pickerId}-course-list`);
+    if (list) list.querySelectorAll('.course-picker-item').forEach(el => el.classList.toggle('selected', el.dataset.id===courseId));
+    closeAllCoursePickers();
+    const btnId = pickerId==='modal' ? 'modal-course-btn' : 'bulk-course-confirm';
+    const btn = document.getElementById(btnId);
+    if (btn) btn.disabled=false;
+}
+
+function onCourseSearch(pickerId, value) {
+    const state = coursePickers[pickerId];
+    clearTimeout(state.searchTimeout);
+    state.searchTimeout = setTimeout(() => {
+        state.searchQuery = value.trim();
+        loadCoursesForPicker(pickerId, false);
+    }, 300);
+}
+
+document.addEventListener('mousedown', function(e) {
+    if (!e.target.closest('.course-picker')) closeAllCoursePickers();
+});
 
 document.addEventListener('DOMContentLoaded', init);
 
@@ -514,7 +673,23 @@ function buildModal(u, enrollments, ts) {
     <div class="modal-tab-content" id="tab-assign">
         <div style="margin-bottom:16px;">
             <h4 style="font-size:0.9rem;font-weight:600;margin-bottom:10px;"><i class="fa-solid fa-book" style="color:var(--color-primary);margin-right:6px;"></i>Assign Course</h4>
-            <div class="assign-row"><select id="modal-course-select"><option value="">Loading...</option></select><button class="btn-sm btn-primary" id="modal-course-btn" disabled onclick="assignCourseModal()">Assign</button></div>
+            <div class="assign-row">
+                <div class="course-picker" id="modal-course-picker">
+                    <div class="course-picker-trigger" onclick="toggleCoursePicker('modal')">
+                        <span class="course-picker-text placeholder">Select a course...</span>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                    <div class="course-picker-dropdown" id="modal-course-dropdown">
+                        <div class="course-picker-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" placeholder="Search courses..." oninput="onCourseSearch('modal',this.value)">
+                        </div>
+                        <div class="course-picker-list" id="modal-course-list"></div>
+                        <div class="course-picker-footer" id="modal-course-footer"></div>
+                    </div>
+                </div>
+                <button class="btn-sm btn-primary" id="modal-course-btn" disabled onclick="assignCourseModal()">Assign</button>
+            </div>
             <div class="alert" id="modal-course-alert"></div>
         </div>
         <div>
@@ -580,9 +755,7 @@ async function loadAnalytics(email) {
 }
 
 async function loadAssignDropdowns() {
-    if (!coursesCache) { try { const r=await fetch('/api/courses');const d=await r.json();coursesCache=d.courses||[]; } catch { coursesCache=[]; } }
-    const cs = document.getElementById('modal-course-select');
-    if(cs){cs.innerHTML='<option value="">Select a course...</option>'+coursesCache.map(c=>`<option value="${c.sourcedId}">${esc(c.title||c.name||'Untitled')}</option>`).join('');cs.onchange=function(){const b=document.getElementById('modal-course-btn');if(b)b.disabled=!this.value;};}
+    initCoursePicker('modal');
 
     if (!lineItemsCache) { try { const r=await fetch('/api/line-items');const d=await r.json();lineItemsCache=d.lineItems||[]; } catch { lineItemsCache=[]; } }
     const ts = document.getElementById('modal-test-select');
@@ -590,9 +763,9 @@ async function loadAssignDropdowns() {
 }
 
 function assignCourseModal() {
-    const s=document.getElementById('modal-course-select'); const a=document.getElementById('modal-course-alert');
-    if(!s||!s.value||!currentStudentId) return;
-    const course=coursesCache.find(c=>c.sourcedId===s.value);
+    const state=coursePickers.modal; const a=document.getElementById('modal-course-alert');
+    if(!state.selectedId||!currentStudentId) return;
+    const course=state.courses.find(c=>c.sourcedId===state.selectedId);
     const student=allUsers.find(u=>u.sourcedId===currentStudentId);
     a.className='alert alert-warning'; a.textContent=`Course "${course?.title||'Unknown'}" assignment requested for ${student?student.givenName+' '+student.familyName:currentStudentId}. (API integration pending)`;
 }
@@ -607,12 +780,16 @@ async function assignTestModal() {
     a.className='alert alert-info'; a.textContent='Submitting...';
     try {
         const resp=await fetch('/api/assign-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId:currentStudentId,lineItemId:s.value})});
-        if(resp.ok){a.className='alert alert-success';a.textContent=`Test "${testName}" assigned to ${studentName}.`;}
-        else throw new Error();
-    } catch { a.className='alert alert-warning'; a.textContent=`Test "${testName}" assignment requested for ${studentName}. (API pending)`; }
+        const data=await resp.json().catch(()=>({}));
+        if(resp.ok&&data.success&&data.applied){
+            a.className='alert alert-success';a.textContent=`Test "${testName}" assigned to ${studentName}.`;
+        } else {
+            a.className='alert alert-warning';a.textContent=data.error||data.message||`Assignment failed for "${testName}". Check API connection.`;
+        }
+    } catch(e) { a.className='alert alert-error'; a.textContent=`Network error: could not reach server.`; }
 }
 
-function closeModal(){document.getElementById('student-modal').classList.remove('open');currentStudentId=null;}
+function closeModal(){closeAllCoursePickers();document.getElementById('student-modal').classList.remove('open');currentStudentId=null;}
 document.getElementById('student-modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 
 /* =====================================================================
@@ -657,25 +834,22 @@ async function createUser() {
 /* =====================================================================
    Bulk Assign Course
    ===================================================================== */
-async function bulkAssignCourse() {
+function bulkAssignCourse() {
     assignTargetUsers = allUsers.filter(u=>selectedIds.has(u.sourcedId));
     if(!assignTargetUsers.length)return;
     document.getElementById('bulk-course-target').textContent=`Assigning to ${assignTargetUsers.length} student${assignTargetUsers.length>1?'s':''}`;
     document.getElementById('bulk-course-modal').classList.add('open');
     document.getElementById('bulk-course-alert').className='alert';document.getElementById('bulk-course-alert').textContent='';
-    if(!coursesCache){try{const r=await fetch('/api/courses');const d=await r.json();coursesCache=d.courses||[];}catch{coursesCache=[];}}
-    const s=document.getElementById('bulk-course-select');
-    s.innerHTML='<option value="">Select a course...</option>'+coursesCache.map(c=>`<option value="${c.sourcedId}">${esc(c.title||c.name||'Untitled')}</option>`).join('');
-    s.onchange=function(){document.getElementById('bulk-course-confirm').disabled=!this.value;};
+    initCoursePicker('bulk');
 }
 function confirmBulkCourse(){
-    const s=document.getElementById('bulk-course-select');if(!s||!s.value)return;
-    const course=coursesCache.find(c=>c.sourcedId===s.value);
+    const state=coursePickers.bulk;if(!state.selectedId)return;
+    const course=state.courses.find(c=>c.sourcedId===state.selectedId);
     const names=assignTargetUsers.map(u=>`${u.givenName} ${u.familyName}`).join(', ');
     closeBulkCourse();
     showToast(`Course "${course?.title||'Unknown'}" assignment requested for ${names}.`,'success');
 }
-function closeBulkCourse(){document.getElementById('bulk-course-modal').classList.remove('open');}
+function closeBulkCourse(){closeAllCoursePickers();document.getElementById('bulk-course-modal').classList.remove('open');}
 document.getElementById('bulk-course-modal').addEventListener('click',function(e){if(e.target===this)closeBulkCourse();});
 
 /* =====================================================================
@@ -696,11 +870,19 @@ async function confirmBulkTest(){
     const s=document.getElementById('bulk-test-select');if(!s||!s.value)return;
     const test=lineItemsCache.find(t=>t.sourcedId===s.value);
     const testName=test?.title||test?.name||'Untitled';
-    let anyOk=false;
-    for(const u of assignTargetUsers){try{const r=await fetch('/api/assign-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId:u.sourcedId,lineItemId:s.value})});if(r.ok)anyOk=true;}catch{}}
+    let okCount=0,failCount=0;
+    for(const u of assignTargetUsers){
+        try{
+            const r=await fetch('/api/assign-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId:u.sourcedId,lineItemId:s.value})});
+            const d=await r.json().catch(()=>({}));
+            if(r.ok&&d.success&&d.applied) okCount++; else failCount++;
+        }catch{failCount++;}
+    }
     const names=assignTargetUsers.map(u=>`${u.givenName} ${u.familyName}`).join(', ');
     closeBulkTest();
-    showToast(anyOk?`Test "${testName}" assigned to ${names}.`:`Test "${testName}" assignment requested. (API pending)`,anyOk?'success':'info');
+    if(okCount>0&&failCount===0) showToast(`Test "${testName}" assigned to ${names}.`,'success');
+    else if(okCount>0) showToast(`Test "${testName}": ${okCount} assigned, ${failCount} failed.`,'warning');
+    else showToast(`Test "${testName}" assignment failed for all students.`,'warning');
 }
 function closeBulkTest(){document.getElementById('bulk-test-modal').classList.remove('open');}
 document.getElementById('bulk-test-modal').addEventListener('click',function(e){if(e.target===this)closeBulkTest();});
