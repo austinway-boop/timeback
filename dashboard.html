@@ -170,19 +170,16 @@
         return COURSE_IMAGES.default;
     }
 
-    /* ---- AP Timeback-hosted lesson course detection ---------------------- */
-    function isAPCourse(title) {
-        return /\bAP\b/.test((title || '').trim()) || (title || '').toLowerCase().includes('advanced placement');
+    /* ---- AP Timeback-hosted course detection ------------------------------ */
+    function isAPCourse(title) { return /\bAP\b/.test((title || '').trim()); }
+    function isTimeback(c) {
+        const a = (c.appName || '').toLowerCase().trim();
+        if (!a) return true;
+        if (NATIVE_APPS.some(n => a.includes(n) || n.includes(a))) return true;
+        if (/^pp/i.test(a) || a.includes('powerpath')) return true;
+        return false;
     }
-    function isLessonCourse(c) {
-        // Must be AP + Timeback-native (no external app) + have lesson data
-        if (!isAPCourse(c.title)) return false;
-        if ((c.totalLessons || 0) <= 0) return false;
-        const app = (c.appName || '').toLowerCase().trim();
-        if (!app) return true; // no external app = Timeback-hosted
-        if (NATIVE_APPS.some(n => app.includes(n) || n.includes(app))) return true;
-        return false; // has external app = remote (e.g. CS AP)
-    }
+    function isLessonCourse(c) { return isAPCourse(c.title) && isTimeback(c); }
 
     /* ---- State ------------------------------------------------------------ */
     let allCourses = [];       // set once after enrollment fetch
@@ -240,25 +237,26 @@
             let progressText, progressLabel, pct;
 
             if (lessonBased) {
-                // Lesson-based course: show lesson progress + daily pace from goal
-                const totalXp = c.totalXp || 1;
-                const totalLessons = getLessons(c);
-                const yearXp = fullYearXpIdx[i] || 0;
-                const masteredFromAPI = masteredIdx[i] || 0;
-                const estimatedFromXP = totalLessons > 0 ? Math.min(Math.round((yearXp / totalXp) * totalLessons), totalLessons) : 0;
-                const totalDone = masteredFromAPI > 0 ? Math.min(masteredFromAPI, totalLessons) : estimatedFromXP;
+                // Lesson-based AP course: show mastered lessons + daily pace
+                const done = masteredIdx[i] || 0;
+                const tgt = (savedGoal && savedGoal.target) ? savedGoal.target : 0;
 
-                // If a goal is set, show lessons/day needed
-                if (savedGoal && savedGoal.endDate) {
-                    const rem = Math.max(totalLessons - done, 0);
+                if (savedGoal && savedGoal.endDate && tgt > 0) {
+                    const rem = Math.max(tgt - done, 0);
                     const excl = savedGoal.excludeNonSchoolDays !== false;
                     const days = countSchoolDays(savedGoal.endDate, excl);
-                    const lpd = days > 0 && rem > 0 ? (rem / days).toFixed(1) : 0;
-                    progressText = `${done} / ${totalLessons} lessons`;
-                    progressLabel = lpd > 0 ? `${lpd}/DAY` : 'PROGRESS';
+                    const dailyTarget = days > 0 && rem > 0 ? Math.ceil(rem / days) : 0;
+                    // Show today's progress toward daily target
+                    const todayXp = xpByCourseIdx[i] || 0;
+                    const xpPerLesson = (c.totalXp || 1) / (tgt || 1);
+                    const todayLessons = Math.min(Math.round(todayXp / (xpPerLesson || 1)), dailyTarget);
+                    pct = dailyTarget > 0 ? Math.min((todayLessons / dailyTarget) * 100, 100) : 0;
+                    progressText = `${todayLessons} / ${dailyTarget} lessons`;
+                    progressLabel = 'TODAY';
                 } else {
-                    progressText = `${done} / ${totalLessons} lessons`;
-                    progressLabel = 'PROGRESS';
+                    pct = 0;
+                    progressText = `${done} lessons done`;
+                    progressLabel = 'SET GOAL';
                 }
             } else {
                 // Non-AP: show daily/weekly XP
