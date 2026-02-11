@@ -694,8 +694,10 @@
             const dayOfWeek = now.getDay();
             const monday = new Date(now);
             monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
             startDate = localDateStr(monday) + 'T00:00:00Z';
-            endDate   = localDateStr(now) + 'T23:59:59Z';
+            endDate   = localDateStr(sunday) + 'T23:59:59Z';
         }
 
         try {
