@@ -323,9 +323,19 @@
 
         // Parse QTI 3.0 assessment items using renderNode for proper HTML
         function parseQtiItem(item) {
-            var qi = item['qti-assessment-item'] || item;
+            // Find the assessment item in multiple possible locations
+            var qi = item['qti-assessment-item']
+                || (item.content && item.content['qti-assessment-item'])
+                || item;
             var attrs = qi['_attributes'] || {};
             var itemBody = qi['qti-item-body'] || qi['itemBody'] || {};
+
+            // If itemBody is empty, try to extract prompt/choices directly from the interaction
+            if (!itemBody || Object.keys(itemBody).length === 0) {
+                // Maybe the interaction is at a different level
+                var ci = qi['qti-choice-interaction'] || (qi['qti-item-body'] || {})['qti-choice-interaction'];
+                if (ci) itemBody = { 'qti-choice-interaction': ci };
+            }
 
             // Find and extract choices BEFORE rendering (so we can separate prompt from choices)
             function findChoices(node, depth) {
@@ -337,10 +347,19 @@
                     if (!Array.isArray(sc)) sc = [sc];
                     return sc.map(function(c, i) {
                         var ca = c['_attributes'] || {};
-                        // Render choice content as HTML
-                        var cHtml = renderNode(c);
-                        // Strip any nested choice attributes
-                        return { id: ca['identifier'] || String(i), html: cHtml };
+                        // Extract just the choice text (from p._ or p), not the feedback
+                        var cText = '';
+                        if (c.p) {
+                            cText = typeof c.p === 'string' ? c.p : (c.p['_'] || c.p['_text'] || c.p['#text'] || '');
+                        }
+                        if (!cText) {
+                            // Try rendering without feedback nodes
+                            var cClone = JSON.parse(JSON.stringify(c));
+                            delete cClone['qti-feedback-inline'];
+                            delete cClone['_attributes'];
+                            cText = renderNode(cClone);
+                        }
+                        return { id: ca['identifier'] || String(i), html: cText || 'Choice ' + (i+1) };
                     });
                 }
                 // Recurse into children
@@ -360,22 +379,25 @@
 
             var choices = findChoices(itemBody, 0);
 
-            // Render the item body as HTML (this includes prompt + embedded content)
-            // Remove the choice interaction from the body before rendering as prompt
-            var bodyClone = JSON.parse(JSON.stringify(itemBody));
-            function removeChoices(obj) {
-                if (!obj || typeof obj !== 'object') return;
-                delete obj['qti-choice-interaction'];
-                delete obj['choiceInteraction'];
-                for (var k in obj) {
-                    if (typeof obj[k] === 'object') {
-                        if (Array.isArray(obj[k])) obj[k].forEach(removeChoices);
-                        else removeChoices(obj[k]);
-                    }
+            // Extract prompt text directly from the known path
+            var promptHtml = '';
+            var ci = itemBody['qti-choice-interaction'] || {};
+            var prompt = ci['qti-prompt'] || ci['prompt'] || {};
+            if (prompt) {
+                if (prompt.p) {
+                    var pVal = prompt.p;
+                    promptHtml = typeof pVal === 'string' ? pVal : (pVal['_'] || pVal['_text'] || renderNode(pVal));
+                } else {
+                    promptHtml = renderNode(prompt);
                 }
             }
-            removeChoices(bodyClone);
-            var promptHtml = renderNode(bodyClone);
+            // Fallback: render the body without choice interaction
+            if (!promptHtml) {
+                var bodyClone = JSON.parse(JSON.stringify(itemBody));
+                delete bodyClone['qti-choice-interaction'];
+                delete bodyClone['choiceInteraction'];
+                promptHtml = renderNode(bodyClone);
+            }
 
             return {
                 id: attrs['identifier'] || '',
