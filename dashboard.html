@@ -717,21 +717,20 @@
             const resp = await fetch(`/api/decrypt-credential?userId=${encodeURIComponent(userId)}&credentialId=${encodeURIComponent(credentialId)}`);
             const data = await resp.json();
             if (data.success && data.password) {
+                // Got the password
                 const pw = typeof data.password === 'string' ? data.password
                     : (typeof data.password === 'object' && data.password.result) ? data.password.result
                     : JSON.stringify(data.password);
                 btn.outerHTML = `<code style="background:#F4F6F9;padding:2px 8px;border-radius:4px;font-family:'SF Mono','Fira Code',monospace;font-size:0.85em;">${esc(pw)}</code>`;
+            } else if (data.viewUrl) {
+                // Can't decrypt, but provide link to Timeback platform
+                btn.outerHTML = `<a href="${esc(data.viewUrl)}" target="_blank" rel="noopener" style="color:#45B5AA;font-size:0.82rem;font-weight:600;text-decoration:none;">View on Timeback <i class="fa-solid fa-external-link-alt" style="font-size:0.7rem;margin-left:2px;"></i></a>`;
             } else {
-                btn.textContent = 'Unavailable';
-                btn.style.color = '#E53E3E';
-                btn.style.borderColor = '#E53E3E';
-                btn.disabled = true;
+                btn.outerHTML = `<a href="https://alpha.timeback.com/app" target="_blank" rel="noopener" style="color:#45B5AA;font-size:0.82rem;font-weight:600;text-decoration:none;">View on Timeback <i class="fa-solid fa-external-link-alt" style="font-size:0.7rem;margin-left:2px;"></i></a>`;
             }
         } catch (e) {
-            btn.textContent = 'Error';
-            btn.style.color = '#E53E3E';
-            btn.style.borderColor = '#E53E3E';
-            btn.disabled = true;
+            // Even on error, show a useful link
+            btn.outerHTML = `<a href="https://alpha.timeback.com/app" target="_blank" rel="noopener" style="color:#45B5AA;font-size:0.82rem;font-weight:600;text-decoration:none;">View on Timeback <i class="fa-solid fa-external-link-alt" style="font-size:0.7rem;margin-left:2px;"></i></a>`;
         }
     }
 
