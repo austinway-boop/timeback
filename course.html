@@ -317,62 +317,62 @@
             }
             var totalCompleted = Object.keys(progressByTitle).length;
 
-            // ── Parse lesson plan: subComponents = units, each has subComponents = lessons ──
+            // ── Parse lesson plan: subComponents = units → subComponents = lessons → componentResources = content ──
             var plan = contentData.lessonPlan;
             var innerPlan = (plan && plan.lessonPlan) ? plan.lessonPlan : plan;
             var units = (innerPlan && innerPlan.subComponents) ? innerPlan.subComponents : [];
-
-            // Sort units by sortOrder
             units.sort(function(a, b) { return (a.sortOrder || '').localeCompare(b.sortOrder || ''); });
 
             if (units.length > 0) {
-                // Count total lessons
+                // Count totals
                 var totalLessons = 0;
                 for (var u = 0; u < units.length; u++) totalLessons += (units[u].subComponents || []).length;
-
-                // Overall progress
                 var overallPct = totalLessons > 0 ? Math.round((totalCompleted / totalLessons) * 100) : 0;
+
+                // Overall progress bar
                 html += '<div style="background:#fff;border:1px solid var(--color-border);border-radius:var(--radius);padding:20px;margin-bottom:16px;">' +
                     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
                         '<span style="font-weight:700;font-size:1rem;">Course Progress</span>' +
-                        '<span style="font-weight:700;font-size:1.2rem;color:var(--color-primary);">' + overallPct + '%</span>' +
+                        '<span style="font-weight:700;font-size:1.3rem;color:var(--color-primary);">' + overallPct + '%</span>' +
                     '</div>' +
-                    '<div style="height:10px;background:#E8ECF1;border-radius:5px;overflow:hidden;">' +
-                        '<div style="height:100%;width:' + overallPct + '%;background:var(--color-primary);border-radius:5px;transition:width 0.3s;"></div>' +
-                    '</div>' +
-                    '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.8rem;color:var(--color-text-muted);">' +
-                        '<span>' + totalCompleted + ' of ' + totalLessons + ' lessons completed</span>' +
-                        '<span>' + units.length + ' units</span>' +
-                    '</div>' +
+                    '<div style="height:10px;background:#E8ECF1;border-radius:5px;overflow:hidden;"><div style="height:100%;width:' + overallPct + '%;background:var(--color-primary);border-radius:5px;"></div></div>' +
+                    '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.8rem;color:var(--color-text-muted);"><span>' + totalCompleted + ' of ' + totalLessons + ' completed</span><span>' + units.length + ' units</span></div>' +
                 '</div>';
 
-                html += '<h2><i class="fa-solid fa-sitemap" style="color:var(--color-primary);margin-right:8px;"></i>Units</h2>';
+                // Resource type icons
+                function resIcon(type) {
+                    var t = (type || '').toLowerCase();
+                    if (t === 'video') return 'fa-play-circle';
+                    if (t === 'qti') return 'fa-pen-to-square';
+                    if (t.includes('assessment')) return 'fa-clipboard-check';
+                    return 'fa-file-lines';
+                }
+                function resColor(type) {
+                    var t = (type || '').toLowerCase();
+                    if (t === 'video') return '#E53E3E';
+                    if (t === 'qti') return 'var(--color-primary-dark)';
+                    if (t.includes('assessment')) return '#6C5CE7';
+                    return 'var(--color-text-muted)';
+                }
 
                 for (var mi = 0; mi < units.length; mi++) {
                     var mod = units[mi];
                     var modTitle = mod.title || 'Unit ' + (mi + 1);
                     var modLessons = mod.subComponents || [];
-                    // Sort lessons by sortOrder
                     modLessons.sort(function(a, b) { return (a.sortOrder || '').localeCompare(b.sortOrder || ''); });
 
-                    var unitCompleted = 0;
+                    var unitDone = 0;
                     for (var lc = 0; lc < modLessons.length; lc++) {
-                        var lt = (modLessons[lc].title || '').trim();
-                        if (progressByTitle[lt]) unitCompleted++;
+                        if (progressByTitle[(modLessons[lc].title || '').trim()]) unitDone++;
                     }
-                    var unitPct = modLessons.length > 0 ? Math.round((unitCompleted / modLessons.length) * 100) : 0;
+                    var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
 
-                    html += '<div style="background:#fff;border-radius:var(--radius);padding:16px 20px;margin-top:' + (mi > 0 ? '12' : '0') + 'px;border:1px solid var(--color-border);border-left:4px solid var(--color-primary);">' +
-                        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:' + (modLessons.length > 0 ? '10' : '0') + 'px;">' +
-                            '<div style="width:40px;height:40px;border-radius:50%;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.95rem;flex-shrink:0;">' + (mi + 1) + '</div>' +
-                            '<div style="flex:1;">' +
-                                '<div style="font-weight:700;font-size:0.95rem;">' + esc(modTitle) + '</div>' +
-                                '<div style="font-size:0.78rem;color:var(--color-text-muted);">' + modLessons.length + ' lessons · ' + unitCompleted + ' completed</div>' +
-                            '</div>' +
-                            '<div style="display:flex;align-items:center;gap:8px;">' +
-                                '<div style="width:80px;height:6px;background:#E8ECF1;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + unitPct + '%;background:var(--color-primary);border-radius:3px;"></div></div>' +
-                                '<span style="font-size:0.82rem;font-weight:700;color:var(--color-primary);min-width:36px;text-align:right;">' + unitPct + '%</span>' +
-                            '</div>' +
+                    // Unit header
+                    html += '<div style="background:#fff;border-radius:var(--radius);margin-top:' + (mi > 0 ? '12' : '0') + 'px;border:1px solid var(--color-border);border-left:4px solid var(--color-primary);overflow:hidden;">' +
+                        '<div style="display:flex;align-items:center;gap:12px;padding:16px 20px;">' +
+                            '<div style="width:40px;height:40px;border-radius:50%;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">' + (mi + 1) + '</div>' +
+                            '<div style="flex:1;"><div style="font-weight:700;font-size:0.95rem;">' + esc(modTitle) + '</div><div style="font-size:0.78rem;color:var(--color-text-muted);">' + modLessons.length + ' lessons · ' + unitDone + ' done</div></div>' +
+                            '<div style="display:flex;align-items:center;gap:8px;"><div style="width:80px;height:6px;background:#E8ECF1;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + unitPct + '%;background:var(--color-primary);border-radius:3px;"></div></div><span style="font-size:0.82rem;font-weight:700;color:var(--color-primary);min-width:36px;text-align:right;">' + unitPct + '%</span></div>' +
                         '</div>';
 
                     // Lessons
@@ -380,15 +380,45 @@
                         var lesson = modLessons[li];
                         var lTitle = lesson.title || 'Lesson ' + (li + 1);
                         var prog = progressByTitle[lTitle.trim()] || null;
-                        var isComplete = prog && (prog.scoreStatus === 'fully graded' || prog.textScore === 'Completed');
-                        var scoreText = prog ? (prog.textScore || (prog.scorePercentile !== null ? prog.scorePercentile + '%' : '')) : '';
+                        var isDone = prog && (prog.scoreStatus === 'fully graded' || prog.textScore === 'Completed');
+                        var resources = lesson.componentResources || [];
 
-                        html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px 10px 36px;">' +
-                            '<div style="width:28px;height:28px;border-radius:6px;background:' + (isComplete ? '#E8F5E9' : '#F4F6F9') + ';color:' + (isComplete ? '#2E7D32' : '#A0AEC0') + ';display:flex;align-items:center;justify-content:center;font-size:0.7rem;flex-shrink:0;"><i class="fa-solid ' + (isComplete ? 'fa-check' : 'fa-file-lines') + '"></i></div>' +
-                            '<div style="flex:1;min-width:0;"><div style="font-weight:500;font-size:0.88rem;color:' + (isComplete ? 'var(--color-text)' : 'var(--color-text)') + ';">' + esc(lTitle) + '</div></div>' +
-                            (scoreText ? '<span style="font-size:0.78rem;font-weight:600;color:#2E7D32;">' + esc(scoreText) + '</span>' : '') +
-                            (isComplete ? '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:#E8F5E9;color:#2E7D32;">Done</span>' : '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:#F4F6F9;color:#A0AEC0;">To do</span>') +
-                        '</div>';
+                        // Find the first openable URL (video or qti)
+                        var openUrl = '';
+                        for (var ri = 0; ri < resources.length; ri++) {
+                            var res = resources[ri].resource || {};
+                            var rmeta = (typeof res === 'object' ? res.metadata : null) || {};
+                            var rurl = rmeta.url || res.url || '';
+                            if (rurl) { openUrl = rurl; break; }
+                        }
+
+                        html += '<div style="padding:10px 20px 10px 40px;border-top:1px solid #F4F6F9;' + (openUrl ? 'cursor:pointer;' : '') + '" ' + (openUrl ? 'onclick="window.open(\'' + esc(openUrl) + '\',\'_blank\')" onmouseover="this.style.background=\'#F8FAFC\'" onmouseout="this.style.background=\'transparent\'"' : '') + '>' +
+                            '<div style="display:flex;align-items:center;gap:10px;">' +
+                                '<div style="width:26px;height:26px;border-radius:6px;background:' + (isDone ? '#E8F5E9' : '#F4F6F9') + ';color:' + (isDone ? '#2E7D32' : '#A0AEC0') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;flex-shrink:0;"><i class="fa-solid ' + (isDone ? 'fa-check' : 'fa-file-lines') + '"></i></div>' +
+                                '<div style="flex:1;min-width:0;font-weight:500;font-size:0.88rem;">' + esc(lTitle) + '</div>' +
+                                (isDone ? '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:#E8F5E9;color:#2E7D32;">Done</span>' : (openUrl ? '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:var(--color-primary-light);color:var(--color-primary-dark);">Open</span>' : '<span style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:12px;background:#F4F6F9;color:#A0AEC0;">To do</span>')) +
+                            '</div>';
+
+                        // Show resource items inside the lesson
+                        if (resources.length > 0) {
+                            html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;margin-left:36px;">';
+                            for (var ri = 0; ri < resources.length; ri++) {
+                                var cr = resources[ri];
+                                var res = cr.resource || {};
+                                var rTitle = (typeof res === 'object' ? (res.title || cr.title || '') : String(res)).substring(0, 40);
+                                var rmeta = (typeof res === 'object' ? res.metadata : null) || {};
+                                var rtype = rmeta.type || '';
+                                var rurl = rmeta.url || res.url || '';
+
+                                html += '<a ' + (rurl ? 'href="' + esc(rurl) + '" target="_blank"' : '') + ' style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#F4F6F9;font-size:0.72rem;font-weight:500;color:' + resColor(rtype) + ';text-decoration:none;transition:background 0.15s;" onmouseover="this.style.background=\'#E8ECF1\'" onmouseout="this.style.background=\'#F4F6F9\'" onclick="event.stopPropagation()">' +
+                                    '<i class="fa-solid ' + resIcon(rtype) + '" style="font-size:0.65rem;"></i>' +
+                                    esc(rtype || 'resource') +
+                                '</a>';
+                            }
+                            html += '</div>';
+                        }
+
+                        html += '</div>';
                     }
 
                     html += '</div>';
