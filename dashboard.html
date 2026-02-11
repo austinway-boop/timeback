@@ -713,24 +713,21 @@
     async function decryptPassword(userId, credentialId, btn) {
         btn.textContent = 'Loading...';
         btn.disabled = true;
+        var tbLink = `<a href="https://alpha.timeback.com/app" target="_blank" rel="noopener" style="color:#45B5AA;font-size:0.82rem;font-weight:600;text-decoration:none;">View on Timeback <i class="fa-solid fa-external-link-alt" style="font-size:0.7rem;margin-left:2px;"></i></a>`;
         try {
-            const resp = await fetch(`/api/decrypt-credential?userId=${encodeURIComponent(userId)}&credentialId=${encodeURIComponent(credentialId)}`);
-            const data = await resp.json();
+            var resp = await fetch('/api/decrypt-credential?userId=' + encodeURIComponent(userId) + '&credentialId=' + encodeURIComponent(credentialId));
+            if (!resp.ok) { btn.outerHTML = tbLink; return; }
+            var data = await resp.json();
             if (data.success && data.password) {
-                // Got the password
-                const pw = typeof data.password === 'string' ? data.password
-                    : (typeof data.password === 'object' && data.password.result) ? data.password.result
+                var pw = typeof data.password === 'string' ? data.password
+                    : (data.password && data.password.result) ? data.password.result
                     : JSON.stringify(data.password);
-                btn.outerHTML = `<code style="background:#F4F6F9;padding:2px 8px;border-radius:4px;font-family:'SF Mono','Fira Code',monospace;font-size:0.85em;">${esc(pw)}</code>`;
-            } else if (data.viewUrl) {
-                // Can't decrypt, but provide link to Timeback platform
-                btn.outerHTML = `<a href="${esc(data.viewUrl)}" target="_blank" rel="noopener" style="color:#45B5AA;font-size:0.82rem;font-weight:600;text-decoration:none;">View on Timeback <i class="fa-solid fa-external-link-alt" style="font-size:0.7rem;margin-left:2px;"></i></a>`;
+                btn.outerHTML = '<code style="background:#F4F6F9;padding:2px 8px;border-radius:4px;font-family:monospace;font-size:0.85em;">' + esc(pw) + '</code>';
             } else {
-                btn.outerHTML = `<a href="https://alpha.timeback.com/app" target="_blank" rel="noopener" style="color:#45B5AA;font-size:0.82rem;font-weight:600;text-decoration:none;">View on Timeback <i class="fa-solid fa-external-link-alt" style="font-size:0.7rem;margin-left:2px;"></i></a>`;
+                btn.outerHTML = tbLink;
             }
         } catch (e) {
-            // Even on error, show a useful link
-            btn.outerHTML = `<a href="https://alpha.timeback.com/app" target="_blank" rel="noopener" style="color:#45B5AA;font-size:0.82rem;font-weight:600;text-decoration:none;">View on Timeback <i class="fa-solid fa-external-link-alt" style="font-size:0.7rem;margin-left:2px;"></i></a>`;
+            btn.outerHTML = tbLink;
         }
     }
 

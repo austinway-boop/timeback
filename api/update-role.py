@@ -41,7 +41,7 @@ class handler(BaseHTTPRequestHandler):
                 }, 400)
                 return
 
-            valid_roles = ["student", "teacher", "administrator", "aide"]
+            valid_roles = ["student", "teacher", "administrator", "superadmin", "aide"]
             if new_role not in valid_roles:
                 send_json(self, {
                     "success": False,
