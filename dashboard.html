@@ -153,6 +153,9 @@
         starreading: '/img/apps/renaissance.png?v=2',   // Star Reading = Renaissance
         starmath:    '/img/apps/renaissance.png?v=2',    // Star Math = Renaissance
         powerpath:   '/img/apps/powerpath.png?v=2',
+        edmentum:    '/img/apps/edmentum.png?v=2',
+        mathacademy: '/img/apps/mathacademy.png?v=2',
+        membean:     '/img/apps/membean.png?v=2',
     };
 
     /* Per-app icon overrides (correct subject for each app) */
@@ -172,6 +175,9 @@
         starreading: 'fa-book-open-reader',
         starmath:    'fa-calculator',
         powerpath:   'fa-calculator',      // Math
+        edmentum:    'fa-graduation-cap',  // Multi-subject courseware
+        mathacademy: 'fa-calculator',      // Math
+        membean:     'fa-book-open',       // Vocabulary / ELA
     };
 
     /* Per-app dot colors — matched to the dominant color of each app image */
@@ -191,6 +197,9 @@
         starreading: '#F5A623',  // gold (Star Reading)
         starmath:    '#F5A623',  // gold (Star Math)
         powerpath:   '#5B7FD5',  // blue (PowerPath)
+        edmentum:    '#0077C8',  // Edmentum blue
+        mathacademy: '#2D6A4F',  // Math Academy green
+        membean:     '#F28C28',  // Membean orange
     };
 
     /* Subject fallback dot colors — matched to subject illustration images */
@@ -212,13 +221,14 @@
         'gumpp', 'runestone', 'newsela', 'khan', 'readtheory', 'commonlit',
         'knewton', 'alta', 'lalilo', 'rocketmath', 'zearn',
         'renaissance', 'starreading', 'starmath',
+        'edmentum', 'mathacademy', 'membean',
     ]);
 
     /* Fallback LOGIN PAGE URLs for each known external app — used when
      * userProfiles don't provide a launchUrl for the course.
      * Each URL points directly to the app's login/sign-in page. */
     const KNOWN_APP_URLS = {
-        gumpp:       'https://elearning.egumpp.com',              // student portal + sign-in
+        gumpp:       'https://elearning.egumpp.com/login.aspx',   // direct login page
         runestone:   'https://runestone.academy/user/login',      // direct login page
         newsela:     'https://newsela.com/signin',                // sign-in page
         khan:        'https://www.khanacademy.org/login',         // login page
@@ -232,6 +242,9 @@
         renaissance: 'https://schools.renaissance.com',           // school login portal
         starreading: 'https://schools.renaissance.com',           // Star Reading = Renaissance
         starmath:    'https://schools.renaissance.com',           // Star Math    = Renaissance
+        edmentum:    'https://auth.edmentum.com/elf/login',       // Edmentum login
+        mathacademy: 'https://www.mathacademy.com/login',         // Math Academy login
+        membean:     'https://membean.com/login',                 // Membean login
     };
 
     /** Determine if a course is external based on its app/title/vendor identifiers.
