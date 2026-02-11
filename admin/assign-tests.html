@@ -129,31 +129,12 @@
 <script>
 var selectedStudent = null;
 var existingAssignments = [];
-var enrolledKeys = new Set();
+var availableTests = [];  // built dynamically from enrollment data
 
 function esc(s) {
     if (s == null) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-/* ── Test catalog ──────────────────────────────────────────── */
-var TEST_CATALOG = [
-    { subject: 'Reading',        grades: ['3','4','5','6','7','8','9','10','11','12'] },
-    { subject: 'Math',           grades: ['3','4','5','6','7','8','9','10','11','12'] },
-    { subject: 'Writing',        grades: ['3','4','5','6','7','8'] },
-    { subject: 'Language',       grades: ['3','4','5','6','7','8'] },
-    { subject: 'Science',        grades: ['3','4','5','6','7','8'] },
-    { subject: 'Social Studies', grades: ['3','4','5','6','7','8'] },
-    { subject: 'Vocabulary',     grades: ['3','4','5','6','7','8','9','10','11','12'] },
-    { subject: 'FastMath',       grades: ['3','4','5','6','7','8','9','10','11','12'] },
-];
-
-var ALL_TESTS = [];
-TEST_CATALOG.forEach(function(cat) {
-    cat.grades.forEach(function(g) {
-        ALL_TESTS.push({ subject: cat.subject, grade: g, name: cat.subject + ' Grade ' + g });
-    });
-});
 
 /* ── Init ──────────────────────────────────────────────────── */
 var searchInput, searchTimer;
@@ -243,7 +224,7 @@ function pickStudent(el) {
 /* ── Load Enrollments + Assignments ────────────────────────── */
 async function loadAssignments(studentId) {
     existingAssignments = [];
-    enrolledKeys = new Set();
+    availableTests = [];
 
     try {
         var [assignResp, enrollResp] = await Promise.all([
@@ -251,9 +232,25 @@ async function loadAssignments(studentId) {
             fetch('/api/enrollments?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return {}; }),
         ]);
 
-        existingAssignments = assignResp.testAssignments || [];
+        // ── Normalise existing assignments from PowerPath ──
+        // PowerPath may use gradeLevel/status; frontend expects grade/assignmentStatus
+        var rawAssignments = assignResp.testAssignments || assignResp.assignments || [];
+        if (!Array.isArray(rawAssignments)) rawAssignments = [];
+        existingAssignments = rawAssignments.map(function(a) {
+            var subj = a.subject || '';
+            var gr = a.gradeLevel || a.grade || '';
+            return {
+                sourcedId: a.assignmentId || a.sourcedId || a.id || '',
+                subject: subj,
+                grade: gr,
+                assignmentStatus: a.status || a.assignmentStatus || 'assigned',
+                assignedAt: a.assignedAt || a.createdAt || a.dateCreated || '',
+                testName: a.testName || (subj && gr ? subj + ' Grade ' + gr : 'Test Assignment'),
+            };
+        });
 
-        // Build enrolled subject+grade set from enrollments
+        // ── Build available tests from real enrollment data ──
+        var seen = {};
         var raw = enrollResp.data || enrollResp.enrollments || enrollResp.courses || (Array.isArray(enrollResp) ? enrollResp : []);
         for (var i = 0; i < raw.length; i++) {
             var e = raw[i];
@@ -261,57 +258,62 @@ async function loadAssignments(studentId) {
             var title = (c.title || '').trim();
             var subjects = c.subjects || [];
             var grades = c.grades || [];
-            if (!title || !subjects.length) continue;
+            if (!title || !subjects.length || !grades.length) continue;
+            // Skip non-test enrollments
             if (title.startsWith('Manual XP') || title.includes('Hole-Filling')) continue;
             var subj = subjects[0];
             for (var g = 0; g < grades.length; g++) {
-                enrolledKeys.add(subj.toLowerCase() + '|' + grades[g]);
+                var key = subj + '|' + grades[g];
+                if (!seen[key]) {
+                    seen[key] = true;
+                    availableTests.push({ subject: subj, grade: grades[g], name: subj + ' Grade ' + grades[g] });
+                }
             }
         }
 
-        // Include any existing test assignments as enrolled too
-        for (var j = 0; j < existingAssignments.length; j++) {
-            var a = existingAssignments[j];
-            if (a.subject && a.grade) enrolledKeys.add(a.subject.toLowerCase() + '|' + a.grade);
-        }
-    } catch(e) {}
+        // Sort by subject then grade
+        availableTests.sort(function(a, b) {
+            if (a.subject !== b.subject) return a.subject.localeCompare(b.subject);
+            return parseInt(a.grade) - parseInt(b.grade);
+        });
+    } catch(e) {
+        console.error('loadAssignments error:', e);
+    }
 
-    // Rebuild filter dropdown to only show enrolled subjects
+    // Rebuild filter dropdown from actual enrolled subjects
     var sel = document.getElementById('subject-filter');
     var current = sel.value;
     sel.innerHTML = '<option value="all">All Subjects</option>';
-    var seen = {};
-    ALL_TESTS.forEach(function(t) {
-        if (enrolledKeys.has(t.subject.toLowerCase() + '|' + t.grade) && !seen[t.subject]) {
-            seen[t.subject] = true;
+    var subjectsSeen = {};
+    availableTests.forEach(function(t) {
+        if (!subjectsSeen[t.subject]) {
+            subjectsSeen[t.subject] = true;
             var opt = document.createElement('option');
             opt.value = t.subject;
             opt.textContent = t.subject;
             sel.appendChild(opt);
         }
     });
-    if (seen[current]) sel.value = current; else sel.value = 'all';
+    if (subjectsSeen[current]) sel.value = current; else sel.value = 'all';
 
     renderTests();
     renderPending();
 }
 
-/* ── Render All Tests ──────────────────────────────────────── */
+/* ── Render Available Tests ─────────────────────────────────── */
 function renderTests() {
     var el = document.getElementById('tests-list');
     var filter = document.getElementById('subject-filter').value;
 
-    // Build status lookup from existing assignments
+    // Build status lookup from existing assignments (case-insensitive)
     var statusMap = {};
     existingAssignments.forEach(function(a) {
         var key = (a.subject || '').toLowerCase() + '|' + (a.grade || '');
         statusMap[key] = a.assignmentStatus || 'assigned';
     });
 
-    // Only show tests the student is enrolled in
-    var tests = ALL_TESTS.filter(function(t) {
-        return enrolledKeys.has(t.subject.toLowerCase() + '|' + t.grade);
-    });
+    // Filter by subject if selected
+    var tests = availableTests;
     if (filter !== 'all') {
         tests = tests.filter(function(t) { return t.subject === filter; });
     }
@@ -397,7 +399,11 @@ async function assignTest(subject, grade, idx) {
             renderTests();
             renderPending();
         } else {
-            showFeedback(data.error || data.message || 'Assignment failed.', 'error');
+            var errMsg = data.error || data.message || 'Assignment failed.';
+            if (data.placementGrade != null && data.requestedGrade) {
+                errMsg = 'Student is placed at Grade ' + data.placementGrade + ' in ' + subject + '. Cannot assign Grade ' + data.requestedGrade + ' — try Grade ' + data.placementGrade + ' instead.';
+            }
+            showFeedback(errMsg, 'error');
             if (btn) { btn.className = 'test-btn assign'; btn.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:3px;"></i>Assign'; }
         }
     } catch(e) {
