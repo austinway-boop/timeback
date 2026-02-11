@@ -153,9 +153,9 @@
         starreading: '/img/apps/renaissance.png?v=2',   // Star Reading = Renaissance
         starmath:    '/img/apps/renaissance.png?v=2',    // Star Math = Renaissance
         powerpath:   '/img/apps/powerpath.png?v=2',
-        edmentum:    '/img/apps/edmentum.png?v=2',
-        mathacademy: '/img/apps/mathacademy.png?v=2',
-        membean:     '/img/apps/membean.png?v=2',
+        edmentum:    '/img/subjects/science.png',
+        mathacademy: '/img/subjects/math.png',
+        membean:     '/img/subjects/reading.png',
     };
 
     /* Per-app icon overrides (correct subject for each app) */
@@ -811,8 +811,11 @@
         }
 
         try {
+            const ac = new AbortController();
+            setTimeout(function() { ac.abort(); }, 10000); // 10s timeout
             const resp = await fetch(
-                `/api/analytics?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}`
+                `/api/analytics?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}`,
+                { signal: ac.signal }
             );
             const data = await resp.json();
             const factsByApp = data.factsByApp || {};
