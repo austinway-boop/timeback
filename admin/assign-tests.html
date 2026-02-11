@@ -195,6 +195,17 @@
         }
         .empty-state p { font-size: 0.85rem; margin: 0; }
 
+        /* ── Remove button ────────────────────────────────────── */
+        .remove-btn {
+            padding: 3px 10px; border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm); background: transparent;
+            color: var(--color-text-muted); font-size: 0.75rem; font-weight: 600;
+            cursor: pointer; transition: all var(--transition);
+        }
+        .remove-btn:hover {
+            border-color: #E53E3E; color: #E53E3E; background: #FFF5F5;
+        }
+
         /* ── Responsive ───────────────────────────────────────── */
         @media (max-width: 900px) {
             .two-col { grid-template-columns: 1fr; }
@@ -288,15 +299,15 @@
                     </div>
                 </div>
 
-                <!-- Recent Assignments -->
+                <!-- Current Test Assignments -->
                 <div class="panel-card">
                     <div class="card-header">
-                        <h2 class="card-title"><i class="fa-solid fa-clock-rotate-left"></i>Recent Assignments</h2>
+                        <h2 class="card-title"><i class="fa-solid fa-list-check"></i>Current Assignments</h2>
                     </div>
-                    <div id="recent-body">
+                    <div id="assignments-body">
                         <div class="empty-state">
-                            <i class="fa-solid fa-inbox"></i>
-                            <p>No assignments yet this session.</p>
+                            <i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i>
+                            <p>Loading assignments...</p>
                         </div>
                     </div>
                 </div>
@@ -315,7 +326,6 @@
 var cachedStudents = [];
 var selectedStudent = null;
 var completedCombos = new Set();
-var recentAssignments = [];
 
 function esc(s) {
     if (s == null) return '';
@@ -444,15 +454,20 @@ function pickStudent(el) {
 }
 
 /* ==================================================================
-   Fetch Enrollment + Results Data
+   Fetch Enrollment + Results + Existing Assignments
    ================================================================== */
+var existingAssignments = [];
+
 async function loadStudentData(studentId) {
+    // Fetch enrollments, results, and existing assignments in parallel
     try {
-        var [enrollResp, resultsResp] = await Promise.all([
+        var [enrollResp, resultsResp, assignResp] = await Promise.all([
             fetch('/api/enrollments?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }),
-            fetch('/api/results?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { results: [] }; })
+            fetch('/api/results?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { results: [] }; }),
+            fetch('/api/assign-test?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { assignments: [] }; }),
         ]);
 
+        // Parse enrollments for completed mastery tests
         var raw = enrollResp.data || enrollResp.enrollments || enrollResp.courses || (Array.isArray(enrollResp) ? enrollResp : []);
 
         for (var i = 0; i < raw.length; i++) {
@@ -484,11 +499,97 @@ async function loadStudentData(studentId) {
                 }
             }
         }
+
+        // Store existing test assignments
+        existingAssignments = assignResp.assignments || [];
+
+        // Also build display list from mastery enrollments if API returned nothing
+        if (!existingAssignments.length) {
+            existingAssignments = raw.filter(function(e) {
+                var m = (e.metadata && e.metadata.metrics) || {};
+                var cm = ((e.course || {}).metadata || {}).metrics || {};
+                return m.courseType === 'mastery_test' || m.courseType === 'mastery-test' || m.courseType === 'masteryTest'
+                    || cm.courseType === 'mastery_test' || cm.courseType === 'mastery-test' || cm.courseType === 'masteryTest'
+                    || (((e.course || {}).title || '').toLowerCase().includes('mastery') && ((e.course || {}).title || '').toLowerCase().includes('test'));
+            }).map(function(e) {
+                var c = e.course || {};
+                return {
+                    id: e.id || e.sourcedId || '',
+                    title: c.title || 'Unknown Test',
+                    subject: (c.subjects || [])[0] || guessSubject(c.title || ''),
+                    grade: (c.grades || [])[0] || '',
+                    status: e.status || 'active',
+                    _fromEnrollment: true,
+                };
+            });
+        }
+
     } catch(err) {
         console.warn('[Admin] Error fetching student data:', err.message);
     }
 
+    renderAssignments();
     checkCombo();
+}
+
+/* ==================================================================
+   Render Existing Assignments
+   ================================================================== */
+function renderAssignments() {
+    var el = document.getElementById('assignments-body');
+    if (!existingAssignments.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-check"></i><p>No test assignments found for this student.</p></div>';
+        return;
+    }
+
+    el.innerHTML = '<table class="recent-table"><thead><tr><th>Test</th><th>Subject</th><th>Grade</th><th></th></tr></thead><tbody>' +
+        existingAssignments.map(function(a, idx) {
+            var title = esc(a.title || a.name || a.subject || 'Test');
+            var subj = esc(a.subject || '');
+            var grade = esc(a.grade || '');
+            var aid = esc(a.id || a.sourcedId || a.assignmentId || '');
+            return '<tr>' +
+                '<td style="font-weight:600;">' + title + '</td>' +
+                '<td>' + subj + '</td>' +
+                '<td>' + (grade ? 'Grade ' + grade : '') + '</td>' +
+                '<td><button class="remove-btn" onclick="removeAssignment(' + idx + ')" title="Remove this assignment"><i class="fa-solid fa-trash-can" style="margin-right:3px;"></i>Remove</button></td>' +
+            '</tr>';
+        }).join('') + '</tbody></table>';
+}
+
+async function removeAssignment(idx) {
+    var a = existingAssignments[idx];
+    if (!a || !selectedStudent) return;
+
+    var aid = a.id || a.sourcedId || a.assignmentId || '';
+    var subj = a.subject || '';
+    var grade = a.grade || '';
+
+    // Optimistic UI — remove from list immediately
+    existingAssignments.splice(idx, 1);
+    renderAssignments();
+
+    // Also remove from completed combos so it can be re-assigned
+    if (subj && grade) {
+        completedCombos.delete(subj.toLowerCase() + '|' + grade);
+        checkCombo();
+    }
+
+    // Call API to remove
+    try {
+        await fetch('/api/assign-test', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                assignmentId: aid,
+                studentId: selectedStudent.sourcedId,
+                subject: subj,
+                grade: grade,
+            }),
+        });
+    } catch(e) {
+        console.warn('[Admin] Remove assignment error:', e.message);
+    }
 }
 
 function guessSubject(title) {
@@ -577,8 +678,16 @@ async function submitAssignment() {
             fbEl.textContent = data.message || 'Test assigned successfully!';
             fbEl.className = 'feedback success';
             fbEl.style.display = 'block';
-            addRecent(name, subject, grade, 'success');
             completedCombos.add(subject.toLowerCase() + '|' + grade);
+            // Add to the existing assignments list
+            existingAssignments.push({
+                title: subject + ' Grade ' + grade,
+                subject: subject,
+                grade: grade,
+                id: (data.response && data.response.id) || '',
+                status: 'active',
+            });
+            renderAssignments();
             document.getElementById('assign-subject').value = '';
             document.getElementById('assign-grade').value = '';
             hideFeedback('completion-warn');
@@ -586,44 +695,18 @@ async function submitAssignment() {
             fbEl.textContent = data.error || data.message || 'Assignment failed.';
             fbEl.className = 'feedback error';
             fbEl.style.display = 'block';
-            addRecent(name, subject, grade, 'error');
         }
     } catch(e) {
         fbEl.textContent = 'The API is slow or unreachable. Please try again.';
         fbEl.className = 'feedback error';
         fbEl.style.display = 'block';
-        addRecent(name, subject, grade, 'error');
     }
 
     btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Assign Test';
     updateBtn();
 }
 
-/* ==================================================================
-   Recent Assignments
-   ================================================================== */
-function addRecent(name, subject, grade, status) {
-    recentAssignments.unshift({ name: name, subject: subject, grade: grade, status: status });
-    if (recentAssignments.length > 15) recentAssignments.pop();
-    renderRecent();
-}
-
-function renderRecent() {
-    var el = document.getElementById('recent-body');
-    if (!recentAssignments.length) {
-        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>No assignments yet this session.</p></div>';
-        return;
-    }
-    el.innerHTML = '<table class="recent-table"><thead><tr><th>Student</th><th>Test</th><th>Status</th></tr></thead><tbody>' +
-        recentAssignments.map(function(a) {
-            var badge = a.status === 'success'
-                ? '<span class="status-badge status-active">Assigned</span>'
-                : '<span class="status-badge status-tobedeleted">Failed</span>';
-            return '<tr><td style="font-weight:600;">' + esc(a.name) + '</td>' +
-                '<td>' + esc(a.subject) + ' Grade ' + esc(a.grade) + '</td>' +
-                '<td>' + badge + '</td></tr>';
-        }).join('') + '</tbody></table>';
-}
+/* (Recent assignments replaced by existing assignments panel) */
 </script>
 </body>
 </html>

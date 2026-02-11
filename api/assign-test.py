@@ -25,12 +25,135 @@ class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def do_GET(self):
-        send_json(self, {"error": "Use POST", "success": False}, 405)
+        """GET /api/assign-test?userId=... — List existing test assignments for a student."""
+        from urllib.parse import urlparse, parse_qs
+        params = parse_qs(urlparse(self.path).query)
+        user_id = params.get("userId", [""])[0].strip()
+
+        if not user_id:
+            send_json(self, {"error": "Missing userId", "assignments": []}, 400)
+            return
+
+        headers = api_headers()
+        assignments = []
+        errors = []
+
+        # Try fetching from PowerPath test-assignments
+        for field in ["userId", "studentId", "userSourcedId"]:
+            try:
+                resp = requests.get(
+                    f"{API_BASE}/powerpath/test-assignments",
+                    headers=headers,
+                    params={field: user_id},
+                    timeout=30,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    items = data if isinstance(data, list) else data.get("assignments", data.get("data", data.get("testAssignments", [])))
+                    if isinstance(items, list) and items:
+                        assignments = items
+                        break
+            except Exception as e:
+                errors.append(str(e))
+
+        # Also try the user-specific path
+        if not assignments:
+            try:
+                resp = requests.get(
+                    f"{API_BASE}/powerpath/test-assignments/user/{user_id}",
+                    headers=headers,
+                    timeout=30,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    items = data if isinstance(data, list) else data.get("assignments", data.get("data", []))
+                    if isinstance(items, list):
+                        assignments = items
+            except Exception as e:
+                errors.append(str(e))
+
+        send_json(self, {
+            "assignments": assignments,
+            "count": len(assignments),
+            "errors": errors if not assignments else [],
+        })
+
+    def do_DELETE(self):
+        """DELETE /api/assign-test — Remove a test assignment."""
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(content_length) if content_length else b""
+            if not raw:
+                send_json(self, {"error": "Empty request body", "success": False}, 400)
+                return
+
+            body = json.loads(raw)
+            assignment_id = body.get("assignmentId", "").strip()
+            student_id = body.get("studentId", "").strip()
+            subject = body.get("subject", "").strip()
+            grade = body.get("grade", "").strip()
+
+            headers = api_headers()
+            deleted = False
+            api_response = None
+
+            # Try DELETE by assignment ID
+            if assignment_id:
+                for path in [
+                    f"/powerpath/test-assignments/{assignment_id}",
+                    f"/powerpath/test-assignments",
+                ]:
+                    try:
+                        if path.endswith("test-assignments"):
+                            resp = requests.delete(
+                                f"{API_BASE}{path}",
+                                headers=headers,
+                                json={"assignmentId": assignment_id},
+                                timeout=30,
+                            )
+                        else:
+                            resp = requests.delete(f"{API_BASE}{path}", headers=headers, timeout=30)
+
+                        if resp.status_code in (200, 204):
+                            deleted = True
+                            try:
+                                api_response = resp.json()
+                            except Exception:
+                                api_response = {"status": resp.status_code}
+                            break
+                    except Exception:
+                        continue
+
+            # Try DELETE by student + subject + grade
+            if not deleted and student_id and subject and grade:
+                try:
+                    resp = requests.delete(
+                        f"{API_BASE}/powerpath/test-assignments",
+                        headers=headers,
+                        json={"userId": student_id, "subject": subject, "grade": grade},
+                        timeout=30,
+                    )
+                    if resp.status_code in (200, 204):
+                        deleted = True
+                        try:
+                            api_response = resp.json()
+                        except Exception:
+                            api_response = {"status": resp.status_code}
+                except Exception:
+                    pass
+
+            if deleted:
+                send_json(self, {"success": True, "message": "Assignment removed", "response": api_response})
+            else:
+                send_json(self, {"success": False, "message": "Could not remove assignment"}, 502)
+
+        except Exception as e:
+            send_json(self, {"error": str(e), "success": False}, 500)
 
     def do_POST(self):
         try:
@@ -101,12 +224,21 @@ class handler(BaseHTTPRequestHandler):
 
             # ── By subject + grade (from index.html) ─────────────
             elif subject and grade:
-                # Primary: POST /powerpath/test-assignments with subject+grade
-                payload = {"studentId": student_id, "subject": subject, "grade": grade}
-                applied, method_used, api_response, api_error = _post_assignment(
-                    headers, f"{API_BASE}/powerpath/test-assignments", payload, "powerpath_subject_grade"
-                )
-                # Fallback: screening endpoint
+                # Try multiple payload shapes — PowerPath may expect userId, studentId, or userSourcedId
+                _url = f"{API_BASE}/powerpath/test-assignments"
+                for field_name, method_label in [
+                    ("userId",         "powerpath_userId"),
+                    ("studentId",      "powerpath_studentId"),
+                    ("userSourcedId",  "powerpath_userSourcedId"),
+                ]:
+                    payload = {field_name: student_id, "subject": subject, "grade": grade}
+                    applied, method_used, api_response, api_error = _post_assignment(
+                        headers, _url, payload, method_label
+                    )
+                    if applied:
+                        break
+
+                # Fallback: screening endpoint (always uses userId)
                 if not applied:
                     applied, method_used, api_response, api_error = _try_screening(
                         headers, student_id, subject, grade
@@ -125,7 +257,7 @@ class handler(BaseHTTPRequestHandler):
                     "success": True,
                     "applied": True,
                     "method": method_used,
-                    "message": "Test assigned successfully",
+                    "message": f"Test assigned via {method_used}",
                     "response": api_response,
                 })
             else:
