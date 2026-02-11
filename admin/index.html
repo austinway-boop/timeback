@@ -83,7 +83,7 @@
         /* Assign Tests Section */
         .assign-section {
             background: var(--color-surface); border-radius: var(--radius);
-            box-shadow: var(--shadow); padding: 0; margin-bottom: 20px; overflow: hidden;
+            box-shadow: var(--shadow); padding: 0; margin-bottom: 20px; overflow: visible;
         }
         .assign-section .card-header { padding: 20px 24px 0; }
         .assign-body { padding: 20px 24px 24px; }
@@ -114,10 +114,10 @@
 
         /* Search-as-you-type dropdown */
         .search-results-dropdown {
-            position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
-            background: var(--color-surface); border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
-            max-height: 260px; overflow-y: auto; display: none;
+            position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;
+            background: #fff; border: 1px solid #E8ECF1;
+            border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            max-height: 300px; overflow-y: auto; display: none;
         }
         .search-results-dropdown.open { display: block; }
         .search-result-item {
@@ -139,6 +139,21 @@
             border: none; background: none; color: var(--color-primary-dark);
             font-size: 1rem; cursor: pointer; padding: 0 2px; line-height: 1;
         }
+
+        /* Role editing */
+        .role-edit-select {
+            padding: 4px 8px; border: 1px solid var(--color-border); border-radius: 4px;
+            font-size: 0.78rem; font-weight: 600; background: var(--color-surface);
+            color: var(--color-text); outline: none; cursor: pointer;
+        }
+        .role-edit-select:focus { border-color: var(--color-primary); }
+        .role-save-btn {
+            padding: 3px 8px; background: var(--color-primary); color: #fff; border: none;
+            border-radius: 4px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+            margin-left: 4px;
+        }
+        .role-save-btn:hover { background: var(--color-primary-dark); }
+        .role-saved-msg { font-size: 0.72rem; color: #2E7D32; font-weight: 600; margin-left: 4px; }
 
         @media (max-width: 768px) {
             .dashboard-grid-4 { grid-template-columns: 1fr; }
@@ -230,11 +245,11 @@
                     </div>
                     <div style="padding:0 0 8px;">
                         <table class="mini-table">
-                            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+                            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
                             <tbody id="users-tbody">
-                                <tr><td><div class="skeleton skeleton-text" style="width:80%;"></div></td><td><div class="skeleton skeleton-text" style="width:90%;"></div></td><td><div class="skeleton skeleton-text" style="width:50%;"></div></td><td><div class="skeleton skeleton-text" style="width:40%;"></div></td></tr>
-                                <tr><td><div class="skeleton skeleton-text" style="width:70%;"></div></td><td><div class="skeleton skeleton-text" style="width:85%;"></div></td><td><div class="skeleton skeleton-text" style="width:45%;"></div></td><td><div class="skeleton skeleton-text" style="width:50%;"></div></td></tr>
-                                <tr><td><div class="skeleton skeleton-text" style="width:75%;"></div></td><td><div class="skeleton skeleton-text" style="width:80%;"></div></td><td><div class="skeleton skeleton-text" style="width:55%;"></div></td><td><div class="skeleton skeleton-text" style="width:35%;"></div></td></tr>
+                                <tr><td><div class="skeleton skeleton-text" style="width:80%;"></div></td><td><div class="skeleton skeleton-text" style="width:90%;"></div></td><td><div class="skeleton skeleton-text" style="width:50%;"></div></td><td><div class="skeleton skeleton-text" style="width:40%;"></div></td><td></td></tr>
+                                <tr><td><div class="skeleton skeleton-text" style="width:70%;"></div></td><td><div class="skeleton skeleton-text" style="width:85%;"></div></td><td><div class="skeleton skeleton-text" style="width:45%;"></div></td><td><div class="skeleton skeleton-text" style="width:50%;"></div></td><td></td></tr>
+                                <tr><td><div class="skeleton skeleton-text" style="width:75%;"></div></td><td><div class="skeleton skeleton-text" style="width:80%;"></div></td><td><div class="skeleton skeleton-text" style="width:55%;"></div></td><td><div class="skeleton skeleton-text" style="width:35%;"></div></td><td></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -283,10 +298,11 @@
     /* Global state                                                         */
     /* ==================================================================== */
     var allUsers = [];         // full user list (for stats/table only)
-    var cachedStudents = [];   // first 200 students for quick name search
+    var cachedStudents = [];   // first 500 students for quick name search
     var allCourses = [];
     var allLineItems = [];
     var selectedStudentId = '';
+    var ROLE_OPTIONS = ['student', 'teacher', 'administrator', 'aide'];
 
     /* ---- Helpers -------------------------------------------------------- */
     function roleBadge(role) {
@@ -325,16 +341,59 @@
         if (!tbody) return;
         var recent = allUsers.slice(0, 10);
         if (!recent.length) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--color-text-muted);">No users found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--color-text-muted);">No users found.</td></tr>';
             return;
         }
-        tbody.innerHTML = recent.map(function(u) {
+        tbody.innerHTML = recent.map(function(u, idx) {
             var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || u.username || '\u2014';
+            var roleOpts = ROLE_OPTIONS.map(function(r) {
+                var sel = (u.role || '').toLowerCase() === r ? ' selected' : '';
+                return '<option value="' + r + '"' + sel + '>' + r + '</option>';
+            }).join('');
             return '<tr><td style="font-weight:600;">' + name + '</td>' +
                 '<td style="color:var(--color-text-secondary);">' + (u.email || '\u2014') + '</td>' +
-                '<td>' + roleBadge(u.role) + '</td>' +
-                '<td>' + statusBadge(u.status) + '</td></tr>';
+                '<td><select class="role-edit-select" id="role-sel-' + idx + '">' + roleOpts + '</select></td>' +
+                '<td>' + statusBadge(u.status) + '</td>' +
+                '<td><button class="role-save-btn" onclick="saveRole(' + idx + ')">Save</button><span id="role-msg-' + idx + '"></span></td></tr>';
         }).join('');
+    }
+
+    async function saveRole(idx) {
+        var user = allUsers[idx];
+        if (!user) return;
+        var sel = document.getElementById('role-sel-' + idx);
+        var msgEl = document.getElementById('role-msg-' + idx);
+        var newRole = sel.value;
+        try {
+            var resp = await fetch('/api/update-role', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.sourcedId, newRole: newRole, email: user.email }),
+            });
+            if (resp.ok) {
+                user.role = newRole;
+                msgEl.innerHTML = '<span class="role-saved-msg">\u2713 Saved</span>';
+            } else {
+                // Save locally as pending
+                savePendingRole(user.sourcedId, newRole, user.email);
+                user.role = newRole;
+                msgEl.innerHTML = '<span class="role-saved-msg">\u2713 Pending</span>';
+            }
+        } catch(e) {
+            savePendingRole(user.sourcedId, newRole, user.email);
+            user.role = newRole;
+            msgEl.innerHTML = '<span class="role-saved-msg">\u2713 Pending</span>';
+        }
+        renderStats(); // refresh counts
+        setTimeout(function() { if (msgEl) msgEl.innerHTML = ''; }, 3000);
+    }
+
+    function savePendingRole(userId, newRole, email) {
+        try {
+            var pending = JSON.parse(localStorage.getItem('pending_role_changes') || '[]');
+            pending.push({ userId: userId, newRole: newRole, email: email, timestamp: Date.now() });
+            localStorage.setItem('pending_role_changes', JSON.stringify(pending));
+        } catch(e) {}
     }
 
     function renderCourses() {
@@ -365,13 +424,23 @@
     function populateTestDropdown() {
         var tsel = document.getElementById('assign-test');
         if (!tsel) return;
-        if (!allLineItems.length) {
-            tsel.innerHTML = '<option value="">No tests available</option>';
-        } else {
+
+        // If line items available, use them. Otherwise fall back to courses.
+        if (allLineItems.length > 0) {
             tsel.innerHTML = '<option value="">Select a test...</option>' +
                 allLineItems.map(function(li) {
                     return '<option value="' + (li.sourcedId || '') + '">' + (li.title || li.sourcedId || 'Untitled') + '</option>';
                 }).join('');
+        } else if (allCourses.length > 0) {
+            tsel.innerHTML = '<option value="">Select a course to assign...</option>' +
+                allCourses.map(function(c) {
+                    var label = (c.title || c.courseCode || 'Untitled');
+                    var subjects = (c.subjects || []).join(', ');
+                    if (subjects) label += ' (' + subjects + ')';
+                    return '<option value="' + (c.sourcedId || '') + '">' + label + '</option>';
+                }).join('');
+        } else {
+            tsel.innerHTML = '<option value="">No tests or courses available</option>';
         }
     }
 
@@ -409,11 +478,12 @@
                 })
                 .catch(function() { showSearchResults([]); });
         } else {
-            // Filter from cached 200 students by name
+            // Filter from cached 500 students by name, email, or username
             var filtered = cachedStudents.filter(function(u) {
                 var name = ((u.givenName || '') + ' ' + (u.familyName || '')).toLowerCase();
-                return name.includes(q) || (u.email || '').toLowerCase().includes(q);
-            }).slice(0, 10);
+                var uname = (u.username || '').toLowerCase();
+                return name.includes(q) || (u.email || '').toLowerCase().includes(q) || uname.includes(q);
+            }).slice(0, 20);
             showSearchResults(filtered);
         }
     }
@@ -425,7 +495,7 @@
             dropdown.className = 'search-results-dropdown open';
             return;
         }
-        dropdown.innerHTML = results.slice(0, 10).map(function(u) {
+        dropdown.innerHTML = results.slice(0, 20).map(function(u) {
             var name = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
             var email = u.email || '';
             var id = u.sourcedId || '';
@@ -533,7 +603,7 @@
             // Cache first 200 students for search-as-you-type (never put all in DOM)
             cachedStudents = allUsers.filter(function(u) {
                 return (u.role || '').toLowerCase() === 'student';
-            }).slice(0, 200);
+            }).slice(0, 500);
         } catch(e) {
             console.warn('[Admin] API error:', e.message);
         }
