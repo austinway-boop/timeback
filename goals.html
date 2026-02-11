@@ -125,7 +125,7 @@ function isLesson(c){
 /* Get effective lesson count for a course (API or title-parsed) */
 function getLessons(c){return c.totalLessons||ppLessons(c.title);}
 
-let ALL=[],XP={};
+let ALL=[],XP={},MASTERED={};
 function ld(){try{return JSON.parse(localStorage.getItem(SKEY))||{};}catch{return{};}}
 function sv(g){localStorage.setItem(SKEY,JSON.stringify(g));}
 function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2500);}
@@ -150,7 +150,10 @@ function lessonCard(c,i){
     const th=THEMES[i%4],g=ld()[c._goalKey]||{},has=!!g.endDate;
     const tXp=c.totalXp||1,tL=getLessons(c),xpE=XP[i]||0;
     const xpPer=tL>0?tXp/tL:0;
-    const done=tL>0?Math.min(Math.round((xpE/tXp)*tL),tL):0;
+    // Use masteredUnits from analytics if available, else estimate from XP
+    const masteredFromAPI=MASTERED[i]||0;
+    const estimatedFromXP=tL>0?Math.min(Math.round((xpE/tXp)*tL),tL):0;
+    const done=masteredFromAPI>0?Math.min(masteredFromAPI,tL):estimatedFromXP;
     const rem=Math.max(tL-done,0),pct=tL>0?Math.min((done/tL)*100,100):0;
 
     let goalHtml='';
@@ -243,7 +246,9 @@ function renderProgress(){
 
         if(lesson){
             const xpPer=tL>0?tXp/tL:0;
-            const done=tL>0?Math.min(Math.round((xpE/tXp)*tL),tL):0;
+            const masteredFromAPI=MASTERED[i]||0;
+            const estimatedFromXP=tL>0?Math.min(Math.round((xpE/tXp)*tL),tL):0;
+            const done=masteredFromAPI>0?Math.min(masteredFromAPI,tL):estimatedFromXP;
             const rem=Math.max(tL-done,0),pct=tL>0?Math.min((done/tL)*100,100):0;
             const eff=d.school||1,lpd=rem>0?(rem/eff):0,xpd=Math.round(lpd*xpPer);
             let sCls='on-track';if(lpd>3)sCls='at-risk';else if(lpd>1.5)sCls='behind';
@@ -349,16 +354,19 @@ document.addEventListener('DOMContentLoaded',async function(){
         try{
             const ad=await(await fetch(`/api/analytics?email=${encodeURIComponent(email)}&startDate=${sd}&endDate=${edS}`)).json();
             const fba=ad.factsByApp||{},fa=ad.facts||{};
+            // Build XP maps
             const xm={};for(const dd of Object.values(fba))for(const[s,apps]of Object.entries(dd)){if(!xm[s])xm[s]={};for(const[a,info]of Object.entries(apps)){const x=(info.activityMetrics||{}).xpEarned||0;xm[s][a.toLowerCase()]=(xm[s][a.toLowerCase()]||0)+x;}}
             const xs={};for(const df of Object.values(fa))for(const[s,info]of Object.entries(df))xs[s]=(xs[s]||0)+((info.activityMetrics||{}).xpEarned||0);
+            // Build masteredUnits per subject from facts
+            const mu={};for(const df of Object.values(fa))for(const[s,info]of Object.entries(df)){const am=info.activityMetrics||{};mu[s]=(mu[s]||0)+(am.masteredUnits||am.lessonsCompleted||am.completedLessons||0);}
+            // Match XP + mastered to courses
             for(let i=0;i<ALL.length;i++){const c=ALL[i],sa=xm[c.subject]||{},an=(c.appName||'').toLowerCase();
                 if(an&&Object.keys(sa).length){let m=sa[an]||0;if(!m){const n=an.replace(/_/g,' ');for(const[k,x]of Object.entries(sa))if(k===n||k.includes(n)||n.includes(k)){m=x;break;}}XP[i]=m;}
-                else if(!an&&Object.keys(sa).length){
-                    // No app: sum ALL XP for the subject (not just native apps)
-                    let total=0;for(const x of Object.values(sa))total+=x;
-                    XP[i]=total||xs[c.subject]||0;
-                }
-                else XP[i]=xs[c.subject]||0;}
+                else if(!an&&Object.keys(sa).length){let total=0;for(const x of Object.values(sa))total+=x;XP[i]=total||xs[c.subject]||0;}
+                else XP[i]=xs[c.subject]||0;
+                // Store masteredUnits for lesson courses
+                MASTERED[i]=mu[c.subject]||0;
+            }
         }catch(e){console.warn('[AlphaLearn] Analytics unavailable:',e.message);}
         renderSet();
         const hash=location.hash.replace('#','');
