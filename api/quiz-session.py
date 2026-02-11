@@ -77,9 +77,8 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": "Need studentId and testId or lessonId"}, 400)
                 return
 
-            errors = []
-
-            # Strategy 1: PowerPath REST API (try multiple payload/path combos)
+            # Try PowerPath REST API with known field name combos
+            # (These endpoints may not exist yet — if all 404, frontend shows local assessment)
             for payload in [
                 {"student": student_id, "lesson": test_id},
                 {"student": student_id, "lesson": lesson_id} if lesson_id else None,
@@ -87,38 +86,17 @@ class handler(BaseHTTPRequestHandler):
             ]:
                 if payload is None:
                     continue
-                for path in [
-                    f"{PP}/assessments/attempts",
-                    f"{PP}/assessments/create-new-attempt",
-                ]:
+                for path in [f"{PP}/assessments/attempts", f"{PP}/assessments/create-new-attempt"]:
                     try:
                         resp = requests.post(path, headers=headers, json=payload, timeout=6)
                         if resp.status_code in (200, 201):
                             send_json(self, resp.json(), resp.status_code)
                             return
-                        if resp.status_code != 404:
-                            errors.append(f"{path}: {resp.status_code}")
-                    except Exception as e:
-                        errors.append(str(e))
+                    except Exception:
+                        pass
 
-            # Strategy 2: Proxy through Timeback production server functions (no CORS)
-            # The production app uses TanStack Start serverFn at alpha.timeback.com
-            effective_lid = lesson_id or test_id
-            if effective_lid:
-                tb_url = "https://alpha.timeback.com/_serverFn/src_features_powerpath-quiz_services_lesson-mastery_ts--getLessonType_createServerFn_handler?createServerFn"
-                tb_body = {"data": {"lessonId": effective_lid}, "context": {}}
-                try:
-                    tb_resp = requests.post(tb_url, json=tb_body, headers={"Content-Type": "application/json", "Accept": "application/json"}, timeout=8)
-                    if tb_resp.status_code == 200:
-                        tb_data = tb_resp.json()
-                        # Return whatever the server function gives us — the frontend will handle it
-                        send_json(self, {"lessonType": tb_data, "source": "timeback_serverFn"})
-                        return
-                    errors.append(f"timeback serverFn: {tb_resp.status_code}")
-                except Exception as e:
-                    errors.append(f"timeback serverFn: {e}")
-
-            send_json(self, {"error": "Could not create attempt", "details": errors}, 422)
+            # PowerPath assessment endpoints not available — return cleanly so frontend uses local assessment
+            send_json(self, {"error": "Assessment endpoints not available", "useLocalAssessment": True}, 422)
 
         elif action == "respond":
             attempt_id = body.get("attemptId", "")

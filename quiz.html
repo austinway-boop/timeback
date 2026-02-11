@@ -148,27 +148,15 @@
                 });
                 var startData = await startResp.json();
 
-                // Check if we got an attemptId (PowerPath adaptive flow)
                 if (startData.attemptId || startData.id) {
                     quizState.attemptId = startData.attemptId || startData.id;
                     await loadNextQuestion();
                     return;
                 }
-
-                // Check if we got lessonType data from Timeback server function proxy
-                if (startData.lessonType) {
-                    var lt = startData.lessonType;
-                    console.log('Timeback lessonType:', JSON.stringify(lt));
-                    var ltUrl = lt.qtiUrl || lt.url || lt.href || '';
-                    var ltId = lt.itemId || lt.testId || lt.id || lt.qtiId || '';
-                    if (ltUrl) { var loaded = await loadAllQuestions(ltUrl, '', subject, gradeLevel); if (loaded) return; }
-                    if (ltId) { var loaded = await loadAllQuestions('', ltId, subject, gradeLevel); if (loaded) return; }
-                    if (lt.questions || lt.items) {
-                        console.log('Got questions from Timeback:', (lt.questions || lt.items).length);
-                    }
+                // If backend says use local assessment, skip to it immediately
+                if (startData.useLocalAssessment) {
+                    // Fall through to local FRQ below
                 }
-
-                console.warn('Start response:', JSON.stringify(startData));
             } catch(e) {
                 console.warn('Assessment start failed:', e.message);
             }
