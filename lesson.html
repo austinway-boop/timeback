@@ -796,30 +796,42 @@
         .catch(function(e) { console.error('[Sync] Caliper FAILED:', e.message); });
     }
 
-    /* ── 3. PowerPath: mark lesson complete via operations API ── */
+    /* ── 3. PowerPath: finalize lesson via finalStudentAssessmentResponse API ── */
     function markLessonComplete() {
-        var lessonPlanId = lessonData.lessonPlanId || '';
-        var itemId = lessonData.lessonSourcedId || '';
+        // Get the courseComponentResource sourcedId from lesson data
+        var lessonId = '';
         
-        if (!lessonPlanId || !itemId) {
-            console.warn('[Sync] No lessonPlanId or lessonSourcedId - skipping PowerPath mark-complete');
+        // Try to find the resource sourcedId from steps
+        for (var si = 0; si < steps.length; si++) {
+            if (steps[si].type === 'Quiz' && steps[si].resource) {
+                lessonId = steps[si].resource.resId || '';
+                if (lessonId) break;
+            }
+        }
+        
+        // Fallback to lessonSourcedId if we have it
+        if (!lessonId) {
+            lessonId = lessonData.lessonSourcedId || '';
+        }
+        
+        if (!lessonId || !syncState.userId) {
+            console.warn('[Sync] No lessonId or userId - skipping PowerPath finalize');
             return;
         }
         
-        console.log('[Sync] Marking lesson complete via PowerPath - lessonPlanId:', lessonPlanId, 'itemId:', itemId);
+        console.log('[Sync] Finalizing lesson via PowerPath - lessonId:', lessonId, 'userId:', syncState.userId);
         
-        fetch('/api/mark-complete', {
+        fetch('/api/finalize-lesson', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                lessonPlanId: lessonPlanId,
-                itemId: itemId,
-                studentId: syncState.userId
+                studentId: syncState.userId,
+                lessonId: lessonId
             }),
         })
         .then(function(r) { return r.json(); })
-        .then(function(d) { console.log('[Sync] PowerPath mark-complete response:', JSON.stringify(d)); })
-        .catch(function(e) { console.error('[Sync] PowerPath mark-complete FAILED:', e.message); });
+        .then(function(d) { console.log('[Sync] PowerPath finalize response:', JSON.stringify(d)); })
+        .catch(function(e) { console.error('[Sync] PowerPath finalize FAILED:', e.message); });
     }
 
     /* ── Combined: fire all sync methods on quiz completion ── */
