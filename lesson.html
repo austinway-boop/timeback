@@ -160,123 +160,145 @@
         .xp-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 1rem; font-weight: 700; color: var(--color-primary); background: var(--color-primary-light); padding: 6px 16px; border-radius: 20px; margin-top: 14px; }
         .loading-msg { text-align: center; padding: 48px; color: var(--color-text-muted); }
 
-        /* ── AP Exam UI ─────────────────────────────────────── */
-        .ap-exam { display: flex; flex-direction: column; height: 100%; min-height: 500px; }
+        /* ── AP Exam UI (fullscreen overlay) ────────────────── */
+        .ap-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            background: #f5f5f5; display: flex; flex-direction: column;
+            font-family: var(--font);
+        }
         .ap-header {
-            display: flex; align-items: center; padding: 12px 20px;
-            background: #fff; border-bottom: 1px solid #E8ECF1;
-            flex-shrink: 0;
+            display: flex; align-items: center; padding: 10px 24px;
+            background: #fff; border-bottom: 1px solid #ddd; flex-shrink: 0;
         }
-        .ap-header-title { flex: 1; font-size: 0.88rem; font-weight: 600; color: var(--color-text); }
+        .ap-header-title { flex: 1; font-size: 0.92rem; font-weight: 600; color: #222; }
         .ap-timer {
-            font-size: 1.3rem; font-weight: 700; color: var(--color-text);
-            font-variant-numeric: tabular-nums; letter-spacing: 0.5px;
-            margin: 0 24px;
+            font-size: 1.5rem; font-weight: 300; color: #222;
+            font-variant-numeric: tabular-nums; margin: 0 32px;
         }
-        .ap-tools { display: flex; gap: 16px; align-items: center; }
+        .ap-timer.warning { color: #D97706; }
+        .ap-timer.danger { color: #DC2626; }
+        .ap-tools { display: flex; gap: 20px; align-items: center; }
         .ap-tool-btn {
-            display: flex; flex-direction: column; align-items: center; gap: 2px;
-            background: none; border: none; cursor: pointer; color: var(--color-text-muted);
-            font-size: 0.65rem; font-weight: 600; padding: 4px 8px; transition: color 0.15s;
+            display: flex; flex-direction: column; align-items: center; gap: 1px;
+            background: none; border: none; cursor: pointer; color: #666;
+            font-size: 0.62rem; font-weight: 500; padding: 4px 6px;
         }
-        .ap-tool-btn i { font-size: 0.95rem; }
-        .ap-tool-btn:hover { color: var(--color-primary); }
+        .ap-tool-btn i { font-size: 1rem; color: #444; }
+        .ap-tool-btn:hover i { color: #000; }
         .ap-divider {
-            height: 4px; flex-shrink: 0;
-            background: repeating-linear-gradient(90deg, #F6C342 0, #F6C342 8px, transparent 8px, transparent 12px, #4A90D9 12px, #4A90D9 20px, transparent 20px, transparent 24px, #333 24px, #333 32px, transparent 32px, transparent 36px);
+            height: 5px; flex-shrink: 0;
+            background: repeating-linear-gradient(90deg,
+                #E8C840 0 6px, transparent 6px 9px,
+                #5B9BD5 9px 15px, transparent 15px 18px,
+                #333 18px 24px, transparent 24px 27px
+            );
         }
-        .ap-body { display: flex; flex: 1; overflow: hidden; }
+        .ap-body { display: flex; flex: 1; overflow: hidden; background: #fff; }
         .ap-passage {
-            flex: 1; padding: 24px 28px; overflow-y: auto;
-            border-right: 1px solid #E8ECF1;
-            font-size: 0.93rem; line-height: 1.8; color: var(--color-text);
+            width: 45%; min-width: 300px; padding: 32px 36px; overflow-y: auto;
+            border-right: 1px solid #e0e0e0; background: #fff;
+            font-size: 0.95rem; line-height: 1.85; color: #333;
         }
-        .ap-passage p { margin-bottom: 12px; }
-        .ap-passage img { max-width: 100%; border-radius: 6px; margin: 10px 0; }
+        .ap-passage p { margin-bottom: 14px; }
+        .ap-passage img { max-width: 100%; border-radius: 4px; margin: 10px 0; }
         .ap-question-panel {
-            flex: 1; padding: 20px 24px; overflow-y: auto;
-            display: flex; flex-direction: column;
+            flex: 1; padding: 28px 36px; overflow-y: auto; background: #fff;
         }
-        .ap-q-header {
-            display: flex; align-items: center; gap: 10px;
-            margin-bottom: 16px; padding-bottom: 12px;
-            border-bottom: 2px dashed #E8ECF1;
+        .ap-q-tools {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
         }
         .ap-q-num {
             display: flex; align-items: center; justify-content: center;
-            width: 28px; height: 28px; border-radius: 6px;
-            background: var(--color-text); color: #fff;
-            font-size: 0.82rem; font-weight: 800; flex-shrink: 0;
+            min-width: 30px; height: 30px; padding: 0 8px; border-radius: 6px;
+            background: #2d2d2d; color: #fff;
+            font-size: 0.85rem; font-weight: 800; flex-shrink: 0;
         }
         .ap-q-bookmark {
             display: inline-flex; align-items: center; gap: 5px;
             background: none; border: none; cursor: pointer;
-            font-size: 0.78rem; font-weight: 500; color: var(--color-text-muted);
-            padding: 4px 8px; border-radius: 6px; transition: all 0.15s;
+            font-size: 0.82rem; font-weight: 400; color: #666; padding: 4px 0;
         }
-        .ap-q-bookmark:hover { background: #F4F6F9; }
-        .ap-q-bookmark.marked { color: #D97706; }
-        .ap-q-bookmark.marked i { color: #D97706; }
-        .ap-q-prompt { font-size: 0.95rem; line-height: 1.7; margin-bottom: 18px; color: var(--color-text); }
-        .ap-choices { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .ap-q-bookmark:hover { color: #333; }
+        .ap-q-bookmark.marked { color: #B45309; font-weight: 600; }
+        .ap-q-bookmark.marked i { color: #B45309; }
+        .ap-q-abc {
+            margin-left: auto; width: 28px; height: 28px; border: 1.5px solid #ccc;
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; font-weight: 700; color: #999; cursor: pointer; background: #fff;
+        }
+        .ap-q-prompt {
+            font-size: 1rem; line-height: 1.75; margin-bottom: 24px; color: #222;
+        }
+        .ap-choices { display: flex; flex-direction: column; gap: 0; }
         .ap-choice {
-            display: flex; align-items: flex-start; gap: 12px;
-            padding: 12px 14px; border: 1.5px solid var(--color-border);
-            border-radius: 10px; cursor: pointer; transition: all 0.15s;
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 16px; border: 1.5px solid #ddd;
+            border-bottom: none; cursor: pointer; transition: background 0.1s;
+            background: #fff;
         }
-        .ap-choice:hover { border-color: #999; background: #FAFBFC; }
-        .ap-choice.selected { border-color: #1a56db; background: #EBF2FF; }
+        .ap-choice:first-child { border-radius: 8px 8px 0 0; }
+        .ap-choice:last-child { border-bottom: 1.5px solid #ddd; border-radius: 0 0 8px 8px; }
+        .ap-choice:only-child { border-radius: 8px; border-bottom: 1.5px solid #ddd; }
+        .ap-choice:hover { background: #f9f9f9; }
+        .ap-choice.selected { background: #EDF2FF; border-color: #9bb8f0; }
+        .ap-choice.selected + .ap-choice { border-top-color: #9bb8f0; }
         .ap-choice-letter {
-            width: 28px; height: 28px; border-radius: 50%;
-            border: 2px solid var(--color-border); background: #fff;
+            width: 32px; height: 32px; border-radius: 50%;
+            border: 2px solid #bbb; background: #fff;
             display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+            font-weight: 600; font-size: 0.85rem; color: #555; flex-shrink: 0;
         }
-        .ap-choice.selected .ap-choice-letter { border-color: #1a56db; background: #1a56db; color: #fff; }
-        .ap-choice-text { flex: 1; font-size: 0.9rem; line-height: 1.5; padding-top: 2px; }
-        .ap-footer {
-            display: flex; align-items: center; padding: 10px 20px;
-            background: #fff; border-top: 1px solid #E8ECF1;
-            flex-shrink: 0;
+        .ap-choice.selected .ap-choice-letter {
+            border-color: #3366cc; background: #3366cc; color: #fff;
         }
+        .ap-choice-text { flex: 1; font-size: 0.95rem; line-height: 1.5; color: #333; }
         .ap-footer-divider {
-            height: 4px; flex-shrink: 0;
-            background: repeating-linear-gradient(90deg, #F6C342 0, #F6C342 8px, transparent 8px, transparent 12px, #4A90D9 12px, #4A90D9 20px, transparent 20px, transparent 24px, #333 24px, #333 32px, transparent 32px, transparent 36px);
+            height: 5px; flex-shrink: 0;
+            background: repeating-linear-gradient(90deg,
+                #E8C840 0 6px, transparent 6px 9px,
+                #5B9BD5 9px 15px, transparent 15px 18px,
+                #333 18px 24px, transparent 24px 27px
+            );
         }
-        .ap-q-nav {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 8px 16px; border: 1.5px solid var(--color-border);
-            border-radius: 8px; background: #fff; font-size: 0.85rem;
-            font-weight: 600; cursor: pointer; margin: 0 auto;
+        .ap-footer {
+            display: flex; align-items: center; padding: 10px 24px;
+            background: #fff; border-top: 1px solid #ddd; flex-shrink: 0;
         }
-        .ap-q-nav:hover { border-color: #999; }
         .ap-nav-btn {
-            padding: 10px 24px; border: none; border-radius: 8px;
-            font-weight: 700; font-size: 0.88rem; cursor: pointer;
+            padding: 10px 28px; border: none; border-radius: 20px;
+            font-weight: 600; font-size: 0.88rem; cursor: pointer;
             font-family: var(--font); transition: all 0.15s;
         }
-        .ap-nav-prev { background: #F4F6F9; color: var(--color-text-secondary); }
-        .ap-nav-prev:hover { background: #E8ECF1; }
-        .ap-nav-next { background: #1a3a6b; color: #fff; }
-        .ap-nav-next:hover { background: #142e56; }
-        .ap-nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        /* Progress dots */
-        .ap-progress { display: flex; gap: 3px; align-items: center; margin: 0 16px; flex: 1; justify-content: center; flex-wrap: wrap; }
-        .ap-dot {
-            width: 10px; height: 10px; border-radius: 50%;
-            border: 1.5px solid #CBD5E0; background: #fff;
-            cursor: pointer; transition: all 0.15s;
+        .ap-nav-prev { background: transparent; color: #555; border: 1.5px solid #ccc; }
+        .ap-nav-prev:hover { background: #f0f0f0; }
+        .ap-nav-next { background: #1a237e; color: #fff; }
+        .ap-nav-next:hover { background: #0d1557; }
+        .ap-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .ap-q-nav {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 18px; border: 1.5px solid #ccc; border-radius: 20px;
+            background: #fff; font-size: 0.85rem; font-weight: 600; color: #333;
+            cursor: pointer; margin: 0 auto;
         }
-        .ap-dot.answered { background: #1a56db; border-color: #1a56db; }
-        .ap-dot.current { border-color: #333; box-shadow: 0 0 0 2px rgba(0,0,0,0.15); }
+        .ap-q-nav:hover { border-color: #999; }
+        .ap-progress {
+            display: flex; gap: 4px; align-items: center; flex: 1;
+            justify-content: center; flex-wrap: wrap; margin: 0 20px;
+        }
+        .ap-dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            border: 2px solid #ccc; background: #fff;
+            cursor: pointer; transition: all 0.12s;
+        }
+        .ap-dot.answered { background: #3366cc; border-color: #3366cc; }
+        .ap-dot.current { border-color: #222; border-width: 2.5px; }
         .ap-dot.marked { border-color: #D97706; background: #FEF3C7; }
-        /* No passage mode */
-        .ap-body.no-passage .ap-question-panel { flex: 1; max-width: 700px; margin: 0 auto; }
-        @media (max-width: 768px) {
+        .ap-body.no-passage .ap-question-panel { max-width: 680px; margin: 0 auto; }
+        @media (max-width: 900px) {
             .ap-body { flex-direction: column; }
-            .ap-passage { border-right: none; border-bottom: 1px solid #E8ECF1; max-height: 250px; }
-            .ap-header { flex-wrap: wrap; gap: 8px; }
-            .ap-timer { margin: 0 12px; font-size: 1.1rem; }
+            .ap-passage { width: 100%; min-width: 0; max-height: 40vh; border-right: none; border-bottom: 1px solid #e0e0e0; }
+            .ap-question-panel { padding: 20px; }
+            .ap-timer { font-size: 1.2rem; margin: 0 16px; }
         }
 
         /* ── Top Nav Bar ─────────────────────────────────────── */
@@ -918,15 +940,6 @@
     var apTimer = { seconds: 0, interval: null, paused: false };
 
     function startAPExam() {
-        // Hide normal lesson chrome
-        document.getElementById('lesson-nav').classList.add('hidden');
-        document.getElementById('stepper').style.display = 'none';
-        document.getElementById('lesson-topnav') && (document.getElementById('lesson-topnav').style.display = 'none');
-
-        // Make content area full height
-        var contentEl = document.getElementById('lesson-content');
-        contentEl.style.minHeight = '80vh';
-
         // Determine time: 1.5 min per question, min 5 min
         var totalQ = quizState.staticQuestions.length;
         apTimer.seconds = Math.max(300, totalQ * 90);
@@ -959,61 +972,55 @@
         var idx = quizState.staticIdx;
         var q = quizState.staticQuestions[idx];
         var totalQ = quizState.staticQuestions.length;
-        var contentEl = document.getElementById('lesson-content');
 
-        // Get stimulus from article step if available
-        var passage = '';
-        for (var si = 0; si < steps.length; si++) {
-            if (steps[si].type === 'Article') {
-                var artEl = document.querySelector('.article-wrap');
-                if (artEl) passage = artEl.innerHTML;
-                break;
-            }
-        }
-        // Also check if question has its own stimulus
+        // Get passage from the cached article content
+        var passage = quizState.cachedPassage || '';
         if (q.stimulus) passage = q.stimulus;
-
         var hasPassage = passage && passage.length > 10;
         var letters = 'ABCDEFGHIJ';
         var isMarked = quizState.marked[idx];
 
-        // Build AP UI
-        var html = '<div class="ap-exam">';
+        // Remove old overlay if exists
+        var old = document.getElementById('ap-overlay');
+        if (old) old.remove();
+
+        // Build fullscreen overlay
+        var overlay = document.createElement('div');
+        overlay.id = 'ap-overlay';
+        overlay.className = 'ap-overlay';
+
+        var html = '';
 
         // Header
         html += '<div class="ap-header">' +
             '<div class="ap-header-title">' + esc(quizState.title) + '</div>' +
             '<div class="ap-timer" id="ap-timer"></div>' +
             '<div class="ap-tools">' +
-                '<button class="ap-tool-btn" onclick="toggleAPTimer()" title="Pause/Resume timer"><i class="fa-solid fa-clock"></i><span>Timer</span></button>' +
-                '<button class="ap-tool-btn" onclick="submitAPExam()" title="Submit exam"><i class="fa-solid fa-paper-plane"></i><span>Submit</span></button>' +
-                '<button class="ap-tool-btn" onclick="exitAPExam()" title="Exit"><i class="fa-solid fa-right-from-bracket"></i><span>Exit</span></button>' +
+                '<button class="ap-tool-btn" onclick="toggleAPTimer()"><i class="fa-solid fa-pencil"></i><span>Annotate</span></button>' +
+                '<button class="ap-tool-btn" onclick="submitAPExam()"><i class="fa-solid fa-ellipsis-vertical"></i><span>More</span></button>' +
             '</div></div>';
 
-        // Colored divider
         html += '<div class="ap-divider"></div>';
 
-        // Body: split panel
+        // Body
         html += '<div class="ap-body' + (hasPassage ? '' : ' no-passage') + '">';
-
         if (hasPassage) {
             html += '<div class="ap-passage">' + passage + '</div>';
         }
 
-        // Question panel
         html += '<div class="ap-question-panel">';
 
-        // Question header
-        html += '<div class="ap-q-header">' +
+        // Question tools row
+        html += '<div class="ap-q-tools">' +
             '<div class="ap-q-num">' + (idx + 1) + '</div>' +
             '<button class="ap-q-bookmark' + (isMarked ? ' marked' : '') + '" onclick="toggleAPMark()">' +
                 '<i class="fa-' + (isMarked ? 'solid' : 'regular') + ' fa-bookmark"></i> Mark for Review' +
-            '</button></div>';
+            '</button>' +
+            '<div class="ap-q-abc">ABC</div>' +
+        '</div>';
 
-        // Prompt
         html += '<div class="ap-q-prompt">' + (q.prompt || '') + '</div>';
 
-        // Choices
         if (q.choices && q.choices.length > 0) {
             html += '<div class="ap-choices">';
             for (var ci = 0; ci < q.choices.length; ci++) {
@@ -1025,16 +1032,14 @@
             }
             html += '</div>';
         } else if (q.isFRQ) {
-            var savedText = quizState.answers[idx] || '';
+            var saved = quizState.answers[idx] || '';
             html += '<textarea id="ap-frq" rows="' + (q.expectedLines || 10) + '" placeholder="Type your response here..." ' +
-                'style="width:100%;padding:12px;border:1.5px solid var(--color-border);border-radius:10px;font-size:0.93rem;font-family:inherit;line-height:1.7;resize:vertical;outline:none;box-sizing:border-box;" ' +
-                'oninput="quizState.answers[quizState.staticIdx]=this.value">' + esc(savedText) + '</textarea>';
+                'style="width:100%;padding:14px;border:1.5px solid #ddd;border-radius:8px;font-size:0.95rem;font-family:inherit;line-height:1.7;resize:vertical;outline:none;box-sizing:border-box;" ' +
+                'oninput="quizState.answers[quizState.staticIdx]=this.value">' + esc(saved) + '</textarea>';
         }
 
-        html += '</div>'; // ap-question-panel
-        html += '</div>'; // ap-body
+        html += '</div></div>'; // question-panel, body
 
-        // Footer divider
         html += '<div class="ap-footer-divider"></div>';
 
         // Footer
@@ -1042,29 +1047,30 @@
             '<button class="ap-nav-btn ap-nav-prev" onclick="apNav(-1)"' + (idx === 0 ? ' disabled' : '') + '>Back</button>' +
             '<div class="ap-progress">';
         for (var di = 0; di < totalQ; di++) {
-            var dotCls = 'ap-dot';
-            if (quizState.answers[di] !== null) dotCls += ' answered';
-            if (di === idx) dotCls += ' current';
-            if (quizState.marked[di]) dotCls += ' marked';
-            html += '<div class="' + dotCls + '" onclick="apGoTo(' + di + ')" title="Question ' + (di + 1) + '"></div>';
+            var dc = 'ap-dot';
+            if (quizState.answers[di] !== null) dc += ' answered';
+            if (di === idx) dc += ' current';
+            if (quizState.marked[di]) dc += ' marked';
+            html += '<div class="' + dc + '" onclick="apGoTo(' + di + ')"></div>';
         }
         html += '</div>' +
-            '<button class="ap-q-nav" onclick="toggleAPNav()">Question ' + (idx + 1) + ' of ' + totalQ + ' <i class="fa-solid fa-chevron-up"></i></button>' +
-            '<button class="ap-nav-btn ap-nav-next" onclick="apNav(1)">' + (idx === totalQ - 1 ? 'Review' : 'Next') + '</button>' +
+            '<button class="ap-q-nav">Question ' + (idx + 1) + ' of ' + totalQ + ' <i class="fa-solid fa-chevron-up"></i></button>' +
+            '<button class="ap-nav-btn ap-nav-next" onclick="apNav(1)">' + (idx === totalQ - 1 ? 'Submit' : 'Next') + '</button>' +
         '</div>';
 
-        html += '</div>'; // ap-exam
-
-        contentEl.innerHTML = html;
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
         updateAPTimer();
     }
 
     function selectAPAnswer(el, choiceId) {
         quizState.answers[quizState.staticIdx] = choiceId;
-        document.querySelectorAll('.ap-choice').forEach(function(c) { c.classList.remove('selected'); });
+        var overlay = document.getElementById('ap-overlay');
+        if (!overlay) return;
+        overlay.querySelectorAll('.ap-choice').forEach(function(c) { c.classList.remove('selected'); });
         el.classList.add('selected');
-        // Update the dot
-        var dots = document.querySelectorAll('.ap-dot');
+        el.querySelector('.ap-choice-letter').style.cssText = '';
+        var dots = overlay.querySelectorAll('.ap-dot');
         if (dots[quizState.staticIdx]) dots[quizState.staticIdx].classList.add('answered');
     }
 
@@ -1100,15 +1106,15 @@
 
     function exitAPExam() {
         if (apTimer.interval) clearInterval(apTimer.interval);
-        // Restore lesson chrome
-        document.getElementById('stepper').style.display = '';
-        var topnav = document.getElementById('lesson-topnav');
-        if (topnav) topnav.style.display = '';
+        var ol = document.getElementById('ap-overlay');
+        if (ol) ol.remove();
         goBackToCourse();
     }
 
     function submitAPExam() {
         if (apTimer.interval) clearInterval(apTimer.interval);
+        var ol = document.getElementById('ap-overlay');
+        if (ol) ol.remove();
 
         // Score the exam
         var correct = 0, total = quizState.staticQuestions.length;
@@ -1124,11 +1130,6 @@
         quizState.correct = correct;
         quizState.total = total;
         quizState.xpEarned = correct;
-
-        // Restore lesson chrome
-        document.getElementById('stepper').style.display = '';
-        var topnav = document.getElementById('lesson-topnav');
-        if (topnav) topnav.style.display = '';
 
         showQuizResults();
     }
@@ -1218,6 +1219,8 @@
             .then(function(html) {
                 if (html && html.trim().length > 0) {
                     contentEl.innerHTML = '<div class="article-wrap">' + html + '</div>';
+                    // Cache for AP exam passage panel
+                    quizState.cachedPassage = html;
                 } else {
                     contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content is empty.</p></div>';
                 }
