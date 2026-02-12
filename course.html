@@ -61,46 +61,43 @@
 
         /* ── Unit Card ───────────────────────────────────────────── */
         .unit-card {
-            background: var(--color-surface); border-radius: var(--radius);
+            background: var(--color-surface); border-radius: 16px;
             border: 1px solid var(--color-border);
             overflow: hidden; transition: all var(--transition);
+            margin-top: 16px;
         }
-        .unit-card { margin-top: 12px; }
         .unit-card:first-child { margin-top: 0; }
-        .unit-card:hover { box-shadow: var(--shadow-md); }
-        .unit-card.expanded { border: 2px solid var(--color-orange); }
-        .unit-card.locked { opacity: 0.55; }
+        .unit-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .unit-card.expanded { border-color: var(--color-primary); }
+        .unit-card.locked { opacity: 0.5; }
         .unit-card.locked:hover { box-shadow: none; }
 
         .unit-header {
-            display: flex; align-items: center; gap: 14px;
-            padding: 18px 22px; cursor: pointer;
+            display: flex; align-items: center; gap: 16px;
+            padding: 22px 24px; cursor: pointer;
             transition: background var(--transition);
         }
         .unit-header:hover { background: #FAFBFC; }
         .unit-card.locked .unit-header { cursor: default; }
         .unit-card.locked .unit-header:hover { background: transparent; }
 
-        .unit-num { display: none; /* removed — cleaner header without number circle */ }
-
         .unit-info { flex: 1; min-width: 0; }
         .unit-info .u-label {
-            font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.5px; color: var(--color-text-muted); margin-bottom: 2px;
+            font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.6px; color: var(--color-text-muted); margin-bottom: 4px;
         }
         .unit-info h3 {
-            font-size: 1rem; font-weight: 700; margin: 0;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            font-size: 1.05rem; font-weight: 700; margin: 0;
+            color: var(--color-text);
         }
-        .unit-info .u-sub { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 2px; }
 
         .unit-status { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
         .complete-badge {
             display: inline-flex; align-items: center; gap: 5px;
-            padding: 4px 12px; border-radius: 20px;
+            padding: 5px 14px; border-radius: 20px;
             background: #DCFCE7; color: #16A34A;
-            font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
         }
         .complete-badge i { font-size: 0.6rem; }
 
@@ -114,7 +111,7 @@
         }
 
         .unit-chevron {
-            font-size: 0.7rem; color: var(--color-text-muted);
+            font-size: 0.75rem; color: var(--color-text-muted);
             transition: transform 0.25s ease; flex-shrink: 0;
         }
         .unit-chevron.open { transform: rotate(180deg); }
