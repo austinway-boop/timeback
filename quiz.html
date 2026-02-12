@@ -507,10 +507,20 @@
         }
     }
 
+    // Fisher-Yates shuffle (returns a new shuffled copy)
+    function _shuffleChoices(arr) {
+        var a = arr.slice();
+        for (var i = a.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+        }
+        return a;
+    }
+
     function renderQuestion(q) {
         var prompt = q.prompt || q.question || q.text || q.body || '';
         if (typeof prompt === 'object') prompt = renderNode(prompt);
-        var choices = q.choices || q.options || q.answers || [];
+        var choices = _shuffleChoices(q.choices || q.options || q.answers || []);
         var stimulus = q.stimulus || q.passage || q.reading || '';
         if (typeof stimulus === 'object') stimulus = renderNode(stimulus);
         var isFRQ = q.isFRQ || false;

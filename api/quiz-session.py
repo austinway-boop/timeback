@@ -139,7 +139,7 @@ class handler(BaseHTTPRequestHandler):
         else:
             send_json(self, {"error": "Use action=start, respond, or finalize"}, 400)
 
-    # ── start: check progress, then resetAttempt only if needed ─
+    # ── start: NEVER reset unless explicit retry or empty bank ─
     def _handle_start(self, body, headers):
         student_id = body.get("studentId", "")
         test_id = body.get("testId", "")
@@ -153,53 +153,80 @@ class handler(BaseHTTPRequestHandler):
         debug = []
         synthetic_id = _encode_attempt(student_id, lesson_id)
 
-        # Step 1: Check existing progress BEFORE resetting
-        # If the student has partially answered questions, preserve them
-        if not force_retry:
-            try:
+        # ── Explicit retry: reset and start fresh ──
+        if force_retry:
+            self._do_reset(student_id, lesson_id, headers, debug)
+            self._return_progress(student_id, lesson_id, headers, debug, synthetic_id)
+            return
+
+        # ── Normal entry: check existing progress, NEVER reset ──
+        try:
+            resp = requests.get(
+                f"{PP}/getAssessmentProgress",
+                headers=headers,
+                params={"student": student_id, "lesson": lesson_id},
+                timeout=15,
+            )
+            if resp.status_code == 401:
+                headers = api_headers()
                 resp = requests.get(
                     f"{PP}/getAssessmentProgress",
                     headers=headers,
                     params={"student": student_id, "lesson": lesson_id},
                     timeout=15,
                 )
-                if resp.status_code == 401:
-                    headers = api_headers()
-                    resp = requests.get(
-                        f"{PP}/getAssessmentProgress",
-                        headers=headers,
-                        params={"student": student_id, "lesson": lesson_id},
-                        timeout=15,
-                    )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    questions = data.get("questions", [])
-                    total_q = len(questions)
-                    answered_q = sum(
-                        1 for q in questions
-                        if q.get("answered", False) or q.get("response") is not None
-                    )
-                    debug.append({
-                        "step": "checkProgress",
-                        "total": total_q,
-                        "answered": answered_q,
-                    })
-                    # Resume: partial progress exists — skip reset
-                    if 0 < answered_q < total_q:
-                        send_json(self, {
-                            "attemptId": synthetic_id,
-                            "questionCount": total_q,
-                            "answeredCount": answered_q,
-                            "hasExistingProgress": True,
-                            "score": data.get("score"),
-                            "debug": debug,
-                        })
-                        return
-                    # All answered → fall through to reset for retry
-            except Exception as e:
-                debug.append({"step": "checkProgress", "error": str(e)})
+            if resp.status_code == 200:
+                data = resp.json()
+                questions = data.get("questions", [])
+                total_q = len(questions)
+                answered_q = sum(
+                    1 for q in questions
+                    if q.get("answered", False) or q.get("response") is not None
+                )
+                debug.append({
+                    "step": "checkProgress",
+                    "total": total_q,
+                    "answered": answered_q,
+                })
 
-        # Step 2: Reset attempt (fresh start or explicit retry)
+                if total_q > 0:
+                    # Questions exist — resume, never reset
+                    send_json(self, {
+                        "attemptId": synthetic_id,
+                        "questionCount": total_q,
+                        "answeredCount": answered_q,
+                        "hasExistingProgress": answered_q > 0,
+                        "score": data.get("score"),
+                        "debug": debug,
+                    })
+                    return
+
+                # No questions at all — bank not initialized, need reset
+                debug.append({"step": "emptyBank", "resetting": True})
+            else:
+                debug.append({
+                    "step": "checkProgress",
+                    "status": resp.status_code,
+                    "body": resp.text[:200],
+                })
+        except Exception as e:
+            debug.append({"step": "checkProgress", "error": str(e)})
+            # Progress check failed — return ID anyway, DON'T reset
+            send_json(self, {
+                "attemptId": synthetic_id,
+                "questionCount": 0,
+                "answeredCount": 0,
+                "hasExistingProgress": False,
+                "debug": debug,
+            })
+            return
+
+        # ── Only reaches here if question bank is empty — initialize it ──
+        self._do_reset(student_id, lesson_id, headers, debug)
+        self._return_progress(student_id, lesson_id, headers, debug, synthetic_id)
+
+    def _do_reset(self, student_id, lesson_id, headers, debug):
+        """Call resetAttempt to initialize/reset the question bank."""
         try:
             resp = requests.post(
                 f"{PP}/resetAttempt",
@@ -214,7 +241,7 @@ class handler(BaseHTTPRequestHandler):
             })
             if resp.status_code == 401:
                 headers = api_headers()
-                resp = requests.post(
+                requests.post(
                     f"{PP}/resetAttempt",
                     headers=headers,
                     json={"student": student_id, "lesson": lesson_id},
@@ -223,7 +250,8 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             debug.append({"step": "resetAttempt", "error": str(e)})
 
-        # Step 3: Get assessment progress (all questions)
+    def _return_progress(self, student_id, lesson_id, headers, debug, synthetic_id):
+        """Fetch progress after a reset and return it."""
         try:
             resp = requests.get(
                 f"{PP}/getAssessmentProgress",
@@ -243,22 +271,14 @@ class handler(BaseHTTPRequestHandler):
                     "debug": debug,
                 })
                 return
-            else:
-                debug.append({
-                    "step": "getAssessmentProgress",
-                    "status": resp.status_code,
-                    "body": resp.text[:300],
-                })
         except Exception as e:
             debug.append({"step": "getAssessmentProgress", "error": str(e)})
 
         # Fallback: try legacy endpoints
+        test_id = lesson_id
         for payload in [
             {"student": student_id, "lesson": lesson_id},
-            {"student": student_id, "lesson": test_id} if test_id != lesson_id else None,
         ]:
-            if payload is None:
-                continue
             for path in [f"{PP}/assessments/attempts", f"{PP}/assessments/create-new-attempt"]:
                 try:
                     resp = requests.post(path, headers=headers, json=payload, timeout=6)
@@ -268,7 +288,6 @@ class handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-        # All endpoints failed — frontend will use local assessment
         send_json(self, {
             "error": "Assessment endpoints not available",
             "useLocalAssessment": True,
