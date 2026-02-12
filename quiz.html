@@ -715,8 +715,10 @@
                     });
 
                     // Get correct answer (MC only)
+                    // Get correct answer — try XML format then native JSON format
+                    var correctId = '';
+                    // 1. XML format: qti-response-declaration.qti-correct-response.qti-value
                     var rd = qi['qti-response-declaration'] || {};
-                    // Handle array of declarations (RESPONSE + OUTCOME)
                     if (Array.isArray(rd)) {
                         var found = false;
                         for (var rdi = 0; rdi < rd.length; rdi++) {
@@ -729,12 +731,25 @@
                     }
                     var cr = rd['qti-correct-response'] || {};
                     var rawVal = cr['qti-value'];
-                    var correctId = '';
                     if (typeof rawVal === 'string') correctId = rawVal;
                     else if (rawVal && typeof rawVal === 'object') {
                         if (rawVal['_']) correctId = rawVal['_'];
                         else if (rawVal['_text']) correctId = rawVal['_text'];
                         else if (Array.isArray(rawVal)) correctId = typeof rawVal[0] === 'string' ? rawVal[0] : ((rawVal[0] || {})['_'] || '');
+                    }
+                    // 2. Native JSON format: responseDeclarations[].correctResponse.value[]
+                    if (!correctId) {
+                        var jrd = qi.responseDeclarations || q.responseDeclarations || [];
+                        if (Array.isArray(jrd)) {
+                            for (var jri = 0; jri < jrd.length; jri++) {
+                                if (jrd[jri].identifier === 'RESPONSE' || jrd[jri].baseType === 'identifier') {
+                                    var cv = (jrd[jri].correctResponse || {}).value;
+                                    if (Array.isArray(cv) && cv.length > 0) correctId = String(cv[0]);
+                                    else if (typeof cv === 'string') correctId = cv;
+                                    break;
+                                }
+                            }
+                        }
                     }
 
                     // Get feedback
