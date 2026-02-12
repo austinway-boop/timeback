@@ -54,6 +54,7 @@
     ];
 
     const adminNav = [
+        { id: 'notifications', icon: 'fa-bell',            label: 'Notifications', href: '/admin/notifications' },
         { id: 'students',      icon: 'fa-users',           label: 'Students',      href: '/admin/students' },
         { id: 'courses',       icon: 'fa-book',            label: 'Courses',       href: '/admin/courses' },
         { id: 'assign-tests',  icon: 'fa-clipboard-check', label: 'Assign Tests',  href: '/admin/assign-tests' },

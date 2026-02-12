@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - Notifications</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preload" href="/css/style.css" as="style">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 20px;
+            text-align: center;
+            color: var(--color-text-muted);
+        }
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.4;
+        }
+        .empty-state h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            margin-bottom: 8px;
+        }
+        .empty-state p {
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body data-view="admin" data-active="notifications">
+
+<div class="layout">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Notifications</h1>
+            <p class="page-subtitle">Manage and send notifications</p>
+        </div>
+
+        <div class="empty-state">
+            <i class="fa-solid fa-bell"></i>
+            <h2>No notifications yet</h2>
+            <p>Notification features coming soon.</p>
+        </div>
+    </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/auth-guard.js"></script>
+<script src="/js/layout.js"></script>
+</body>
+</html>
