@@ -444,9 +444,45 @@ async function assignTest(subject, grade, idx) {
         var data = await resp.json().catch(function() { return {}; });
 
         if (resp.ok && data.success) {
-            showFeedback(data.message || 'Test assigned!', 'success');
+            // Step 2: Provision on MasteryTrack via Timeback's makeExternalTestAssignment
+            // This call goes to alpha.timeback.com — admin's browser has the Clerk session
+            var ppResponse = data.response || {};
+            var lessonId = ppResponse.lessonId || ppResponse.componentResourceSourcedId || '';
+            var mtResult = null;
+
+            if (lessonId && selectedStudent.sourcedId) {
+                try {
+                    showFeedback('Provisioning on MasteryTrack...', 'success');
+                    var mtResp = await fetch('https://alpha.timeback.com/_serverFn/src_features_powerpath-quiz_services_lesson-mastery_ts--makeExternalTestAssignment_createServerFn_handler?createServerFn', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ data: { student: selectedStudent.sourcedId, lesson: lessonId }, context: {} }),
+                    });
+                    mtResult = await mtResp.json().catch(function() { return null; });
+                    console.log('MasteryTrack provision result:', mtResult);
+                } catch(e) {
+                    console.warn('MasteryTrack provision failed (may need to be logged into alpha.timeback.com):', e.message);
+                }
+            }
+
+            var testUrl = '';
+            if (mtResult && mtResult.result && mtResult.result.testUrl) {
+                testUrl = mtResult.result.testUrl;
+            } else if (data.testLink) {
+                testUrl = data.testLink;
+            }
+
+            var msg = data.message || 'Test assigned!';
+            if (mtResult && mtResult.result && mtResult.result.success) {
+                msg += ' (MasteryTrack: ready)';
+            } else if (lessonId) {
+                msg += ' (MasteryTrack: pending — open alpha.timeback.com to activate)';
+            }
+
+            showFeedback(msg + (testUrl ? ' <a href="' + testUrl + '" target="_blank" style="color:inherit;text-decoration:underline;">Open Test</a>' : ''), 'success');
             existingAssignments.push({
-                sourcedId: (data.response && data.response.assignmentId) || '',
+                sourcedId: data.assignmentId || (ppResponse.assignmentId) || '',
                 subject: subject, grade: grade,
                 assignmentStatus: 'assigned',
                 assignedAt: new Date().toISOString(),
