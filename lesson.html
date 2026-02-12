@@ -1177,6 +1177,9 @@
             if (!overlay) return;
             overlay.querySelectorAll('.ap-choice').forEach(function(c) { c.classList.remove('selected'); });
             el.classList.add('selected');
+            // Update nav grid item to show answered
+            var navItems = overlay.querySelectorAll('.ap-nav-item');
+            if (navItems[idx]) navItems[idx].classList.add('answered');
         }
     }
 
