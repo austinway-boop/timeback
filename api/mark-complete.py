@@ -46,13 +46,12 @@ class handler(BaseHTTPRequestHandler):
         # POST /powerpath/lessonPlans/{lessonPlanId}/operations
         operations_url = f"{API_BASE}/powerpath/lessonPlans/{lesson_plan_id}/operations"
         
+        # API expects singular 'operation', not plural 'operations'
         payload = {
-            "operations": [
-                {
-                    "type": "complete",
-                    "itemId": item_id
-                }
-            ]
+            "operation": {
+                "type": "complete",
+                "itemId": item_id
+            }
         }
 
         try:
