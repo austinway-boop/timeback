@@ -166,18 +166,15 @@ class handler(BaseHTTPRequestHandler):
             },
         ]
 
+        attempts = []
         for strat in strategies:
+            attempt = {"name": strat["name"], "hypothesis": strat["hypothesis"]}
             try:
                 method = strat["method"]
                 url = strat["url"]
                 payload = strat["payload"]
-
-                # #region agent log
-                _log(f"Trying: {strat['name']}", {
-                    "method": method,
-                    "url": url,
-                }, strat["hypothesis"])
-                # #endregion
+                attempt["url"] = url
+                attempt["method"] = method
 
                 if method == "PUT":
                     resp = requests.put(url, headers=headers, json=payload, timeout=15)
@@ -191,44 +188,31 @@ class handler(BaseHTTPRequestHandler):
                     else:
                         resp = requests.post(url, headers=headers, json=payload, timeout=15)
 
-                # #region agent log
-                resp_body = ""
-                try:
-                    resp_body = resp.text[:500]
-                except Exception:
-                    pass
-                _log(f"Response: {strat['name']}", {
-                    "status": resp.status_code,
-                    "body": resp_body,
-                }, strat["hypothesis"])
-                # #endregion
+                attempt["httpStatus"] = resp.status_code
+                attempt["body"] = resp.text[:500]
 
                 if resp.status_code in (200, 201):
                     try:
                         data = resp.json()
                     except Exception:
                         data = {}
-                    # #region agent log
-                    _log(f"SUCCESS: {strat['name']}", {"response": data}, strat["hypothesis"])
-                    # #endregion
                     send_json(self, {
                         "status": "success",
                         "strategy": strat["name"],
                         "sourcedId": result_id,
                         "response": data,
+                        "attempts": attempts + [attempt],
                     }, 201)
                     return
 
             except Exception as e:
-                # #region agent log
-                _log(f"Exception: {strat['name']}", {"error": str(e)}, strat["hypothesis"])
-                # #endregion
+                attempt["error"] = str(e)
 
-        # All strategies failed
-        # #region agent log
-        _log("ALL strategies failed", {}, "all_failed")
-        # #endregion
+            attempts.append(attempt)
+
+        # All strategies failed — return ALL attempt details
         send_json(self, {
             "status": "error",
             "message": "All OneRoster result strategies failed",
+            "attempts": attempts,
         }, 502)

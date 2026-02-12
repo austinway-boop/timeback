@@ -668,7 +668,10 @@
             body: JSON.stringify(payload),
         })
         .then(function(r) { return r.json(); })
-        .then(function(d) { console.log('[Sync] AssessmentResult response:', JSON.stringify(d)); })
+        .then(function(d) {
+            console.log('[Sync] AssessmentResult response:', JSON.stringify(d));
+            if (d.attempts) { d.attempts.forEach(function(a) { console.log('[Sync] Attempt:', a.name, a.method, a.httpStatus, (a.body||'').substring(0,200)); }); }
+        })
         .catch(function(e) { console.error('[Sync] AssessmentResult FAILED:', e.message); });
     }
 
