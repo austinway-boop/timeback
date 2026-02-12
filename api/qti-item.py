@@ -624,35 +624,69 @@ class handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-        # Check items for embedded stimulus refs
+        # Check items for embedded stimulus refs (can be at multiple nesting levels)
         for href, item in items_by_href.items():
             if href in section_stim_map:
-                continue  # Already has section-level stimulus
-            if isinstance(item, dict) and isinstance(item.get("content"), dict):
+                continue
+            if not isinstance(item, dict):
+                continue
+            # Check multiple locations for stimulus ref
+            stim_ref = None
+            # Level 1: item.content.qti-assessment-item.qti-assessment-stimulus-ref
+            if isinstance(item.get("content"), dict):
                 qi = item["content"].get("qti-assessment-item", {})
-                stim_ref = qi.get("qti-assessment-stimulus-ref") if isinstance(qi, dict) else None
-                if stim_ref:
-                    attrs = stim_ref.get("_attributes", stim_ref) if isinstance(stim_ref, dict) else {}
-                    shref = attrs.get("href", "")
-                    sid = attrs.get("identifier", "")
-                    key = shref or sid
-                    if key:
-                        section_stim_map[href] = key
-                        if key not in stim_keys_to_fetch:
-                            stim_keys_to_fetch[key] = shref or (f"{QTI_BASE}/api/stimuli/{sid}" if sid else "")
+                if isinstance(qi, dict):
+                    stim_ref = qi.get("qti-assessment-stimulus-ref")
+            # Level 2: item.qti-assessment-stimulus-ref (top level)
+            if not stim_ref:
+                stim_ref = item.get("qti-assessment-stimulus-ref")
+            # Level 3: check responseDeclarations metadata for stimulus ID
+            if not stim_ref and isinstance(item.get("metadata"), dict):
+                sid = item["metadata"].get("stimulusId") or item["metadata"].get("stimulus_id") or ""
+                if sid:
+                    stim_ref = {"_attributes": {"identifier": sid}}
 
-        # Pass 3: Fetch unique stimuli in parallel
+            if stim_ref:
+                attrs = stim_ref.get("_attributes", stim_ref) if isinstance(stim_ref, dict) else {}
+                shref = attrs.get("href", "")
+                sid = attrs.get("identifier", "")
+                key = shref or sid
+                if key:
+                    section_stim_map[href] = key
+                    if key not in stim_keys_to_fetch:
+                        # Try multiple URL patterns for the stimulus
+                        if shref:
+                            stim_keys_to_fetch[key] = shref
+                        elif sid:
+                            stim_keys_to_fetch[key] = f"{QTI_BASE}/api/stimuli/{sid}"
+
+        # Pass 3: Fetch unique stimuli in parallel (try multiple URL patterns)
         stimulus_cache = {}
         if stim_keys_to_fetch:
             def fetch_stim(key_url):
-                key, url = key_url
-                return key, _fetch(url, headers)
+                key, primary_url = key_url
+                # Try primary URL first
+                data, st = _fetch(primary_url, headers)
+                if data:
+                    return key, data
+                # Try alternate URL patterns
+                sid = key.split("/")[-1] if "/" in key else key
+                for alt in [
+                    f"{QTI_BASE}/api/stimuli/{sid}",
+                    f"{QTI_BASE}/api/assessment-stimuli/{sid}",
+                    f"{QTI_BASE}/api/assessment-items/{sid}",
+                ]:
+                    if alt != primary_url:
+                        data, st = _fetch(alt, headers)
+                        if data:
+                            return key, data
+                return key, None
 
-            with ThreadPoolExecutor(max_workers=4) as pool:
+            with ThreadPoolExecutor(max_workers=5) as pool:
                 futures = [pool.submit(fetch_stim, (k, u)) for k, u in stim_keys_to_fetch.items() if u]
                 for f in as_completed(futures):
                     try:
-                        key, (data, st) = f.result()
+                        key, data = f.result()
                         if data:
                             stimulus_cache[key] = data
                     except Exception:
