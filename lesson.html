@@ -585,6 +585,39 @@
         .answer-key-toggle { position: fixed; bottom: 20px; left: 20px; z-index: 9999; display: none; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: 2px solid #86efac; background: #fff; color: #16A34A; box-shadow: 0 3px 0 #4ade80; font-family: var(--font); transition: all 0.15s; }
         .answer-key-toggle:active { transform: translateY(2px); box-shadow: none; }
         .answer-key-toggle.active { background: #16A34A; color: #fff; border-color: #16A34A; }
+    /* Report Question button */
+    .report-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:transparent; color:var(--color-text-muted); font-size:0.78rem; font-weight:500; cursor:pointer; transition:all 0.15s; margin-top:8px; }
+    .report-btn:hover { border-color:#E53E3E; color:#E53E3E; background:rgba(229,62,62,0.05); }
+    .report-btn i { font-size:0.72rem; }
+    .report-overlay { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; }
+    .report-overlay.open { display:flex; }
+    .report-box { background:#fff; border-radius:var(--radius); max-width:480px; width:90%; padding:28px; box-shadow:0 20px 60px rgba(0,0,0,0.2); animation:reportSlideIn 0.2s ease; }
+    @keyframes reportSlideIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    .report-box h3 { font-size:1.1rem; font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+    .report-box h3 i { color:#E53E3E; }
+    .report-box .report-subtitle { font-size:0.85rem; color:var(--color-text-muted); margin-bottom:20px; }
+    .report-reasons { display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
+    .report-reason { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border:2px solid var(--color-border); border-radius:10px; cursor:pointer; transition:all 0.15s; }
+    .report-reason:hover { border-color:var(--color-primary); background:var(--color-primary-light); }
+    .report-reason.selected { border-color:var(--color-primary); background:var(--color-primary-light); }
+    .report-reason input[type=radio] { margin-top:2px; accent-color:var(--color-primary); }
+    .report-reason label { font-size:0.88rem; cursor:pointer; line-height:1.4; }
+    .report-other-input { display:none; margin-top:-4px; margin-bottom:16px; }
+    .report-other-input.visible { display:block; }
+    .report-other-input textarea { width:100%; padding:10px 12px; border:2px solid var(--color-border); border-radius:8px; font-size:0.85rem; font-family:inherit; resize:vertical; min-height:60px; outline:none; box-sizing:border-box; }
+    .report-other-input textarea:focus { border-color:var(--color-primary); }
+    .report-actions { display:flex; gap:10px; justify-content:flex-end; }
+    .report-actions button { padding:8px 20px; border-radius:var(--radius-sm); font-weight:600; font-size:0.85rem; cursor:pointer; transition:all 0.15s; }
+    .report-cancel-btn { border:1px solid var(--color-border); background:#fff; color:var(--color-text-secondary); }
+    .report-cancel-btn:hover { background:var(--color-bg); }
+    .report-submit-btn { border:none; background:#E53E3E; color:#fff; }
+    .report-submit-btn:hover { background:#C53030; }
+    .report-submit-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .report-toast { position:fixed; bottom:24px; right:24px; z-index:10000; padding:14px 20px; border-radius:12px; font-size:0.88rem; font-weight:500; box-shadow:0 8px 30px rgba(0,0,0,0.15); transform:translateY(80px); opacity:0; transition:all 0.3s ease; max-width:380px; }
+    .report-toast.visible { transform:translateY(0); opacity:1; }
+    .report-toast.info { background:#EBF4FF; color:#1A56DB; border:1px solid #C3DAFE; }
+    .report-toast.success { background:#E8F5E9; color:#1B5E20; border:1px solid #A5D6A7; }
+    .report-toast i { margin-right:8px; }
     </style>
 </head>
 <body data-view="student" data-active="home">
@@ -627,6 +660,40 @@
         </main>
     </div>
 
+    <!-- Report Question Modal -->
+    <div class="report-overlay" id="report-modal">
+        <div class="report-box">
+            <h3><i class="fa-solid fa-flag"></i> Report Question</h3>
+            <p class="report-subtitle">Let us know what's wrong and our AI will review it.</p>
+            <div class="report-reasons">
+                <div class="report-reason" onclick="selectReportReason(this,'not_in_source')">
+                    <input type="radio" name="report-reason" value="not_in_source">
+                    <label>Question asks for information not in source materials (video/article)</label>
+                </div>
+                <div class="report-reason" onclick="selectReportReason(this,'factual_error')">
+                    <input type="radio" name="report-reason" value="factual_error">
+                    <label>Question contains factual errors</label>
+                </div>
+                <div class="report-reason" onclick="selectReportReason(this,'poorly_written')">
+                    <input type="radio" name="report-reason" value="poorly_written">
+                    <label>Question is poorly written or unclear</label>
+                </div>
+                <div class="report-reason" onclick="selectReportReason(this,'other')">
+                    <input type="radio" name="report-reason" value="other">
+                    <label>Other</label>
+                </div>
+            </div>
+            <div class="report-other-input" id="report-other-wrap">
+                <textarea id="report-other-text" placeholder="Please describe the issue..."></textarea>
+            </div>
+            <div class="report-actions">
+                <button class="report-cancel-btn" onclick="closeReportModal()">Cancel</button>
+                <button class="report-submit-btn" id="report-submit-btn" onclick="submitQuizReport()" disabled>Submit Report</button>
+            </div>
+        </div>
+    </div>
+    <div class="report-toast" id="report-toast"></div>
+
     <script src="/js/layout.js"></script>
     <script src="/js/app.js"></script>
 
@@ -656,8 +723,76 @@
         isReadingQuiz: false, accumulatedStimuli: [], totalQuestions: 0,
         // Crossout tool
         crossOutMode: false, crossedOut: {},
+        // Question reporting
+        reportingEnabled: false, pendingReports: [],
+        cachedPassage: '',
     };
     var quizArea = null; // reference to the quiz container element
+
+    // ── Progress persistence (save/restore across sessions) ──
+    function _getQuizProgressKey() {
+        var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+        var lessonId = (lessonData && lessonData.lessonSourcedId) || quizState.testId || '';
+        if (!userId || !lessonId) return '';
+        return 'quiz_progress:' + userId + ':' + lessonId;
+    }
+
+    function _saveQuizProgress() {
+        var key = _getQuizProgressKey();
+        if (!key) return;
+        try {
+            localStorage.setItem(key, JSON.stringify({
+                ppScore: quizState.ppScore,
+                correct: quizState.correct,
+                total: quizState.total,
+                streak: quizState.streak,
+                xpEarned: quizState.xpEarned,
+                questionNum: quizState.questionNum,
+                attemptId: quizState.attemptId,
+                timestamp: Date.now(),
+            }));
+        } catch(e) {}
+    }
+
+    function _restoreQuizProgress() {
+        var key = _getQuizProgressKey();
+        if (!key) return false;
+        try {
+            var saved = JSON.parse(localStorage.getItem(key));
+            if (!saved || !saved.timestamp) return false;
+            // Expire after 7 days
+            if (Date.now() - saved.timestamp > 7 * 24 * 60 * 60 * 1000) {
+                localStorage.removeItem(key);
+                return false;
+            }
+            quizState.ppScore = saved.ppScore || 0;
+            quizState.correct = saved.correct || 0;
+            quizState.total = saved.total || 0;
+            quizState.streak = saved.streak || 0;
+            quizState.xpEarned = saved.xpEarned || 0;
+            quizState.questionNum = saved.questionNum || 0;
+            return true;
+        } catch(e) { return false; }
+    }
+
+    function _clearQuizProgress() {
+        var key = _getQuizProgressKey();
+        if (key) localStorage.removeItem(key);
+    }
+
+    // ── Question Reporting: init ──
+    (function initReporting() {
+        var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+        if (!userId) return;
+        try {
+            var saved = JSON.parse(localStorage.getItem('pending_reports:' + userId) || '[]');
+            if (Array.isArray(saved)) quizState.pendingReports = saved;
+        } catch(e) {}
+        fetch('/api/report-question?studentId=' + encodeURIComponent(userId))
+            .then(function(r) { return r.json(); })
+            .then(function(d) { quizState.reportingEnabled = d.enabled === true; })
+            .catch(function() {});
+    })();
 
     // Answer key toggle — only for evan.klein@alpha.school
     (function() {
@@ -1247,6 +1382,17 @@
                 var startData = await startResp.json();
                 if (startData.attemptId || startData.id) {
                     quizState.attemptId = startData.attemptId || startData.id;
+                    // Restore progress from a previous session
+                    if (startData.hasExistingProgress) {
+                        var restored = _restoreQuizProgress();
+                        if (!restored) {
+                            // No localStorage data — use server hints
+                            quizState.questionNum = startData.answeredCount || 0;
+                            if (startData.score != null) quizState.ppScore = Math.max(0, Math.min(100, startData.score));
+                        }
+                    } else {
+                        _clearQuizProgress();
+                    }
                     await loadNextQuestion();
                     return;
                 }
@@ -1391,7 +1537,11 @@
             questionHtml += '</div>';
         }
 
-        questionHtml += '<div class="feedback" id="feedback"></div></div>';
+        questionHtml += '<div class="feedback" id="feedback"></div>';
+        if (quizState.reportingEnabled) {
+            questionHtml += '<button class="report-btn" onclick="openReportModal()"><i class="fa-solid fa-flag"></i> Report Question</button>';
+        }
+        questionHtml += '</div>';
         questionHtml += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="goBackToCourse()"><i class="fa-solid fa-arrow-left"></i> Exit</button><button class="quiz-btn quiz-btn-primary" id="quiz-submit" onclick="submitQuizAnswer()" disabled><i class="fa-solid fa-check"></i> Submit</button></div>';
 
         if (hasStimulus) {
@@ -1523,6 +1673,9 @@
             quizState.ppScore = Math.max(0, quizState.ppScore + pointsChange);
         }
 
+        // Persist progress to localStorage
+        _saveQuizProgress();
+
         // Show feedback
         var fb = document.getElementById('feedback');
         if (fb) {
@@ -1566,6 +1719,9 @@
                 }
             };
         }
+
+        // ── Pending report countdown ──
+        handlePendingReportCountdown();
     }
 
     function updateScoreboard() {
@@ -1591,6 +1747,9 @@
         // Collapse wide mode for results view
         var lessonPage = document.querySelector('.lesson-page');
         if (lessonPage) lessonPage.classList.remove('wide-mode');
+
+        // Clear saved progress — quiz is complete
+        _clearQuizProgress();
 
         quizState.finished = true;
         var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
@@ -2530,6 +2689,146 @@
                 contentEl.innerHTML = '<div class="lesson-placeholder"><div class="ph-icon"><i class="fa-solid fa-file-lines"></i></div><p>Article</p><p class="sub">Could not load article content.</p></div>';
             });
     }
+
+    /* =====================================================================
+       Question Reporting Functions
+       ===================================================================== */
+    var _selectedReportReason = '';
+
+    function selectReportReason(el, reason) {
+        _selectedReportReason = reason;
+        document.querySelectorAll('.report-reason').forEach(function(r) { r.classList.remove('selected'); r.querySelector('input').checked = false; });
+        el.classList.add('selected');
+        el.querySelector('input').checked = true;
+        document.getElementById('report-submit-btn').disabled = false;
+        var otherWrap = document.getElementById('report-other-wrap');
+        if (reason === 'other') otherWrap.classList.add('visible');
+        else otherWrap.classList.remove('visible');
+    }
+
+    function openReportModal() {
+        if (!quizState.reportingEnabled || quizState.answered) return;
+        _selectedReportReason = '';
+        document.querySelectorAll('.report-reason').forEach(function(r) { r.classList.remove('selected'); r.querySelector('input').checked = false; });
+        document.getElementById('report-other-wrap').classList.remove('visible');
+        document.getElementById('report-other-text').value = '';
+        document.getElementById('report-submit-btn').disabled = true;
+        document.getElementById('report-modal').classList.add('open');
+    }
+
+    function closeReportModal() {
+        document.getElementById('report-modal').classList.remove('open');
+    }
+
+    async function submitQuizReport() {
+        if (!_selectedReportReason) return;
+        var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+        if (!userId || !quizState.currentQuestion) return;
+
+        var btn = document.getElementById('report-submit-btn');
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+
+        var q = quizState.currentQuestion;
+        var articleContent = '';
+        if (quizState.accumulatedStimuli.length > 0) {
+            articleContent = quizState.accumulatedStimuli.join('\n---\n');
+        } else if (quizState.cachedPassage) {
+            articleContent = quizState.cachedPassage;
+        } else if (q.stimulus || q.passage || q.reading) {
+            articleContent = q.stimulus || q.passage || q.reading || '';
+            if (typeof articleContent === 'object') articleContent = JSON.stringify(articleContent);
+        }
+
+        // Get video URL from lesson data
+        var videoUrl = '';
+        if (lessonData && lessonData.resources) {
+            for (var i = 0; i < lessonData.resources.length; i++) {
+                if (lessonData.resources[i].label === 'Video') { videoUrl = lessonData.resources[i].url || lessonData.resources[i].pillUrl || ''; break; }
+            }
+        }
+
+        var payload = {
+            studentId: userId,
+            questionId: q.id || q.questionId || q.identifier || ('q_' + quizState.questionNum),
+            questionText: q.prompt || q.question || q.text || q.body || '',
+            choices: (q.choices || q.options || q.answers || []).map(function(c) {
+                return { id: c.id || c.identifier || '', text: c.text || c.label || c.value || c.content || '' };
+            }),
+            correctId: q.correctId || '',
+            reason: _selectedReportReason,
+            customText: _selectedReportReason === 'other' ? (document.getElementById('report-other-text').value || '') : '',
+            videoUrl: videoUrl,
+            articleContent: articleContent,
+            lessonTitle: (lessonData && lessonData.title) || quizState.title || '',
+        };
+
+        try {
+            var resp = await fetch('/api/report-question', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload),
+            });
+            var data = await resp.json();
+            if (data.ok && data.reportId) {
+                quizState.pendingReports.push({ reportId: data.reportId, questionsRemaining: 3 });
+                _savePendingReports();
+                closeReportModal();
+                showReportToast('info', '<i class="fa-solid fa-clock"></i> Thanks for your report! Your score will be updated once our AI reviews the question.');
+            } else {
+                closeReportModal();
+                showReportToast('info', '<i class="fa-solid fa-info-circle"></i> ' + (data.error || 'Report submitted.'));
+            }
+        } catch(e) {
+            closeReportModal();
+            showReportToast('info', '<i class="fa-solid fa-info-circle"></i> Report saved. It will be reviewed soon.');
+        }
+    }
+
+    function _savePendingReports() {
+        var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+        if (userId) localStorage.setItem('pending_reports:' + userId, JSON.stringify(quizState.pendingReports));
+    }
+
+    function handlePendingReportCountdown() {
+        if (quizState.pendingReports.length === 0) return;
+        var triggered = [];
+        for (var i = 0; i < quizState.pendingReports.length; i++) {
+            quizState.pendingReports[i].questionsRemaining--;
+            if (quizState.pendingReports[i].questionsRemaining <= 0) {
+                triggered.push(quizState.pendingReports[i].reportId);
+            }
+        }
+        quizState.pendingReports = quizState.pendingReports.filter(function(p) { return p.questionsRemaining > 0; });
+        _savePendingReports();
+        triggered.forEach(function(reportId) { triggerAIReview(reportId); });
+    }
+
+    async function triggerAIReview(reportId) {
+        try {
+            var resp = await fetch('/api/review-report', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ reportId: reportId }),
+            });
+            var data = await resp.json();
+            if (data.verdict === 'valid' && data.pointsAwarded > 0) {
+                quizState.ppScore = Math.min(100, quizState.ppScore + data.pointsAwarded);
+                updateScoreboard();
+                showReportToast('success', '<i class="fa-solid fa-star"></i> Your score has been increased by ' + data.pointsAwarded + ' points due to your valid question report!');
+            }
+        } catch(e) {}
+    }
+
+    function showReportToast(type, html) {
+        var t = document.getElementById('report-toast');
+        t.className = 'report-toast ' + type;
+        t.innerHTML = html;
+        requestAnimationFrame(function() { t.classList.add('visible'); });
+        setTimeout(function() { t.classList.remove('visible'); }, 6000);
+    }
+
+    document.getElementById('report-modal').addEventListener('click', function(e) { if (e.target === this) closeReportModal(); });
 
     document.addEventListener('DOMContentLoaded', init);
     </script>

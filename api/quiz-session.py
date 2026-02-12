@@ -139,19 +139,67 @@ class handler(BaseHTTPRequestHandler):
         else:
             send_json(self, {"error": "Use action=start, respond, or finalize"}, 400)
 
-    # ── start: resetAttempt + getAssessmentProgress ──────────
+    # ── start: check progress, then resetAttempt only if needed ─
     def _handle_start(self, body, headers):
         student_id = body.get("studentId", "")
         test_id = body.get("testId", "")
         lesson_id = body.get("lessonId", "") or test_id
+        force_retry = body.get("retry", False)
 
         if not student_id or not lesson_id:
             send_json(self, {"error": "Need studentId and testId or lessonId"}, 400)
             return
 
         debug = []
+        synthetic_id = _encode_attempt(student_id, lesson_id)
 
-        # Step 1: Reset attempt (creates a clean slate)
+        # Step 1: Check existing progress BEFORE resetting
+        # If the student has partially answered questions, preserve them
+        if not force_retry:
+            try:
+                resp = requests.get(
+                    f"{PP}/getAssessmentProgress",
+                    headers=headers,
+                    params={"student": student_id, "lesson": lesson_id},
+                    timeout=15,
+                )
+                if resp.status_code == 401:
+                    headers = api_headers()
+                    resp = requests.get(
+                        f"{PP}/getAssessmentProgress",
+                        headers=headers,
+                        params={"student": student_id, "lesson": lesson_id},
+                        timeout=15,
+                    )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    questions = data.get("questions", [])
+                    total_q = len(questions)
+                    answered_q = sum(
+                        1 for q in questions
+                        if q.get("answered", False) or q.get("response") is not None
+                    )
+                    debug.append({
+                        "step": "checkProgress",
+                        "total": total_q,
+                        "answered": answered_q,
+                    })
+                    # Resume: partial progress exists — skip reset
+                    if 0 < answered_q < total_q:
+                        send_json(self, {
+                            "attemptId": synthetic_id,
+                            "questionCount": total_q,
+                            "answeredCount": answered_q,
+                            "hasExistingProgress": True,
+                            "score": data.get("score"),
+                            "debug": debug,
+                        })
+                        return
+                    # All answered → fall through to reset for retry
+            except Exception as e:
+                debug.append({"step": "checkProgress", "error": str(e)})
+
+        # Step 2: Reset attempt (fresh start or explicit retry)
         try:
             resp = requests.post(
                 f"{PP}/resetAttempt",
@@ -175,7 +223,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             debug.append({"step": "resetAttempt", "error": str(e)})
 
-        # Step 2: Get assessment progress (all questions)
+        # Step 3: Get assessment progress (all questions)
         try:
             resp = requests.get(
                 f"{PP}/getAssessmentProgress",
@@ -186,10 +234,11 @@ class handler(BaseHTTPRequestHandler):
             if resp.status_code == 200:
                 data = resp.json()
                 questions = data.get("questions", [])
-                synthetic_id = _encode_attempt(student_id, lesson_id)
                 send_json(self, {
                     "attemptId": synthetic_id,
                     "questionCount": len(questions),
+                    "answeredCount": 0,
+                    "hasExistingProgress": False,
                     "score": data.get("score"),
                     "debug": debug,
                 })
