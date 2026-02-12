@@ -221,11 +221,9 @@ function pickStudent(el) {
     loadAssignments(user.sourcedId);
 }
 
-/* ── PowerPath test catalog (all valid subjects x grades) ──── */
+/* ── PowerPath test catalog ──────────────────────────────────── */
 var PP_SUBJECTS = ['Reading','Math','Language','Vocabulary','Writing','Science','Social Studies','FastMath'];
 var PP_GRADES = ['3','4','5','6','7','8','9','10','11','12'];
-
-// Build full catalog
 var FULL_CATALOG = [];
 PP_SUBJECTS.forEach(function(subj) {
     PP_GRADES.forEach(function(gr) {
@@ -233,39 +231,40 @@ PP_SUBJECTS.forEach(function(subj) {
     });
 });
 
-var placementLevels = {}; // subject → grade level
-var enrolledKeys = new Set(); // subject|grade combos the student is enrolled in
+var placementLevels = {};   // subject → { level, ... }
+var subjectProgress = {};   // subject → progress data
+var enrolledKeys = new Set();
 
-/* ── Load Enrollments + Assignments + Placement ───────────── */
+/* ── Load everything for a student ────────────────────────── */
 async function loadAssignments(studentId) {
     existingAssignments = [];
-    availableTests = FULL_CATALOG; // show ALL tests, not just enrolled ones
+    availableTests = FULL_CATALOG;
     placementLevels = {};
+    subjectProgress = {};
     enrolledKeys = new Set();
 
     try {
+        // Fetch assignments, enrollments, and placement subjects in parallel
         var [assignResp, enrollResp] = await Promise.all([
             fetch('/api/assign-test?student=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { testAssignments: [] }; }),
             fetch('/api/enrollments?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return {}; }),
         ]);
 
-        // ── Normalise existing assignments from PowerPath ──
-        var rawAssignments = assignResp.testAssignments || assignResp.assignments || [];
+        // ── Parse existing assignments ──
+        var rawAssignments = assignResp.testAssignments || [];
         if (!Array.isArray(rawAssignments)) rawAssignments = [];
         existingAssignments = rawAssignments.map(function(a) {
-            var subj = a.subject || '';
-            var gr = a.gradeLevel || a.grade || '';
             return {
-                sourcedId: a.assignmentId || a.sourcedId || a.id || '',
-                subject: subj,
-                grade: gr,
-                assignmentStatus: a.status || a.assignmentStatus || 'assigned',
-                assignedAt: a.assignedAt || a.createdAt || a.dateCreated || '',
-                testName: a.testName || (subj && gr ? subj + ' Grade ' + gr : 'Test Assignment'),
+                sourcedId: a.sourcedId || a.assignmentId || a.id || '',
+                subject: a.subject || '',
+                grade: a.grade || a.gradeLevel || '',
+                assignmentStatus: a.assignmentStatus || a.status || 'assigned',
+                assignedAt: a.assignedAt || '',
+                testName: a.testName || ((a.subject || '') + ' Grade ' + (a.grade || '')),
             };
         });
 
-        // ── Build enrolled keys from enrollment data ──
+        // ── Build enrolled keys ──
         var raw = enrollResp.data || enrollResp.enrollments || enrollResp.courses || (Array.isArray(enrollResp) ? enrollResp : []);
         for (var i = 0; i < raw.length; i++) {
             var e = raw[i];
@@ -275,24 +274,30 @@ async function loadAssignments(studentId) {
             var grades = c.grades || [];
             if (!title || !subjects.length || !grades.length) continue;
             if (title.startsWith('Manual XP') || title.includes('Hole-Filling')) continue;
-            var subj = subjects[0];
             for (var g = 0; g < grades.length; g++) {
-                enrolledKeys.add(subj + '|' + grades[g]);
+                enrolledKeys.add(subjects[0] + '|' + grades[g]);
             }
         }
 
-        // ── Fetch placement levels for enrolled subjects (async, non-blocking) ──
-        var enrolledSubjects = {};
-        enrolledKeys.forEach(function(k) { enrolledSubjects[k.split('|')[0]] = true; });
-        Object.keys(enrolledSubjects).forEach(function(subj) {
+        // ── Fetch placement levels for ALL subjects (non-blocking) ──
+        PP_SUBJECTS.forEach(function(subj) {
+            // Current level
             fetch('/api/assign-test?action=placement&student=' + encodeURIComponent(studentId) + '&subject=' + encodeURIComponent(subj))
                 .then(function(r) { return r.json(); })
                 .then(function(d) {
-                    var lvl = d.gradeLevel || d.grade;
-                    if (typeof lvl === 'object') lvl = lvl.level || lvl.grade;
-                    if (lvl != null) {
-                        placementLevels[subj] = String(lvl);
-                        renderTests(); // re-render to show placement badges
+                    if (d && !d.error) {
+                        placementLevels[subj] = d;
+                        renderTests();
+                    }
+                })
+                .catch(function() {});
+            // Subject progress
+            fetch('/api/assign-test?action=progress&student=' + encodeURIComponent(studentId) + '&subject=' + encodeURIComponent(subj))
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    if (d && !d.error) {
+                        subjectProgress[subj] = d;
+                        renderTests();
                     }
                 })
                 .catch(function() {});
@@ -301,7 +306,7 @@ async function loadAssignments(studentId) {
         console.error('loadAssignments error:', e);
     }
 
-    // Rebuild filter dropdown with ALL subjects
+    // Rebuild filter dropdown
     var sel = document.getElementById('subject-filter');
     var current = sel.value;
     sel.innerHTML = '<option value="all">All Subjects</option>';
@@ -315,6 +320,15 @@ async function loadAssignments(studentId) {
 
     renderTests();
     renderPending();
+}
+
+/* ── Helper: extract grade level from placement response ──── */
+function getPlacementGrade(subj) {
+    var d = placementLevels[subj];
+    if (!d) return null;
+    var g = d.gradeLevel || d.grade || d.level;
+    if (typeof g === 'object') g = g.level || g.grade;
+    return g != null ? String(g) : null;
 }
 
 /* ── Render Available Tests ─────────────────────────────────── */
@@ -353,7 +367,7 @@ function renderTests() {
         var key = t.subject.toLowerCase() + '|' + t.grade;
         var status = statusMap[key] || '';
         var isEnrolled = enrolledKeys.has(t.subject + '|' + t.grade);
-        var plGrade = placementLevels[t.subject];
+        var plGrade = getPlacementGrade(t.subject);
         var isPlacement = plGrade && plGrade === t.grade;
         var btnHtml;
 

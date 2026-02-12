@@ -1,12 +1,25 @@
-"""POST /api/assign-test — Assign a test via PowerPath.
-GET  /api/assign-test?student=... — List test assignments for a student.
-DELETE /api/assign-test — Remove a test assignment.
-GET  /api/assign-test?action=placement&student=...&subject=... — Get placement level.
+"""PowerPath test assignment + placement API proxy.
 
-PowerPath API (docs.timeback.com):
-  POST /powerpath/test-assignments  { student, subject, grade }  → { assignmentId, lessonId, resourceId }
-  GET  /powerpath/test-assignments  ?student=sourcedId            → { testAssignments: [...] }
-  DEL  /powerpath/test-assignments/{id}
+Confirmed endpoints (all on API_BASE = https://api.alpha-1edtech.ai):
+
+  POST /powerpath/test-assignments                              — Assign test
+  GET  /powerpath/test-assignments?student={id}                 — Student assignments
+  GET  /powerpath/test-assignments/admin                        — All assignments (admin)
+  GET  /powerpath/test-assignments/{id}                         — Single assignment
+  DEL  /powerpath/test-assignments/{id}                         — Delete assignment
+  GET  /powerpath/placement/subjects                            — All placement subjects
+  GET  /powerpath/placement/getCurrentLevel?student={id}&subject={s}  — Current level
+  GET  /powerpath/placement/getSubjectProgress?student={id}&subject={s} — Progress
+
+Frontend routes this via query params:
+  GET  /api/assign-test?student={id}                    → list student assignments
+  GET  /api/assign-test?action=admin                    → list all assignments
+  GET  /api/assign-test?action=placement&student={id}&subject={s}  → current level
+  GET  /api/assign-test?action=progress&student={id}&subject={s}   → subject progress
+  GET  /api/assign-test?action=subjects                 → placement subjects
+  GET  /api/assign-test?action=get&id={assignmentId}    → single assignment
+  POST /api/assign-test  { student, subject, grade }    → assign test
+  DEL  /api/assign-test  { assignmentId }               → delete assignment
 """
 
 import json
@@ -30,50 +43,63 @@ class handler(BaseHTTPRequestHandler):
         from urllib.parse import urlparse, parse_qs
         params = parse_qs(urlparse(self.path).query)
         action = params.get("action", [""])[0]
-        sid = (params.get("student", params.get("studentId", params.get("userId", [""])))[0]).strip()
-
-        if not sid:
-            send_json(self, {"error": "Missing student param", "testAssignments": []}, 400)
-            return
+        sid = (params.get("student", params.get("studentId", [""]))  [0]).strip()
+        subject = params.get("subject", [""])[0].strip()
 
         headers = api_headers()
 
+        # ── Placement: current level ──
         if action == "placement":
-            subject = params.get("subject", [""])[0].strip()
-            if not subject:
-                send_json(self, {"error": "Missing subject param"}, 400)
+            if not sid or not subject:
+                send_json(self, {"error": "Need student and subject params"}, 400)
                 return
-            try:
-                resp = requests.get(f"{PP}/placement/getCurrentLevel", headers=headers, params={"student": sid, "subject": subject}, timeout=10)
-                send_json(self, resp.json() if resp.status_code == 200 else {"error": f"Status {resp.status_code}"})
-            except Exception as e:
-                send_json(self, {"error": str(e)})
+            _proxy_get(self, headers, f"{PP}/placement/getCurrentLevel", {"student": sid, "subject": subject})
             return
 
-        try:
-            resp = requests.get(f"{PP}/test-assignments", headers=headers, params={"student": sid}, timeout=10)
-            if resp.status_code == 200:
-                send_json(self, resp.json())
-            else:
-                send_json(self, {"testAssignments": [], "error": f"Status {resp.status_code}"})
-        except Exception as e:
-            send_json(self, {"testAssignments": [], "error": str(e)})
+        # ── Placement: subject progress ──
+        if action == "progress":
+            if not sid or not subject:
+                send_json(self, {"error": "Need student and subject params"}, 400)
+                return
+            _proxy_get(self, headers, f"{PP}/placement/getSubjectProgress", {"student": sid, "subject": subject})
+            return
+
+        # ── Placement: all subjects ──
+        if action == "subjects":
+            _proxy_get(self, headers, f"{PP}/placement/subjects", {})
+            return
+
+        # ── Admin: all assignments ──
+        if action == "admin":
+            _proxy_get(self, headers, f"{PP}/test-assignments/admin", {})
+            return
+
+        # ── Single assignment by ID ──
+        if action == "get":
+            aid = params.get("id", [""])[0].strip()
+            if not aid:
+                send_json(self, {"error": "Need id param"}, 400)
+                return
+            _proxy_get(self, headers, f"{PP}/test-assignments/{aid}", {})
+            return
+
+        # ── Student assignments (default) ──
+        if not sid:
+            send_json(self, {"error": "Missing student param", "testAssignments": []}, 400)
+            return
+        _proxy_get(self, headers, f"{PP}/test-assignments", {"student": sid})
 
     def do_DELETE(self):
         try:
             raw = self.rfile.read(int(self.headers.get("Content-Length", 0)) or 0)
             body = json.loads(raw) if raw else {}
-            aid = (body.get("assignmentId") or "").strip()
+            aid = (body.get("assignmentId") or body.get("sourcedId") or "").strip()
+            if not aid:
+                send_json(self, {"success": False, "error": "assignmentId required"}, 400)
+                return
             headers = api_headers()
-            deleted = False
-            if aid:
-                try:
-                    r = requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=10)
-                    if r.status_code in (200, 204):
-                        deleted = True
-                except Exception:
-                    pass
-            send_json(self, {"success": deleted, "message": "Removed" if deleted else "Could not remove"})
+            resp = requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=10)
+            send_json(self, {"success": resp.status_code in (200, 204), "status": resp.status_code})
         except Exception as e:
             send_json(self, {"success": False, "error": str(e)}, 500)
 
@@ -97,12 +123,9 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             headers = api_headers()
-
-            # ── Create test assignment ────────────────────────────
-            # Docs: POST /powerpath/test-assignments { student, subject, grade }
             payload = {"student": sid, "subject": subject, "grade": grade}
-            resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
 
+            resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
             try:
                 data = resp.json()
             except Exception:
@@ -114,37 +137,33 @@ class handler(BaseHTTPRequestHandler):
                     "message": f"Test assigned ({subject} Grade {grade})",
                     "response": data,
                 })
-                return
-
-            # ── Failed — return full diagnostic info ──────────────
-            err = ""
-            if isinstance(data, dict):
-                err = data.get("imsx_description") or data.get("error") or data.get("message") or ""
-
-            # Check placement to give a useful hint
-            hint = ""
-            try:
-                pl = requests.get(f"{PP}/placement/getCurrentLevel", headers=headers, params={"student": sid, "subject": subject}, timeout=6)
-                if pl.status_code == 200:
-                    pld = pl.json()
-                    plg = pld.get("gradeLevel") or pld.get("grade")
-                    if isinstance(plg, dict):
-                        plg = plg.get("level") or plg.get("grade")
-                    if plg is not None:
-                        hint = f" (Placement: Grade {plg} in {subject})"
-            except Exception:
-                pass
-
-            send_json(self, {
-                "success": False,
-                "error": (err or f"PowerPath returned {resp.status_code}") + hint,
-                "httpStatus": resp.status_code,
-                "powerpathResponse": data,
-                "sentPayload": payload,
-                "apiUrl": f"{PP}/test-assignments",
-            }, 422)
+            else:
+                err = ""
+                if isinstance(data, dict):
+                    err = data.get("imsx_description") or data.get("error") or data.get("message") or ""
+                send_json(self, {
+                    "success": False,
+                    "error": err or f"PowerPath returned {resp.status_code}",
+                    "httpStatus": resp.status_code,
+                    "powerpathResponse": data,
+                }, 422)
 
         except json.JSONDecodeError:
             send_json(self, {"error": "Invalid JSON", "success": False}, 400)
         except Exception as e:
             send_json(self, {"error": str(e), "success": False}, 500)
+
+
+def _proxy_get(handler, headers, url, params):
+    """Simple GET proxy — forward to PowerPath and return the response."""
+    try:
+        resp = requests.get(url, headers=headers, params=params, timeout=15)
+        if resp.status_code == 200:
+            send_json(handler, resp.json())
+        else:
+            try:
+                send_json(handler, resp.json(), resp.status_code)
+            except Exception:
+                send_json(handler, {"error": f"HTTP {resp.status_code}"}, resp.status_code)
+    except Exception as e:
+        send_json(handler, {"error": str(e)}, 500)
