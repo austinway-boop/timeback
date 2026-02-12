@@ -4,6 +4,12 @@ Optional query params:
   ?userId=...   — filter by student sourcedId
   ?classId=...  — filter by class sourcedId
   ?limit=...    — max results per endpoint (default 100)
+  ?sort=...     — sort field (default: dateLastModified)
+  ?order=...    — sort order: asc or desc (default: desc)
+
+Note: The OneRoster API has eventual consistency. Newly created results
+may not appear in list queries immediately but ARE stored correctly
+and can be fetched by ID.
 """
 
 from http.server import BaseHTTPRequestHandler
@@ -46,7 +52,14 @@ _RESULTS_PATHS = [
 ]
 
 
-def _fetch_results_single_page(path: str, collection_key: str, params: dict, limit: int = 100) -> list:
+def _fetch_results_single_page(
+    path: str, 
+    collection_key: str, 
+    params: dict, 
+    limit: int = 100,
+    sort: str = "dateLastModified",
+    order: str = "desc"
+) -> list:
     """Fetch a single page of results from a OneRoster endpoint."""
     headers = api_headers()
     url = f"{API_BASE}{path}"
@@ -54,6 +67,11 @@ def _fetch_results_single_page(path: str, collection_key: str, params: dict, lim
     query_params = {"limit": limit}
     if params.get("filter"):
         query_params["filter"] = params["filter"]
+    # Add sorting to try to get recent results first
+    if sort:
+        query_params["sort"] = sort
+    if order:
+        query_params["orderBy"] = order
     
     try:
         resp = requests.get(url, headers=headers, params=query_params, timeout=30)
@@ -89,6 +107,8 @@ class handler(BaseHTTPRequestHandler):
             user_id = params.get("userId", "")
             class_id = params.get("classId", "")
             limit = int(params.get("limit", "100"))
+            sort = params.get("sort", "dateLastModified")
+            order = params.get("order", "desc")
 
             # Build OneRoster filter
             # Note: gradebook API uses nested format (student.sourcedId)
@@ -105,7 +125,9 @@ class handler(BaseHTTPRequestHandler):
             
             # Fetch from both endpoints
             for path, collection_key in _RESULTS_PATHS:
-                items = _fetch_results_single_page(path, collection_key, fetch_params, limit)
+                items = _fetch_results_single_page(
+                    path, collection_key, fetch_params, limit, sort, order
+                )
                 if items:
                     all_results.extend(items)
             
