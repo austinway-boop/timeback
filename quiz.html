@@ -598,15 +598,36 @@
                         expectedLines = parseInt(etiAttrs['expected-lines'] || etiAttrs.expectedLines || '10', 10);
                     }
 
-                    // Stimulus content — from section-level or item-level reference
+                    // Stimulus content — from backend _sectionStimulus attachment
                     var stimulusHtml = '';
-                    // Check for section-level stimulus (attached by backend)
                     var secStim = q['_sectionStimulus'] || qi['_sectionStimulus'] || null;
                     if (secStim) {
-                        var stimBody = secStim['qti-assessment-stimulus'] || secStim;
-                        var stimContent = stimBody['qti-stimulus-body'] || stimBody.content || stimBody.body || stimBody;
-                        if (typeof stimContent === 'string') { stimulusHtml = stimContent; }
-                        else if (typeof stimContent === 'object') { stimulusHtml = renderNode(stimContent); }
+                        // The stimulus from QTI API can be nested in multiple ways
+                        var stimObj = secStim;
+                        // Try: content['qti-assessment-stimulus']['qti-stimulus-body']
+                        if (stimObj.content && stimObj.content['qti-assessment-stimulus']) {
+                            stimObj = stimObj.content['qti-assessment-stimulus'];
+                        } else if (stimObj['qti-assessment-stimulus']) {
+                            stimObj = stimObj['qti-assessment-stimulus'];
+                        }
+                        var stimContent = stimObj['qti-stimulus-body'] || stimObj.body || stimObj.content || stimObj;
+                        if (typeof stimContent === 'string' && stimContent.length > 10) {
+                            stimulusHtml = stimContent;
+                        } else if (typeof stimContent === 'object') {
+                            stimulusHtml = renderNode(stimContent);
+                        }
+                        // Fallback: try rawXml or rawHtml
+                        if (!stimulusHtml && secStim.rawXml) {
+                            stimulusHtml = secStim.rawXml;
+                        }
+                        if (!stimulusHtml && secStim.rawHtml) {
+                            stimulusHtml = secStim.rawHtml;
+                        }
+                        // Last resort: render the entire stimulus object
+                        if (!stimulusHtml) {
+                            stimulusHtml = renderNode(secStim);
+                        }
+                        if (stimulusHtml) console.log('Stimulus found for question:', qi.title || attrs.title || q.title || '');
                     }
                     // Also check for inline stimulus ref
                     var stimRef = body['qti-stimulus-ref'];
