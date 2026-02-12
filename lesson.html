@@ -857,6 +857,7 @@
         // 3. PowerPath: Mark lesson as complete (if passed)
         if (passed) {
             markLessonComplete();
+            saveLessonToLocalStorage();
         }
     }
 
@@ -2077,8 +2078,8 @@
             showStep(currentStep + 1);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
-            // Last step — mark entire lesson complete and go back
-            markLessonComplete();
+            // Last step — save to localStorage and go back
+            saveLessonToLocalStorage();
             goBackToCourse();
         }
     }
@@ -2102,23 +2103,23 @@
         var step = steps[idx];
         if (step.type === 'Quiz') return; // Quizzes handle their own completion
 
-        // Mark individual resource as completed
+        // Mark individual resource as completed in localStorage
         var resId = step.resource.resId || step.resource.id || '';
         var resTitle = step.resource.title || '';
         if (resId) localStorage.setItem('completed_' + resId, 'true');
         if (resTitle) localStorage.setItem('completed_' + resTitle, 'true');
     }
 
-    function markLessonComplete() {
-        // Mark the lesson itself as completed using all possible keys
+    function saveLessonToLocalStorage() {
+        // Save lesson completion to localStorage using all possible keys
         var title = lessonData.title || '';
         var lessonId = lessonData.lessonId || lessonData.id || '';
-        var ppLessonId = lessonData.ppLessonId || '';
+        var ppLessonId = lessonData.ppLessonId || lessonData.lessonSourcedId || '';
         if (title) localStorage.setItem('completed_' + title, 'true');
         if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
         if (ppLessonId) localStorage.setItem('completed_' + ppLessonId, 'true');
 
-        // Also mark each resource in the lesson
+        // Also mark each resource
         var resources = lessonData.resources || [];
         for (var i = 0; i < resources.length; i++) {
             var r = resources[i];
