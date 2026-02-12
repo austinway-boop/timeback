@@ -1,10 +1,10 @@
 """GET/POST /api/goals — User goals stored in Upstash KV (Redis)
 
 GET  /api/goals?userId=xxx
-     → { "goals": { enrollmentId: { endDate, target, excludeNonSchoolDays }, … } }
+     → { "goals": { enrollmentId: { endDate, target, excludeNonSchoolDays, dailyXp }, … } }
 
 POST /api/goals  (JSON body)
-     { userId, enrollmentId, endDate, target, excludeNonSchoolDays }
+     { userId, enrollmentId, endDate, target, excludeNonSchoolDays, dailyXp }
      — or to clear: { userId, enrollmentId, clear: true }
      → { "ok": true, "goals": { … } }
 """
@@ -122,6 +122,8 @@ class handler(BaseHTTPRequestHandler):
                 goal_data["target"] = int(body["target"])
             if "excludeNonSchoolDays" in body:
                 goal_data["excludeNonSchoolDays"] = bool(body["excludeNonSchoolDays"])
+            if body.get("dailyXp"):
+                goal_data["dailyXp"] = int(body["dailyXp"])
             goals[enrollment_id] = goal_data
 
         ok = _kv_set(user_id, goals)
