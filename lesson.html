@@ -261,6 +261,37 @@
         }
         .stimulus-box img { max-width: 100%; border-radius: 8px; }
 
+        /* ── PowerPath split layout (stimulus left, questions right) ── */
+        .pp-split-layout {
+            display: flex; gap: 0; flex: 1; overflow: hidden;
+            border: 1px solid #e5e7eb; border-radius: 12px;
+            background: #fff; min-height: 420px;
+        }
+        .pp-split-left {
+            width: 45%; min-width: 280px; padding: 24px 28px;
+            overflow-y: auto; background: #f9fafb;
+            border-right: 1px solid #e5e7eb;
+            line-height: 1.8; font-size: 0.93rem; color: var(--color-text);
+        }
+        .pp-split-left p { margin-bottom: 14px; }
+        .pp-split-left img { max-width: 100%; border-radius: 8px; margin: 10px 0; }
+        .pp-split-left::-webkit-scrollbar { width: 6px; }
+        .pp-split-left::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        .pp-split-left::-webkit-scrollbar-track { background: transparent; }
+        .pp-split-right {
+            flex: 1; padding: 24px 28px; overflow-y: auto;
+        }
+        .pp-split-right::-webkit-scrollbar { width: 6px; }
+        .pp-split-right::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        .pp-split-right::-webkit-scrollbar-track { background: transparent; }
+        .pp-split-right .question-card { padding-top: 0; }
+        .pp-split-right .quiz-actions { padding-top: 16px; border-top: 1px solid #f3f4f6; margin-top: 16px; }
+        @media (max-width: 768px) {
+            .pp-split-layout { flex-direction: column; min-height: auto; }
+            .pp-split-left { width: 100%; min-width: 0; max-height: 40vh; border-right: none; border-bottom: 1px solid #e5e7eb; }
+            .pp-split-right { padding: 20px; }
+        }
+
         .quiz-btn {
             padding: 11px 24px; border: none;
             border-radius: 10px; font-weight: 700; font-size: 0.85rem;
@@ -839,32 +870,44 @@
             '<div class="pp-stat"><div class="pp-stat-label">Accuracy</div><div class="pp-stat-value">' + accuracy + '%</div></div>' +
         '</div>';
 
-        if (stimulus) html += '<div class="stimulus-box">' + stimulus + '</div>';
+        var hasStimulus = stimulus && stimulus.length > 10;
 
-        html += '<div class="question-card"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>';
-        html += '<div class="question-text">' + (prompt || 'Loading question...') + '</div>';
+        // Build question + choices HTML (reused in both layouts)
+        var questionHtml = '<div class="question-card"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>';
+        questionHtml += '<div class="question-text">' + (prompt || 'Loading question...') + '</div>';
 
         if (isFRQ) {
-            html += '<textarea id="frq-response" rows="' + expectedLines + '" placeholder="Type your response here..." ' +
+            questionHtml += '<textarea id="frq-response" rows="' + expectedLines + '" placeholder="Type your response here..." ' +
                 'style="width:100%;padding:12px;border:2px solid var(--color-border);border-radius:10px;font-size:0.93rem;font-family:inherit;line-height:1.7;resize:vertical;outline:none;box-sizing:border-box;" ' +
                 'oninput="document.getElementById(\'quiz-submit\').disabled=!this.value.trim()"></textarea>';
         } else if (choices.length > 0) {
             var letters = 'ABCDEFGHIJ';
-            html += '<div class="choices" id="choices">';
+            questionHtml += '<div class="choices" id="choices">';
             for (var i = 0; i < choices.length; i++) {
                 var c = choices[i];
                 var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : '');
                 if (typeof cText === 'object') cText = renderNode(cText);
                 var cId = c.id || c.identifier || letters[i] || String(i);
-                html += '<div class="choice" data-id="' + esc(cId) + '" onclick="selectAnswer(this,\'' + esc(cId) + '\')">' +
+                questionHtml += '<div class="choice" data-id="' + esc(cId) + '" onclick="selectAnswer(this,\'' + esc(cId) + '\')">' +
                     '<div class="choice-letter">' + (letters[i] || i) + '</div>' +
                     '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div></div>';
             }
-            html += '</div>';
+            questionHtml += '</div>';
         }
 
-        html += '<div class="feedback" id="feedback"></div></div>';
-        html += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="goBackToCourse()"><i class="fa-solid fa-arrow-left"></i> Exit</button><button class="quiz-btn quiz-btn-primary" id="quiz-submit" onclick="submitQuizAnswer()" disabled><i class="fa-solid fa-check"></i> Submit</button></div>';
+        questionHtml += '<div class="feedback" id="feedback"></div></div>';
+        questionHtml += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="goBackToCourse()"><i class="fa-solid fa-arrow-left"></i> Exit</button><button class="quiz-btn quiz-btn-primary" id="quiz-submit" onclick="submitQuizAnswer()" disabled><i class="fa-solid fa-check"></i> Submit</button></div>';
+
+        if (hasStimulus) {
+            // Split layout: article left, questions right
+            html += '<div class="pp-split-layout">';
+            html += '<div class="pp-split-left">' + stimulus + '</div>';
+            html += '<div class="pp-split-right">' + questionHtml + '</div>';
+            html += '</div>';
+        } else {
+            // Normal stacked layout (no stimulus)
+            html += questionHtml;
+        }
 
         quizArea.innerHTML = html;
     }
