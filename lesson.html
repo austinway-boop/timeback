@@ -2129,6 +2129,12 @@
         } else {
             // Last step — save to localStorage and go back
             saveLessonToLocalStorage();
+            // If no quiz in this lesson, sync completion to server APIs now
+            // (quizzes handle their own sync via syncQuizCompletion)
+            var hasQuiz = steps.some(function(s) { return s.type === 'Quiz'; });
+            if (!hasQuiz) {
+                syncNonQuizCompletion();
+            }
             goBackToCourse();
         }
     }
@@ -2192,6 +2198,29 @@
             if (r.resId) localStorage.setItem('completed_' + r.resId, 'true');
             if (r.title) localStorage.setItem('completed_' + r.title, 'true');
         }
+    }
+
+    /* ── Sync non-quiz lesson completion (video/article only) to server ── */
+    function syncNonQuizCompletion() {
+        if (!syncState.userId) {
+            console.warn('[Sync] No userId — cannot sync non-quiz completion');
+            return;
+        }
+        console.log('[Sync] Syncing non-quiz lesson completion (video/article)');
+
+        // Set minimal quiz state so the existing sync functions work
+        quizState.xpEarned = 1;
+        quizState.total = 1;
+        quizState.correct = 1;
+
+        // 1. PowerPath: mark lesson as complete
+        markLessonComplete();
+
+        // 2. Caliper: send ActivityCompletedEvent with masteredUnits=1
+        sendCaliperActivity(true);
+
+        // 3. Activity record: update XP on dashboards
+        sendActivityRecord(true);
     }
 
     /* ── Utilities ──────────────────────────────────────────── */
