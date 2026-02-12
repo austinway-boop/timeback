@@ -604,13 +604,13 @@
         /* Highlight */
         mark.ap-hl { background: #FFEB3B; padding: 0 1px; border-radius: 2px; }
         /* Notes panel */
-        .ap-notes-panel { position: absolute; bottom: 60px; right: 20px; width: 280px; background: #FFFDE7; border: 1px solid #FDD835; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); z-index: 20; display: none; flex-direction: column; }
+        .ap-notes-panel { position: fixed; top: 120px; right: 80px; width: 260px; min-height: 200px; background: #FFF9C4; border: none; border-radius: 4px; box-shadow: 2px 4px 16px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.1); z-index: 10001; display: none; flex-direction: column; font-family: 'Patrick Hand', 'Caveat', cursive, var(--font); }
         .ap-notes-panel.open { display: flex; }
-        .ap-notes-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: #795548; border-bottom: 1px solid #FDD835; }
-        .ap-notes-header button { background: none; border: none; cursor: pointer; color: #795548; font-size: 0.9rem; }
-        .ap-notes-body textarea { width: 100%; min-height: 100px; border: none; background: transparent; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; line-height: 1.6; resize: vertical; outline: none; box-sizing: border-box; }
+        .ap-notes-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 0.72rem; font-weight: 700; color: #8D6E63; background: #FFF176; border-radius: 4px 4px 0 0; cursor: move; user-select: none; }
+        .ap-notes-header button { background: none; border: none; cursor: pointer; color: #8D6E63; font-size: 1rem; line-height: 1; }
+        .ap-notes-body textarea { width: 100%; min-height: 140px; border: none; background: transparent; padding: 10px 12px; font-size: 0.9rem; font-family: inherit; line-height: 1.7; resize: both; outline: none; box-sizing: border-box; color: #4E342E; }
         /* Calculator panel */
-        .ap-calc-panel { position: fixed; top: 60px; right: 20px; width: 420px; height: 520px; background: #fff; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.18); z-index: 10001; display: none; flex-direction: column; overflow: hidden; }
+        .ap-calc-panel { position: fixed; top: 60px; right: 20px; width: 500px; height: 500px; background: #fff; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.18); z-index: 10001; display: none; flex-direction: column; overflow: hidden; resize: both; min-width: 320px; min-height: 320px; }
         .ap-calc-panel.open { display: flex; }
         .ap-calc-header { display: flex; align-items: center; padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; cursor: move; user-select: none; }
         .ap-calc-header span { flex: 1; font-size: 0.82rem; font-weight: 700; color: #333; }
@@ -1364,7 +1364,6 @@
         var overlay = document.createElement('div');
         overlay.id = 'ap-overlay';
         overlay.className = 'ap-overlay';
-        var z = apState.zoomLevel;
         var html = '';
 
         // ── Header with all tools ──
@@ -1376,9 +1375,7 @@
                 '<div class="ap-more-wrap">' +
                     '<button class="ap-tool-btn" onclick="apToggleMore()" title="More tools"><i class="fa-solid fa-ellipsis-vertical"></i><span>More</span></button>' +
                     '<div class="ap-more-dropdown" id="ap-more-dd">' +
-                        '<button class="ap-more-item" onclick="apAddNote();apCloseMore()"><i class="fa-solid fa-sticky-note"></i>Annotate</button>' +
-                        '<button class="ap-more-item" onclick="apZoom(-10)"><i class="fa-solid fa-minus"></i>Zoom Out (' + z + '%)</button>' +
-                        '<button class="ap-more-item" onclick="apZoom(10)"><i class="fa-solid fa-plus"></i>Zoom In (' + z + '%)</button>' +
+                        '<button class="ap-more-item" onclick="apAddNote();apCloseMore()"><i class="fa-solid fa-sticky-note"></i>Sticky Note</button>' +
                         '<button class="ap-more-item" onclick="apToggleCalc();apCloseMore()"><i class="fa-solid fa-calculator"></i>Calculator</button>' +
                         '<button class="ap-more-item" onclick="apToggleRef();apCloseMore()"><i class="fa-solid fa-book-open"></i>Reference Sheet</button>' +
                         '<button class="ap-more-item" onclick="apShowReview();apCloseMore()"><i class="fa-solid fa-list-check"></i>Review Answers</button>' +
@@ -1392,9 +1389,9 @@
         // ── Body ──
         html += '<div class="ap-body' + (hasPassage ? '' : ' no-passage') + '">';
         if (hasPassage) {
-            html += '<div class="ap-passage" id="ap-passage" style="font-size:' + z + '%">' + passage + '</div>';
+            html += '<div class="ap-passage" id="ap-passage">' + passage + '</div>';
         }
-        html += '<div class="ap-question-panel" id="ap-qpanel" style="font-size:' + z + '%">';
+        html += '<div class="ap-question-panel" id="ap-qpanel">';
 
         // Question tools
         var abcActive = apState.crossOutMode;
@@ -1428,10 +1425,10 @@
                 'oninput="quizState.answers[quizState.staticIdx]=this.value">' + esc(saved) + '</textarea>';
         }
 
-        // Notes panel (sticky note)
+        // Sticky note (draggable)
         html += '<div class="ap-notes-panel' + (apState.notesOpen ? ' open' : '') + '" id="ap-notes">' +
-            '<div class="ap-notes-header"><span>Notes (Q' + (idx+1) + ')</span><button onclick="apState.notesOpen=false;document.getElementById(\'ap-notes\').classList.remove(\'open\')">&times;</button></div>' +
-            '<div class="ap-notes-body"><textarea placeholder="Type your notes here..." oninput="apState.notes[' + idx + ']=this.value">' + esc(apState.notes[idx] || '') + '</textarea></div></div>';
+            '<div class="ap-notes-header" onmousedown="apStartDrag(event,\'ap-notes\')"><span>Q' + (idx+1) + ' Notes</span><button onclick="apState.notesOpen=false;document.getElementById(\'ap-notes\').classList.remove(\'open\')">&times;</button></div>' +
+            '<div class="ap-notes-body"><textarea placeholder="Write your notes here..." oninput="apState.notes[' + idx + ']=this.value">' + esc(apState.notes[idx] || '') + '</textarea></div></div>';
 
         html += '</div></div>'; // question-panel, body
 
@@ -1459,7 +1456,7 @@
         // Calculator panel
         html += '<div class="ap-calc-panel' + (apState.calcOpen ? ' open' : '') + '" id="ap-calc">' +
             '<div class="ap-calc-header" onmousedown="apStartDrag(event,\'ap-calc\')"><span>Graphing Calculator</span><button onclick="apToggleCalc()">&times;</button></div>' +
-            '<iframe src="https://www.desmos.com/testing" loading="lazy"></iframe></div>';
+            '<iframe src="https://www.desmos.com/testing/calculator" loading="lazy"></iframe></div>';
 
         // Reference panel
         html += '<div class="ap-ref-panel' + (apState.refOpen ? ' open' : '') + '" id="ap-ref">' +
@@ -1570,17 +1567,6 @@
         apState.notesOpen = !apState.notesOpen;
         var panel = document.getElementById('ap-notes');
         if (panel) panel.classList.toggle('open', apState.notesOpen);
-    }
-
-    // ── Zoom ──
-    function apZoom(delta) {
-        apState.zoomLevel = Math.max(75, Math.min(150, apState.zoomLevel + delta));
-        var p = document.getElementById('ap-passage');
-        var q = document.getElementById('ap-qpanel');
-        if (p) p.style.fontSize = apState.zoomLevel + '%';
-        if (q) q.style.fontSize = apState.zoomLevel + '%';
-        var lbl = document.querySelector('.ap-zoom-label');
-        if (lbl) lbl.textContent = apState.zoomLevel + '%';
     }
 
     // ── Calculator ──
