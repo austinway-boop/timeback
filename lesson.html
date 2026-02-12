@@ -924,9 +924,19 @@
             });
 
             quizState.staticIdx = 0;
-            quizState.answers = new Array(quizState.staticQuestions.length).fill(null);
-            quizState.marked = new Array(quizState.staticQuestions.length).fill(false);
-            startAPExam();
+
+            // AP exam UI only for cumulative reviews and MCQ assessments
+            var titleLower = (quizState.title || '').toLowerCase();
+            var isAPStyle = /cumulative|review|mcq|end.of.unit|unit.test|final.test|exam|aps[\s:\-]/i.test(titleLower);
+
+            if (isAPStyle) {
+                quizState.answers = new Array(quizState.staticQuestions.length).fill(null);
+                quizState.marked = new Array(quizState.staticQuestions.length).fill(false);
+                startAPExam();
+            } else {
+                // Normal inline quiz (PowerPath style, one at a time)
+                showStaticQuestion();
+            }
             return true;
         } catch(e) {
             console.warn('QTI load failed:', e);
