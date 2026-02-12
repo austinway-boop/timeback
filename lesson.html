@@ -1703,9 +1703,10 @@
                 quizState.accumulatedStimuli = [];
             }
 
-            // AP exam UI only for cumulative reviews and MCQ assessments
+            // AP exam UI for cumulative reviews, end-of-unit assessments, and MCQ tests
+            // Excludes standalone "review" (e.g. Heimler's Review) which are just videos
             var titleLower = (quizState.title || '').toLowerCase();
-            var isAPStyle = /cumulative|review|mcq|end.of.unit|unit.test|final.test|exam|aps[\s:\-]/i.test(titleLower);
+            var isAPStyle = /cumulative\s*review|mcq|end.of.unit|unit\s*\d+\s*(mcq|frq|saq)?\s*test|final.test|exam|assessment|aps[\s:\-]/i.test(titleLower);
 
             if (isAPStyle) {
                 quizState.answers = new Array(quizState.staticQuestions.length).fill(null);
