@@ -739,27 +739,70 @@
                 courses.push(item);
             }
 
-            /* 4. Render mastery track tests in top section */
-            if (tests.length) {
+            /* 4. Render mastery track tests + PowerPath assigned tests in top section */
+            // Also fetch PowerPath test assignments for this student
+            let ppAssignments = [];
+            try {
+                const ppResp = await fetch('/api/assign-test?student=' + encodeURIComponent(userId));
+                const ppData = await ppResp.json();
+                ppAssignments = (ppData.testAssignments || []).filter(a => {
+                    const st = (a.assignmentStatus || a.status || '').toLowerCase();
+                    return st !== 'completed' && st !== 'cancelled' && st !== 'expired';
+                });
+            } catch(e) {}
+
+            // Combine mastery track tests + PowerPath assignments
+            const allTests = [];
+            tests.forEach(t => allTests.push({ title: t.title, subject: t.subject, type: 'mastery' }));
+            ppAssignments.forEach(a => {
+                const subj = a.subject || '';
+                const gr = a.gradeLevel || a.grade || '';
+                const name = a.testName || (subj + ' Grade ' + gr);
+                // Skip duplicates
+                if (!allTests.some(x => x.title === name)) {
+                    allTests.push({
+                        title: name,
+                        subject: subj,
+                        grade: gr,
+                        type: 'assigned',
+                        sourcedId: a.sourcedId || a.assignmentId || '',
+                        resourceSourcedId: a.resourceSourcedId || '',
+                    });
+                }
+            });
+
+            if (allTests.length) {
                 document.getElementById('tests-section').style.display = '';
-                document.getElementById('tests-grid').innerHTML = tests.map(t => `
-                    <div class="test-card">
-                        <div class="test-card-image test-image-reading" style="background:linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 50%,#A5D6A7 100%);">
-                            <div class="test-card-illustration" style="color:#2E7D32;">
+                document.getElementById('tests-grid').innerHTML = allTests.map(t => {
+                    const gradientColor = t.type === 'assigned'
+                        ? 'linear-gradient(135deg,#EBF4FF 0%,#BEE3F8 50%,#90CDF4 100%)'
+                        : 'linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 50%,#A5D6A7 100%)';
+                    const iconColor = t.type === 'assigned' ? '#2B6CB0' : '#2E7D32';
+                    const dotClass = t.type === 'assigned' ? 'blue' : 'green';
+                    const quizUrl = t.resourceSourcedId
+                        ? '/quiz?id=' + encodeURIComponent(t.resourceSourcedId) + '&title=' + encodeURIComponent(t.title) + '&subject=' + encodeURIComponent(t.subject || '')
+                        : t.sourcedId
+                        ? '/quiz?id=' + encodeURIComponent(t.sourcedId) + '&title=' + encodeURIComponent(t.title) + '&subject=' + encodeURIComponent(t.subject || '')
+                        : '';
+                    return `<a href="${quizUrl || '#'}" style="text-decoration:none;color:inherit;">
+                    <div class="test-card" style="cursor:pointer;">
+                        <div class="test-card-image" style="background:${gradientColor};">
+                            <div class="test-card-illustration" style="color:${iconColor};">
                                 <i class="fa-solid fa-clipboard-check"></i>
                             </div>
                         </div>
                         <div class="test-card-info">
                             <div class="test-card-status">
-                                <span class="status-dot blue"></span>
+                                <span class="status-dot ${dotClass}"></span>
                                 <span class="test-card-name">${t.title}</span>
                             </div>
                             <div class="test-card-meta">
                                 <span class="test-badge">${t.subject}</span>
-                                <span class="test-badge">${t.xpTotal} XP</span>
+                                ${t.type === 'assigned' ? '<span class="test-badge" style="background:#EBF4FF;color:#2B6CB0;">Assigned</span>' : ''}
                             </div>
                         </div>
-                    </div>`).join('');
+                    </div></a>`;
+                }).join('');
             }
 
             /* 5. Store courses globally, fetch goals + full-year XP + daily XP in parallel */

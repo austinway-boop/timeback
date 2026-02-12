@@ -221,10 +221,27 @@ function pickStudent(el) {
     loadAssignments(user.sourcedId);
 }
 
-/* ── Load Enrollments + Assignments ────────────────────────── */
+/* ── PowerPath test catalog (all valid subjects x grades) ──── */
+var PP_SUBJECTS = ['Reading','Math','Language','Vocabulary','Writing','Science','Social Studies','FastMath'];
+var PP_GRADES = ['3','4','5','6','7','8','9','10','11','12'];
+
+// Build full catalog
+var FULL_CATALOG = [];
+PP_SUBJECTS.forEach(function(subj) {
+    PP_GRADES.forEach(function(gr) {
+        FULL_CATALOG.push({ subject: subj, grade: gr, name: subj + ' Grade ' + gr });
+    });
+});
+
+var placementLevels = {}; // subject → grade level
+var enrolledKeys = new Set(); // subject|grade combos the student is enrolled in
+
+/* ── Load Enrollments + Assignments + Placement ───────────── */
 async function loadAssignments(studentId) {
     existingAssignments = [];
-    availableTests = [];
+    availableTests = FULL_CATALOG; // show ALL tests, not just enrolled ones
+    placementLevels = {};
+    enrolledKeys = new Set();
 
     try {
         var [assignResp, enrollResp] = await Promise.all([
@@ -233,7 +250,6 @@ async function loadAssignments(studentId) {
         ]);
 
         // ── Normalise existing assignments from PowerPath ──
-        // PowerPath may use gradeLevel/status; frontend expects grade/assignmentStatus
         var rawAssignments = assignResp.testAssignments || assignResp.assignments || [];
         if (!Array.isArray(rawAssignments)) rawAssignments = [];
         existingAssignments = rawAssignments.map(function(a) {
@@ -249,8 +265,7 @@ async function loadAssignments(studentId) {
             };
         });
 
-        // ── Build available tests from real enrollment data ──
-        var seen = {};
+        // ── Build enrolled keys from enrollment data ──
         var raw = enrollResp.data || enrollResp.enrollments || enrollResp.courses || (Array.isArray(enrollResp) ? enrollResp : []);
         for (var i = 0; i < raw.length; i++) {
             var e = raw[i];
@@ -259,42 +274,44 @@ async function loadAssignments(studentId) {
             var subjects = c.subjects || [];
             var grades = c.grades || [];
             if (!title || !subjects.length || !grades.length) continue;
-            // Skip non-test enrollments
             if (title.startsWith('Manual XP') || title.includes('Hole-Filling')) continue;
             var subj = subjects[0];
             for (var g = 0; g < grades.length; g++) {
-                var key = subj + '|' + grades[g];
-                if (!seen[key]) {
-                    seen[key] = true;
-                    availableTests.push({ subject: subj, grade: grades[g], name: subj + ' Grade ' + grades[g] });
-                }
+                enrolledKeys.add(subj + '|' + grades[g]);
             }
         }
 
-        // Sort by subject then grade
-        availableTests.sort(function(a, b) {
-            if (a.subject !== b.subject) return a.subject.localeCompare(b.subject);
-            return parseInt(a.grade) - parseInt(b.grade);
+        // ── Fetch placement levels for enrolled subjects (async, non-blocking) ──
+        var enrolledSubjects = {};
+        enrolledKeys.forEach(function(k) { enrolledSubjects[k.split('|')[0]] = true; });
+        Object.keys(enrolledSubjects).forEach(function(subj) {
+            fetch('/api/assign-test?action=placement&student=' + encodeURIComponent(studentId) + '&subject=' + encodeURIComponent(subj))
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    var lvl = d.gradeLevel || d.grade;
+                    if (typeof lvl === 'object') lvl = lvl.level || lvl.grade;
+                    if (lvl != null) {
+                        placementLevels[subj] = String(lvl);
+                        renderTests(); // re-render to show placement badges
+                    }
+                })
+                .catch(function() {});
         });
     } catch(e) {
         console.error('loadAssignments error:', e);
     }
 
-    // Rebuild filter dropdown from actual enrolled subjects
+    // Rebuild filter dropdown with ALL subjects
     var sel = document.getElementById('subject-filter');
     var current = sel.value;
     sel.innerHTML = '<option value="all">All Subjects</option>';
-    var subjectsSeen = {};
-    availableTests.forEach(function(t) {
-        if (!subjectsSeen[t.subject]) {
-            subjectsSeen[t.subject] = true;
-            var opt = document.createElement('option');
-            opt.value = t.subject;
-            opt.textContent = t.subject;
-            sel.appendChild(opt);
-        }
+    PP_SUBJECTS.forEach(function(s) {
+        var opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s;
+        sel.appendChild(opt);
     });
-    if (subjectsSeen[current]) sel.value = current; else sel.value = 'all';
+    if (current !== 'all') sel.value = current;
 
     renderTests();
     renderPending();
@@ -319,14 +336,25 @@ function renderTests() {
     }
 
     if (!tests.length) {
-        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><p>No assignable tests for this student' +
-            (filter !== 'all' ? ' in ' + esc(filter) : '') + '.</p></div>';
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><p>No tests available.</p></div>';
         return;
     }
 
-    el.innerHTML = tests.map(function(t, idx) {
+    // Sort: enrolled tests first, then non-enrolled (grayed out)
+    var sorted = tests.slice().sort(function(a, b) {
+        var aEnrolled = enrolledKeys.has(a.subject + '|' + a.grade) ? 0 : 1;
+        var bEnrolled = enrolledKeys.has(b.subject + '|' + b.grade) ? 0 : 1;
+        if (aEnrolled !== bEnrolled) return aEnrolled - bEnrolled;
+        if (a.subject !== b.subject) return a.subject.localeCompare(b.subject);
+        return parseInt(a.grade) - parseInt(b.grade);
+    });
+
+    el.innerHTML = sorted.map(function(t, idx) {
         var key = t.subject.toLowerCase() + '|' + t.grade;
         var status = statusMap[key] || '';
+        var isEnrolled = enrolledKeys.has(t.subject + '|' + t.grade);
+        var plGrade = placementLevels[t.subject];
+        var isPlacement = plGrade && plGrade === t.grade;
         var btnHtml;
 
         if (status === 'completed') {
@@ -335,13 +363,23 @@ function renderTests() {
             btnHtml = '<span class="test-btn assigned"><i class="fa-solid fa-clock" style="margin-right:3px;"></i>Pending</span>';
         } else if (status === 'failed') {
             btnHtml = '<span class="test-btn failed"><i class="fa-solid fa-rotate" style="margin-right:3px;"></i>Failed</span>';
-        } else {
+        } else if (isEnrolled) {
             btnHtml = '<button class="test-btn assign" id="tbtn-' + idx + '" onclick="assignTest(\'' + esc(t.subject) + '\',\'' + esc(t.grade) + '\',' + idx + ')"><i class="fa-solid fa-plus" style="margin-right:3px;"></i>Assign</button>';
+        } else {
+            // Not enrolled — show grayed-out assign button that still works
+            btnHtml = '<button class="test-btn assign" id="tbtn-' + idx + '" onclick="assignTest(\'' + esc(t.subject) + '\',\'' + esc(t.grade) + '\',' + idx + ')" style="opacity:0.5;"><i class="fa-solid fa-plus" style="margin-right:3px;"></i>Assign</button>';
         }
 
-        return '<div class="test-row">' +
+        // Badges
+        var meta = '';
+        if (isPlacement) meta += '<span style="background:#E8F5E9;color:#2E7D32;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:6px;">Placement Level</span>';
+        else if (isEnrolled) meta += '<span style="background:#EBF8FF;color:#2B6CB0;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:6px;">Enrolled</span>';
+
+        var rowStyle = isEnrolled ? '' : 'opacity:0.45;';
+
+        return '<div class="test-row" style="' + rowStyle + '">' +
             '<div class="test-row-info">' +
-                '<div class="test-row-title">' + esc(t.name) + '</div>' +
+                '<div class="test-row-title">' + esc(t.name) + meta + '</div>' +
             '</div>' + btnHtml + '</div>';
     }).join('');
 }
@@ -401,8 +439,17 @@ async function assignTest(subject, grade, idx) {
         } else {
             console.log('Assign error response:', JSON.stringify(data));
             var errMsg = data.error || data.message || 'Assignment failed.';
-            if (data.placementGrade != null && data.requestedGrade) {
-                errMsg = 'Student is placed at Grade ' + data.placementGrade + ' in ' + subject + '. Cannot assign Grade ' + data.requestedGrade + ' — try Grade ' + data.placementGrade + ' instead.';
+
+            // Build placement-aware error message
+            if (data.placementGrade != null) {
+                var pl = String(data.placementGrade);
+                var req = String(data.requestedGrade || grade);
+                if (pl === req) {
+                    // Placement grade = requested grade but still failed
+                    errMsg = subject + ' Grade ' + req + ' assignment failed. Student is placed at Grade ' + pl + ' but PowerPath could not create this test. The test may not be available yet.';
+                } else {
+                    errMsg = 'Student is placed at Grade ' + pl + ' in ' + subject + '. Try assigning Grade ' + pl + ' instead of Grade ' + req + '.';
+                }
             }
             showFeedback(errMsg, 'error');
             if (btn) { btn.className = 'test-btn assign'; btn.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:3px;"></i>Assign'; }
