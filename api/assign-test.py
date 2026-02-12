@@ -200,13 +200,18 @@ class handler(BaseHTTPRequestHandler):
             mt_ok = ar_result.get("success", False)
 
             if pp_ok or mt_ok:
-                lid = pp_data.get("lessonId", "") if isinstance(pp_data, dict) else ""
+                msg = f"Test assigned ({subject} Grade {grade})"
+                if pp_ok:
+                    msg += " — available in MasteryTrack"
+                else:
+                    msg += " — record created (PowerPath unavailable for this grade)"
                 send_json(self, {
                     "success": True,
-                    "message": f"Test assigned ({subject} Grade {grade})",
+                    "message": msg,
                     "response": pp_data if pp_ok else ar_result,
                     "assignmentId": assignment_id,
-                    "testLink": f"https://alphatest.alpha.school/assignment/{assignment_id}",
+                    "testLink": "https://alphatest.alpha.school",
+                    "powerpathOk": pp_ok,
                     "log": log,
                 })
             else:
