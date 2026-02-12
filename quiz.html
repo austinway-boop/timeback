@@ -101,6 +101,20 @@
             if (key === 'figure') { var figs = Array.isArray(val)?val:[val]; figs.forEach(function(f){ var im=f.img||{}; var a=im['_attributes']||im; html+='<figure style="text-align:center;margin:12px 0;"><img src="'+esc(a.src||'')+'" style="max-width:100%;border-radius:8px;">'+(f.figcaption?'<figcaption style="font-size:0.82rem;color:var(--color-text-muted);margin-top:6px;">'+esc(f.figcaption)+'</figcaption>':'')+'</figure>'; }); continue; }
             if (key === 'span') { html += typeof val === 'string' ? val : renderNode(val); continue; }
             if (key === 'div') { var ds=Array.isArray(val)?val:[val]; ds.forEach(function(d){html+=renderNode(d);}); continue; }
+            // Table support
+            if (key === 'table') { var ts=Array.isArray(val)?val:[val]; ts.forEach(function(t){html+='<table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:0.9rem;">'+renderNode(t)+'</table>';}); continue; }
+            if (key === 'thead') { html += '<thead style="background:var(--color-bg);font-weight:600;">' + renderNode(val) + '</thead>'; continue; }
+            if (key === 'tbody') { html += '<tbody>' + renderNode(val) + '</tbody>'; continue; }
+            if (key === 'tr') { var trs=Array.isArray(val)?val:[val]; trs.forEach(function(r){html+='<tr>'+renderNode(r)+'</tr>';}); continue; }
+            if (key === 'th') { var ths=Array.isArray(val)?val:[val]; ths.forEach(function(c){html+='<th style="padding:8px 12px;border:1px solid var(--color-border);text-align:left;">'+(typeof c==='string'?c:(c['_']||renderNode(c)))+'</th>';}); continue; }
+            if (key === 'td') { var tds=Array.isArray(val)?val:[val]; tds.forEach(function(c){html+='<td style="padding:8px 12px;border:1px solid var(--color-border);">'+(typeof c==='string'?c:(c['_']||renderNode(c)))+'</td>';}); continue; }
+            if (key === 'caption') { html += '<caption style="font-weight:600;margin-bottom:8px;">' + (typeof val === 'string' ? val : renderNode(val)) + '</caption>'; continue; }
+            // List support
+            if (key === 'ul') { html += '<ul style="margin:8px 0;padding-left:20px;">' + renderNode(val) + '</ul>'; continue; }
+            if (key === 'ol') { html += '<ol style="margin:8px 0;padding-left:20px;">' + renderNode(val) + '</ol>'; continue; }
+            if (key === 'li') { var lis=Array.isArray(val)?val:[val]; lis.forEach(function(l){html+='<li style="margin-bottom:4px;">'+(typeof l==='string'?l:(l['_']||renderNode(l)))+'</li>';}); continue; }
+            if (key === 'br') { html += '<br>'; continue; }
+            if (key === 'blockquote') { html += '<blockquote style="border-left:3px solid var(--color-primary);padding:8px 16px;margin:12px 0;background:var(--color-bg);border-radius:4px;">' + (typeof val === 'string' ? val : renderNode(val)) + '</blockquote>'; continue; }
             if (typeof val === 'object' && val !== null) html += renderNode(val);
         }
         return html;
