@@ -1114,6 +1114,10 @@
         var stepLabel = step.type || 'Content';
         var contentType = stepLabel.toLowerCase(); // 'video' or 'article'
         
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncStepCompletion',message:'Step sync data',data:{resourceId:resourceId,stepLabel:stepLabel,email:syncState.userEmail||'(empty)',courseId:lessonData.courseId||'(empty)',lessonALI:lessonData.assessmentLineItemSourcedId||'(empty)',resourceALI:(step.resource&&step.resource.assessmentLineItemSourcedId)||'(empty)',lessonSourcedId:lessonData.lessonSourcedId||'(empty)',userId:syncState.userId},timestamp:Date.now(),hypothesisId:'A,B,C,D'})}).catch(function(){});
+        // #endregion
+        
         console.log('[Sync] Syncing', stepLabel, 'completion — resourceId:', resourceId, 'userId:', syncState.userId);
         
         // Use the dedicated mark-content-complete endpoint for articles/videos
@@ -1134,6 +1138,9 @@
             .then(function(r) { return r.json(); })
             .then(function(d) { 
                 console.log('[Sync]', stepLabel, 'mark-content-complete response:', JSON.stringify(d));
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:markContentComplete:response',message:'mark-content-complete result',data:{success:d.success,results:d.results,resourceId:d.resourceId,contentType:d.contentType},timestamp:Date.now(),hypothesisId:'A,B'})}).catch(function(){});
+                // #endregion
                 if (d.success) {
                     console.log('[Sync]', stepLabel, 'successfully marked as complete via API');
                 }
@@ -1170,7 +1177,12 @@
             }),
         })
         .then(function(r) { return r.json(); })
-        .then(function(d) { console.log('[Sync]', stepLabel, 'OneRoster result response:', JSON.stringify(d)); })
+        .then(function(d) { 
+            console.log('[Sync]', stepLabel, 'OneRoster result response:', JSON.stringify(d));
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:submitResult:response',message:'submit-result comparison',data:{status:d.status,lineItemUsed:d.assessmentLineItemId||'(none)',usedPowerPathALI:d.usedPowerPathALI},timestamp:Date.now(),hypothesisId:'A,C'})}).catch(function(){});
+            // #endregion
+        })
         .catch(function(e) { console.error('[Sync]', stepLabel, 'OneRoster result FAILED:', e.message); });
         
         // 3. localStorage for immediate UI feedback

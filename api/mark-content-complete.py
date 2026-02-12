@@ -84,14 +84,19 @@ class handler(BaseHTTPRequestHandler):
             if resp.status_code in (200, 201):
                 results["oneroster"] = True
             else:
+                results["oneroster_post_status"] = resp.status_code
+                results["oneroster_post_body"] = resp.text[:300]
                 # Try alternative endpoint
-                resp = requests.put(
+                resp2 = requests.put(
                     f"{API_BASE}/ims/oneroster/gradebook/v1p2/results/{resource_id}-{student_id}",
                     headers=headers,
                     json=result_payload,
                     timeout=15
                 )
-                results["oneroster"] = resp.status_code in (200, 201)
+                results["oneroster"] = resp2.status_code in (200, 201)
+                if not results["oneroster"]:
+                    results["oneroster_put_status"] = resp2.status_code
+                    results["oneroster_put_body"] = resp2.text[:300]
         except Exception as e:
             results["oneroster_error"] = str(e)
 
