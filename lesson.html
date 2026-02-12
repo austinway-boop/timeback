@@ -227,8 +227,22 @@
         .ap-q-nav:hover { border-color: #999; }
         .ap-body.no-passage .ap-question-panel { max-width: 680px; margin: 0 auto; }
         /* Highlight */
-        mark.ap-hl { background: #FFEB3B; padding: 0 1px; border-radius: 2px; cursor: pointer; }
-        mark.ap-hl:hover { background: #FDD835; }
+        mark.ap-hl { padding: 0 1px; border-radius: 2px; cursor: pointer; }
+        mark.ap-hl.hl-yellow { background: #FFF176; }
+        mark.ap-hl.hl-yellow:hover { background: #FFEE58; }
+        mark.ap-hl.hl-blue { background: #B3E5FC; }
+        mark.ap-hl.hl-blue:hover { background: #81D4FA; }
+        mark.ap-hl.hl-pink { background: #F8BBD0; }
+        mark.ap-hl.hl-pink:hover { background: #F48FB1; }
+        /* Highlight color picker */
+        .ap-hl-picker { display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); padding: 6px; z-index: 20; gap: 4px; flex-direction: row; }
+        .ap-hl-picker.open { display: flex; }
+        .ap-hl-swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all 0.1s; }
+        .ap-hl-swatch:hover { transform: scale(1.15); }
+        .ap-hl-swatch.active { border-color: #333; }
+        .ap-hl-swatch.sw-yellow { background: #FFF176; }
+        .ap-hl-swatch.sw-blue { background: #B3E5FC; }
+        .ap-hl-swatch.sw-pink { background: #F8BBD0; }
         /* Notes panel */
         .ap-notes-panel { position: fixed; top: 120px; right: 80px; width: 260px; min-height: 200px; background: #FFF9C4; border: none; border-radius: 6px; box-shadow: 2px 4px 16px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.1); z-index: 10001; display: none; flex-direction: column; font-family: var(--font); }
         .ap-notes-panel.open { display: flex; }
@@ -984,6 +998,7 @@
         calcOpen: false,
         refOpen: false,
         highlightMode: false,
+        hlColor: 'yellow',
         subject: '',
     };
 
@@ -1065,7 +1080,14 @@
         html += '<div class="ap-header">' +
             '<div class="ap-header-title">' + esc(quizState.title) + '</div>' +
             '<div class="ap-tools">' +
-                '<button class="ap-tool-btn' + (apState.highlightMode ? ' active' : '') + '" onclick="apToggleHighlight()" title="Highlight text"><i class="fa-solid fa-highlighter"></i><span>Highlight</span></button>' +
+                '<div style="position:relative;display:inline-flex;">' +
+                    '<button class="ap-tool-btn' + (apState.highlightMode ? ' active' : '') + '" onclick="apToggleHighlight()" title="Highlight text"><i class="fa-solid fa-highlighter"></i><span>Highlight</span></button>' +
+                    '<div class="ap-hl-picker' + (apState.highlightMode ? ' open' : '') + '" id="ap-hl-picker">' +
+                        '<div class="ap-hl-swatch sw-yellow' + (apState.hlColor === 'yellow' ? ' active' : '') + '" onclick="apSetHlColor(\'yellow\')"></div>' +
+                        '<div class="ap-hl-swatch sw-blue' + (apState.hlColor === 'blue' ? ' active' : '') + '" onclick="apSetHlColor(\'blue\')"></div>' +
+                        '<div class="ap-hl-swatch sw-pink' + (apState.hlColor === 'pink' ? ' active' : '') + '" onclick="apSetHlColor(\'pink\')"></div>' +
+                    '</div>' +
+                '</div>' +
                 '<div class="ap-tool-sep"></div>' +
                 '<div class="ap-more-wrap">' +
                     '<button class="ap-tool-btn" onclick="apToggleMore()" title="More tools"><i class="fa-solid fa-ellipsis-vertical"></i><span>More</span></button>' +
@@ -1250,11 +1272,28 @@
     // ── Highlight tool ──
     function apToggleHighlight() {
         apState.highlightMode = !apState.highlightMode;
-        renderAPQuestion();
+        // Update button state without re-rendering (preserves highlights)
+        var overlay = document.getElementById('ap-overlay');
+        if (overlay) {
+            var btn = overlay.querySelector('.ap-tool-btn');
+            if (btn) btn.classList.toggle('active', apState.highlightMode);
+            var picker = document.getElementById('ap-hl-picker');
+            if (picker) picker.classList.toggle('open', apState.highlightMode);
+        }
         if (apState.highlightMode) {
             document.addEventListener('mouseup', apDoHighlight);
         } else {
             document.removeEventListener('mouseup', apDoHighlight);
+        }
+    }
+    function apSetHlColor(color) {
+        apState.hlColor = color;
+        // Update swatch active states
+        var picker = document.getElementById('ap-hl-picker');
+        if (picker) {
+            picker.querySelectorAll('.ap-hl-swatch').forEach(function(s) { s.classList.remove('active'); });
+            var active = picker.querySelector('.sw-' + color);
+            if (active) active.classList.add('active');
         }
     }
     function apDoHighlight(e) {
@@ -1273,7 +1312,7 @@
         var el = container.nodeType === 3 ? container.parentElement : container;
         if (!el.closest || (!el.closest('.ap-passage') && !el.closest('.ap-q-prompt'))) return;
         var mark = document.createElement('mark');
-        mark.className = 'ap-hl';
+        mark.className = 'ap-hl hl-' + (apState.hlColor || 'yellow');
         try { range.surroundContents(mark); } catch(e) {}
         sel.removeAllRanges();
     }
