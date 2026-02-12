@@ -743,7 +743,16 @@
                         var pLessonId = pLesson.id || pLesson.sourcedId || '';
                         var pLocalKey = 'completed_' + (pLessonId || pLTitle);
                         var pLDone = !!progressByTitle[pLTitle] || !!(pLessonId && progressById[pLessonId]) || localStorage.getItem(pLocalKey) === 'true';
+                        // Also check componentResources for progress (titles/IDs may differ from parent lesson)
                         var pRes = pLesson.componentResources || [];
+                        if (!pLDone && pRes.length > 0) {
+                            for (var _pri = 0; _pri < pRes.length; _pri++) {
+                                var _prr = pRes[_pri].resource || pRes[_pri] || {};
+                                var _prId = _prr.id || _prr.sourcedId || pRes[_pri].id || pRes[_pri].sourcedId || '';
+                                var _prTitle = (_prr.title || '').trim();
+                                if ((_prTitle && progressByTitle[_prTitle]) || (_prId && progressById[_prId])) { pLDone = true; break; }
+                            }
+                        }
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
                         var pHasAny = pLDone;
@@ -795,7 +804,18 @@
                         var lcTitle = (modLessons[lc].title || '').trim();
                         var lcId = modLessons[lc].id || modLessons[lc].sourcedId || '';
                         var lcLocalKey = 'completed_' + (lcId || lcTitle);
-                        if (progressByTitle[lcTitle] || (lcId && progressById[lcId]) || localStorage.getItem(lcLocalKey) === 'true') unitDone++;
+                        var lcFound = !!(progressByTitle[lcTitle]) || !!(lcId && progressById[lcId]) || localStorage.getItem(lcLocalKey) === 'true';
+                        // Also check componentResources for matching progress
+                        if (!lcFound) {
+                            var lcRes = modLessons[lc].componentResources || [];
+                            for (var _lri = 0; _lri < lcRes.length; _lri++) {
+                                var _lr = lcRes[_lri].resource || lcRes[_lri] || {};
+                                var _lrId = _lr.id || _lr.sourcedId || lcRes[_lri].id || lcRes[_lri].sourcedId || '';
+                                var _lrTitle = (_lr.title || '').trim();
+                                if ((_lrTitle && progressByTitle[_lrTitle]) || (_lrId && progressById[_lrId])) { lcFound = true; break; }
+                            }
+                        }
+                        if (lcFound) unitDone++;
                     }
                     var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
                     var unitComplete = forceComplete || (unitDone === modLessons.length && modLessons.length > 0);
@@ -840,6 +860,20 @@
                             var lId = lesson.id || lesson.sourcedId || '';
                             // Look up progress by title first, then by sourcedId
                             var prog = progressByTitle[lTitle.trim()] || (lId ? progressById[lId] : null) || null;
+                            
+                            // Also check componentResources — progress lineItems use resource titles/IDs
+                            // which may differ from the parent lesson title
+                            var _lesRes = lesson.componentResources || [];
+                            if (!prog && _lesRes.length > 0) {
+                                for (var _cri = 0; _cri < _lesRes.length; _cri++) {
+                                    var _cr = _lesRes[_cri].resource || _lesRes[_cri] || {};
+                                    var _crId = _cr.id || _cr.sourcedId || _lesRes[_cri].id || _lesRes[_cri].sourcedId || '';
+                                    var _crTitle = (_cr.title || '').trim();
+                                    var _crProg = (_crTitle ? progressByTitle[_crTitle] : null) || (_crId ? progressById[_crId] : null);
+                                    if (_crProg) { prog = _crProg; break; }
+                                }
+                            }
+                            
                             var isDone = prog && (
                                 prog.scoreStatus === 'fully graded' ||
                                 prog.textScore === 'Completed' ||
