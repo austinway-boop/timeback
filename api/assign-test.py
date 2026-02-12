@@ -222,49 +222,94 @@ class handler(BaseHTTPRequestHandler):
 
 
 def _create_line_item(headers, assignment_id, student_id, email, subject, grade, test_name):
-    """Create a OneRoster line item that syncs to MasteryTrack's assignment system."""
-    # Get the placement class for this subject (used as the class reference)
-    key = subject.lower()
-    cls = PLACEMENT_CLASSES.get(key, PLACEMENT_CLASSES.get("math"))
-    class_id = cls["classId"]
+    """Create a OneRoster line item that syncs to MasteryTrack.
+    Fetches real class, school, and category IDs from OneRoster first."""
 
-    line_item = {
-        "lineItem": {
-            "sourcedId": assignment_id,
-            "status": "active",
-            "title": test_name,
-            "description": f"{subject} Grade {grade} placement test for {email}",
-            "assignDate": time.strftime("%Y-%m-%d", time.gmtime()),
-            "dueDate": "2026-12-31",
-            "class": {"sourcedId": class_id},
-            "category": {"sourcedId": ALPHATEST_LINE_ITEM},
-            "resultValueMin": 0.0,
-            "resultValueMax": 100.0,
-            "metadata": {
-                "toolProvider": "AlphaTest",
-                "subject": subject,
-                "grade": grade,
-                "testType": "assessment",
-                "studentSourcedId": student_id,
-                "studentEmail": email,
-            },
-        }
-    }
-
-    # Try multiple OneRoster paths and payload wrappers
     GB = f"{API_BASE}/ims/oneroster/gradebook/v1p2"
     RS = f"{API_BASE}/ims/oneroster/rostering/v1p2"
-    inner = line_item["lineItem"]
+    log = {}
 
+    # 1. Find the student's class for this subject (from their enrollments)
+    class_id = ""
+    school_id = ""
+    try:
+        er = requests.get(f"{RS}/students/{student_id}/classes", headers=headers, timeout=8)
+        if er.status_code == 200:
+            classes = er.json().get("classes", [])
+            for c in classes:
+                # Match by subject in course or title
+                c_title = (c.get("title") or "").lower()
+                c_subjects = c.get("subjects") or []
+                c_grades = c.get("grades") or []
+                subj_match = subject.lower() in c_title or subject.lower() in [s.lower() for s in c_subjects]
+                if subj_match:
+                    class_id = c.get("sourcedId") or ""
+                    school_ref = c.get("school") or {}
+                    school_id = school_ref.get("sourcedId") or ""
+                    break
+            # Fallback: use first class if no subject match
+            if not class_id and classes:
+                class_id = classes[0].get("sourcedId") or ""
+                school_ref = classes[0].get("school") or {}
+                school_id = school_ref.get("sourcedId") or ""
+        log["classLookup"] = {"found": bool(class_id), "classId": class_id, "schoolId": school_id}
+    except Exception as e:
+        log["classLookup"] = {"error": str(e)}
+
+    # Fallback to placement class IDs if no class found
+    if not class_id:
+        key = subject.lower()
+        cls = PLACEMENT_CLASSES.get(key, PLACEMENT_CLASSES.get("math"))
+        class_id = cls["classId"]
+        school_id = cls["schoolId"]
+        log["classLookup"] = {"fallback": True, "classId": class_id}
+
+    # 2. Find a real category ID from the gradebook
+    category_id = ""
+    try:
+        cr = requests.get(f"{GB}/categories", headers=headers, params={"limit": 10}, timeout=6)
+        if cr.status_code == 200:
+            cats = cr.json().get("categories", [])
+            if cats:
+                category_id = cats[0].get("sourcedId") or ""
+        log["categoryLookup"] = {"found": bool(category_id), "id": category_id}
+    except Exception as e:
+        log["categoryLookup"] = {"error": str(e)}
+
+    if not category_id:
+        category_id = ALPHATEST_LINE_ITEM  # fallback
+
+    # 3. Build the line item with real IDs and full ISO-8601 dates
+    now = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+    inner = {
+        "sourcedId": assignment_id,
+        "status": "active",
+        "title": test_name,
+        "description": f"{subject} Grade {grade} placement test",
+        "assignDate": now,
+        "dueDate": "2026-12-31T23:59:59.000Z",
+        "class": {"sourcedId": class_id},
+        "school": {"sourcedId": school_id},
+        "category": {"sourcedId": category_id},
+        "resultValueMin": 0.0,
+        "resultValueMax": 100.0,
+        "metadata": {
+            "toolProvider": "AlphaTest",
+            "subject": subject,
+            "grade": grade,
+            "testType": "assessment",
+            "studentSourcedId": student_id,
+            "studentEmail": email,
+        },
+    }
+
+    # 4. Try creating the line item
     attempts = []
-    # Different wrapper names and endpoints
     combos = [
         ("PUT",  f"{GB}/lineItems/{assignment_id}",               {"lineItem": inner}),
         ("POST", f"{GB}/lineItems",                                {"lineItem": inner}),
         ("PUT",  f"{GB}/assessmentLineItems/{assignment_id}",     {"assessmentLineItem": inner}),
         ("POST", f"{GB}/assessmentLineItems",                      {"assessmentLineItem": inner}),
-        ("PUT",  f"{RS}/lineItems/{assignment_id}",               {"lineItem": inner}),
-        ("POST", f"{RS}/lineItems",                                {"lineItem": inner}),
     ]
 
     for method, url, payload in combos:
@@ -276,14 +321,14 @@ def _create_line_item(headers, assignment_id, student_id, email, subject, grade,
             try:
                 body = resp.json()
             except Exception:
-                body = {"raw": resp.text[:200]}
-            attempts.append({"method": method, "url": url.replace(API_BASE, ""), "status": resp.status_code})
+                body = {"raw": resp.text[:300]}
+            attempts.append({"method": method, "path": url.replace(API_BASE, ""), "status": resp.status_code})
             if resp.status_code in (200, 201):
-                return {"success": True, "status": resp.status_code, "response": body, "attempts": attempts}
+                return {"success": True, "status": resp.status_code, "response": body, "attempts": attempts, **log}
         except Exception as e:
-            attempts.append({"url": url.replace(API_BASE, ""), "error": str(e)})
+            attempts.append({"path": url.replace(API_BASE, ""), "error": str(e)})
 
-    return {"success": False, "attempts": attempts}
+    return {"success": False, "attempts": attempts, **log}
 
 
 def _ensure_placement_enrollment(headers, student_id, subject):
