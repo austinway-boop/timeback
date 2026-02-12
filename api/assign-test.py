@@ -211,9 +211,8 @@ def _assign_with_autofix(headers, student_id, subject, grade, payload, log):
     if isinstance(data, dict):
         err = (data.get("error") or data.get("imsx_description") or "").lower()
 
-    # 2. If "not enrolled" error → find course and auto-enroll
-    if "not enrolled" in err or resp.status_code == 400:
-        log["autoEnroll"] = _auto_enroll(headers, student_id, subject, grade, log)
+    # 2. Always auto-enroll — PowerPath returns generic 500 when not enrolled
+    log["autoEnroll"] = _auto_enroll(headers, student_id, subject, grade, log)
 
     # 3. Delete existing assignments for this subject
     try:
