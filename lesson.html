@@ -17,6 +17,27 @@
         }
         .lesson-page.wide-mode {
             max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - var(--topbar-height) - 64px);
+            overflow: hidden;
+        }
+        .lesson-page.wide-mode .lesson-content {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .lesson-page.wide-mode .quiz-area {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        .lesson-page.wide-mode .pp-split-layout {
+            flex: 1;
+            min-height: 0;
+            height: auto;
         }
 
         /* ── Back Link (matches course page) ─────────────────── */
@@ -251,6 +272,21 @@
         .choice.incorrect .choice-letter { background: #DC2626; color: #fff; }
         .choice-text { flex: 1; font-size: 0.92rem; line-height: 1.5; padding-top: 2px; }
 
+        /* ── Crossout tool ── */
+        .choice.crossed-out { opacity: 0.35; }
+        .choice.crossed-out .choice-text { text-decoration: line-through; color: #999; }
+        .choice.crossed-out .choice-letter { background: #e5e7eb; color: #999; }
+        .crossout-btn { display: none; margin-left: auto; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #ddd; background: #fff; color: #bbb; font-size: 0.7rem; cursor: pointer; flex-shrink: 0; align-items: center; justify-content: center; transition: all 0.12s; }
+        .crossout-btn:hover { border-color: #E53E3E; color: #E53E3E; background: #FFF5F5; }
+        .choices.crossout-mode .crossout-btn { display: flex; }
+        .choice.crossed-out .crossout-btn { border-color: #E53E3E; color: #E53E3E; background: #FEE2E2; }
+        .crossout-toggle { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 28px; border: 1.5px solid #d1d5db; border-radius: 6px; font-size: 0.62rem; font-weight: 700; color: #9ca3af; cursor: pointer; background: #fff; position: relative; transition: all 0.15s; user-select: none; }
+        .crossout-toggle:hover { border-color: #9ca3af; color: #6b7280; }
+        .crossout-toggle.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-light); }
+        .crossout-toggle .strike-line { position: absolute; width: 80%; height: 1.5px; background: currentColor; transform: rotate(-30deg); top: 50%; left: 10%; pointer-events: none; }
+        .q-tools-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .q-tools-row .question-num { margin-bottom: 0; flex: 1; }
+
         .feedback {
             padding: 14px 16px; border-radius: 10px; margin-top: 14px;
             font-size: 0.88rem; line-height: 1.6; display: none;
@@ -269,8 +305,7 @@
         .pp-split-layout {
             display: flex; gap: 0; flex: 1; overflow: hidden;
             border: 1px solid #e5e7eb; border-radius: 12px;
-            background: #fff; min-height: 520px;
-            height: calc(100vh - 280px);
+            background: #fff; min-height: 0;
         }
         .pp-split-left {
             width: 45%; min-width: 320px; padding: 28px 32px;
@@ -615,6 +650,8 @@
         staticQuestions: null, staticIdx: 0,
         // Reading quiz mode
         isReadingQuiz: false, accumulatedStimuli: [], totalQuestions: 0,
+        // Crossout tool
+        crossOutMode: false, crossedOut: {},
     };
     var quizArea = null; // reference to the quiz container element
 
@@ -1320,7 +1357,9 @@
         }
 
         // Build question + choices HTML (reused in both layouts)
-        var questionHtml = '<div class="question-card"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>';
+        var questionHtml = '<div class="question-card">';
+        var coToggleHtml = (!isFRQ && choices.length > 0) ? '<div class="crossout-toggle' + (quizState.crossOutMode ? ' active' : '') + '" onclick="toggleCrossOut()" title="Eliminate answers">ABC' + (quizState.crossOutMode ? '<div class="strike-line"></div>' : '') + '</div>' : '';
+        questionHtml += '<div class="q-tools-row"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>' + coToggleHtml + '</div>';
         questionHtml += '<div class="question-text">' + (prompt || 'Loading question...') + '</div>';
 
         if (isFRQ) {
@@ -1330,16 +1369,20 @@
         } else if (choices.length > 0) {
             var letters = 'ABCDEFGHIJ';
             var correctId = q.correctId || '';
-            questionHtml += '<div class="choices" id="choices">';
+            var co = quizState.crossedOut[quizState.questionNum] || {};
+            questionHtml += '<div class="choices' + (quizState.crossOutMode ? ' crossout-mode' : '') + '" id="choices">';
             for (var i = 0; i < choices.length; i++) {
                 var c = choices[i];
                 var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : '');
                 if (typeof cText === 'object') cText = renderNode(cText);
                 var cId = c.id || c.identifier || letters[i] || String(i);
                 var dotHtml = (correctId && cId === correctId) ? '<span class="answer-dot"></span>' : '';
-                questionHtml += '<div class="choice" data-id="' + esc(cId) + '" onclick="selectAnswer(this,\'' + esc(cId) + '\')">' +
+                var crossedCls = co[cId] ? ' crossed-out' : '';
+                questionHtml += '<div class="choice' + crossedCls + '" data-id="' + esc(cId) + '" onclick="selectAnswer(this,\'' + esc(cId) + '\')">' +
                     '<div class="choice-letter">' + (letters[i] || i) + '</div>' +
-                    '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' + dotHtml + '</div>';
+                    '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' + dotHtml +
+                    '<button class="crossout-btn" onclick="event.stopPropagation();crossOutChoice(this.parentElement,\'' + esc(cId) + '\')" title="Cross out"><i class="fa-solid fa-xmark"></i></button>' +
+                '</div>';
             }
             questionHtml += '</div>';
         }
@@ -1373,10 +1416,47 @@
 
     function selectAnswer(el, choiceId) {
         if (quizState.answered) return;
+        // In crossout mode, clicking toggles crossout instead of selecting
+        if (quizState.crossOutMode) {
+            crossOutChoice(el, choiceId);
+            return;
+        }
+        // Don't select crossed-out choices
+        if (el.classList.contains('crossed-out')) return;
         quizState.selectedChoice = choiceId;
         document.querySelectorAll('.choice').forEach(function(c) { c.classList.remove('selected'); });
         el.classList.add('selected');
         document.getElementById('quiz-submit').disabled = false;
+    }
+
+    function toggleCrossOut() {
+        quizState.crossOutMode = !quizState.crossOutMode;
+        var choicesEl = document.getElementById('choices');
+        if (choicesEl) choicesEl.classList.toggle('crossout-mode', quizState.crossOutMode);
+        var toggle = document.querySelector('.crossout-toggle');
+        if (toggle) {
+            toggle.classList.toggle('active', quizState.crossOutMode);
+            toggle.innerHTML = 'ABC' + (quizState.crossOutMode ? '<div class="strike-line"></div>' : '');
+        }
+    }
+
+    function crossOutChoice(el, choiceId) {
+        if (quizState.answered) return;
+        var qNum = quizState.questionNum;
+        if (!quizState.crossedOut[qNum]) quizState.crossedOut[qNum] = {};
+        if (quizState.crossedOut[qNum][choiceId]) {
+            delete quizState.crossedOut[qNum][choiceId];
+            el.classList.remove('crossed-out');
+        } else {
+            quizState.crossedOut[qNum][choiceId] = true;
+            el.classList.add('crossed-out');
+            // If this choice was selected, deselect it
+            if (quizState.selectedChoice === choiceId) {
+                quizState.selectedChoice = null;
+                el.classList.remove('selected');
+                document.getElementById('quiz-submit').disabled = true;
+            }
+        }
     }
 
     /* ── Submit answer ─────────────────────────────────────── */

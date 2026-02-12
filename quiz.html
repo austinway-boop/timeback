@@ -11,7 +11,24 @@
     <link rel="stylesheet" href="/css/style.css">
     <style>
         .quiz-wrap { max-width: 820px; margin: 0 auto; padding: 20px; transition: max-width 0.3s ease; }
-        .quiz-wrap.wide-mode { max-width: 100%; }
+        .quiz-wrap.wide-mode {
+            max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - var(--topbar-height) - 64px);
+            overflow: hidden;
+        }
+        .quiz-wrap.wide-mode #quiz-area {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        .quiz-wrap.wide-mode .quiz-split-layout {
+            flex: 1;
+            min-height: 0;
+            height: auto;
+        }
         .quiz-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
         .quiz-title { font-size: 1.2rem; font-weight: 700; flex: 1; }
         .quiz-score { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 700; color: var(--color-primary); background: var(--color-primary-light); padding: 6px 14px; border-radius: 20px; }
@@ -45,6 +62,20 @@
         .choice.correct .choice-letter { background: #2E7D32; color: #fff; }
         .choice.incorrect .choice-letter { background: #E53E3E; color: #fff; }
         .choice-text { flex: 1; font-size: 0.95rem; line-height: 1.5; padding-top: 4px; }
+        /* ── Crossout tool ── */
+        .choice.crossed-out { opacity: 0.35; }
+        .choice.crossed-out .choice-text { text-decoration: line-through; color: #999; }
+        .choice.crossed-out .choice-letter { background: #e5e7eb; color: #999; }
+        .crossout-btn { display: none; margin-left: auto; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #ddd; background: #fff; color: #bbb; font-size: 0.7rem; cursor: pointer; flex-shrink: 0; align-items: center; justify-content: center; transition: all 0.12s; }
+        .crossout-btn:hover { border-color: #E53E3E; color: #E53E3E; background: #FFF5F5; }
+        .choices.crossout-mode .crossout-btn { display: flex; }
+        .choice.crossed-out .crossout-btn { border-color: #E53E3E; color: #E53E3E; background: #FEE2E2; }
+        .crossout-toggle { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 28px; border: 1.5px solid #d1d5db; border-radius: 6px; font-size: 0.62rem; font-weight: 700; color: #9ca3af; cursor: pointer; background: #fff; position: relative; transition: all 0.15s; user-select: none; }
+        .crossout-toggle:hover { border-color: #9ca3af; color: #6b7280; }
+        .crossout-toggle.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-light); }
+        .crossout-toggle .strike-line { position: absolute; width: 80%; height: 1.5px; background: currentColor; transform: rotate(-30deg); top: 50%; left: 10%; pointer-events: none; }
+        .q-tools-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .q-tools-row .question-num { margin-bottom: 0; flex: 1; }
         .feedback { padding: 16px; border-radius: 10px; margin-top: 16px; font-size: 0.9rem; line-height: 1.6; display: none; }
         .feedback.correct { background: #E8F5E9; border: 1px solid #A5D6A7; color: #1B5E20; display: block; }
         .feedback.incorrect { background: #FFF5F5; border: 1px solid #FFCDD2; color: #B71C1C; display: block; }
@@ -73,8 +104,7 @@
         .quiz-split-layout {
             display: flex; gap: 0; overflow: hidden;
             border: 1px solid var(--color-border); border-radius: var(--radius);
-            background: #fff; min-height: 520px;
-            height: calc(100vh - 300px);
+            background: #fff; min-height: 0;
         }
         .quiz-split-left {
             width: 45%; min-width: 320px; padding: 28px 32px;
@@ -175,6 +205,9 @@
         isReadingQuiz: false, // true when quiz has article/stimulus content
         accumulatedStimuli: [], // all article parts shown so far
         totalQuestions: 0, // fixed question count for reading quizzes
+        // Crossout tool
+        crossOutMode: false,
+        crossedOut: {},
     };
 
     var area = document.getElementById('quiz-area');
@@ -354,7 +387,9 @@
         }
 
         // Build question + choices HTML
-        var questionHtml = '<div class="question-card"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>';
+        var questionHtml = '<div class="question-card">';
+        var coToggleHtml = (!isFRQ && choices.length > 0) ? '<div class="crossout-toggle' + (quizState.crossOutMode ? ' active' : '') + '" onclick="toggleCrossOut()" title="Eliminate answers">ABC' + (quizState.crossOutMode ? '<div class="strike-line"></div>' : '') + '</div>' : '';
+        questionHtml += '<div class="q-tools-row"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>' + coToggleHtml + '</div>';
         questionHtml += '<div class="question-text">' + (prompt || 'Loading question...') + '</div>';
 
         if (isFRQ) {
@@ -366,16 +401,19 @@
         } else if (choices.length > 0) {
             var letters = 'ABCDEFGHIJ';
             var _correctId = q.correctId || '';
-            questionHtml += '<div class="choices" id="choices">';
+            var co = quizState.crossedOut[quizState.questionNum] || {};
+            questionHtml += '<div class="choices' + (quizState.crossOutMode ? ' crossout-mode' : '') + '" id="choices">';
             for (var i = 0; i < choices.length; i++) {
                 var c = choices[i];
                 var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : '');
                 if (typeof cText === 'object') cText = renderNode(cText);
                 var cId = c.id || c.identifier || letters[i] || String(i);
                 var answerDot = (_correctId && cId === _correctId) ? '<span class="answer-dot"></span>' : '';
-                questionHtml += '<div class="choice" data-id="' + esc(cId) + '" onclick="selectAnswer(this, \'' + esc(cId) + '\')">' +
+                var crossedCls = co[cId] ? ' crossed-out' : '';
+                questionHtml += '<div class="choice' + crossedCls + '" data-id="' + esc(cId) + '" onclick="selectAnswer(this, \'' + esc(cId) + '\')">' +
                     '<div class="choice-letter">' + (letters[i] || i) + '</div>' +
                     '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' + answerDot +
+                    '<button class="crossout-btn" onclick="event.stopPropagation();crossOutChoice(this.parentElement,\'' + esc(cId) + '\')" title="Cross out"><i class="fa-solid fa-xmark"></i></button>' +
                 '</div>';
             }
             questionHtml += '</div>';
