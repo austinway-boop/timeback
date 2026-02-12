@@ -10,7 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .quiz-wrap { max-width: 720px; margin: 0 auto; padding: 20px; }
+        .quiz-wrap { max-width: 820px; margin: 0 auto; padding: 20px; transition: max-width 0.3s ease; }
+        .quiz-wrap.wide-mode { max-width: 100%; }
         .quiz-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
         .quiz-title { font-size: 1.2rem; font-weight: 700; flex: 1; }
         .quiz-score { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 700; color: var(--color-primary); background: var(--color-primary-light); padding: 6px 14px; border-radius: 20px; }
@@ -67,6 +68,38 @@
         .back-btn:hover { color: var(--color-primary); }
         .stimulus-box { background: var(--color-bg); border-radius: var(--radius-sm); padding: 20px; margin-bottom: 20px; line-height: 1.7; font-size: 0.95rem; max-height: 400px; overflow-y: auto; }
         .stimulus-box img { max-width: 100%; border-radius: 8px; }
+
+        /* ── Split layout (stimulus left, questions right) ── */
+        .quiz-split-layout {
+            display: flex; gap: 0; overflow: hidden;
+            border: 1px solid var(--color-border); border-radius: var(--radius);
+            background: #fff; min-height: 520px;
+            height: calc(100vh - 300px);
+        }
+        .quiz-split-left {
+            width: 45%; min-width: 320px; padding: 28px 32px;
+            overflow-y: auto; background: var(--color-bg);
+            border-right: 1px solid var(--color-border);
+            line-height: 1.8; font-size: 0.95rem; color: var(--color-text);
+        }
+        .quiz-split-left p { margin-bottom: 14px; }
+        .quiz-split-left img { max-width: 100%; border-radius: 8px; margin: 10px 0; }
+        .quiz-split-left::-webkit-scrollbar { width: 6px; }
+        .quiz-split-left::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        .quiz-split-left::-webkit-scrollbar-track { background: transparent; }
+        .quiz-split-right {
+            flex: 1; padding: 28px 32px; overflow-y: auto;
+        }
+        .quiz-split-right::-webkit-scrollbar { width: 6px; }
+        .quiz-split-right::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        .quiz-split-right::-webkit-scrollbar-track { background: transparent; }
+        .quiz-split-right .question-card { padding-top: 0; border: none; margin-bottom: 0; }
+        .quiz-split-right .quiz-actions { padding-top: 16px; border-top: 1px solid var(--color-border); margin-top: 16px; }
+        @media (max-width: 768px) {
+            .quiz-split-layout { flex-direction: column; min-height: auto; height: auto; }
+            .quiz-split-left { width: 100%; min-width: 0; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--color-border); }
+            .quiz-split-right { padding: 20px; }
+        }
         /* Answer key dot — hidden by default, shown via toggle */
         .answer-dot { width: 8px; height: 8px; border-radius: 50%; background: #16A34A; flex-shrink: 0; margin-left: auto; display: none; }
         body.show-answer-key .answer-dot { display: block; }
@@ -311,24 +344,21 @@
             '</div>';
         }
 
-        // Show stimulus — accumulated for reading quizzes, single for others
-        if (quizState.isReadingQuiz && quizState.accumulatedStimuli.length > 0) {
-            html += '<div class="stimulus-box">';
-            for (var si = 0; si < quizState.accumulatedStimuli.length; si++) {
-                if (si > 0) html += '<hr style="border:none;border-top:2px dashed #E8ECF1;margin:20px 0;">';
-                html += quizState.accumulatedStimuli[si];
-            }
-            html += '</div>';
-        } else if (stimulus) {
-            html += '<div class="stimulus-box">' + stimulus + '</div>';
+        var hasStimulus = (quizState.isReadingQuiz && quizState.accumulatedStimuli.length > 0) || (stimulus && stimulus.length > 10);
+
+        // Toggle wide mode based on stimulus
+        var quizWrap = document.querySelector('.quiz-wrap');
+        if (quizWrap) {
+            if (hasStimulus) quizWrap.classList.add('wide-mode');
+            else quizWrap.classList.remove('wide-mode');
         }
 
-        html += '<div class="question-card"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>';
-        html += '<div class="question-text">' + (prompt || 'Loading question...') + '</div>';
+        // Build question + choices HTML
+        var questionHtml = '<div class="question-card"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>';
+        questionHtml += '<div class="question-text">' + (prompt || 'Loading question...') + '</div>';
 
         if (isFRQ) {
-            // Free Response Question — textarea
-            html += '<textarea id="frq-response" rows="' + expectedLines + '" placeholder="Type your response here..." ' +
+            questionHtml += '<textarea id="frq-response" rows="' + expectedLines + '" placeholder="Type your response here..." ' +
                 'style="width:100%;padding:14px;border:2px solid var(--color-border);border-radius:10px;font-size:0.95rem;font-family:inherit;line-height:1.7;resize:vertical;outline:none;transition:border-color 0.15s;box-sizing:border-box;" ' +
                 'onfocus="this.style.borderColor=\'var(--color-primary)\'" onblur="this.style.borderColor=\'var(--color-border)\'" ' +
                 'oninput="document.getElementById(\'submit-btn\').disabled=!this.value.trim()"></textarea>' +
@@ -336,27 +366,48 @@
         } else if (choices.length > 0) {
             var letters = 'ABCDEFGHIJ';
             var _correctId = q.correctId || '';
-            html += '<div class="choices" id="choices">';
+            questionHtml += '<div class="choices" id="choices">';
             for (var i = 0; i < choices.length; i++) {
                 var c = choices[i];
                 var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : '');
                 if (typeof cText === 'object') cText = renderNode(cText);
                 var cId = c.id || c.identifier || letters[i] || String(i);
                 var answerDot = (_correctId && cId === _correctId) ? '<span class="answer-dot"></span>' : '';
-                html += '<div class="choice" data-id="' + esc(cId) + '" onclick="selectAnswer(this, \'' + esc(cId) + '\')">' +
+                questionHtml += '<div class="choice" data-id="' + esc(cId) + '" onclick="selectAnswer(this, \'' + esc(cId) + '\')">' +
                     '<div class="choice-letter">' + (letters[i] || i) + '</div>' +
                     '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' + answerDot +
                 '</div>';
             }
-            html += '</div>';
+            questionHtml += '</div>';
         }
 
-        html += '<div class="feedback" id="feedback"></div>';
-        html += '</div>';
+        questionHtml += '<div class="feedback" id="feedback"></div>';
+        questionHtml += '</div>';
+        questionHtml += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-primary" id="submit-btn" onclick="submitAnswer()" disabled><i class="fa-solid fa-check"></i> Submit Answer</button></div>';
 
-        html += '<div class="quiz-actions">' +
-            '<button class="quiz-btn quiz-btn-primary" id="submit-btn" onclick="submitAnswer()" disabled><i class="fa-solid fa-check"></i> Submit Answer</button>' +
-        '</div>';
+        if (hasStimulus) {
+            // Build stimulus content
+            var stimContent = '';
+            if (quizState.isReadingQuiz && quizState.accumulatedStimuli.length > 0) {
+                for (var si = 0; si < quizState.accumulatedStimuli.length; si++) {
+                    if (si > 0) stimContent += '<hr style="border:none;border-top:2px dashed #E8ECF1;margin:20px 0;">';
+                    stimContent += quizState.accumulatedStimuli[si];
+                }
+            } else {
+                stimContent = stimulus;
+            }
+            // Split layout: passage left, question right
+            html += '<div class="quiz-split-layout">';
+            html += '<div class="quiz-split-left">' + stimContent + '</div>';
+            html += '<div class="quiz-split-right">' + questionHtml + '</div>';
+            html += '</div>';
+        } else {
+            // Stacked layout (no stimulus)
+            if (stimulus) {
+                html += '<div class="stimulus-box">' + stimulus + '</div>';
+            }
+            html += questionHtml;
+        }
 
         area.innerHTML = html;
     }
@@ -464,6 +515,10 @@
     }
 
     function showResults() {
+        // Collapse wide mode for results
+        var quizWrap = document.querySelector('.quiz-wrap');
+        if (quizWrap) quizWrap.classList.remove('wide-mode');
+
         var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
         var passed = pct >= 90;
         var noXp = pct < 80;
