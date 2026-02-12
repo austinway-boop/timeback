@@ -764,9 +764,15 @@
             btnBack.onclick = function() { goBack(); };
             var embedUrl = toEmbedUrl(url);
             if (embedUrl) {
-                contentEl.innerHTML = '<div class="video-wrap"><iframe src="' + esc(embedUrl) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>';
+                contentEl.innerHTML = '<div class="video-section">' +
+                    '<div class="video-section-header">' +
+                        '<div class="vs-icon"><i class="fa-solid fa-play"></i></div>' +
+                        '<div class="vs-text">Watch Video</div>' +
+                    '</div>' +
+                    '<div class="video-wrap"><iframe src="' + esc(embedUrl) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>' +
+                '</div>';
             } else {
-                contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-video"></i><p>Video</p><p class="sub"><a href="' + esc(url) + '" target="_blank" style="color:var(--color-primary);">Open video in new tab</a></p></div>';
+                contentEl.innerHTML = '<div class="lesson-placeholder"><div class="ph-icon"><i class="fa-solid fa-video"></i></div><p>Video</p><p class="sub"><a href="' + esc(url) + '" target="_blank" style="color:var(--color-primary);font-weight:600;">Open video in new tab</a></p></div>';
             }
         } else if (step.type === 'Article') {
             nav.classList.remove('hidden');
@@ -777,10 +783,11 @@
             btnBack.onclick = function() { goBack(); };
             var resId = step.resource.resId || '';
             if (url || resId) {
-                contentEl.innerHTML = '<div class="article-loading"><i class="fa-solid fa-spinner fa-spin"></i><span>Loading article...</span></div>';
+                contentEl.innerHTML = '<div class="article-section-header"><div class="as-icon"><i class="fa-solid fa-file-lines"></i></div><div class="as-text">Read Article</div></div>' +
+                    '<div class="article-loading"><i class="fa-solid fa-spinner fa-spin"></i><span>Loading article...</span></div>';
                 fetchArticle(url, resId, contentEl);
             } else {
-                contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content</p><p class="sub">No article URL available for this lesson.</p></div>';
+                contentEl.innerHTML = '<div class="lesson-placeholder"><div class="ph-icon"><i class="fa-solid fa-file-lines"></i></div><p>Article content</p><p class="sub">No article URL available for this lesson.</p></div>';
             }
         } else if (step.type === 'Quiz') {
             // Hide entire lesson page immediately
@@ -1727,6 +1734,8 @@
     function exitAPExam() {
         var ol = document.getElementById('ap-overlay');
         if (ol) ol.remove();
+        var lp = document.querySelector('.lesson-page');
+        if (lp) lp.style.display = '';
         document.removeEventListener('mouseup', apDoHighlight);
         goBackToCourse();
     }
