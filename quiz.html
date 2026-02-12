@@ -716,8 +716,26 @@
 
                     // Get correct answer (MC only)
                     var rd = qi['qti-response-declaration'] || {};
+                    // Handle array of declarations (RESPONSE + OUTCOME)
+                    if (Array.isArray(rd)) {
+                        var found = false;
+                        for (var rdi = 0; rdi < rd.length; rdi++) {
+                            var rdAttrs = (rd[rdi] || {})['_attributes'] || {};
+                            if (rdAttrs['base-type'] === 'identifier' || rdAttrs.identifier === 'RESPONSE') {
+                                rd = rd[rdi]; found = true; break;
+                            }
+                        }
+                        if (!found) rd = rd[0] || {};
+                    }
                     var cr = rd['qti-correct-response'] || {};
-                    var correctId = cr['qti-value'] || '';
+                    var rawVal = cr['qti-value'];
+                    var correctId = '';
+                    if (typeof rawVal === 'string') correctId = rawVal;
+                    else if (rawVal && typeof rawVal === 'object') {
+                        if (rawVal['_']) correctId = rawVal['_'];
+                        else if (rawVal['_text']) correctId = rawVal['_text'];
+                        else if (Array.isArray(rawVal)) correctId = typeof rawVal[0] === 'string' ? rawVal[0] : ((rawVal[0] || {})['_'] || '');
+                    }
 
                     // Get feedback
                     var feedbackMap = {};
