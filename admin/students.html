@@ -767,28 +767,22 @@ async function removeEnrollment(enrollmentId, courseTitle, btn) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     try {
-        const resp = await fetch('/api/enrollments/' + encodeURIComponent(enrollmentId), { method: 'DELETE' });
-        if (resp.ok) {
+        const resp = await fetch('/api/enrollments', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ sourcedId: enrollmentId }),
+        });
+        const data = await resp.json().catch(()=>({}));
+        if (resp.ok && data.success) {
             btn.closest('.enroll-item').style.display = 'none';
             showToast('Course "' + courseTitle + '" removed.', 'success');
         } else {
-            // Try marking as inactive instead
-            const resp2 = await fetch('/api/enrollments', {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sourcedId: enrollmentId, status: 'tobedeleted' }),
-            });
-            if (resp2.ok) {
-                btn.closest('.enroll-item').style.display = 'none';
-                showToast('Course "' + courseTitle + '" removed.', 'success');
-            } else {
-                btn.closest('.enroll-item').style.display = 'none';
-                showToast('Course removed from view (API sync pending).', 'info');
-            }
+            btn.closest('.enroll-item').style.display = 'none';
+            showToast(data.error || 'Could not remove — may need manual action.', 'warning');
         }
     } catch(e) {
         btn.closest('.enroll-item').style.display = 'none';
-        showToast('Course removed from view (API sync pending).', 'info');
+        showToast('Network error removing enrollment.', 'warning');
     }
 }
 
