@@ -16,39 +16,50 @@ from api._helpers import (
 )
 
 
-# OneRoster gradebook paths to try
+# OneRoster gradebook paths to try (assessmentResults is what submit-result creates)
 _RESULTS_PATHS = [
+    "/ims/oneroster/gradebook/v1p2/assessmentResults",
     "/ims/oneroster/gradebook/v1p2/results",
     "/ims/oneroster/v1p2/results",
 ]
 
 
 def _fetch_user_results(user_id: str) -> list:
-    """Fetch results for a specific student, trying multiple paths."""
-    filter_param = f"studentSourcedId='{user_id}'"
+    """Fetch results for a specific student, trying multiple paths and filter formats."""
+    all_results = []
+
+    # Try multiple filter formats (OneRoster uses different syntax per endpoint)
+    filters = [
+        f"student.sourcedId='{user_id}'",
+        f"studentSourcedId='{user_id}'",
+    ]
 
     for path in _RESULTS_PATHS:
-        try:
-            data, status = fetch_with_params(path, {"filter": filter_param})
-            if data and status == 200:
-                results = data.get("results", [])
-                if not results:
-                    for val in data.values():
-                        if isinstance(val, list):
-                            results = val
-                            break
-                return results
-        except Exception:
-            continue
+        for filter_param in filters:
+            try:
+                data, status = fetch_with_params(path, {"filter": filter_param, "limit": 100})
+                if data and status == 200:
+                    # Response key can be "results" or "assessmentResults"
+                    results = data.get("assessmentResults", data.get("results", []))
+                    if not results:
+                        for val in data.values():
+                            if isinstance(val, list):
+                                results = val
+                                break
+                    if results:
+                        all_results.extend(results)
+                        return all_results
+            except Exception:
+                continue
 
-    # Fallback: fetch all results and filter client-side
+    # Fallback: fetch all and filter client-side
     for path in _RESULTS_PATHS:
+        collection_key = "assessmentResults" if "assessmentResults" in path else "results"
         try:
-            all_results = fetch_all_paginated(path, "results")
-            if all_results:
+            fetched = fetch_all_paginated(path, collection_key)
+            if fetched:
                 return [
-                    r
-                    for r in all_results
+                    r for r in fetched
                     if (r.get("student", {}) or {}).get("sourcedId") == user_id
                 ]
         except Exception:
