@@ -1,17 +1,25 @@
-"""POST /api/pp-answer-one — Answer ONE question correctly.
+"""POST /api/pp-answer-one — Answer ONE question.
 
 Body:
   studentId: string (required)
   lessonId: string (required)
   questionIndex: number (default 0) - which question to answer
-  correct: boolean (default true) - whether answer is correct
+  response: string (optional) - answer choice (A, B, C, D). If not provided, uses correct answer.
 """
 
 import json
+import re
 from http.server import BaseHTTPRequestHandler
 
 import requests
 from api._helpers import API_BASE, api_headers, send_json
+
+
+def extract_correct_answer(question):
+    """Extract the correct answer from the question's QTI XML."""
+    raw_xml = question.get("content", {}).get("rawXml", "")
+    match = re.search(r'<qti-correct-response>\s*<qti-value>([^<]+)</qti-value>', raw_xml)
+    return match.group(1) if match else "A"
 
 
 class handler(BaseHTTPRequestHandler):
@@ -33,7 +41,7 @@ class handler(BaseHTTPRequestHandler):
         student_id = body.get("studentId", "")
         lesson_id = body.get("lessonId", "")
         q_idx = body.get("questionIndex", 0)
-        is_correct = body.get("correct", True)
+        user_response = body.get("response", None)
 
         if not student_id or not lesson_id:
             send_json(self, {"error": "Missing studentId or lessonId"}, 400)
@@ -41,13 +49,13 @@ class handler(BaseHTTPRequestHandler):
 
         headers = api_headers()
         
-        # Get questions
+        # Get questions (use GET, not POST)
         try:
-            resp = requests.post(
+            resp = requests.get(
                 f"{API_BASE}/powerpath/getAssessmentProgress",
                 headers=headers, 
-                json={"student": student_id, "lesson": lesson_id}, 
-                timeout=8
+                params={"student": student_id, "lesson": lesson_id}, 
+                timeout=15
             )
             if resp.status_code != 200:
                 send_json(self, {"error": f"getAssessmentProgress failed: {resp.status_code}"}, 502)
@@ -75,26 +83,31 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": "Question has no ID"}, 400)
             return
 
-        # Answer the question
+        # Determine answer
+        correct_answer = extract_correct_answer(q)
+        answer = user_response if user_response else correct_answer
+
+        # Answer the question (use PUT, not POST)
         try:
-            resp = requests.post(
+            resp = requests.put(
                 f"{API_BASE}/powerpath/updateStudentQuestionResponse",
                 headers=headers,
                 json={
                     "student": student_id,
                     "lesson": lesson_id,
                     "question": q_id,
-                    "answered": True,
-                    "correct": is_correct
+                    "response": answer
                 },
-                timeout=8
+                timeout=10
             )
             
             send_json(self, {
-                "status": "success" if resp.status_code in (200, 201) else "error",
+                "status": "success" if resp.status_code == 200 else "error",
                 "questionIndex": q_idx,
                 "questionId": q_id,
-                "correct": is_correct,
+                "response": answer,
+                "correctAnswer": correct_answer,
+                "isCorrect": answer == correct_answer,
                 "totalQuestions": total,
                 "httpStatus": resp.status_code
             })
