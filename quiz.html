@@ -527,7 +527,17 @@
                         expectedLines = parseInt(etiAttrs['expected-lines'] || etiAttrs.expectedLines || '10', 10);
                     }
 
-                    // Stimulus reference
+                    // Stimulus content — from section-level or item-level reference
+                    var stimulusHtml = '';
+                    // Check for section-level stimulus (attached by backend)
+                    var secStim = q['_sectionStimulus'] || qi['_sectionStimulus'] || null;
+                    if (secStim) {
+                        var stimBody = secStim['qti-assessment-stimulus'] || secStim;
+                        var stimContent = stimBody['qti-stimulus-body'] || stimBody.content || stimBody.body || stimBody;
+                        if (typeof stimContent === 'string') { stimulusHtml = stimContent; }
+                        else if (typeof stimContent === 'object') { stimulusHtml = renderNode(stimContent); }
+                    }
+                    // Also check for inline stimulus ref
                     var stimRef = body['qti-stimulus-ref'];
                     var stimId = stimRef ? ((stimRef['_attributes'] || stimRef).identifier || '') : '';
 
@@ -558,7 +568,7 @@
                     return {
                         prompt: promptText, choices: choices, correctId: correctId,
                         feedbackMap: feedbackMap, isFRQ: isFRQ, expectedLines: expectedLines,
-                        stimulusId: stimId,
+                        stimulusId: stimId, stimulus: stimulusHtml,
                     };
                 });
 
@@ -577,6 +587,7 @@
                         choices: q.choices.map(function(c) { return { id: c.id, text: c.text }; }),
                         isFRQ: q.isFRQ,
                         expectedLines: q.expectedLines,
+                        stimulus: q.stimulus,
                     };
                     renderQuestion(qData);
 

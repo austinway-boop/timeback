@@ -549,40 +549,88 @@ class handler(BaseHTTPRequestHandler):
     # ── Question resolution from test structure ───────────────
 
     def _resolve_questions(self, test, headers):
-        """Extract question refs from assessment-test structure and fetch each one."""
+        """Extract question refs AND stimulus refs from assessment-test and fetch each.
+
+        QTI sections can contain both:
+          <qti-assessment-stimulus-ref>  — reading passages/articles
+          <qti-assessment-item-ref>      — questions
+
+        Items in the same section as a stimulus get that stimulus attached.
+        """
         parts = test.get("qti-test-part", test.get("testParts", []))
         if not isinstance(parts, list):
             parts = [parts]
 
-        hrefs = []
+        questions = []
+        stimulus_cache = {}  # Cache fetched stimuli to avoid re-fetching
+
         for part in parts:
             sections = part.get("qti-assessment-section", part.get("sections", []))
             if not isinstance(sections, list):
                 sections = [sections]
+
             for section in sections:
+                # 1. Check for stimulus ref in this section
+                section_stimulus = None
+                stim_refs = section.get("qti-assessment-stimulus-ref", [])
+                if not isinstance(stim_refs, list):
+                    stim_refs = [stim_refs]
+                for sref in stim_refs:
+                    if not sref:
+                        continue
+                    shref = ""
+                    sid = ""
+                    if isinstance(sref, str):
+                        shref = sref
+                    else:
+                        shref = sref.get("href", "")
+                        if not shref:
+                            shref = (sref.get("_attributes") or {}).get("href", "")
+                        sid = sref.get("identifier", "") or (sref.get("_attributes") or {}).get("identifier", "")
+                    # Try to fetch the stimulus
+                    if shref or sid:
+                        cache_key = shref or sid
+                        if cache_key in stimulus_cache:
+                            section_stimulus = stimulus_cache[cache_key]
+                        else:
+                            urls_to_try = []
+                            if shref:
+                                urls_to_try.append(shref)
+                            if sid:
+                                urls_to_try.append(f"{QTI_BASE}/api/stimuli/{sid}")
+                                urls_to_try.append(f"{QTI_BASE}/api/assessment-stimuli/{sid}")
+                            for surl in urls_to_try:
+                                sdata, sst = _fetch(surl, headers)
+                                if sdata:
+                                    section_stimulus = sdata
+                                    stimulus_cache[cache_key] = sdata
+                                    break
+
+                # 2. Get item refs
                 refs = section.get("qti-assessment-item-ref", section.get("itemRefs", section.get("items", [])))
                 if not isinstance(refs, list):
                     refs = [refs]
-                for ref in refs:
-                    if isinstance(ref, str):
-                        hrefs.append(ref)
-                        continue
-                    href = ref.get("href", "")
-                    if not href:
-                        href = (ref.get("_attributes") or {}).get("href", "")
-                    if not href:
-                        # Try to get ID and construct URL
-                        ref_id = ref.get("identifier", ref.get("id", ""))
-                        if ref_id:
-                            href = f"{API_BASE}/api/v1/qti/items/{ref_id}/"
-                    if href:
-                        hrefs.append(href)
 
-        questions = []
-        for href in hrefs:
-            data, st = _fetch(href, headers)
-            if data:
-                questions.append(data)
+                for ref in refs:
+                    href = ""
+                    if isinstance(ref, str):
+                        href = ref
+                    else:
+                        href = ref.get("href", "")
+                        if not href:
+                            href = (ref.get("_attributes") or {}).get("href", "")
+                        if not href:
+                            ref_id = ref.get("identifier", ref.get("id", ""))
+                            if ref_id:
+                                href = f"{QTI_BASE}/api/assessment-items/{ref_id}"
+                    if href:
+                        data, st = _fetch(href, headers)
+                        if data:
+                            # Attach the section's stimulus to this question
+                            if section_stimulus and isinstance(data, dict):
+                                data["_sectionStimulus"] = section_stimulus
+                            questions.append(data)
+
         return questions
 
 
