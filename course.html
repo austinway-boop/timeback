@@ -750,15 +750,13 @@
                         var pLocalKey = 'completed_' + (pLessonId || pLTitle);
                         var pLProg = progressByTitle[pLTitle] || (pLessonId ? progressById[pLessonId] : null);
                         var pLDone = _isComplete(pLProg) || localStorage.getItem(pLocalKey) === 'true';
-                        // Also check componentResources — progress uses resource titles/IDs which differ from parent lesson
+                        // Also check componentResources by unique ID only (not title — titles repeat across units)
                         var pRes = pLesson.componentResources || [];
                         if (!pLDone && pRes.length > 0) {
                             for (var _pri = 0; _pri < pRes.length; _pri++) {
                                 var _prr = pRes[_pri].resource || pRes[_pri] || {};
                                 var _prId = _prr.id || _prr.sourcedId || pRes[_pri].id || pRes[_pri].sourcedId || '';
-                                var _prTitle = (_prr.title || '').trim();
-                                var _prProg = (_prTitle ? progressByTitle[_prTitle] : null) || (_prId ? progressById[_prId] : null);
-                                if (_isComplete(_prProg)) { pLDone = true; break; }
+                                if (_prId && _isComplete(progressById[_prId])) { pLDone = true; break; }
                             }
                         }
                         var pCount = Math.max(pRes.length, 1);
@@ -814,15 +812,13 @@
                         var lcLocalKey = 'completed_' + (lcId || lcTitle);
                         var lcProg = progressByTitle[lcTitle] || (lcId ? progressById[lcId] : null);
                         var lcFound = _isComplete(lcProg) || localStorage.getItem(lcLocalKey) === 'true';
-                        // Also check componentResources (resource titles differ from parent lesson)
+                        // Also check componentResources by unique ID only (not title — titles repeat across units)
                         if (!lcFound) {
                             var lcRes = modLessons[lc].componentResources || [];
                             for (var _lri = 0; _lri < lcRes.length; _lri++) {
                                 var _lr = lcRes[_lri].resource || lcRes[_lri] || {};
                                 var _lrId = _lr.id || _lr.sourcedId || lcRes[_lri].id || lcRes[_lri].sourcedId || '';
-                                var _lrTitle = (_lr.title || '').trim();
-                                var _lrProg = (_lrTitle ? progressByTitle[_lrTitle] : null) || (_lrId ? progressById[_lrId] : null);
-                                if (_isComplete(_lrProg)) { lcFound = true; break; }
+                                if (_lrId && _isComplete(progressById[_lrId])) { lcFound = true; break; }
                             }
                         }
                         if (lcFound) unitDone++;
@@ -871,16 +867,13 @@
                             // Look up progress by title first, then by sourcedId
                             var prog = progressByTitle[lTitle.trim()] || (lId ? progressById[lId] : null) || null;
                             
-                            // Also check componentResources — progress lineItems use resource titles/IDs
-                            // which may differ from the parent lesson title
+                            // Also check componentResources by unique ID only (not title — titles repeat across units)
                             var _lesRes = lesson.componentResources || [];
                             if (!_isComplete(prog) && _lesRes.length > 0) {
                                 for (var _cri = 0; _cri < _lesRes.length; _cri++) {
                                     var _cr = _lesRes[_cri].resource || _lesRes[_cri] || {};
                                     var _crId = _cr.id || _cr.sourcedId || _lesRes[_cri].id || _lesRes[_cri].sourcedId || '';
-                                    var _crTitle = (_cr.title || '').trim();
-                                    var _crProg = (_crTitle ? progressByTitle[_crTitle] : null) || (_crId ? progressById[_crId] : null);
-                                    if (_isComplete(_crProg)) { prog = _crProg; break; }
+                                    if (_crId && _isComplete(progressById[_crId])) { prog = progressById[_crId]; break; }
                                 }
                             }
                             
