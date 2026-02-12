@@ -630,18 +630,21 @@
 
     /* ── 1. OneRoster: POST assessment result to gradebook ── */
     function submitAssessmentResult(score, passed) {
-        if (!syncState.userId) return;
-        // assessmentLineItem = the quiz's testId or resId
+        // Build the lineItemId from every possible source
         var lineItemId = quizState.testId || '';
         if (!lineItemId) {
-            // Try to find it from the current quiz step resource
-            var quizStep = steps.find(function(s) { return s.type === 'Quiz'; });
-            if (quizStep && quizStep.resource) lineItemId = quizStep.resource.resId || '';
+            for (var si = 0; si < steps.length; si++) {
+                if (steps[si].type === 'Quiz' && steps[si].resource) {
+                    lineItemId = steps[si].resource.resId || '';
+                    if (lineItemId) break;
+                }
+            }
         }
-        if (!lineItemId) {
-            console.warn('[Sync] No assessmentLineItem ID available, skipping result POST');
-            return;
-        }
+        // Fallback: use the lesson title as the lineItem identifier
+        // (this matches how course progress tracks completion by title)
+        if (!lineItemId) lineItemId = lessonData.title || '';
+
+        console.log('[Sync] Submitting AssessmentResult — userId:', syncState.userId, 'lineItemId:', lineItemId, 'score:', score);
 
         var payload = {
             studentSourcedId: syncState.userId,
@@ -654,6 +657,8 @@
                 'timeback.correct': quizState.correct,
                 'timeback.total': quizState.total,
                 'timeback.passed': passed,
+                'timeback.lessonTitle': lessonData.title || '',
+                'timeback.courseTitle': lessonData.courseName || lessonData.courseTitle || '',
             },
         };
 
@@ -663,18 +668,18 @@
             body: JSON.stringify(payload),
         })
         .then(function(r) { return r.json(); })
-        .then(function(d) { console.log('[Sync] AssessmentResult:', d.status || d.error); })
-        .catch(function(e) { console.warn('[Sync] AssessmentResult failed:', e.message); });
+        .then(function(d) { console.log('[Sync] AssessmentResult response:', JSON.stringify(d)); })
+        .catch(function(e) { console.error('[Sync] AssessmentResult FAILED:', e.message); });
     }
 
     /* ── 2. Caliper: send activity event with metrics ── */
     function sendCaliperActivity(passed) {
-        if (!syncState.userId) return;
-
         var now = new Date().toISOString();
         var sessionId = 'urn:uuid:' + _uuid();
         var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
         var xp = passed ? quizState.xpEarned : 0;
+
+        console.log('[Sync] Sending Caliper activity — userId:', syncState.userId, 'xp:', xp, 'correct:', quizState.correct, '/', quizState.total, 'passed:', passed);
 
         // Build metrics as AggregateMeasure items
         var metrics = [
@@ -724,13 +729,17 @@
             body: JSON.stringify({ data: [event] }),
         })
         .then(function(r) { return r.json(); })
-        .then(function(d) { console.log('[Sync] Caliper activity:', d.status || d.error); })
-        .catch(function(e) { console.warn('[Sync] Caliper failed:', e.message); });
+        .then(function(d) { console.log('[Sync] Caliper response:', JSON.stringify(d)); })
+        .catch(function(e) { console.error('[Sync] Caliper FAILED:', e.message); });
     }
 
     /* ── Combined: fire both on quiz completion ── */
     function syncQuizCompletion(pct, passed) {
-        if (!syncState.userId) return;
+        if (!syncState.userId) {
+            console.error('[Sync] NO userId — cannot sync! Check localStorage alphalearn_userId');
+            return;
+        }
+        console.log('[Sync] === Syncing quiz completion === pct:', pct, 'passed:', passed, 'xp:', quizState.xpEarned);
         submitAssessmentResult(pct, passed);
         sendCaliperActivity(passed);
     }
