@@ -131,19 +131,12 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 data = {"raw": resp.text[:500]}
 
-            # If PowerPath says "already assigned", delete the old one and retry
-            if resp.status_code in (409, 422, 500):
-                err_text = ""
-                if isinstance(data, dict):
-                    err_text = (data.get("imsx_description") or data.get("error") or data.get("message") or "").lower()
-                if "already" in err_text or "exists" in err_text or "duplicate" in err_text:
-                    # Find and delete the existing assignment, then retry
-                    retried = _delete_and_retry(headers, sid, subject, grade, payload)
-                    if retried:
-                        data = retried
-                        resp_status = 200
-                    else:
-                        resp_status = resp.status_code
+            # On ANY failure, try deleting existing assignment and retry
+            if resp.status_code not in (200, 201):
+                retried = _delete_and_retry(headers, sid, subject, grade, payload)
+                if retried:
+                    data = retried
+                    resp_status = 200
                 else:
                     resp_status = resp.status_code
             else:
