@@ -276,7 +276,7 @@
         .quiz-btn-secondary {
             background: #f3f4f6; color: #6b7280;
         }
-        .quiz-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; }
+        .quiz-actions { display: flex; gap: 10px; justify-content: space-between; padding-top: 16px; }
 
         /* ── Results Card ────────────────────────────────────── */
         .result-card {
@@ -812,13 +812,9 @@
     /* ── Render a question ─────────────────────────────────── */
     function renderQuestion(q) {
         removeQuizLoader();
-        // Show nav with exit option now that quiz content is ready
+        // Hide bottom nav — exit button goes inline with submit
         var nav = document.getElementById('lesson-nav');
-        nav.classList.remove('hidden');
-        var btnBack = document.getElementById('btn-back');
-        btnBack.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Exit Quiz';
-        btnBack.onclick = function() { goBackToCourse(); };
-        document.getElementById('btn-continue').style.display = 'none';
+        nav.classList.add('hidden');
 
         var prompt = q.prompt || q.question || q.text || q.body || '';
         if (typeof prompt === 'object') prompt = renderNode(prompt);
@@ -868,7 +864,7 @@
         }
 
         html += '<div class="feedback" id="feedback"></div></div>';
-        html += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-primary" id="quiz-submit" onclick="submitQuizAnswer()" disabled><i class="fa-solid fa-check"></i> Submit Answer</button></div>';
+        html += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="goBackToCourse()"><i class="fa-solid fa-arrow-left"></i> Exit</button><button class="quiz-btn quiz-btn-primary" id="quiz-submit" onclick="submitQuizAnswer()" disabled><i class="fa-solid fa-check"></i> Submit</button></div>';
 
         quizArea.innerHTML = html;
     }
