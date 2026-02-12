@@ -14,14 +14,14 @@
         .course-page { max-width: 820px; margin: 0 auto; }
 
         .back-link {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 8px 16px; border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm); background: var(--color-surface);
-            color: var(--color-text-secondary); font-size: 0.85rem; font-weight: 500;
-            cursor: pointer; text-decoration: none; transition: all var(--transition);
-            margin-bottom: 24px;
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 0; border: none; background: none;
+            color: var(--color-text-muted); font-size: 0.78rem; font-weight: 500;
+            cursor: pointer; text-decoration: none; transition: color var(--transition);
+            margin-bottom: 16px; letter-spacing: 0.1px;
         }
-        .back-link:hover { border-color: var(--color-primary); color: var(--color-primary); }
+        .back-link i { font-size: 0.65rem; }
+        .back-link:hover { color: var(--color-primary); }
 
         /* ── Course Header ───────────────────────────────────────── */
         .course-hero {
@@ -679,7 +679,10 @@
                             pLessons.push({ title: pR.title || ('Assessment ' + (puri + 1)), id: pR.id || pR.sourcedId || '', sourcedId: pR.sourcedId || pR.id || '', sortOrder: pR.sortOrder || String(puri), componentResources: [pUnitRes[puri]] });
                         }
                     }
-                    processedUnits.push({ mod: pMod, lessons: pLessons, title: pMod.title || 'Unit ' + (pu + 1) });
+                    // Extract unit number from title (e.g. "Unit 0: Intro" → 0, "Unit 3" → 3)
+                    var _unitNumMatch = (pMod.title || '').match(/Unit\s+(\d+)/i);
+                    var _parsedUnitNum = _unitNumMatch ? parseInt(_unitNumMatch[1], 10) : null;
+                    processedUnits.push({ mod: pMod, lessons: pLessons, title: pMod.title || '', unitNum: _parsedUnitNum });
 
                     for (var pl = 0; pl < pLessons.length; pl++) {
                         var pLesson = pLessons[pl];
@@ -693,6 +696,20 @@
                         if (pLDone) { grandDoneAct += pCount; }
                         else { for (var pr = 0; pr < pRes.length; pr++) { if (localStorage.getItem(pLocalKey + '_r' + pr) === 'true') { grandDoneAct++; pHasAny = true; } } }
                         globalLessonList.push({ unitIdx: pu, hasProgress: pHasAny });
+                    }
+                }
+
+                // ── Assign unit numbers for units without one parsed from the title ──
+                // Detect if course starts at Unit 0 (common in AP courses)
+                var _hasUnit0 = processedUnits.some(function(u) { return u.unitNum === 0; });
+                var _unitNumOffset = _hasUnit0 ? 0 : 1;
+                for (var _ui = 0; _ui < processedUnits.length; _ui++) {
+                    if (processedUnits[_ui].unitNum === null) {
+                        processedUnits[_ui].unitNum = _ui + _unitNumOffset;
+                    }
+                    // Assign fallback title using correct unit number
+                    if (!processedUnits[_ui].title) {
+                        processedUnits[_ui].title = 'Unit ' + processedUnits[_ui].unitNum;
                     }
                 }
 
@@ -739,7 +756,7 @@
                     html += '<div class="' + cardClass + '" id="' + unitId + '-card">';
                     html += '<div class="unit-header" onclick="' + (unitLocked ? '' : "toggleUnit('" + unitId + "')") + '">' +
                         '<div class="unit-info">' +
-                            '<div class="u-label">Unit ' + (mi + 1) + '</div>' +
+                            '<div class="u-label">Unit ' + puData.unitNum + '</div>' +
                             '<h3>' + esc(modTitle) + '</h3>' +
                         '</div>' +
                         '<div class="unit-status">';
@@ -851,12 +868,14 @@
                             };
 
                             var actAllDone = (doneRes === totalRes && totalRes > 0);
-                            var actCls = 'act-text' + (actAllDone ? ' complete' : '');
-                            var actIcon = actAllDone ? 'fa-circle-check' : 'fa-circle';
                             var statsHtml = '';
-                            if (isDone || doneRes > 0) {
+                            if (actAllDone) {
                                 statsHtml = '<div class="lesson-stats">' +
-                                    '<span class="' + actCls + '"><i class="fa-solid ' + actIcon + '"></i> ' + doneRes + '/' + totalRes + ' Activities</span>' +
+                                    '<span class="act-text complete"><i class="fa-solid fa-circle-check"></i> Completed</span>' +
+                                '</div>';
+                            } else if (doneRes > 0) {
+                                statsHtml = '<div class="lesson-stats">' +
+                                    '<span class="act-text"><i class="fa-solid fa-circle"></i> ' + doneRes + '/' + totalRes + ' Activities</span>' +
                                 '</div>';
                             }
 
