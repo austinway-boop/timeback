@@ -2108,10 +2108,34 @@
         var resTitle = step.resource.title || '';
         if (resId) localStorage.setItem('completed_' + resId, 'true');
         if (resTitle) localStorage.setItem('completed_' + resTitle, 'true');
+
+        // If this is the only non-quiz step, also mark the lesson complete
+        var nonQuizSteps = steps.filter(function(s) { return s.type !== 'Quiz'; });
+        var allNonQuizDone = true;
+        for (var i = 0; i < nonQuizSteps.length; i++) {
+            var rid = nonQuizSteps[i].resource.resId || nonQuizSteps[i].resource.id || '';
+            var rtitle = nonQuizSteps[i].resource.title || '';
+            if (rid && localStorage.getItem('completed_' + rid) !== 'true' &&
+                rtitle && localStorage.getItem('completed_' + rtitle) !== 'true') {
+                allNonQuizDone = false;
+                break;
+            }
+        }
+        if (allNonQuizDone) {
+            saveLessonToLocalStorage();
+        }
     }
 
     function saveLessonToLocalStorage() {
-        // Save lesson completion to localStorage using all possible keys
+        // Signal course.html to reload and pick up new completion data
+        sessionStorage.setItem('al_progress_changed', 'true');
+
+        // Use the exact completion key from course.html (most important)
+        if (lessonData.completionKey) {
+            localStorage.setItem(lessonData.completionKey, 'true');
+        }
+
+        // Also save with all possible key patterns as fallback
         var title = lessonData.title || '';
         var lessonId = lessonData.lessonId || lessonData.id || '';
         var ppLessonId = lessonData.ppLessonId || lessonData.lessonSourcedId || '';
