@@ -618,7 +618,6 @@
 
             // ── Build progress lookup ──────────────────────────────
             var progressByTitle = {};
-            var progressByResId = {};  // Also lookup by courseComponentResourceSourcedId
             var assessmentLineItemByResId = {};  // Map resource IDs to PowerPath assessmentLineItemSourcedId
             var cp = contentData.courseProgress;
             if (cp && cp.lineItems) {
@@ -637,23 +636,15 @@
                         assessmentLineItemByResId[pTitle] = aliSourcedId;
                     }
                     
-                    if (pItem.results && pItem.results.length > 0) {
+                    if (pTitle && pItem.results && pItem.results.length > 0) {
                         var r = pItem.results[0];
-                        var progData = {
+                        progressByTitle[pTitle] = {
                             scoreStatus: r.scoreStatus || '',
                             textScore: r.textScore || '',
                             score: r.score,
                             scorePercentile: r.scorePercentile,
                             scoreDate: r.scoreDate || '',
                         };
-                        // Store by title
-                        if (pTitle) {
-                            progressByTitle[pTitle] = progData;
-                        }
-                        // Also store by courseComponentResourceSourcedId for matching
-                        if (resSourcedId) {
-                            progressByResId[resSourcedId] = progData;
-                        }
                     }
                 }
             }
@@ -851,28 +842,8 @@
                             for (var rci = 0; rci < resDetails.length; rci++) {
                                 var isQuizRes = (resDetails[rci].label === 'Quiz');
                                 resDetails[rci]._isQuiz = isQuizRes;
-                                var resId = resDetails[rci].resId || '';
-                                if (!isQuizRes) { 
-                                    nonQuizCount++; 
-                                    var resKey = localKey + '_r' + rci; 
-                                    resDetails[rci]._localKey = resKey; 
-                                    resDetails[rci]._resDone = localStorage.getItem(resKey) === 'true'; 
-                                    // Also check progressByResId for API completion
-                                    if (!resDetails[rci]._resDone && resId && progressByResId[resId]) {
-                                        var resProg = progressByResId[resId];
-                                        resDetails[rci]._resDone = (resProg.scoreStatus === 'fully graded' || resProg.textScore === 'Completed');
-                                    }
-                                    if (resDetails[rci]._resDone) nonQuizDoneCount++; 
-                                }
-                                else { 
-                                    resDetails[rci]._localKey = ''; 
-                                    // Check if quiz is done via progressByResId
-                                    resDetails[rci]._resDone = false;
-                                    if (resId && progressByResId[resId]) {
-                                        var quizProg = progressByResId[resId];
-                                        resDetails[rci]._resDone = (quizProg.scoreStatus === 'fully graded');
-                                    }
-                                }
+                                if (!isQuizRes) { nonQuizCount++; var resKey = localKey + '_r' + rci; resDetails[rci]._localKey = resKey; resDetails[rci]._resDone = localStorage.getItem(resKey) === 'true'; if (resDetails[rci]._resDone) nonQuizDoneCount++; }
+                                else { resDetails[rci]._localKey = ''; resDetails[rci]._resDone = false; }
                             }
                             if (!isDone && nonQuizCount > 0 && nonQuizDoneCount === nonQuizCount) { isDone = true; localStorage.setItem(localKey, 'true'); }
 
