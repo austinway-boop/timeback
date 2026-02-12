@@ -830,21 +830,18 @@
     }
 
     /* ── 4. PowerPath: finalize lesson via finalStudentAssessmentResponse API ── */
-    function markLessonComplete() {
-        // Get the courseComponentResource sourcedId from lesson data
-        var lessonId = '';
+    function markLessonComplete(score) {
+        // Priority: use lessonSourcedId (matches documented format like "USHI23-l10-r104084-bank-v1")
+        var lessonId = lessonData.lessonSourcedId || '';
         
-        // Try to find the resource sourcedId from steps
-        for (var si = 0; si < steps.length; si++) {
-            if (steps[si].type === 'Quiz' && steps[si].resource) {
-                lessonId = steps[si].resource.resId || '';
-                if (lessonId) break;
-            }
-        }
-        
-        // Fallback to lessonSourcedId if we have it
+        // Fallback: try resource sourcedId from quiz steps
         if (!lessonId) {
-            lessonId = lessonData.lessonSourcedId || '';
+            for (var si = 0; si < steps.length; si++) {
+                if (steps[si].type === 'Quiz' && steps[si].resource) {
+                    lessonId = steps[si].resource.resId || '';
+                    if (lessonId) break;
+                }
+            }
         }
         
         if (!lessonId || !syncState.userId) {
@@ -852,15 +849,20 @@
             return;
         }
         
-        console.log('[Sync] Finalizing lesson via PowerPath - lessonId:', lessonId, 'userId:', syncState.userId);
+        var payload = {
+            studentId: syncState.userId,
+            lessonId: lessonId
+        };
+        if (typeof score === 'number') {
+            payload.score = score;
+        }
+        
+        console.log('[Sync] Finalizing lesson via PowerPath - lessonId:', lessonId, 'userId:', syncState.userId, 'score:', score);
         
         fetch('/api/finalize-lesson', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                studentId: syncState.userId,
-                lessonId: lessonId
-            }),
+            body: JSON.stringify(payload),
         })
         .then(function(r) { return r.json(); })
         .then(function(d) { console.log('[Sync] PowerPath finalize response:', JSON.stringify(d)); })
@@ -892,9 +894,9 @@
             sendActivityRecord(passed);
         }
 
-        // 4. PowerPath: Mark lesson as complete (if passed)
+        // 4. PowerPath: Mark lesson as complete (if passed), including score
         if (passed) {
-            markLessonComplete();
+            markLessonComplete(pct);
             saveLessonToLocalStorage();
         }
 
@@ -908,6 +910,77 @@
             var lTitle = lessonData.title || '';
             if (lTitle) localStorage.setItem('xp_' + lTitle, String(xp));
         }
+    }
+
+    /* ── Sync article/video step completion ── */
+    function syncStepCompletion(step) {
+        if (!syncState.userId) {
+            console.warn('[Sync] No userId — skipping step sync');
+            return;
+        }
+        var lessonId = lessonData.lessonSourcedId || '';
+        if (!lessonId) {
+            // Fallback to resource resId
+            lessonId = (step.resource && step.resource.resId) || '';
+        }
+        var stepLabel = step.type || 'Content';
+        
+        console.log('[Sync] Syncing', stepLabel, 'completion — lessonId:', lessonId, 'userId:', syncState.userId);
+        
+        // 1. PowerPath: register completion with score 100
+        if (lessonId) {
+            fetch('/api/powerpath-complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    studentId: syncState.userId,
+                    lessonId: lessonId,
+                    score: 100
+                }),
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) { console.log('[Sync]', stepLabel, 'PowerPath complete response:', JSON.stringify(d)); })
+            .catch(function(e) { console.error('[Sync]', stepLabel, 'PowerPath complete FAILED:', e.message); });
+        }
+        
+        // 2. OneRoster: record result as fully graded with score 100
+        var lineItemId = lessonData.assessmentLineItemSourcedId || '';
+        if (!lineItemId && step.resource) {
+            lineItemId = step.resource.assessmentLineItemSourcedId || step.resource.resId || '';
+        }
+        if (!lineItemId) lineItemId = lessonData.title || '';
+        
+        fetch('/api/submit-result', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                studentSourcedId: syncState.userId,
+                assessmentLineItemSourcedId: lineItemId,
+                score: 100,
+                scoreStatus: 'fully graded',
+                comment: (lessonData.title || stepLabel) + ' — ' + stepLabel + ' completed',
+                metadata: {
+                    'timeback.xp': 0,
+                    'timeback.correct': 0,
+                    'timeback.total': 0,
+                    'timeback.passed': true,
+                    'timeback.lessonTitle': lessonData.title || '',
+                    'timeback.courseTitle': lessonData.courseName || lessonData.courseTitle || '',
+                    'timeback.enrollmentId': lessonData.enrollmentId || '',
+                    'timeback.stepType': stepLabel,
+                },
+            }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) { console.log('[Sync]', stepLabel, 'OneRoster result response:', JSON.stringify(d)); })
+        .catch(function(e) { console.error('[Sync]', stepLabel, 'OneRoster result FAILED:', e.message); });
+        
+        // 3. localStorage for immediate UI feedback
+        var localKey = 'completed_' + (lessonData.title || '');
+        if (localKey !== 'completed_') {
+            localStorage.setItem(localKey, 'true');
+        }
+        sessionStorage.setItem('al_progress_changed', 'true');
     }
 
     function initSync() {
@@ -1119,7 +1192,7 @@
                 var startResp = await fetch('/api/quiz-session?action=start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ studentId: userId, testId: testId, subject: subject, grade: gradeLevel }),
+                    body: JSON.stringify({ studentId: userId, testId: testId, lessonId: lessonData.lessonSourcedId || testId, subject: subject, grade: gradeLevel }),
                 });
                 var startData = await startResp.json();
                 if (startData.attemptId || startData.id) {
@@ -2120,9 +2193,14 @@
        NAVIGATION
        ================================================================== */
     function goNext() {
-        // Mark current step (video/article) as completed
+        // Mark current step (video/article) as completed locally
         markStepComplete(currentStep);
 
+        // Sync article/video completion to PowerPath + OneRoster APIs
+        var step = steps[currentStep];
+        if (step && (step.type === 'Video' || step.type === 'Article')) {
+            syncStepCompletion(step);
+        }
         if (currentStep < steps.length - 1) {
             showStep(currentStep + 1);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2213,8 +2291,8 @@
         quizState.total = 1;
         quizState.correct = 1;
 
-        // 1. PowerPath: mark lesson as complete
-        markLessonComplete();
+        // 1. PowerPath: mark lesson as complete with score 100
+        markLessonComplete(100);
 
         // 2. Caliper: send ActivityCompletedEvent with masteredUnits=1
         sendCaliperActivity(true);

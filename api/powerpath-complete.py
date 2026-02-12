@@ -1,4 +1,4 @@
-"""POST /api/powerpath-complete — Complete a lesson via PowerPath attempt + finalize.
+"""POST /api/powerpath-complete — Complete a lesson via PowerPath reset + finalize.
 
 Body:
   studentId: string (required)
@@ -6,7 +6,7 @@ Body:
   score: number (0-100)
 
 Flow:
-  1. POST /powerpath/createNewAttempt - Create attempt
+  1. POST /powerpath/resetAttempt - Reset/create a clean attempt
   2. POST /powerpath/finalStudentAssessmentResponse - Finalize with score
 """
 
@@ -44,40 +44,39 @@ class handler(BaseHTTPRequestHandler):
         headers = api_headers()
         debug = []
 
-        # Step 1: Create new attempt
-        attempt_url = f"{API_BASE}/powerpath/createNewAttempt"
-        attempt_payload = {
+        # Step 1: Reset attempt (creates a clean slate for the lesson)
+        reset_url = f"{API_BASE}/powerpath/resetAttempt"
+        reset_payload = {
             "student": student_id,
             "lesson": lesson_id
         }
 
         try:
-            resp = requests.post(attempt_url, headers=headers, json=attempt_payload, timeout=30)
+            resp = requests.post(reset_url, headers=headers, json=reset_payload, timeout=30)
             if resp.status_code == 401:
                 headers = api_headers()
-                resp = requests.post(attempt_url, headers=headers, json=attempt_payload, timeout=30)
+                resp = requests.post(reset_url, headers=headers, json=reset_payload, timeout=30)
             
             debug.append({
-                "step": "1_create_attempt",
-                "url": attempt_url,
-                "payload": attempt_payload,
+                "step": "1_reset_attempt",
+                "url": reset_url,
+                "payload": reset_payload,
                 "status": resp.status_code,
                 "body": resp.text[:1000]
             })
 
             if resp.status_code not in (200, 201):
-                # If can't create attempt, maybe it's not a PowerPath quiz lesson
-                # Try finalize directly anyway
+                # Reset may fail for non-quiz content — proceed to finalize anyway
                 pass
             else:
                 try:
-                    attempt_data = resp.json()
-                    debug.append({"attempt_response": attempt_data})
+                    reset_data = resp.json()
+                    debug.append({"reset_response": reset_data})
                 except:
                     pass
 
         except Exception as e:
-            debug.append({"step": "1_create_attempt", "error": str(e)})
+            debug.append({"step": "1_reset_attempt", "error": str(e)})
 
         # Step 2: Finalize assessment
         finalize_url = f"{API_BASE}/powerpath/finalStudentAssessmentResponse"

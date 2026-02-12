@@ -644,6 +644,7 @@
 
             // ── Build progress lookup ──────────────────────────────
             var progressByTitle = {};
+            var progressById = {};  // Also index progress by resource sourcedId
             var assessmentLineItemByResId = {};  // Map resource IDs to PowerPath assessmentLineItemSourcedId
             var cp = contentData.courseProgress;
             if (cp && cp.lineItems) {
@@ -662,15 +663,27 @@
                         assessmentLineItemByResId[pTitle] = aliSourcedId;
                     }
                     
-                    if (pTitle && pItem.results && pItem.results.length > 0) {
+                    if (pItem.results && pItem.results.length > 0) {
                         var r = pItem.results[0];
-                        progressByTitle[pTitle] = {
+                        var progEntry = {
                             scoreStatus: r.scoreStatus || '',
                             textScore: r.textScore || '',
                             score: r.score,
                             scorePercentile: r.scorePercentile,
                             scoreDate: r.scoreDate || '',
                         };
+                        if (pTitle) {
+                            progressByTitle[pTitle] = progEntry;
+                        }
+                        // Also index by resource sourcedId for more reliable matching
+                        if (resSourcedId) {
+                            progressById[resSourcedId] = progEntry;
+                        }
+                        // And by the lineItem sourcedId/id
+                        var pItemId = pItem.sourcedId || pItem.id || '';
+                        if (pItemId) {
+                            progressById[pItemId] = progEntry;
+                        }
                     }
                 }
             }
@@ -727,8 +740,9 @@
                     for (var pl = 0; pl < pLessons.length; pl++) {
                         var pLesson = pLessons[pl];
                         var pLTitle = (pLesson.title || '').trim();
-                        var pLocalKey = 'completed_' + (pLesson.id || pLesson.sourcedId || pLTitle);
-                        var pLDone = !!progressByTitle[pLTitle] || localStorage.getItem(pLocalKey) === 'true';
+                        var pLessonId = pLesson.id || pLesson.sourcedId || '';
+                        var pLocalKey = 'completed_' + (pLessonId || pLTitle);
+                        var pLDone = !!progressByTitle[pLTitle] || !!(pLessonId && progressById[pLessonId]) || localStorage.getItem(pLocalKey) === 'true';
                         var pRes = pLesson.componentResources || [];
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
@@ -779,8 +793,9 @@
                     var unitDone = 0;
                     for (var lc = 0; lc < modLessons.length; lc++) {
                         var lcTitle = (modLessons[lc].title || '').trim();
-                        var lcLocalKey = 'completed_' + (modLessons[lc].id || modLessons[lc].sourcedId || lcTitle);
-                        if (progressByTitle[lcTitle] || localStorage.getItem(lcLocalKey) === 'true') unitDone++;
+                        var lcId = modLessons[lc].id || modLessons[lc].sourcedId || '';
+                        var lcLocalKey = 'completed_' + (lcId || lcTitle);
+                        if (progressByTitle[lcTitle] || (lcId && progressById[lcId]) || localStorage.getItem(lcLocalKey) === 'true') unitDone++;
                     }
                     var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
                     var unitComplete = forceComplete || (unitDone === modLessons.length && modLessons.length > 0);
@@ -822,9 +837,16 @@
                             var lessonGlobalIdx = globalIdx + li;
                             var lesson = modLessons[li];
                             var lTitle = lesson.title || 'Lesson ' + (li + 1);
-                            var prog = progressByTitle[lTitle.trim()] || null;
-                            var isDone = prog && (prog.scoreStatus === 'fully graded' || prog.textScore === 'Completed');
-                            var localKey = 'completed_' + (lesson.id || lesson.sourcedId || lTitle);
+                            var lId = lesson.id || lesson.sourcedId || '';
+                            // Look up progress by title first, then by sourcedId
+                            var prog = progressByTitle[lTitle.trim()] || (lId ? progressById[lId] : null) || null;
+                            var isDone = prog && (
+                                prog.scoreStatus === 'fully graded' ||
+                                prog.textScore === 'Completed' ||
+                                prog.score >= 90 ||
+                                prog.scoreStatus === 'submitted'
+                            );
+                            var localKey = 'completed_' + (lId || lTitle);
                             var isLocalDone = localStorage.getItem(localKey) === 'true';
                             isDone = isDone || isLocalDone;
                             // Global lesson-level locking

@@ -2,7 +2,8 @@
 
 Body:
   studentId: string (required) - student sourcedId
-  lessonId: string (required) - ComponentResource ID (UUID like 93c54ed3-...)
+  lessonId: string (required) - lesson sourcedId (e.g. "USHI23-l10-r104084-bank-v1")
+  score: number (optional) - score percentage (0-100), included in finalize if provided
 
 Docs: https://docs.timeback.com/beta/api-reference/beyond-ai/powerpath/lesson-mastery/finalize-a-test-assessments
 """
@@ -32,6 +33,7 @@ class handler(BaseHTTPRequestHandler):
 
         student_id = body.get("studentId", "")
         lesson_id = body.get("lessonId", "")
+        score = body.get("score")  # Optional score passthrough
 
         if not student_id or not lesson_id:
             send_json(self, {"error": "Missing studentId or lessonId"}, 400)
@@ -46,6 +48,8 @@ class handler(BaseHTTPRequestHandler):
             "student": student_id,
             "lesson": lesson_id
         }
+        if score is not None:
+            payload["score"] = score
 
         try:
             resp = requests.post(url, headers=headers, json=payload, timeout=30)
