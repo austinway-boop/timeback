@@ -1,11 +1,11 @@
-"""MasteryTrack test assignment API.
+"""MasteryTrack test assignment API — v3 (lineItems via rostering POST).
 
-Two-step assignment:
-  1. POST /powerpath/test-assignments { student, subject, grade }  → PowerPath record
-  2. PUT  /ims/oneroster/gradebook/v1p2/assessmentResults/{id}     → MasteryTrack sees it
-
-MasteryTrack reads from OneRoster gradebook (assessmentResults with toolProvider: "AlphaTest").
-PowerPath alone does NOT make tests appear in MasteryTrack.
+Assignment flow:
+  1. DELETE old assignments for subject
+  2. Reset placement
+  3. Ensure enrollment in placement class
+  4. POST /powerpath/test-assignments (PowerPath record)
+  5. POST /ims/oneroster/rostering/v1p2/lineItems (syncs to MasteryTrack)
 """
 
 import json
