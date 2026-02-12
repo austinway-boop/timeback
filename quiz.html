@@ -140,13 +140,26 @@
         var gradeLevel = params.get('grade') || params.get('gradeLevel') || '';
         var lessonId = params.get('lessonId') || '';
         var courseCode = params.get('courseCode') || '';
+        var contentType = (params.get('type') || '').toLowerCase();
         quizState.title = params.get('title') || 'Quiz';
         quizState.testId = testId;
 
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
-        // ── 1. PowerPath adaptive flow ──
-        if (userId && (testId || lessonId)) {
+        // ── Detect reading/stimulus content (not a quiz) ──
+        var isReading = contentType === 'stimulus' || contentType === 'stimuli'
+            || contentType === 'reading' || contentType === 'article';
+
+        // ── 0. Reading/Article path — fetch and display content, no quiz ──
+        if (isReading && (qtiUrl || testId)) {
+            area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading article...</div>';
+            var loaded = await loadReadingContent(qtiUrl, testId, contentType);
+            if (loaded) return;
+            // If reading fetch failed, fall through to try other methods
+        }
+
+        // ── 1. PowerPath adaptive flow (assessments only) ──
+        if (!isReading && userId && (testId || lessonId)) {
             try {
                 area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Starting assessment...</div>';
                 var startResp = await fetch('/api/quiz-session?action=start', {
@@ -161,7 +174,6 @@
                     await loadNextQuestion();
                     return;
                 }
-                // If backend says use local assessment, skip to it immediately
                 if (startData.useLocalAssessment) {
                     // Fall through to local FRQ below
                 }
@@ -172,7 +184,7 @@
 
         // ── 2. QTI content fetch (direct URL or search catalog by ID/subject) ──
         if (qtiUrl || testId) {
-            var loaded = await loadAllQuestions(qtiUrl, testId, subject, gradeLevel);
+            var loaded = await loadAllQuestions(qtiUrl, testId, subject, gradeLevel, contentType);
             if (loaded) return;
         }
 
@@ -419,14 +431,73 @@
         if (passed) { _markQuizComplete(); }
     }
 
+    // ── Reading/Article display — fetch content and render as readable article ──
+    async function loadReadingContent(qtiUrl, testId, contentType) {
+        try {
+            var apiUrl = '/api/qti-item?';
+            if (qtiUrl) apiUrl += 'url=' + encodeURIComponent(qtiUrl);
+            else apiUrl += 'id=' + encodeURIComponent(testId) + '&type=' + encodeURIComponent(contentType || 'stimulus');
+            var resp = await fetch(apiUrl);
+            var result = await resp.json();
+
+            if (!result.success || !result.data) return false;
+            var data = result.data;
+            var title = data.title || quizState.title || 'Reading';
+
+            // Extract article content from various response shapes
+            var articleHtml = '';
+
+            // 1. QTI stimulus body
+            var stim = data['qti-assessment-stimulus'];
+            if (stim) {
+                articleHtml = renderNode(stim['qti-stimulus-body'] || stim);
+            }
+
+            // 2. Direct body/html/content string
+            if (!articleHtml) {
+                var body = data.body || data.html || data.content;
+                if (typeof body === 'string' && body.length > 20) {
+                    articleHtml = body;
+                }
+            }
+
+            // 3. Render the whole data object as rich content
+            if (!articleHtml) {
+                articleHtml = renderNode(data);
+            }
+
+            if (!articleHtml || articleHtml.length < 10) return false;
+
+            // Build a clean reading layout
+            area.innerHTML =
+                '<div class="quiz-header"><div class="quiz-title">' + esc(title) + '</div></div>' +
+                '<div style="padding:10px 16px;background:#EBF8FF;border:1px solid #BEE3F8;border-radius:10px;margin-bottom:20px;font-size:0.88rem;color:#2B6CB0;">' +
+                    '<i class="fa-solid fa-book-open" style="margin-right:8px;"></i>' +
+                    '<strong>Reading</strong> — Read the article below, then mark it complete.' +
+                '</div>' +
+                '<div class="stimulus-box" style="max-height:none;background:#fff;border:1px solid var(--color-border);padding:28px;line-height:1.8;font-size:1rem;">' +
+                    articleHtml +
+                '</div>' +
+                '<div class="quiz-actions" style="margin-top:20px;">' +
+                    '<button class="quiz-btn quiz-btn-primary" onclick="_markQuizComplete(); this.innerHTML=\'<i class=\\\'fa-solid fa-check\\\'></i> Marked Complete\'; this.disabled=true; this.style.background=\'#2E7D32\';">' +
+                        '<i class="fa-solid fa-check"></i> Mark as Read</button>' +
+                    '<button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button>' +
+                '</div>';
+            return true;
+        } catch(e) {
+            console.warn('Reading content fetch failed:', e);
+            return false;
+        }
+    }
+
     // ── Fallback: load all questions at once from QTI (when PowerPath adaptive fails) ──
     // Returns true if content was loaded, false if not
-    async function loadAllQuestions(qtiUrl, testId, subject, gradeLevel) {
+    async function loadAllQuestions(qtiUrl, testId, subject, gradeLevel, contentType) {
         area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading quiz...</div>';
         try {
             var apiUrl = '/api/qti-item?';
             if (qtiUrl) apiUrl += 'url=' + encodeURIComponent(qtiUrl);
-            else apiUrl += 'id=' + encodeURIComponent(testId) + '&type=assessment';
+            else apiUrl += 'id=' + encodeURIComponent(testId) + '&type=' + encodeURIComponent(contentType || 'assessment');
             // Pass subject/title/grade for QTI catalog search when ID isn't a direct QTI ID
             if (subject) apiUrl += '&subject=' + encodeURIComponent(subject);
             if (gradeLevel) apiUrl += '&grade=' + encodeURIComponent(gradeLevel);
