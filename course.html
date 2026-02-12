@@ -593,6 +593,10 @@
         var metrics = meta.metrics || {};
         var subjects = (course.subjects || []).join(', ') || '';
         var xpEarned = enrollment.xpEarned || 0;
+        // Add locally tracked XP (earned in this browser, may not be synced to API yet)
+        var enrollId = enrollment.id || enrollment.sourcedId || '';
+        var localXP = parseInt(localStorage.getItem('local_xp_' + enrollId) || '0', 10);
+        xpEarned = Math.max(xpEarned, xpEarned + localXP);
         var totalXp = metrics.totalXp || goals.dailyXp || 0;
         var dailyGoal = goals.dailyXp || 0;
         var totalLessons = metrics.totalLessons || 0;

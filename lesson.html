@@ -859,6 +859,17 @@
             markLessonComplete();
             saveLessonToLocalStorage();
         }
+
+        // 4. Save XP locally so the course page can show it immediately
+        var xp = passed ? quizState.xpEarned : 0;
+        if (xp > 0) {
+            var enrollId = lessonData.enrollmentId || '';
+            var existingXP = parseInt(localStorage.getItem('local_xp_' + enrollId) || '0', 10);
+            localStorage.setItem('local_xp_' + enrollId, String(existingXP + xp));
+            // Also save per-lesson XP
+            var lTitle = lessonData.title || '';
+            if (lTitle) localStorage.setItem('xp_' + lTitle, String(xp));
+        }
     }
 
     function initSync() {
@@ -2101,29 +2112,18 @@
     function markStepComplete(idx) {
         if (idx < 0 || idx >= steps.length) return;
         var step = steps[idx];
-        if (step.type === 'Quiz') return; // Quizzes handle their own completion
+        if (step.type === 'Quiz') return; // Quizzes handle their own completion via syncQuizCompletion
 
-        // Mark individual resource as completed in localStorage
+        // Mark this resource as viewed/completed
         var resId = step.resource.resId || step.resource.id || '';
         var resTitle = step.resource.title || '';
         if (resId) localStorage.setItem('completed_' + resId, 'true');
         if (resTitle) localStorage.setItem('completed_' + resTitle, 'true');
+        console.log('[Complete] Marked step', idx, step.type, ':', resTitle || resId);
 
-        // If this is the only non-quiz step, also mark the lesson complete
-        var nonQuizSteps = steps.filter(function(s) { return s.type !== 'Quiz'; });
-        var allNonQuizDone = true;
-        for (var i = 0; i < nonQuizSteps.length; i++) {
-            var rid = nonQuizSteps[i].resource.resId || nonQuizSteps[i].resource.id || '';
-            var rtitle = nonQuizSteps[i].resource.title || '';
-            if (rid && localStorage.getItem('completed_' + rid) !== 'true' &&
-                rtitle && localStorage.getItem('completed_' + rtitle) !== 'true') {
-                allNonQuizDone = false;
-                break;
-            }
-        }
-        if (allNonQuizDone) {
-            saveLessonToLocalStorage();
-        }
+        // Always save the lesson completion too
+        // (user clicked Continue so they've engaged with this content)
+        saveLessonToLocalStorage();
     }
 
     function saveLessonToLocalStorage() {
