@@ -136,11 +136,9 @@
         .answer-key-toggle { position: fixed; bottom: 20px; left: 20px; z-index: 9999; display: none; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: 2px solid #86efac; background: #fff; color: #16A34A; box-shadow: 0 3px 0 #4ade80; font-family: var(--font); transition: all 0.15s; }
         .answer-key-toggle:active { transform: translateY(2px); box-shadow: none; }
         .answer-key-toggle.active { background: #16A34A; color: #fff; border-color: #16A34A; }
-        /* Report Question button */
-    .report-btn { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border:1.5px solid #E8B4B8; border-radius:8px; background:#FFF5F5; color:#C53030; font-size:0.84rem; font-weight:600; cursor:pointer; transition:all 0.15s; margin-top:12px; }
-    .report-btn:hover { border-color:#E53E3E; color:#fff; background:#E53E3E; }
-    .report-btn i { font-size:0.82rem; color:#E53E3E; }
-    .report-btn:hover i { color:#fff; }
+        /* Report Question flag */
+    .report-flag { padding:4px 6px; border:none; background:none; color:var(--color-text-muted); font-size:0.78rem; cursor:pointer; transition:color 0.15s; opacity:0.5; }
+    .report-flag:hover { color:#E53E3E; opacity:1; }
 
     /* Report Modal */
     .report-overlay { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; }
@@ -156,10 +154,9 @@
     .report-reason.selected { border-color:var(--color-primary); background:var(--color-primary-light); }
     .report-reason input[type=radio] { margin-top:2px; accent-color:var(--color-primary); }
     .report-reason label { font-size:0.88rem; cursor:pointer; line-height:1.4; }
-    .report-other-input { display:none; margin-top:-4px; margin-bottom:16px; }
-    .report-other-input.visible { display:block; }
-    .report-other-input textarea { width:100%; padding:10px 12px; border:2px solid var(--color-border); border-radius:8px; font-size:0.85rem; font-family:inherit; resize:vertical; min-height:60px; outline:none; box-sizing:border-box; }
-    .report-other-input textarea:focus { border-color:var(--color-primary); }
+    .report-context-input { margin-bottom:16px; }
+    .report-context-input textarea { width:100%; padding:10px 12px; border:2px solid var(--color-border); border-radius:8px; font-size:0.85rem; font-family:inherit; resize:vertical; min-height:60px; outline:none; box-sizing:border-box; }
+    .report-context-input textarea:focus { border-color:var(--color-primary); }
     .report-actions { display:flex; gap:10px; justify-content:flex-end; }
     .report-actions button { padding:8px 20px; border-radius:var(--radius-sm); font-weight:600; font-size:0.85rem; cursor:pointer; transition:all 0.15s; }
     .report-cancel-btn { border:1px solid var(--color-border); background:#fff; color:var(--color-text-secondary); }
@@ -212,8 +209,9 @@
                     <label>Other</label>
                 </div>
             </div>
-            <div class="report-other-input" id="report-other-wrap">
-                <textarea id="report-other-text" placeholder="Please describe the issue..."></textarea>
+            <div class="report-context-input">
+                <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--color-text-secondary);margin-bottom:6px;">Additional context <span style="font-weight:400;color:var(--color-text-muted);">(optional)</span></label>
+                <textarea id="report-other-text" placeholder="Describe the issue in more detail..."></textarea>
             </div>
             <div class="report-actions">
                 <button class="report-cancel-btn" onclick="closeReportModal()">Cancel</button>
@@ -567,7 +565,8 @@
         // Build question + choices HTML
         var questionHtml = '<div class="question-card">';
         var coToggleHtml = (!isFRQ && choices.length > 0) ? '<div class="crossout-toggle' + (quizState.crossOutMode ? ' active' : '') + '" onclick="toggleCrossOut()" title="Eliminate answers">ABC' + (quizState.crossOutMode ? '<div class="strike-line"></div>' : '') + '</div>' : '';
-        questionHtml += '<div class="q-tools-row"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>' + coToggleHtml + '</div>';
+        var reportFlagHtml = quizState.reportingEnabled ? '<button class="report-flag" onclick="openReportModal()" title="Report this question"><i class="fa-solid fa-flag"></i></button>' : '';
+        questionHtml += '<div class="q-tools-row"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>' + reportFlagHtml + coToggleHtml + '</div>';
         questionHtml += '<div class="question-text">' + (prompt || 'Loading question...') + '</div>';
 
         if (isFRQ) {
@@ -598,10 +597,6 @@
         }
 
         questionHtml += '<div class="feedback" id="feedback"></div>';
-        // Report button (shown if reporting is enabled)
-        if (quizState.reportingEnabled) {
-            questionHtml += '<button class="report-btn" onclick="openReportModal()"><i class="fa-solid fa-flag"></i> Report Question</button>';
-        }
         questionHtml += '</div>';
         questionHtml += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-primary" id="submit-btn" onclick="submitAnswer()" disabled><i class="fa-solid fa-check"></i> Submit Answer</button></div>';
 
@@ -1289,16 +1284,12 @@
         el.classList.add('selected');
         el.querySelector('input').checked = true;
         document.getElementById('report-submit-btn').disabled = false;
-        var otherWrap = document.getElementById('report-other-wrap');
-        if (reason === 'other') otherWrap.classList.add('visible');
-        else otherWrap.classList.remove('visible');
     }
 
     function openReportModal() {
         if (!quizState.reportingEnabled || quizState.answered) return;
         _selectedReportReason = '';
         document.querySelectorAll('.report-reason').forEach(function(r) { r.classList.remove('selected'); r.querySelector('input').checked = false; });
-        document.getElementById('report-other-wrap').classList.remove('visible');
         document.getElementById('report-other-text').value = '';
         document.getElementById('report-submit-btn').disabled = true;
         document.getElementById('report-modal').classList.add('open');
@@ -1346,7 +1337,7 @@
             }),
             correctId: q.correctId || '',
             reason: _selectedReportReason,
-            customText: _selectedReportReason === 'other' ? (document.getElementById('report-other-text').value || '') : '',
+            customText: document.getElementById('report-other-text').value || '',
             videoUrl: videoUrl,
             articleContent: articleContent,
             lessonTitle: quizState.title || '',
