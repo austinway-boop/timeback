@@ -2070,10 +2070,15 @@
        NAVIGATION
        ================================================================== */
     function goNext() {
+        // Mark current step (video/article) as completed
+        markStepComplete(currentStep);
+
         if (currentStep < steps.length - 1) {
             showStep(currentStep + 1);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
+            // Last step — mark entire lesson complete and go back
+            markLessonComplete();
             goBackToCourse();
         }
     }
@@ -2090,6 +2095,36 @@
     function goBackToCourse() {
         if (window.history.length > 1) window.history.back();
         else window.location.href = '/dashboard';
+    }
+
+    function markStepComplete(idx) {
+        if (idx < 0 || idx >= steps.length) return;
+        var step = steps[idx];
+        if (step.type === 'Quiz') return; // Quizzes handle their own completion
+
+        // Mark individual resource as completed
+        var resId = step.resource.resId || step.resource.id || '';
+        var resTitle = step.resource.title || '';
+        if (resId) localStorage.setItem('completed_' + resId, 'true');
+        if (resTitle) localStorage.setItem('completed_' + resTitle, 'true');
+    }
+
+    function markLessonComplete() {
+        // Mark the lesson itself as completed using all possible keys
+        var title = lessonData.title || '';
+        var lessonId = lessonData.lessonId || lessonData.id || '';
+        var ppLessonId = lessonData.ppLessonId || '';
+        if (title) localStorage.setItem('completed_' + title, 'true');
+        if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
+        if (ppLessonId) localStorage.setItem('completed_' + ppLessonId, 'true');
+
+        // Also mark each resource in the lesson
+        var resources = lessonData.resources || [];
+        for (var i = 0; i < resources.length; i++) {
+            var r = resources[i];
+            if (r.resId) localStorage.setItem('completed_' + r.resId, 'true');
+            if (r.title) localStorage.setItem('completed_' + r.title, 'true');
+        }
     }
 
     /* ── Utilities ──────────────────────────────────────────── */
