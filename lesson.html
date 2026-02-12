@@ -1536,10 +1536,25 @@
 
         var hasStimulus = (quizState.isReadingQuiz && quizState.accumulatedStimuli.length > 0) || (stimulus && stimulus.length > 10);
 
+        // Extract images from prompt for side-by-side layout (like articles)
+        var promptImages = '';
+        if (!hasStimulus && prompt && typeof prompt === 'string') {
+            var imgMatches = prompt.match(/<figure[\s\S]*?<\/figure>|<img\s[^>]*>/gi);
+            if (imgMatches && imgMatches.length > 0) {
+                promptImages = imgMatches.join('');
+                var cleanedPrompt = prompt;
+                for (var mi = 0; mi < imgMatches.length; mi++) {
+                    cleanedPrompt = cleanedPrompt.replace(imgMatches[mi], '');
+                }
+                cleanedPrompt = cleanedPrompt.replace(/<p>\s*<\/p>/gi, '').trim();
+                prompt = cleanedPrompt;
+            }
+        }
+
         // Expand layout when split view is needed
         var lessonPage = document.querySelector('.lesson-page');
         if (lessonPage) {
-            if (hasStimulus) {
+            if (hasStimulus || promptImages) {
                 lessonPage.classList.add('wide-mode');
             } else {
                 lessonPage.classList.remove('wide-mode');
@@ -1596,6 +1611,12 @@
             // Split layout: article left, questions right
             html += '<div class="pp-split-layout">';
             html += '<div class="pp-split-left">' + stimContent + '</div>';
+            html += '<div class="pp-split-right">' + questionHtml + '</div>';
+            html += '</div>';
+        } else if (promptImages) {
+            // Image split layout — image left, question right (like articles)
+            html += '<div class="pp-split-layout">';
+            html += '<div class="pp-split-left" style="display:flex;align-items:center;justify-content:center;">' + promptImages + '</div>';
             html += '<div class="pp-split-right">' + questionHtml + '</div>';
             html += '</div>';
         } else {

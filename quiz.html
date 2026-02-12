@@ -565,10 +565,25 @@
 
         var hasStimulus = (quizState.isReadingQuiz && quizState.accumulatedStimuli.length > 0) || (stimulus && stimulus.length > 10);
 
-        // Toggle wide mode based on stimulus
+        // Extract images from prompt for side-by-side layout (like articles)
+        var promptImages = '';
+        if (!hasStimulus && prompt && typeof prompt === 'string') {
+            var imgMatches = prompt.match(/<figure[\s\S]*?<\/figure>|<img\s[^>]*>/gi);
+            if (imgMatches && imgMatches.length > 0) {
+                promptImages = imgMatches.join('');
+                var cleanedPrompt = prompt;
+                for (var mi = 0; mi < imgMatches.length; mi++) {
+                    cleanedPrompt = cleanedPrompt.replace(imgMatches[mi], '');
+                }
+                cleanedPrompt = cleanedPrompt.replace(/<p>\s*<\/p>/gi, '').trim();
+                prompt = cleanedPrompt;
+            }
+        }
+
+        // Toggle wide mode based on stimulus or images
         var quizWrap = document.querySelector('.quiz-wrap');
         if (quizWrap) {
-            if (hasStimulus) quizWrap.classList.add('wide-mode');
+            if (hasStimulus || promptImages) quizWrap.classList.add('wide-mode');
             else quizWrap.classList.remove('wide-mode');
         }
 
@@ -624,6 +639,12 @@
             // Split layout: passage left, question right
             html += '<div class="quiz-split-layout">';
             html += '<div class="quiz-split-left">' + stimContent + '</div>';
+            html += '<div class="quiz-split-right">' + questionHtml + '</div>';
+            html += '</div>';
+        } else if (promptImages) {
+            // Image split layout — image left, question right (like articles)
+            html += '<div class="quiz-split-layout">';
+            html += '<div class="quiz-split-left" style="display:flex;align-items:center;justify-content:center;">' + promptImages + '</div>';
             html += '<div class="quiz-split-right">' + questionHtml + '</div>';
             html += '</div>';
         } else {
