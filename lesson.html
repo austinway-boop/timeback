@@ -1168,7 +1168,9 @@
             if (quizState.marked[di]) dc += ' marked';
             html += '<div class="' + dc + '" onclick="apGoTo(' + di + ')">' + (di + 1) + '</div>';
         }
-        html += '</div></div></div>' +
+        html += '</div>' +
+            '<button onclick="apShowReview()" style="display:block;width:100%;margin-top:12px;padding:9px;border:none;border-radius:8px;background:#1a237e;color:#fff;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:var(--font);">Review All Answers</button>' +
+            '</div></div>' +
             '<button class="ap-nav-btn ap-nav-next" onclick="apNav(1)">' + (idx === totalQ - 1 ? 'Review' : 'Next') + '</button>' +
         '</div>';
 
