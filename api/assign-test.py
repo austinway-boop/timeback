@@ -1,35 +1,34 @@
 """MasteryTrack test assignment API.
 
-Flow:
-  1. Enroll student in placement class (OneRoster enrollment)
-  2. Assign test (PowerPath test-assignments)
-  3. Student takes test at alphatest.alpha.school/assignment/{assignmentId}
+Two-step assignment:
+  1. POST /powerpath/test-assignments { student, subject, grade }  → PowerPath record
+  2. PUT  /ims/oneroster/gradebook/v1p2/assessmentResults/{id}     → MasteryTrack sees it
 
-Placement Class IDs:
-  Math     → 514efb44-d13b-41bd-8d6a-dc380b2e5ca2 (school: cf49acb1...)
-  Language → 0b7b2884-cf93-4a09-b1ac-6ebfe9f96f39 (school: f47ac10b...)
-  Science  → science-placement-tests-class-timeback (school: cf49acb1...)
-  Writing  → writing-placement-tests-class-timeback (school: cf49acb1...)
+MasteryTrack reads from OneRoster gradebook (assessmentResults with toolProvider: "AlphaTest").
+PowerPath alone does NOT make tests appear in MasteryTrack.
 """
 
 import json
 import time
+import uuid
 from http.server import BaseHTTPRequestHandler
 
 import requests
 from api._helpers import API_BASE, api_headers, send_json
 
 PP = f"{API_BASE}/powerpath"
-OR = f"{API_BASE}/ims/oneroster/rostering/v1p2"
+OR = f"{API_BASE}/ims/oneroster"
 
-# Placement class IDs — required for enrollment before test assignment
+# Assessment line item used by AlphaTest/MasteryTrack
+ALPHATEST_LINE_ITEM = "a003e5f6-8ea0-4949-a82c-3ac0cd1e23ff"
+
+# Placement class IDs for OneRoster enrollment
 PLACEMENT_CLASSES = {
     "math":     {"classId": "514efb44-d13b-41bd-8d6a-dc380b2e5ca2", "schoolId": "cf49acb1-1e67-48c6-8d53-8b3c6a404852"},
     "language":  {"classId": "0b7b2884-cf93-4a09-b1ac-6ebfe9f96f39", "schoolId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"},
     "science":  {"classId": "science-placement-tests-class-timeback", "schoolId": "cf49acb1-1e67-48c6-8d53-8b3c6a404852"},
     "writing":  {"classId": "writing-placement-tests-class-timeback", "schoolId": "cf49acb1-1e67-48c6-8d53-8b3c6a404852"},
 }
-# Aliases
 PLACEMENT_CLASSES["reading"] = PLACEMENT_CLASSES["language"]
 PLACEMENT_CLASSES["vocabulary"] = PLACEMENT_CLASSES["language"]
 PLACEMENT_CLASSES["social studies"] = PLACEMENT_CLASSES["science"]
@@ -48,7 +47,7 @@ class handler(BaseHTTPRequestHandler):
         from urllib.parse import urlparse, parse_qs
         params = parse_qs(urlparse(self.path).query)
         action = params.get("action", [""])[0]
-        sid = (params.get("student", params.get("studentId", [""]))  [0]).strip()
+        sid = (params.get("student", params.get("studentId", [""]))[0]).strip()
         subject = params.get("subject", [""])[0].strip()
         headers = api_headers()
 
@@ -91,7 +90,13 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"success": False, "error": "assignmentId required"}, 400)
                 return
             headers = api_headers()
+            # Delete from PowerPath
             resp = requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=10)
+            # Also try to delete the OneRoster assessment result
+            try:
+                requests.delete(f"{OR}/gradebook/v1p2/assessmentResults/{aid}", headers=headers, timeout=6)
+            except Exception:
+                pass
             send_json(self, {"success": resp.status_code in (200, 204), "status": resp.status_code})
         except Exception as e:
             send_json(self, {"success": False, "error": str(e)}, 500)
@@ -125,68 +130,83 @@ class handler(BaseHTTPRequestHandler):
             sid = (body.get("student") or body.get("studentId") or "").strip()
             subject = (body.get("subject") or "").strip()
             grade = (body.get("grade") or body.get("gradeLevel") or "").strip()
+            email = (body.get("email") or "").strip()
 
             if not sid or not subject or not grade:
                 send_json(self, {"error": "Need student, subject, and grade", "success": False}, 400)
                 return
 
             headers = api_headers()
+            log = {}
 
-            # Step 1: Delete any existing assignments for this subject
+            # Step 1: Delete old assignments for this subject
             try:
                 lr = requests.get(f"{PP}/test-assignments", headers=headers, params={"student": sid}, timeout=8)
                 if lr.status_code == 200:
                     for a in lr.json().get("testAssignments", []):
                         if (a.get("subject") or "").lower() == subject.lower():
-                            aid = a.get("sourcedId") or ""
-                            if aid:
-                                requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=6)
+                            old_id = a.get("sourcedId") or ""
+                            if old_id:
+                                requests.delete(f"{PP}/test-assignments/{old_id}", headers=headers, timeout=6)
+                                try:
+                                    requests.delete(f"{OR}/gradebook/v1p2/assessmentResults/{old_id}", headers=headers, timeout=6)
+                                except Exception:
+                                    pass
             except Exception:
                 pass
 
-            # Step 2: Reset placement for this subject
+            # Step 2: Reset placement
             try:
                 requests.post(f"{PP}/placement/resetUserPlacement", headers=headers, json={"student": sid, "subject": subject}, timeout=6)
             except Exception:
                 pass
 
-            # Step 3: Ensure enrollment in placement class (OneRoster)
-            enroll_result = _ensure_placement_enrollment(headers, sid, subject)
+            # Step 3: Ensure enrollment in placement class
+            _ensure_placement_enrollment(headers, sid, subject)
 
-            # Step 4: Assign the test
+            # Step 4: Create PowerPath assignment
             payload = {"student": sid, "subject": subject, "grade": grade}
-            resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
+            pp_resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
             try:
-                data = resp.json()
+                pp_data = pp_resp.json()
             except Exception:
-                data = {"raw": resp.text[:500]}
+                pp_data = {}
+            log["powerpath"] = {"status": pp_resp.status_code}
 
-            if resp.status_code in (200, 201):
-                aid = data.get("assignmentId", "") if isinstance(data, dict) else ""
-                lid = data.get("lessonId", "") if isinstance(data, dict) else ""
+            # Step 5: Create OneRoster assessment result (this is what MasteryTrack reads)
+            assignment_id = str(uuid.uuid4())
+            if isinstance(pp_data, dict) and pp_data.get("assignmentId"):
+                assignment_id = pp_data["assignmentId"]
+
+            test_name = f"{subject} Grade {grade} Test"
+            ar_result = _create_mastery_track_assignment(
+                headers, assignment_id, sid, email, subject, grade, test_name
+            )
+            log["masteryTrack"] = ar_result
+
+            # Return success if either PowerPath or MasteryTrack assignment succeeded
+            pp_ok = pp_resp.status_code in (200, 201)
+            mt_ok = ar_result.get("success", False)
+
+            if pp_ok or mt_ok:
+                lid = pp_data.get("lessonId", "") if isinstance(pp_data, dict) else ""
                 send_json(self, {
                     "success": True,
                     "message": f"Test assigned ({subject} Grade {grade})",
-                    "response": data,
+                    "response": pp_data if pp_ok else ar_result,
+                    "assignmentId": assignment_id,
                     "testLink": f"https://alpha.timeback.com/app/lesson/{lid}" if lid else "",
-                    "altLinks": {
-                        "timeback": f"https://alpha.timeback.com/app/lesson/{lid}" if lid else "",
-                        "mastery": f"https://alphatest.alpha.school/assignment/{aid}" if aid else "",
-                    },
+                    "log": log,
                 })
-                return
-
-            # Failed — return error
-            err = ""
-            if isinstance(data, dict):
-                err = data.get("error") or data.get("imsx_description") or ""
-            send_json(self, {
-                "success": False,
-                "error": err or f"PowerPath returned {resp.status_code}",
-                "httpStatus": resp.status_code,
-                "enrollment": enroll_result,
-                "powerpathResponse": data,
-            }, 422)
+            else:
+                err = ""
+                if isinstance(pp_data, dict):
+                    err = pp_data.get("error") or pp_data.get("imsx_description") or ""
+                send_json(self, {
+                    "success": False,
+                    "error": err or f"Assignment failed",
+                    "log": log,
+                }, 422)
 
         except json.JSONDecodeError:
             send_json(self, {"error": "Invalid JSON", "success": False}, 400)
@@ -194,41 +214,70 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": str(e), "success": False}, 500)
 
 
-def _ensure_placement_enrollment(headers, student_id, subject):
-    """Enroll student in the placement class via OneRoster (required before test assignment)."""
-    key = subject.lower()
-    cls = PLACEMENT_CLASSES.get(key)
-    if not cls:
-        return {"enrolled": False, "reason": f"No placement class for '{subject}'"}
-
-    class_id = cls["classId"]
-    school_id = cls["schoolId"]
-    enrollment_id = f"enrollment-{student_id}-{key}-{int(time.time())}"
-
-    enrollment = {
-        "enrollment": {
-            "sourcedId": enrollment_id,
+def _create_mastery_track_assignment(headers, assignment_id, student_id, email, subject, grade, test_name):
+    """Create an assessment result in OneRoster gradebook so MasteryTrack can see it."""
+    ar = {
+        "assessmentResult": {
+            "sourcedId": assignment_id,
             "status": "active",
-            "role": "student",
-            "primary": "false",
-            "user": {"sourcedId": student_id},
-            "class": {"sourcedId": class_id},
-            "school": {"sourcedId": school_id},
+            "metadata": {
+                "xp": 0,
+                "subject": subject,
+                "grade": grade,
+                "testName": test_name,
+                "testType": "assessment",
+                "toolProvider": "AlphaTest",
+                "studentEmail": email,
+            },
+            "assessmentLineItem": {"sourcedId": ALPHATEST_LINE_ITEM},
+            "student": {"sourcedId": student_id},
+            "score": 0,
+            "scoreDate": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+            "scoreStatus": "not submitted",
+            "inProgress": "false",
+            "incomplete": "false",
+            "late": "false",
+            "missing": "false",
         }
     }
 
     try:
-        resp = requests.post(
-            f"{OR}/enrollments",
+        resp = requests.put(
+            f"{OR}/gradebook/v1p2/assessmentResults/{assignment_id}",
             headers=headers,
-            json=enrollment,
+            json=ar,
             timeout=10,
         )
-        # 200/201 = created, 422/409 = already exists (both are fine)
-        ok = resp.status_code in (200, 201, 422, 409)
-        return {"enrolled": ok, "status": resp.status_code, "classId": class_id}
+        try:
+            body = resp.json()
+        except Exception:
+            body = {}
+        return {"success": resp.status_code in (200, 201), "status": resp.status_code, "response": body}
     except Exception as e:
-        return {"enrolled": False, "error": str(e)}
+        return {"success": False, "error": str(e)}
+
+
+def _ensure_placement_enrollment(headers, student_id, subject):
+    """Enroll student in placement class via OneRoster."""
+    key = subject.lower()
+    cls = PLACEMENT_CLASSES.get(key)
+    if not cls:
+        return
+    try:
+        enrollment = {
+            "enrollment": {
+                "sourcedId": f"enrollment-{student_id}-{key}-{int(time.time())}",
+                "status": "active",
+                "role": "student",
+                "primary": "false",
+                "user": {"sourcedId": student_id},
+                "class": {"sourcedId": cls["classId"]},
+                "school": {"sourcedId": cls["schoolId"]},
+            }
+        }
+        requests.post(f"{OR}/rostering/v1p2/enrollments", headers=headers, json=enrollment, timeout=8)
+    except Exception:
+        pass
 
 
 def _proxy_get(handler, headers, url, params):
