@@ -605,6 +605,257 @@
     };
     var quizArea = null; // reference to the quiz container element
 
+    /* ══════════════════════════════════════════════════════════
+       Caliper Event System — sync with TimeBack Platform
+       ══════════════════════════════════════════════════════════ */
+    var caliperState = {
+        edAppId: '',
+        userId: '',             // platform sourcedId
+        lessonStartTime: null,  // ISO string
+        quizStartTime: null,    // ISO string
+        lessonAttemptId: '',    // urn:uuid for this lesson attempt
+        quizAttemptId: '',      // urn:uuid for this quiz attempt
+    };
+
+    function _uuid() {
+        // crypto.randomUUID with fallback
+        if (crypto && crypto.randomUUID) return crypto.randomUUID();
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    function _sendCaliperEvents(events) {
+        if (!events || !events.length) return;
+        fetch('/api/caliper-event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ events: events }),
+        }).catch(function(e) { console.warn('[Caliper] Send failed:', e.message); });
+    }
+
+    function _buildLessonObject() {
+        var lessonId = (lessonData.courseSourcedId || '') + '/' + (lessonData.title || 'lesson');
+        return {
+            id: window.location.origin + '/lessons/' + encodeURIComponent(lessonId),
+            type: 'AssignableDigitalResource',
+            mediaType: 'curriculum/lesson',
+            name: lessonData.title || 'Lesson',
+            isPartOf: lessonData.courseName ? {
+                id: window.location.origin + '/courses/' + encodeURIComponent(lessonData.courseSourcedId || lessonData.courseName),
+                type: 'AssignableDigitalResource',
+                mediaType: 'curriculum/course',
+                name: lessonData.courseName,
+            } : undefined,
+        };
+    }
+
+    function fireLessonStarted() {
+        caliperState.lessonStartTime = new Date().toISOString();
+        caliperState.lessonAttemptId = 'urn:uuid:' + _uuid();
+        var actor = 'urn:uuid:' + caliperState.userId;
+        _sendCaliperEvents([{
+            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
+            id: 'urn:uuid:' + _uuid(),
+            type: 'AssignableEvent',
+            actor: actor,
+            action: 'Started',
+            object: _buildLessonObject(),
+            generated: {
+                id: caliperState.lessonAttemptId,
+                type: 'Attempt',
+                assignee: actor,
+                assignable: _buildLessonObject().id,
+                startedAtTime: caliperState.lessonStartTime,
+            },
+            eventTime: caliperState.lessonStartTime,
+            edApp: 'urn:uuid:' + caliperState.edAppId,
+            session: 'urn:tag:auto-attach',
+        }]);
+    }
+
+    function fireLessonCompleted() {
+        var now = new Date().toISOString();
+        var actor = 'urn:uuid:' + caliperState.userId;
+        _sendCaliperEvents([{
+            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
+            id: 'urn:uuid:' + _uuid(),
+            type: 'AssignableEvent',
+            actor: actor,
+            action: 'Completed',
+            object: _buildLessonObject().id,
+            generated: {
+                id: caliperState.lessonAttemptId,
+                type: 'Attempt',
+                assignee: actor,
+                assignable: _buildLessonObject().id,
+                startedAtTime: caliperState.lessonStartTime || now,
+                endedAtTime: now,
+            },
+            eventTime: now,
+            edApp: 'urn:uuid:' + caliperState.edAppId,
+            session: 'urn:tag:auto-attach',
+        }]);
+    }
+
+    function fireQuizStarted() {
+        caliperState.quizStartTime = new Date().toISOString();
+        caliperState.quizAttemptId = 'urn:uuid:' + _uuid();
+        var actor = 'urn:uuid:' + caliperState.userId;
+        var quizObj = {
+            id: window.location.origin + '/assessments/' + encodeURIComponent(quizState.testId || quizState.title || 'quiz'),
+            type: 'Assessment',
+            name: quizState.title || 'Quiz',
+            isPartOf: _buildLessonObject(),
+        };
+        _sendCaliperEvents([{
+            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
+            id: 'urn:uuid:' + _uuid(),
+            type: 'AssessmentEvent',
+            actor: actor,
+            action: 'Started',
+            object: quizObj,
+            generated: {
+                id: caliperState.quizAttemptId,
+                type: 'Attempt',
+                assignee: actor,
+                assignable: quizObj.id,
+                startedAtTime: caliperState.quizStartTime,
+            },
+            eventTime: caliperState.quizStartTime,
+            edApp: 'urn:uuid:' + caliperState.edAppId,
+            session: 'urn:tag:auto-attach',
+        }]);
+    }
+
+    function fireQuizSubmitted() {
+        var now = new Date().toISOString();
+        var actor = 'urn:uuid:' + caliperState.userId;
+        var quizObjId = window.location.origin + '/assessments/' + encodeURIComponent(quizState.testId || quizState.title || 'quiz');
+        _sendCaliperEvents([{
+            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
+            id: 'urn:uuid:' + _uuid(),
+            type: 'AssessmentEvent',
+            actor: actor,
+            action: 'Submitted',
+            object: quizObjId,
+            generated: {
+                id: caliperState.quizAttemptId,
+                type: 'Attempt',
+                assignee: actor,
+                assignable: quizObjId,
+                startedAtTime: caliperState.quizStartTime || now,
+                endedAtTime: now,
+            },
+            eventTime: now,
+            edApp: 'urn:uuid:' + caliperState.edAppId,
+            session: 'urn:tag:auto-attach',
+        }]);
+    }
+
+    function fireQuestionGraded(isCorrect) {
+        var now = new Date().toISOString();
+        var actor = 'urn:uuid:' + caliperState.userId;
+        var qAttemptId = 'urn:uuid:' + _uuid();
+        _sendCaliperEvents([{
+            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
+            id: 'urn:uuid:' + _uuid(),
+            type: 'GradeEvent',
+            actor: actor,
+            action: 'Graded',
+            object: qAttemptId,
+            generated: {
+                id: 'urn:uuid:' + _uuid(),
+                type: 'Score',
+                scoreType: 'QUESTION_RESULT',
+                attempt: qAttemptId,
+                maxScore: 1,
+                scoreGiven: isCorrect ? 1 : 0,
+            },
+            eventTime: now,
+            edApp: 'urn:uuid:' + caliperState.edAppId,
+            session: 'urn:tag:auto-attach',
+        }]);
+    }
+
+    function fireXpAwarded(xpAmount) {
+        if (!xpAmount || xpAmount <= 0) return;
+        var now = new Date().toISOString();
+        var actor = 'urn:uuid:' + caliperState.userId;
+        var xpAttemptId = 'urn:uuid:' + _uuid();
+        _sendCaliperEvents([{
+            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
+            id: 'urn:uuid:' + _uuid(),
+            type: 'GradeEvent',
+            actor: actor,
+            action: 'Graded',
+            object: {
+                id: xpAttemptId,
+                type: 'Attempt',
+                assignee: actor,
+                assignable: _buildLessonObject(),
+            },
+            generated: {
+                id: 'urn:uuid:' + _uuid(),
+                type: 'Score',
+                scoreType: 'XP',
+                attempt: xpAttemptId,
+                scoreGiven: xpAmount,
+            },
+            eventTime: now,
+            edApp: 'urn:uuid:' + caliperState.edAppId,
+            session: 'urn:tag:auto-attach',
+        }]);
+    }
+
+    function fireMasteryAchieved() {
+        var now = new Date().toISOString();
+        var actor = 'urn:uuid:' + caliperState.userId;
+        var masteryAttemptId = 'urn:uuid:' + _uuid();
+        _sendCaliperEvents([{
+            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
+            id: 'urn:uuid:' + _uuid(),
+            type: 'GradeEvent',
+            actor: actor,
+            action: 'Graded',
+            object: {
+                id: masteryAttemptId,
+                type: 'Attempt',
+                assignee: actor,
+                assignable: _buildLessonObject(),
+            },
+            generated: {
+                id: 'urn:uuid:' + _uuid(),
+                type: 'Score',
+                scoreType: 'MASTERY',
+                attempt: masteryAttemptId,
+                maxScore: 100,
+                scoreGiven: 100,
+            },
+            eventTime: now,
+            edApp: 'urn:uuid:' + caliperState.edAppId,
+            session: 'urn:tag:auto-attach',
+        }]);
+    }
+
+    function initCaliper() {
+        caliperState.userId = localStorage.getItem('alphalearn_userId')
+            || localStorage.getItem('alphalearn_sourcedId') || '';
+        if (!caliperState.userId) {
+            console.warn('[Caliper] No userId found, events will not be sent');
+            return;
+        }
+        // Fetch edApp ID from backend
+        fetch('/api/caliper-event')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.edAppId) caliperState.edAppId = d.edAppId;
+                console.log('[Caliper] Initialized, edAppId:', caliperState.edAppId ? 'set' : 'not configured');
+            })
+            .catch(function() {});
+    }
+
     function resetQuizState() {
         quizState.attemptId = null; quizState.questionNum = 0;
         quizState.correct = 0; quizState.total = 0; quizState.xpEarned = 0;
@@ -661,6 +912,10 @@
         if (quizzes.length > 0) steps.push({ type: 'Quiz', resource: quizzes[0] });
 
         if (steps.length === 0) { showError('This lesson has no content yet.'); return; }
+
+        // Initialize Caliper event system and fire lesson started
+        initCaliper();
+        fireLessonStarted();
 
         renderStepper();
         showStep(0);
@@ -750,6 +1005,7 @@
             // Prepare quiz area (hidden behind overlay)
             contentEl.innerHTML = '<div class="quiz-area" id="quiz-area"></div>';
             quizArea = document.getElementById('quiz-area');
+            fireQuizStarted();
             startInlineQuiz(step.resource);
         }
     }
@@ -966,6 +1222,9 @@
             }
         }
 
+        // Fire question graded Caliper event
+        if (caliperState.userId) fireQuestionGraded(isCorrect);
+
         // Score
         var pointsChange = 0;
         if (isCorrect) {
@@ -1078,6 +1337,23 @@
         if (passed) {
             var lessonId = lessonData.title || '';
             if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
+        }
+
+        // ── Sync with TimeBack Platform via Caliper events ──
+        if (caliperState.userId) {
+            // Always fire quiz submitted
+            fireQuizSubmitted();
+
+            // Award XP if earned
+            if (quizState.xpEarned > 0) {
+                fireXpAwarded(quizState.xpEarned);
+            }
+
+            // Fire mastery + lesson completed if passed
+            if (passed) {
+                fireMasteryAchieved();
+                fireLessonCompleted();
+            }
         }
 
         // Show nav with finish/retry

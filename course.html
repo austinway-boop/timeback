@@ -864,7 +864,10 @@
                                 title: lTitle,
                                 resources: sortedRes.map(function(r) { return { type: r.type, url: r.url, pillUrl: r.pillUrl, title: r.title, label: r.label, resId: r.resId || '' }; }),
                                 courseTitle: courseTitle,
-                                quizExtra: quizExtra
+                                quizExtra: quizExtra,
+                                enrollmentId: enrollment ? (enrollment.id || enrollment.sourcedId || '') : '',
+                                courseSourcedId: course ? (course.sourcedId || course.id || '') : '',
+                                courseName: course ? (course.title || courseTitle) : courseTitle
                             };
 
                             var actAllDone = (doneRes === totalRes && totalRes > 0);
