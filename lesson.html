@@ -1121,20 +1121,18 @@
         console.log('[Sync] Syncing', stepLabel, 'completion — resourceId:', resourceId, 'userId:', syncState.userId);
         
         // Use the dedicated mark-content-complete endpoint for articles/videos
-        // Pass the componentResId (e.g. USHI23-l45-r104167-v1) that the Timeback API expects
-        var stepALI = (step.resource && step.resource.assessmentLineItemSourcedId) || lessonData.assessmentLineItemSourcedId || '';
-        var componentResId = (step.resource && step.resource.componentResId) || resourceId;
-        if (resourceId) {
+        // Each resource has its OWN assessmentLineItemSourcedId from PowerPath
+        var stepALI = (step.resource && step.resource.assessmentLineItemSourcedId) || '';
+        if (resourceId && stepALI) {
             fetch('/api/mark-content-complete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     studentId: syncState.userId,
                     resourceId: resourceId,
-                    componentResId: componentResId,
+                    assessmentLineItemSourcedId: stepALI,
                     contentType: contentType,
                     title: step.resource.title || lessonData.title || stepLabel,
-                    assessmentLineItemSourcedId: stepALI
                 }),
             })
             .then(function(r) { return r.json(); })
@@ -1150,11 +1148,10 @@
             .catch(function(e) { console.error('[Sync]', stepLabel, 'mark-content-complete FAILED:', e.message); });
         }
         
-        // Also submit to OneRoster for backwards compatibility
-        var lineItemId = lessonData.assessmentLineItemSourcedId || '';
-        if (!lineItemId && step.resource) {
-            lineItemId = step.resource.assessmentLineItemSourcedId || step.resource.resId || '';
-        }
+        // Submit to OneRoster using the RESOURCE'S OWN assessmentLineItemSourcedId
+        // (each video/article has its own ALI — NOT the shared lesson-level one)
+        var lineItemId = (step.resource && step.resource.assessmentLineItemSourcedId) || '';
+        if (!lineItemId) lineItemId = lessonData.assessmentLineItemSourcedId || '';
         if (!lineItemId) lineItemId = lessonData.title || '';
         
         fetch('/api/submit-result', {

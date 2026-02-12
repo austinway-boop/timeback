@@ -1095,7 +1095,7 @@
                                         label: r.label, 
                                         resId: r.resId || '',
                                         componentResId: r.componentResId || r.resId || '',
-                                        assessmentLineItemSourcedId: assessmentLineItemByResId[r.resId] || ''
+                                        assessmentLineItemSourcedId: assessmentLineItemByResId[r.componentResId] || assessmentLineItemByResId[r.resId] || ''
                                     }; 
                                 }),
                                 courseTitle: courseTitle,
