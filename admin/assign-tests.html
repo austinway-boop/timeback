@@ -452,19 +452,23 @@ async function assignTest(subject, grade, idx) {
             renderPending();
         } else {
             console.log('Assign error response:', JSON.stringify(data));
-            var errMsg = data.error || data.message || 'Assignment failed.';
 
-            // Build placement-aware error message
-            if (data.placementGrade != null) {
-                var pl = String(data.placementGrade);
-                var req = String(data.requestedGrade || grade);
-                if (pl === req) {
-                    // Placement grade = requested grade but still failed
-                    errMsg = subject + ' Grade ' + req + ' assignment failed. Student is placed at Grade ' + pl + ' but PowerPath could not create this test. The test may not be available yet.';
+            // Build helpful error using placement data we already fetched
+            var plGrade = getPlacementGrade(subject);
+            var errMsg = '';
+
+            if (data.httpStatus === 500 && plGrade != null) {
+                if (plGrade === grade) {
+                    errMsg = subject + ' Grade ' + grade + ' failed. Student is placed at this level but the test may already be assigned or not available.';
                 } else {
-                    errMsg = 'Student is placed at Grade ' + pl + ' in ' + subject + '. Try assigning Grade ' + pl + ' instead of Grade ' + req + '.';
+                    errMsg = 'Cannot assign ' + subject + ' Grade ' + grade + '. Student is placed at Grade ' + plGrade + '. Try assigning Grade ' + plGrade + ' instead.';
                 }
+            } else if (data.httpStatus === 500) {
+                errMsg = subject + ' Grade ' + grade + ' is not available for this student. Check their placement level.';
+            } else {
+                errMsg = data.error || 'Assignment failed (HTTP ' + (data.httpStatus || '?') + ')';
             }
+
             showFeedback(errMsg, 'error');
             if (btn) { btn.className = 'test-btn assign'; btn.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:3px;"></i>Assign'; }
         }
