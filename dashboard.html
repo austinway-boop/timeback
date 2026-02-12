@@ -846,30 +846,38 @@
         return `${yyyy}-${mm}-${dd}`;
     }
 
+    // User's IANA timezone (e.g. "America/Chicago") — sent to analytics API
+    // so the server can group facts by the correct local day.
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+
     async function loadXp(email, period) {
         currentPeriod = period;
         const now = new Date();
         let startDate, endDate;
 
         if (period === 'today') {
-            const d = localDateStr(now);
-            startDate = d + 'T00:00:00Z';
-            endDate   = d + 'T23:59:59Z';
+            // Build proper UTC timestamps for local day boundaries
+            const s = new Date(now); s.setHours(0, 0, 0, 0);
+            const e = new Date(now); e.setHours(23, 59, 59, 999);
+            startDate = s.toISOString();
+            endDate   = e.toISOString();
         } else {
             const dayOfWeek = now.getDay();
             const monday = new Date(now);
             monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
+            monday.setHours(0, 0, 0, 0);
             const sunday = new Date(monday);
             sunday.setDate(monday.getDate() + 6);
-            startDate = localDateStr(monday) + 'T00:00:00Z';
-            endDate   = localDateStr(sunday) + 'T23:59:59Z';
+            sunday.setHours(23, 59, 59, 999);
+            startDate = monday.toISOString();
+            endDate   = sunday.toISOString();
         }
 
         try {
             const ac = new AbortController();
             setTimeout(function() { ac.abort(); }, 10000); // 10s timeout
             const resp = await fetch(
-                `/api/analytics?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}`,
+                `/api/analytics?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}&timezone=${encodeURIComponent(userTimezone)}`,
                 { signal: ac.signal }
             );
             const data = await resp.json();
@@ -944,7 +952,7 @@
                         if (!isInternalCourse(c)) continue;
                         if (!c._enrollmentId) continue;
                         lessonPromises.push(
-                            fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}`)
+                            fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}&timezone=${encodeURIComponent(userTimezone)}`)
                                 .then(r => r.json())
                                 .then(data => ({ idx, data }))
                                 .catch(() => null)
