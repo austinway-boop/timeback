@@ -755,6 +755,10 @@
 
         var url = step.resource.url || step.resource.pillUrl || '';
 
+        // Ensure lesson page is visible for non-quiz steps
+        var lessonPage = document.querySelector('.lesson-page');
+        if (lessonPage) lessonPage.style.display = '';
+
         if (step.type === 'Video') {
             nav.classList.remove('hidden');
             btnContinue.style.display = '';
