@@ -1121,7 +1121,8 @@
         console.log('[Sync] Syncing', stepLabel, 'completion — resourceId:', resourceId, 'userId:', syncState.userId);
         
         // Use the dedicated mark-content-complete endpoint for articles/videos
-        // This properly records completion in OneRoster + Caliper
+        // Pass the valid assessmentLineItemSourcedId so the OneRoster call uses the right lineItem
+        var stepALI = (step.resource && step.resource.assessmentLineItemSourcedId) || lessonData.assessmentLineItemSourcedId || '';
         if (resourceId) {
             fetch('/api/mark-content-complete', {
                 method: 'POST',
@@ -1132,7 +1133,8 @@
                     contentType: contentType,
                     title: step.resource.title || lessonData.title || stepLabel,
                     email: syncState.userEmail || '',
-                    courseId: lessonData.courseId || ''
+                    courseId: lessonData.courseId || '',
+                    assessmentLineItemSourcedId: stepALI
                 }),
             })
             .then(function(r) { return r.json(); })

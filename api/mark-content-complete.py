@@ -48,55 +48,57 @@ class handler(BaseHTTPRequestHandler):
         title = body.get("title", resource_id)
         email = body.get("email", "")
         course_id = body.get("courseId", "")
+        # Accept the valid assessmentLineItem from frontend (falls back to resourceId)
+        line_item_id = body.get("assessmentLineItemSourcedId", "") or resource_id
 
         if not student_id or not resource_id:
             send_json(self, {"error": "Missing studentId or resourceId"}, 400)
             return
 
         headers = api_headers()
+        now = datetime.now(timezone.utc)
+        result_id = str(uuid.uuid4())
         results = {"oneroster": False, "caliper": False}
 
-        # 1. Create OneRoster result (this is what the course page reads)
+        # 1. Create OneRoster assessmentResult (proper format with all required fields)
         try:
             result_payload = {
-                "result": {
+                "assessmentResult": {
+                    "sourcedId": result_id,
+                    "status": "active",
+                    "dateLastModified": now.isoformat(),
+                    "assessmentLineItem": {"sourcedId": line_item_id},
                     "student": {"sourcedId": student_id},
-                    "lineItem": {"sourcedId": resource_id},
                     "score": 100,
+                    "scoreDate": now.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
                     "scoreStatus": "fully graded",
                     "comment": f"{title} - {content_type} completed",
+                    "inProgress": "false",
+                    "incomplete": "false",
+                    "late": "false",
+                    "missing": "false",
                     "metadata": {
                         "timeback.xp": 0,
                         "timeback.passed": True,
                         "timeback.contentType": content_type,
-                        "timeback.completedAt": datetime.now(timezone.utc).isoformat()
-                    }
+                        "timeback.stepType": content_type.capitalize(),
+                        "timeback.completedAt": now.isoformat(),
+                    },
                 }
             }
-            
-            resp = requests.post(
-                f"{API_BASE}/ims/oneroster/gradebook/v1p2/results",
+
+            resp = requests.put(
+                f"{API_BASE}/ims/oneroster/gradebook/v1p2/assessmentResults/{result_id}",
                 headers=headers,
                 json=result_payload,
-                timeout=15
+                timeout=15,
             )
-            
+
             if resp.status_code in (200, 201):
                 results["oneroster"] = True
             else:
-                results["oneroster_post_status"] = resp.status_code
-                results["oneroster_post_body"] = resp.text[:300]
-                # Try alternative endpoint
-                resp2 = requests.put(
-                    f"{API_BASE}/ims/oneroster/gradebook/v1p2/results/{resource_id}-{student_id}",
-                    headers=headers,
-                    json=result_payload,
-                    timeout=15
-                )
-                results["oneroster"] = resp2.status_code in (200, 201)
-                if not results["oneroster"]:
-                    results["oneroster_put_status"] = resp2.status_code
-                    results["oneroster_put_body"] = resp2.text[:300]
+                results["oneroster_status"] = resp.status_code
+                results["oneroster_body"] = resp.text[:300]
         except Exception as e:
             results["oneroster_error"] = str(e)
 
