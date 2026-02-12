@@ -166,6 +166,7 @@ class handler(BaseHTTPRequestHandler):
             "videoUrl": body.get("videoUrl", ""),
             "articleContent": body.get("articleContent", ""),
             "lessonTitle": body.get("lessonTitle", ""),
+            "answeredCorrectly": bool(body.get("answeredCorrectly", False)),
             "date": datetime.now(timezone.utc).isoformat(),
             "status": "pending_review",
             "verdict": None,

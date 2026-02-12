@@ -264,7 +264,12 @@ class handler(BaseHTTPRequestHandler):
             verdict = "invalid"
             reasoning += " [Overridden: confidence too low to overturn human review]"
 
-        points = VALID_REPORT_POINTS if verdict == "valid" else 0
+        # Only award points if the student got the question WRONG
+        answered_correctly = report.get("answeredCorrectly", False)
+        if verdict == "valid" and not answered_correctly:
+            points = VALID_REPORT_POINTS
+        else:
+            points = 0
 
         # Update report
         report["status"] = "resolved"
@@ -273,6 +278,7 @@ class handler(BaseHTTPRequestHandler):
         report["aiConfidence"] = confidence
         report["aiRecommendation"] = recommendation
         report["pointsAwarded"] = points
+        report["answeredCorrectly"] = answered_correctly
         kv_set(f"report:{report_id}", report)
 
         _send_json(self, {

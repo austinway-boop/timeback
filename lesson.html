@@ -2779,6 +2779,7 @@
             videoUrl: videoUrl,
             articleContent: articleContent,
             lessonTitle: (lessonData && lessonData.title) || quizState.title || '',
+            answeredCorrectly: quizState.answered && quizState.selectedChoice === (q.correctId || ''),
         };
 
         try {
@@ -2791,8 +2792,13 @@
             if (data.ok && data.reportId) {
                 quizState.pendingReports.push({ reportId: data.reportId, questionsRemaining: 3 });
                 _savePendingReports();
+                if (window._addReportNotif) window._addReportNotif({
+                    reportId: data.reportId,
+                    questionText: typeof payload.questionText === 'string' ? payload.questionText.substring(0, 80) : '',
+                    answeredCorrectly: payload.answeredCorrectly,
+                });
                 closeReportModal();
-                showReportToast('info', '<i class="fa-solid fa-clock"></i> Thanks for your report! Your score will be updated once our AI reviews the question.');
+                showReportToast('info', '<i class="fa-solid fa-clock"></i> Report submitted! Check the bell icon for updates.');
             } else {
                 closeReportModal();
                 showReportToast('info', '<i class="fa-solid fa-info-circle"></i> ' + (data.error || 'Report submitted.'));
@@ -2833,7 +2839,12 @@
             if (data.verdict === 'valid' && data.pointsAwarded > 0) {
                 quizState.ppScore = Math.min(100, quizState.ppScore + data.pointsAwarded);
                 updateScoreboard();
+                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'valid', pointsAwarded: data.pointsAwarded });
                 showReportToast('success', '<i class="fa-solid fa-star"></i> Your score has been increased by ' + data.pointsAwarded + ' points due to your valid question report!');
+            } else if (data.verdict === 'valid') {
+                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'valid', pointsAwarded: 0 });
+            } else {
+                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'invalid', pointsAwarded: 0 });
             }
         } catch(e) {}
     }
