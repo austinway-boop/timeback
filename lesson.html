@@ -1123,6 +1123,7 @@
         // Use the dedicated mark-content-complete endpoint for articles/videos
         // Each resource has its OWN assessmentLineItemSourcedId from PowerPath
         var stepALI = (step.resource && step.resource.assessmentLineItemSourcedId) || '';
+        var componentResId = (step.resource && step.resource.componentResId) || resourceId;
         if (resourceId && stepALI) {
             fetch('/api/mark-content-complete', {
                 method: 'POST',
@@ -1130,9 +1131,13 @@
                 body: JSON.stringify({
                     studentId: syncState.userId,
                     resourceId: resourceId,
+                    componentResId: componentResId,
                     assessmentLineItemSourcedId: stepALI,
                     contentType: contentType,
                     title: step.resource.title || lessonData.title || stepLabel,
+                    email: syncState.userEmail || '',
+                    courseId: lessonData.courseSourcedId || '',
+                    courseName: lessonData.courseName || lessonData.courseTitle || '',
                 }),
             })
             .then(function(r) { return r.json(); })
