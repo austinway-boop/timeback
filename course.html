@@ -713,6 +713,20 @@
                         if (pItemId) {
                             progressById[pItemId] = progEntry;
                         }
+                        // Also index by assessmentLineItemSourcedId so all resources sharing the same
+                        // lineItem can be found (videos/articles often share one lineItem per lesson)
+                        if (aliSourcedId) {
+                            progressById[aliSourcedId] = progEntry;
+                        }
+                    }
+                    // Even if no results yet, map the assessmentLineItemSourcedId to resSourcedId
+                    // so we can look up other resources that share this lineItem
+                    if (aliSourcedId && resSourcedId) {
+                        // Store a mapping from ALI to all resources that use it
+                        if (!progressById['_ali_' + aliSourcedId]) {
+                            progressById['_ali_' + aliSourcedId] = [];
+                        }
+                        progressById['_ali_' + aliSourcedId].push(resSourcedId);
                     }
                 }
             }
@@ -950,6 +964,9 @@
                                     var _cr = _lesRes[_cri].resource || _lesRes[_cri] || {};
                                     var _crId = _cr.id || _cr.sourcedId || _lesRes[_cri].id || _lesRes[_cri].sourcedId || '';
                                     if (_crId && _isComplete(progressById[_crId])) { prog = progressById[_crId]; break; }
+                                    // Also check via assessmentLineItemSourcedId (video/article share one lineItem per lesson)
+                                    var _crAli = assessmentLineItemByResId[_crId] || '';
+                                    if (_crAli && _isComplete(progressById[_crAli])) { prog = progressById[_crAli]; break; }
                                 }
                             }
                             
@@ -998,8 +1015,25 @@
                             for (var rci = 0; rci < resDetails.length; rci++) {
                                 var isQuizRes = (resDetails[rci].label === 'Quiz');
                                 resDetails[rci]._isQuiz = isQuizRes;
-                                if (!isQuizRes) { nonQuizCount++; var resKey = localKey + '_r' + rci; resDetails[rci]._localKey = resKey; resDetails[rci]._resDone = localStorage.getItem(resKey) === 'true'; if (resDetails[rci]._resDone) nonQuizDoneCount++; }
-                                else { resDetails[rci]._localKey = ''; resDetails[rci]._resDone = false; }
+                                if (!isQuizRes) {
+                                    nonQuizCount++;
+                                    var resKey = localKey + '_r' + rci;
+                                    resDetails[rci]._localKey = resKey;
+                                    // Check localStorage first
+                                    var resLocalDone = localStorage.getItem(resKey) === 'true';
+                                    // Also check API via progressById (resource id or assessmentLineItemSourcedId)
+                                    var resApiDone = false;
+                                    var thisResId = resDetails[rci].resId || '';
+                                    if (thisResId && _isComplete(progressById[thisResId])) { resApiDone = true; }
+                                    // Check via assessmentLineItemSourcedId (shared by video/article in same lesson)
+                                    var thisResAli = assessmentLineItemByResId[thisResId] || '';
+                                    if (!resApiDone && thisResAli && _isComplete(progressById[thisResAli])) { resApiDone = true; }
+                                    resDetails[rci]._resDone = resLocalDone || resApiDone;
+                                    if (resDetails[rci]._resDone) nonQuizDoneCount++;
+                                } else {
+                                    resDetails[rci]._localKey = '';
+                                    resDetails[rci]._resDone = false;
+                                }
                             }
                             if (!isDone && nonQuizCount > 0 && nonQuizDoneCount === nonQuizCount) { isDone = true; localStorage.setItem(localKey, 'true'); }
 
