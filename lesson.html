@@ -1086,10 +1086,12 @@
         // 4. PowerPath: Mark lesson as complete (if passed), including score
         if (passed) {
             markLessonComplete(pct);
-            saveLessonToLocalStorage();
         }
 
-        // 5. Save XP locally so the course page can show it immediately
+        // 5. Always save to localStorage so the course page picks up progress
+        saveLessonToLocalStorage();
+
+        // 6. Save XP locally so the course page can show it immediately
         var xp = passed ? quizState.xpEarned : 0;
         if (xp > 0) {
             var enrollId = lessonData.enrollmentId || '';
@@ -1762,13 +1764,13 @@
         if (pct < 80) quizState.xpEarned = 0;
 
         // ═══ SYNC FIRST — before any DOM writes that could fail ═══
-        // Mark lesson complete locally
+        // Mark lesson complete locally and signal course page
         if (passed) {
             var lessonId = lessonData.title || '';
             if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
-            // Signal course.html to refresh progress when we navigate back
-            sessionStorage.setItem('al_progress_changed', 'true');
         }
+        // Always signal course.html to refresh (even on fail — updates frontier)
+        sessionStorage.setItem('al_progress_changed', 'true');
 
         // Sync with TimeBack Platform
         syncQuizCompletion(pct, passed);
@@ -2536,6 +2538,8 @@
     }
 
     function goBackToCourse() {
+        // Always signal course page to refresh when navigating back
+        sessionStorage.setItem('al_progress_changed', 'true');
         if (window.history.length > 1) window.history.back();
         else window.location.href = '/dashboard';
     }
@@ -2550,6 +2554,12 @@
         var resTitle = step.resource.title || '';
         if (resId) localStorage.setItem('completed_' + resId, 'true');
         if (resTitle) localStorage.setItem('completed_' + resTitle, 'true');
+
+        // Also set the _rN key that course.html uses for per-resource tracking
+        if (lessonData.completionKey) {
+            localStorage.setItem(lessonData.completionKey + '_r' + idx, 'true');
+        }
+
         console.log('[Complete] Marked step', idx, step.type, ':', resTitle || resId);
 
         // Always save the lesson completion too
