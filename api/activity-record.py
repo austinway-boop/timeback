@@ -124,6 +124,20 @@ class handler(BaseHTTPRequestHandler):
         if correct_questions is not None:
             metrics.append({"type": "correctQuestions", "value": correct_questions})
 
+        # Detect subject from course/activity name
+        subject = "Other"
+        title_lower = (activity_name + " " + course_code).lower()
+        if "math" in title_lower:
+            subject = "Math"
+        elif "reading" in title_lower or "ela" in title_lower or "english" in title_lower:
+            subject = "Reading"
+        elif "science" in title_lower or "biology" in title_lower or "chemistry" in title_lower:
+            subject = "Science"
+        elif "history" in title_lower or "social" in title_lower or "government" in title_lower:
+            subject = "Social Studies"
+        elif "writing" in title_lower or "essay" in title_lower:
+            subject = "Writing"
+
         caliper_event = {
             "@context": "http://purl.imsglobal.org/ctx/caliper/v1p2",
             "id": f"urn:uuid:{run_id}",
@@ -137,14 +151,17 @@ class handler(BaseHTTPRequestHandler):
                 "email": email
             },
             "object": {
-                "id": f"{SENSOR_ID}/activities/{activity_id}",
+                "id": f"{SENSOR_ID}/activities/{subject}/{activity_id}",
                 "type": "TimebackActivityContext",
+                "subject": subject,
+                "app": {"name": "AlphaLearn"},
                 "activity": {
-                    "id": activity_id,
+                    "id": f"{SENSOR_ID}/activities/{activity_id}",
                     "name": activity_name
                 },
                 "course": {
-                    "code": course_code
+                    "code": course_code,
+                    "name": course_code
                 }
             },
             "generated": {
@@ -156,8 +173,7 @@ class handler(BaseHTTPRequestHandler):
             "edApp": SENSOR_ID,
             "extensions": {
                 "runId": run_id,
-                "courseId": course_code,
-                "pipelineHint": "gradebook"  # Hint to run gradebook pipeline
+                "courseId": course_code
             }
         }
 
