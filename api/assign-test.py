@@ -156,11 +156,17 @@ class handler(BaseHTTPRequestHandler):
                 data = {"raw": resp.text[:500]}
 
             if resp.status_code in (200, 201):
+                aid = data.get("assignmentId", "") if isinstance(data, dict) else ""
+                lid = data.get("lessonId", "") if isinstance(data, dict) else ""
                 send_json(self, {
                     "success": True,
                     "message": f"Test assigned ({subject} Grade {grade})",
                     "response": data,
-                    "testLink": f"https://alphatest.alpha.school/assignment/{data.get('assignmentId', '')}",
+                    "testLink": f"https://alpha.timeback.com/app/lesson/{lid}" if lid else "",
+                    "altLinks": {
+                        "timeback": f"https://alpha.timeback.com/app/lesson/{lid}" if lid else "",
+                        "mastery": f"https://alphatest.alpha.school/assignment/{aid}" if aid else "",
+                    },
                 })
                 return
 

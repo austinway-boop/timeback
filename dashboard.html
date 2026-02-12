@@ -759,9 +759,11 @@
                 const name = a.testName || (subj && gr ? subj + ' Grade ' + gr : 'Test Assignment');
                 const status = (a.assignmentStatus || a.status || 'assigned').toLowerCase();
                 const assignmentId = a.sourcedId || a.assignmentId || '';
+                const lessonId = a.componentResourceSourcedId || a.lessonId || '';
                 allTests.push({
                     title: name, subject: subj, grade: gr,
                     status: status, assignmentId: assignmentId,
+                    lessonId: lessonId,
                     type: 'assigned',
                 });
             });
@@ -787,9 +789,11 @@
                     const statusColor = isComplete ? '#2E7D32' : isInProgress ? '#F57F17' : '#2B6CB0';
                     const statusBg = isComplete ? '#E8F5E9' : isInProgress ? '#FFF8E1' : '#EBF4FF';
 
-                    // Deep link to MasteryTrack — student takes test there
-                    const testUrl = t.assignmentId
-                        ? 'https://alphatest.alpha.school/assignment/' + encodeURIComponent(t.assignmentId)
+                    // Deep link — use Timeback lesson URL (which routes to MasteryTrack)
+                    const testUrl = t.lessonId
+                        ? 'https://alpha.timeback.com/app/lesson/' + encodeURIComponent(t.lessonId)
+                        : t.assignmentId
+                        ? 'https://alpha.timeback.com/app/lesson/' + encodeURIComponent(t.assignmentId)
                         : '';
 
                     const clickAction = testUrl && !isComplete
