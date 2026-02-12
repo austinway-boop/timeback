@@ -111,6 +111,36 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             body = json.loads(raw)
+            action = (body.get("action") or "").strip()
+
+            # ── Reset placement action ──
+            if action == "resetPlacement":
+                sid = (body.get("student") or body.get("studentId") or "").strip()
+                subject = (body.get("subject") or "").strip()
+                if not sid or not subject:
+                    send_json(self, {"error": "Need student and subject", "success": False}, 400)
+                    return
+                headers = api_headers()
+                try:
+                    resp = requests.post(
+                        f"{PP}/placement/resetUserPlacement",
+                        headers=headers,
+                        json={"studentId": sid, "subject": subject},
+                        timeout=10,
+                    )
+                    try:
+                        rdata = resp.json()
+                    except Exception:
+                        rdata = {"status": resp.status_code}
+                    if resp.status_code in (200, 201, 204):
+                        send_json(self, {"success": True, "message": f"Placement reset for {subject}", "response": rdata})
+                    else:
+                        send_json(self, {"success": False, "error": f"HTTP {resp.status_code}", "response": rdata}, resp.status_code)
+                except Exception as e:
+                    send_json(self, {"success": False, "error": str(e)}, 500)
+                return
+
+            # ── Assign test action (default) ──
             sid = (body.get("student") or body.get("studentId") or "").strip()
             subject = (body.get("subject") or "").strip()
             grade = (body.get("grade") or body.get("gradeLevel") or "").strip()
@@ -125,15 +155,16 @@ class handler(BaseHTTPRequestHandler):
             headers = api_headers()
             payload = {"student": sid, "subject": subject, "grade": grade}
 
+            # Step 1: Try to assign
             resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
             try:
                 data = resp.json()
             except Exception:
                 data = {"raw": resp.text[:500]}
 
-            # On ANY failure, try deleting existing assignment and retry
+            # On failure: delete existing + reset placement + retry
             if resp.status_code not in (200, 201):
-                retried = _delete_and_retry(headers, sid, subject, grade, payload)
+                retried = _delete_reset_retry(headers, sid, subject, grade, payload)
                 if retried:
                     data = retried
                     resp_status = 200
@@ -175,29 +206,30 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": str(e), "success": False}, 500)
 
 
-def _delete_and_retry(headers, student_id, subject, grade, payload):
-    """Find the existing assignment for this student+subject+grade, delete it, and retry."""
+def _delete_reset_retry(headers, student_id, subject, grade, payload):
+    """Delete existing assignment, reset placement, and retry assignment."""
     try:
-        # List student's assignments
+        # 1. Delete any existing assignment for this subject (any grade)
         list_resp = requests.get(
             f"{PP}/test-assignments", headers=headers,
             params={"student": student_id}, timeout=8,
         )
-        if list_resp.status_code != 200:
-            return None
-        assignments = list_resp.json().get("testAssignments", [])
+        if list_resp.status_code == 200:
+            for a in list_resp.json().get("testAssignments", []):
+                if (a.get("subject") or "").lower() == subject.lower():
+                    aid = a.get("sourcedId") or a.get("assignmentId") or ""
+                    if aid:
+                        requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=6)
 
-        # Find the matching one
-        for a in assignments:
-            a_subj = (a.get("subject") or "").lower()
-            a_grade = str(a.get("grade") or "")
-            if a_subj == subject.lower() and a_grade == grade:
-                aid = a.get("sourcedId") or a.get("assignmentId") or ""
-                if aid:
-                    requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=8)
-                    break
+        # 2. Reset placement for this subject so any grade can be assigned
+        requests.post(
+            f"{PP}/placement/resetUserPlacement",
+            headers=headers,
+            json={"studentId": student_id, "subject": subject},
+            timeout=8,
+        )
 
-        # Retry the assignment
+        # 3. Retry the assignment
         retry = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
         if retry.status_code in (200, 201):
             try:

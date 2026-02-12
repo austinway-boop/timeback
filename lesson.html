@@ -1464,9 +1464,10 @@
 
             quizState.staticIdx = 0;
 
-            // Detect reading quiz (questions with article stimuli)
+            // Detect reading quiz — only for Reading/ELA subject courses
+            var _isReadingCourse = /^reading$|^ela$|^english\s*language\s*arts$/i.test((subject || '').trim());
             var hasAnyStimulus = quizState.staticQuestions.some(function(q) { return q.stimulus && q.stimulus.length > 10; });
-            if (hasAnyStimulus) {
+            if (_isReadingCourse && hasAnyStimulus) {
                 quizState.isReadingQuiz = true;
                 quizState.totalQuestions = quizState.staticQuestions.length;
                 quizState.accumulatedStimuli = [];

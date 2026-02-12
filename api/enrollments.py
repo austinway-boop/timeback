@@ -1,9 +1,11 @@
-"""GET  /api/enrollments?userId=... — Active enrollments for a student.
-POST /api/enrollments — Enroll a user in a course.
+"""GET    /api/enrollments?userId=... — Active enrollments for a student.
+POST   /api/enrollments — Enroll a user in a course.
+DELETE /api/enrollments — Remove an enrollment.
 
 EduBridge docs:
-  GET  /edubridge/enrollments/user/{userId}
-  POST /edubridge/enrollments/enroll/{userId}/{courseId}/{schoolId?}
+  GET    /edubridge/enrollments/user/{userId}
+  POST   /edubridge/enrollments/enroll/{userId}/{courseId}/{schoolId?}
+  DELETE /ims/oneroster/rostering/v1p2/enrollments/{sourcedId}
 """
 
 import json
@@ -17,7 +19,7 @@ class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -37,6 +39,65 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": f"HTTP {status}", "enrollments": []}, status)
         except Exception as e:
             send_json(self, {"error": str(e), "enrollments": []}, 500)
+
+    def do_DELETE(self):
+        """Remove an enrollment."""
+        try:
+            raw = self.rfile.read(int(self.headers.get("Content-Length", 0)) or 0)
+            body = json.loads(raw) if raw else {}
+            enrollment_id = (body.get("sourcedId") or body.get("enrollmentId") or body.get("id") or "").strip()
+
+            if not enrollment_id:
+                send_json(self, {"error": "sourcedId is required", "success": False}, 400)
+                return
+
+            headers = api_headers()
+            deleted = False
+
+            # Try OneRoster DELETE
+            try:
+                resp = requests.delete(
+                    f"{API_BASE}/ims/oneroster/rostering/v1p2/enrollments/{enrollment_id}",
+                    headers=headers, timeout=10,
+                )
+                if resp.status_code in (200, 204):
+                    deleted = True
+            except Exception:
+                pass
+
+            # Try EduBridge unenroll
+            if not deleted:
+                try:
+                    resp = requests.delete(
+                        f"{API_BASE}/edubridge/enrollments/{enrollment_id}",
+                        headers=headers, timeout=10,
+                    )
+                    if resp.status_code in (200, 204):
+                        deleted = True
+                except Exception:
+                    pass
+
+            # Try PUT status=tobedeleted (soft delete)
+            if not deleted:
+                try:
+                    resp = requests.put(
+                        f"{API_BASE}/ims/oneroster/rostering/v1p2/enrollments/{enrollment_id}",
+                        headers=headers,
+                        json={"enrollment": {"sourcedId": enrollment_id, "status": "tobedeleted"}},
+                        timeout=10,
+                    )
+                    if resp.status_code in (200, 201, 204):
+                        deleted = True
+                except Exception:
+                    pass
+
+            if deleted:
+                send_json(self, {"success": True, "message": "Enrollment removed"})
+            else:
+                send_json(self, {"success": False, "error": "Could not remove enrollment"}, 422)
+
+        except Exception as e:
+            send_json(self, {"success": False, "error": str(e)}, 500)
 
     def do_POST(self):
         """Enroll a user in a course via EduBridge."""
