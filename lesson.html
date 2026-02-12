@@ -586,9 +586,10 @@
         .answer-key-toggle:active { transform: translateY(2px); box-shadow: none; }
         .answer-key-toggle.active { background: #16A34A; color: #fff; border-color: #16A34A; }
     /* Report Question button */
-    .report-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:transparent; color:var(--color-text-muted); font-size:0.78rem; font-weight:500; cursor:pointer; transition:all 0.15s; margin-top:8px; }
-    .report-btn:hover { border-color:#E53E3E; color:#E53E3E; background:rgba(229,62,62,0.05); }
-    .report-btn i { font-size:0.72rem; }
+    .report-btn { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border:1.5px solid #E8B4B8; border-radius:8px; background:#FFF5F5; color:#C53030; font-size:0.84rem; font-weight:600; cursor:pointer; transition:all 0.15s; margin-top:12px; }
+    .report-btn:hover { border-color:#E53E3E; color:#fff; background:#E53E3E; }
+    .report-btn i { font-size:0.82rem; color:#E53E3E; }
+    .report-btn:hover i { color:#fff; }
     .report-overlay { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; }
     .report-overlay.open { display:flex; }
     .report-box { background:#fff; border-radius:var(--radius); max-width:480px; width:90%; padding:28px; box-shadow:0 20px 60px rgba(0,0,0,0.2); animation:reportSlideIn 0.2s ease; }
