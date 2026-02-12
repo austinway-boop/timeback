@@ -90,14 +90,42 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"success": False, "error": "assignmentId required"}, 400)
                 return
             headers = api_headers()
-            # Delete from PowerPath
-            resp = requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=10)
-            # Also try to delete the OneRoster assessment result
+            deleted = []
+
+            # 1. Delete from PowerPath
             try:
-                requests.delete(f"{OR}/gradebook/v1p2/assessmentResults/{aid}", headers=headers, timeout=6)
+                r = requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=10)
+                deleted.append({"target": "powerpath", "status": r.status_code})
             except Exception:
                 pass
-            send_json(self, {"success": resp.status_code in (200, 204), "status": resp.status_code})
+
+            # 2. Delete OneRoster assessment result (same sourcedId)
+            try:
+                r = requests.delete(f"{OR}/gradebook/v1p2/assessmentResults/{aid}", headers=headers, timeout=6)
+                deleted.append({"target": "assessmentResult", "status": r.status_code})
+            except Exception:
+                pass
+
+            # 3. Soft-delete by updating status to "tobedeleted"
+            try:
+                r = requests.put(
+                    f"{OR}/gradebook/v1p2/assessmentResults/{aid}",
+                    headers=headers,
+                    json={"assessmentResult": {"sourcedId": aid, "status": "tobedeleted"}},
+                    timeout=6,
+                )
+                deleted.append({"target": "softDelete", "status": r.status_code})
+            except Exception:
+                pass
+
+            # 4. Delete OneRoster line item (same sourcedId)
+            try:
+                r = requests.delete(f"{OR}/gradebook/v1p2/lineItems/{aid}", headers=headers, timeout=6)
+                deleted.append({"target": "lineItem", "status": r.status_code})
+            except Exception:
+                pass
+
+            send_json(self, {"success": True, "deleted": deleted})
         except Exception as e:
             send_json(self, {"success": False, "error": str(e)}, 500)
 
