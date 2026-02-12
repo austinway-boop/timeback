@@ -2133,12 +2133,16 @@
         // Use the exact completion key from course.html (most important)
         if (lessonData.completionKey) {
             localStorage.setItem(lessonData.completionKey, 'true');
+            console.log('[Complete] Saved completionKey:', lessonData.completionKey);
+        } else {
+            console.warn('[Complete] No completionKey in lessonData!');
         }
 
         // Also save with all possible key patterns as fallback
         var title = lessonData.title || '';
         var lessonId = lessonData.lessonId || lessonData.id || '';
         var ppLessonId = lessonData.ppLessonId || lessonData.lessonSourcedId || '';
+        console.log('[Complete] Saving keys — title:', title, 'lessonId:', lessonId, 'ppLessonId:', ppLessonId, 'resources:', (lessonData.resources||[]).length);
         if (title) localStorage.setItem('completed_' + title, 'true');
         if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
         if (ppLessonId) localStorage.setItem('completed_' + ppLessonId, 'true');
