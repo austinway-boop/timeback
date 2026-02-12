@@ -752,18 +752,27 @@
                         var pLDone = _isComplete(pLProg) || localStorage.getItem(pLocalKey) === 'true';
                         // Also check componentResources by unique ID only (not title — titles repeat across units)
                         var pRes = pLesson.componentResources || [];
-                        if (!pLDone && pRes.length > 0) {
+                        var pHasQuizProgress = false;  // Track if a quiz/test resource specifically is complete
+                        if (pRes.length > 0) {
                             for (var _pri = 0; _pri < pRes.length; _pri++) {
                                 var _prr = pRes[_pri].resource || pRes[_pri] || {};
                                 var _prId = _prr.id || _prr.sourcedId || pRes[_pri].id || pRes[_pri].sourcedId || '';
-                                if (_prId && _isComplete(progressById[_prId])) { pLDone = true; break; }
+                                var _prType = ((_prr.metadata || {}).type || _prr.type || '').toLowerCase();
+                                var _prIsQuiz = _prType.includes('assess') || _prType === 'quiz' || _prType === 'test' || _prType === 'exam' || _prType === 'frq' || (_prId && _prId.includes('-bank-'));
+                                if (_prId && _isComplete(progressById[_prId])) {
+                                    if (!pLDone) pLDone = true;
+                                    if (_prIsQuiz) pHasQuizProgress = true;
+                                }
                             }
                         }
+                        // Determine if the lesson title itself implies a quiz/test
+                        var _pIsAssessment = /assess|quiz|test|exam|mcq|frq|saq|dbq|leq|cumulative\s*review/i.test(pLTitle);
+                        // For the global frontier: only advance on quiz/test completions, not video/article
+                        var pHasAny = pHasQuizProgress || (_pIsAssessment && pLDone) || (_isComplete(pLProg) && pLProg && pLProg.score > 0);
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
-                        var pHasAny = pLDone;
                         if (pLDone) { grandDoneAct += pCount; }
-                        else { for (var pr = 0; pr < pRes.length; pr++) { if (localStorage.getItem(pLocalKey + '_r' + pr) === 'true') { grandDoneAct++; pHasAny = true; } } }
+                        else { for (var pr = 0; pr < pRes.length; pr++) { if (localStorage.getItem(pLocalKey + '_r' + pr) === 'true') { grandDoneAct++; pHasAny = pHasAny || false; } } }
                         globalLessonList.push({ unitIdx: pu, hasProgress: pHasAny });
                     }
                 }
