@@ -452,10 +452,47 @@
 
     function selectAnswer(el, choiceId) {
         if (quizState.answered) return;
+        // In crossout mode, clicking toggles crossout instead of selecting
+        if (quizState.crossOutMode) {
+            crossOutChoice(el, choiceId);
+            return;
+        }
+        // Don't select crossed-out choices
+        if (el.classList.contains('crossed-out')) return;
         quizState.selectedChoice = choiceId;
         document.querySelectorAll('.choice').forEach(function(c) { c.classList.remove('selected'); });
         el.classList.add('selected');
         document.getElementById('submit-btn').disabled = false;
+    }
+
+    function toggleCrossOut() {
+        quizState.crossOutMode = !quizState.crossOutMode;
+        var choicesEl = document.getElementById('choices');
+        if (choicesEl) choicesEl.classList.toggle('crossout-mode', quizState.crossOutMode);
+        var toggle = document.querySelector('.crossout-toggle');
+        if (toggle) {
+            toggle.classList.toggle('active', quizState.crossOutMode);
+            toggle.innerHTML = 'ABC' + (quizState.crossOutMode ? '<div class="strike-line"></div>' : '');
+        }
+    }
+
+    function crossOutChoice(el, choiceId) {
+        if (quizState.answered) return;
+        var qNum = quizState.questionNum;
+        if (!quizState.crossedOut[qNum]) quizState.crossedOut[qNum] = {};
+        if (quizState.crossedOut[qNum][choiceId]) {
+            delete quizState.crossedOut[qNum][choiceId];
+            el.classList.remove('crossed-out');
+        } else {
+            quizState.crossedOut[qNum][choiceId] = true;
+            el.classList.add('crossed-out');
+            // If this choice was selected, deselect it
+            if (quizState.selectedChoice === choiceId) {
+                quizState.selectedChoice = null;
+                el.classList.remove('selected');
+                document.getElementById('submit-btn').disabled = true;
+            }
+        }
     }
 
     async function submitAnswer() {
