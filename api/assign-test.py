@@ -131,23 +131,39 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 data = {"raw": resp.text[:500]}
 
-            if resp.status_code in (200, 201):
+            # If PowerPath says "already assigned", delete the old one and retry
+            if resp.status_code in (409, 422, 500):
+                err_text = ""
+                if isinstance(data, dict):
+                    err_text = (data.get("imsx_description") or data.get("error") or data.get("message") or "").lower()
+                if "already" in err_text or "exists" in err_text or "duplicate" in err_text:
+                    # Find and delete the existing assignment, then retry
+                    retried = _delete_and_retry(headers, sid, subject, grade, payload)
+                    if retried:
+                        data = retried
+                        resp_status = 200
+                    else:
+                        resp_status = resp.status_code
+                else:
+                    resp_status = resp.status_code
+            else:
+                resp_status = resp.status_code
+
+            if resp_status in (200, 201):
                 # Step 2: Provision on MasteryTrack via screening.assignTest
-                # Uses the resourceId from the assignment as the testId
                 mt_result = None
                 if isinstance(data, dict):
                     resource_id = data.get("resourceId") or data.get("lessonId") or ""
                     assignment_id = data.get("assignmentId") or ""
-                    if resource_id:
+                    if resource_id or assignment_id:
                         mt_result = _provision_mastery_track(headers, sid, resource_id, assignment_id)
 
                 result = {
                     "success": True,
                     "message": f"Test assigned ({subject} Grade {grade})",
                     "response": data,
+                    "masteryTrack": mt_result,  # always include for debugging
                 }
-                if mt_result:
-                    result["masteryTrack"] = mt_result
                 send_json(self, result)
             else:
                 err = ""
@@ -155,8 +171,8 @@ class handler(BaseHTTPRequestHandler):
                     err = data.get("imsx_description") or data.get("error") or data.get("message") or ""
                 send_json(self, {
                     "success": False,
-                    "error": err or f"PowerPath returned {resp.status_code}",
-                    "httpStatus": resp.status_code,
+                    "error": err or f"PowerPath returned {resp_status}",
+                    "httpStatus": resp_status,
                     "powerpathResponse": data,
                 }, 422)
 
@@ -166,18 +182,50 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": str(e), "success": False}, 500)
 
 
+def _delete_and_retry(headers, student_id, subject, grade, payload):
+    """Find the existing assignment for this student+subject+grade, delete it, and retry."""
+    try:
+        # List student's assignments
+        list_resp = requests.get(
+            f"{PP}/test-assignments", headers=headers,
+            params={"student": student_id}, timeout=8,
+        )
+        if list_resp.status_code != 200:
+            return None
+        assignments = list_resp.json().get("testAssignments", [])
+
+        # Find the matching one
+        for a in assignments:
+            a_subj = (a.get("subject") or "").lower()
+            a_grade = str(a.get("grade") or "")
+            if a_subj == subject.lower() and a_grade == grade:
+                aid = a.get("sourcedId") or a.get("assignmentId") or ""
+                if aid:
+                    requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=8)
+                    break
+
+        # Retry the assignment
+        retry = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
+        if retry.status_code in (200, 201):
+            try:
+                return retry.json()
+            except Exception:
+                return {"status": "reassigned"}
+    except Exception:
+        pass
+    return None
+
+
 def _provision_mastery_track(headers, student_id, resource_id, assignment_id):
     """Provision the test on MasteryTrack via screening.assignTest.
     SDK: client.screening.assignTest({ studentId, testId })
-    This makes the test available at alphatest.alpha.school/assignment/{assignmentId}
     """
-    # Try with resourceId first, then assignmentId as testId
-    test_ids = [resource_id, assignment_id] if resource_id != assignment_id else [resource_id]
+    # Try all IDs we have — resourceId, assignmentId, lessonId
+    test_ids = list(dict.fromkeys([resource_id, assignment_id]))  # deduplicate, preserve order
+    test_ids = [t for t in test_ids if t]
 
+    attempts = []
     for test_id in test_ids:
-        if not test_id:
-            continue
-        # Try multiple endpoint path patterns
         for path in [
             f"{PP}/screening/assignTest",
             f"{PP}/screening/tests/assign",
@@ -188,22 +236,30 @@ def _provision_mastery_track(headers, student_id, resource_id, assignment_id):
                     json={"studentId": student_id, "testId": test_id},
                     timeout=8,
                 )
+                try:
+                    body = resp.json()
+                except Exception:
+                    body = {"raw": resp.text[:200]}
+
+                attempts.append({
+                    "path": path.split("/powerpath/")[-1],
+                    "testId": test_id,
+                    "status": resp.status_code,
+                    "response": body,
+                })
+
                 if resp.status_code in (200, 201):
-                    try:
-                        return resp.json()
-                    except Exception:
-                        return {"status": "provisioned"}
+                    return {"provisioned": True, "details": body, "attempts": attempts}
                 elif resp.status_code == 404:
-                    continue  # try next path
+                    continue
                 else:
-                    # Got a real response — return it for debugging
-                    try:
-                        return {"status": resp.status_code, "response": resp.json()}
-                    except Exception:
-                        return {"status": resp.status_code}
-            except Exception:
+                    # Non-404 error — record and try next ID
+                    break
+            except Exception as e:
+                attempts.append({"path": path, "testId": test_id, "error": str(e)})
                 continue
-    return None
+
+    return {"provisioned": False, "attempts": attempts}
 
 
 def _proxy_get(handler, headers, url, params):

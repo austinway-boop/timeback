@@ -133,6 +133,9 @@
         answered: false,
         testId: '',
         title: '',
+        isReadingQuiz: false, // true when quiz has article/stimulus content
+        accumulatedStimuli: [], // all article parts shown so far
+        totalQuestions: 0, // fixed question count for reading quizzes
     };
 
     var area = document.getElementById('quiz-area');
@@ -244,26 +247,52 @@
         var isFRQ = q.isFRQ || false;
         var expectedLines = q.expectedLines || 10;
 
-        var accuracy = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
-        var ppScore = Math.max(0, Math.min(100, quizState.ppScore));
-        var circumference = 2 * Math.PI * 28;
-        var dashOffset = circumference - (ppScore / 100) * circumference;
+        // Accumulate stimuli for reading quizzes
+        if (quizState.isReadingQuiz && stimulus && stimulus.length > 10) {
+            var isDup = quizState.accumulatedStimuli.some(function(s) { return s === stimulus; });
+            if (!isDup) {
+                quizState.accumulatedStimuli.push(stimulus);
+            }
+        }
 
-        var html = '<div class="quiz-header"><div class="quiz-title">' + esc(quizState.title) + '</div></div>' +
-        '<div class="pp-scoreboard">' +
-            '<div class="pp-ring">' +
-                '<svg width="64" height="64" viewBox="0 0 64 64">' +
-                    '<circle class="pp-ring-bg" cx="32" cy="32" r="28"/>' +
-                    '<circle class="pp-ring-fill" cx="32" cy="32" r="28" stroke-dasharray="' + circumference.toFixed(1) + '" stroke-dashoffset="' + dashOffset.toFixed(1) + '"/>' +
-                '</svg>' +
-                '<div class="pp-ring-text">' + ppScore + '</div>' +
-            '</div>' +
-            '<div><div class="pp-label">PowerPath 100</div><div class="pp-score-text">' + ppScore + ' / 100</div></div>' +
-            '<div class="pp-stat"><div class="pp-stat-label">Questions</div><div class="pp-stat-value">' + quizState.total + '</div></div>' +
-            '<div class="pp-stat"><div class="pp-stat-label">Accuracy</div><div class="pp-stat-value">' + accuracy + '%</div></div>' +
-        '</div>';
+        var html = '';
 
-        if (stimulus) {
+        if (quizState.isReadingQuiz) {
+            // Simple progress bar for reading quizzes (no PowerPath score)
+            var progressPct = quizState.totalQuestions > 0 ? Math.round((quizState.questionNum / quizState.totalQuestions) * 100) : 0;
+            html += '<div class="quiz-header"><div class="quiz-title">' + esc(quizState.title) + '</div>' +
+                '<div class="quiz-score"><i class="fa-solid fa-book-open"></i> Question ' + quizState.questionNum + ' of ' + quizState.totalQuestions + '</div></div>';
+            html += '<div class="quiz-progress-bar"><div class="quiz-progress-fill" style="width:' + progressPct + '%"></div></div>';
+        } else {
+            var accuracy = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+            var ppScore = Math.max(0, Math.min(100, quizState.ppScore));
+            var circumference = 2 * Math.PI * 28;
+            var dashOffset = circumference - (ppScore / 100) * circumference;
+
+            html += '<div class="quiz-header"><div class="quiz-title">' + esc(quizState.title) + '</div></div>' +
+            '<div class="pp-scoreboard">' +
+                '<div class="pp-ring">' +
+                    '<svg width="64" height="64" viewBox="0 0 64 64">' +
+                        '<circle class="pp-ring-bg" cx="32" cy="32" r="28"/>' +
+                        '<circle class="pp-ring-fill" cx="32" cy="32" r="28" stroke-dasharray="' + circumference.toFixed(1) + '" stroke-dashoffset="' + dashOffset.toFixed(1) + '"/>' +
+                    '</svg>' +
+                    '<div class="pp-ring-text">' + ppScore + '</div>' +
+                '</div>' +
+                '<div><div class="pp-label">PowerPath 100</div><div class="pp-score-text">' + ppScore + ' / 100</div></div>' +
+                '<div class="pp-stat"><div class="pp-stat-label">Questions</div><div class="pp-stat-value">' + quizState.total + '</div></div>' +
+                '<div class="pp-stat"><div class="pp-stat-label">Accuracy</div><div class="pp-stat-value">' + accuracy + '%</div></div>' +
+            '</div>';
+        }
+
+        // Show stimulus — accumulated for reading quizzes, single for others
+        if (quizState.isReadingQuiz && quizState.accumulatedStimuli.length > 0) {
+            html += '<div class="stimulus-box">';
+            for (var si = 0; si < quizState.accumulatedStimuli.length; si++) {
+                if (si > 0) html += '<hr style="border:none;border-top:2px dashed #E8ECF1;margin:20px 0;">';
+                html += quizState.accumulatedStimuli[si];
+            }
+            html += '</div>';
+        } else if (stimulus) {
             html += '<div class="stimulus-box">' + stimulus + '</div>';
         }
 
@@ -378,8 +407,8 @@
         // Update PowerPath scoreboard
         updateScoreboard();
 
-        // Check if score reached 100
-        if (quizState.ppScore >= 100) {
+        // Check if score reached 100 (not for reading quizzes)
+        if (!quizState.isReadingQuiz && quizState.ppScore >= 100) {
             btn.innerHTML = '<i class="fa-solid fa-trophy"></i> PowerPath 100 Complete!';
             btn.disabled = false;
             btn.onclick = function() { showResults(); };
@@ -678,6 +707,14 @@
                     };
                 });
 
+                // Detect reading quiz (questions with article stimuli)
+                var hasAnyStimulus = allQ.some(function(q) { return q.stimulus && q.stimulus.length > 10; });
+                if (hasAnyStimulus) {
+                    quizState.isReadingQuiz = true;
+                    quizState.totalQuestions = allQ.length;
+                    quizState.accumulatedStimuli = [];
+                }
+
                 // Run static quiz one at a time
                 var currentIdx = 0;
                 function showStaticQuestion() {
@@ -755,8 +792,8 @@
 
                         var btn = document.getElementById('submit-btn');
 
-                        // Quiz ends when PowerPath score reaches 100
-                        if (quizState.ppScore >= 100) {
+                        // Quiz ends when PowerPath score reaches 100 (not for reading quizzes)
+                        if (!quizState.isReadingQuiz && quizState.ppScore >= 100) {
                             quizState.xpEarned += 5; // bonus
                             btn.innerHTML = '<i class="fa-solid fa-trophy"></i> PowerPath 100 Complete!';
                             btn.onclick = function() { showResults(); };
@@ -884,7 +921,5 @@
         '</div>';
     }
     </script>
-</body>
-</html>
 </body>
 </html>

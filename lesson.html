@@ -602,6 +602,8 @@
         testId: '', title: '', active: false, finished: false,
         // For static (QTI) quiz
         staticQuestions: null, staticIdx: 0,
+        // Reading quiz mode
+        isReadingQuiz: false, accumulatedStimuli: [], totalQuestions: 0,
     };
     var quizArea = null; // reference to the quiz container element
 
@@ -790,6 +792,8 @@
         quizState.answered = false; quizState.active = false;
         quizState.finished = false; quizState.staticQuestions = null;
         quizState.staticIdx = 0;
+        quizState.isReadingQuiz = false; quizState.accumulatedStimuli = [];
+        quizState.totalQuestions = 0;
     }
 
     /* ── QTI renderNode (for rich question content) ─────────── */
@@ -1048,22 +1052,44 @@
         var isFRQ = q.isFRQ || false;
         var expectedLines = q.expectedLines || 10;
 
-        var accuracy = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
-        var ppScore = Math.max(0, Math.min(100, quizState.ppScore));
-        var circ = 2 * Math.PI * 18;
-        var dash = circ - (ppScore / 100) * circ;
+        // Accumulate stimuli for reading quizzes
+        if (quizState.isReadingQuiz && stimulus && stimulus.length > 10) {
+            var isDup = quizState.accumulatedStimuli.some(function(s) { return s === stimulus; });
+            if (!isDup) {
+                quizState.accumulatedStimuli.push(stimulus);
+            }
+        }
 
-        var html = '<div class="pp-scoreboard">' +
-            '<div class="pp-ring"><svg width="44" height="44" viewBox="0 0 44 44">' +
-                '<circle class="pp-ring-bg" cx="22" cy="22" r="18"/>' +
-                '<circle class="pp-ring-fill" cx="22" cy="22" r="18" stroke-dasharray="' + circ.toFixed(1) + '" stroke-dashoffset="' + dash.toFixed(1) + '"/>' +
-            '</svg><div class="pp-ring-text">' + ppScore + '</div></div>' +
-            '<div><div class="pp-label">PowerPath</div><div class="pp-score-text">' + ppScore + ' / 100</div></div>' +
-            '<div class="pp-stat"><div class="pp-stat-label">Questions</div><div class="pp-stat-value">' + quizState.total + '</div></div>' +
-            '<div class="pp-stat"><div class="pp-stat-label">Accuracy</div><div class="pp-stat-value">' + accuracy + '%</div></div>' +
-        '</div>';
+        var html = '';
 
-        var hasStimulus = stimulus && stimulus.length > 10;
+        if (quizState.isReadingQuiz) {
+            // Simple progress for reading quizzes (no PowerPath score)
+            var progressPct = quizState.totalQuestions > 0 ? Math.round((quizState.questionNum / quizState.totalQuestions) * 100) : 0;
+            html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+                '<div style="font-size:0.95rem;font-weight:700;flex:1;color:#111827;">' + esc(quizState.title) + '</div>' +
+                '<div style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:var(--color-primary);background:var(--color-primary-light);padding:5px 12px;border-radius:16px;">' +
+                    '<i class="fa-solid fa-book-open" style="font-size:0.72rem;"></i> Question ' + quizState.questionNum + ' of ' + quizState.totalQuestions +
+                '</div></div>';
+            html += '<div style="height:5px;background:#E8ECF1;border-radius:3px;margin-bottom:18px;overflow:hidden;">' +
+                '<div style="height:100%;background:var(--color-primary);border-radius:3px;transition:width 0.4s ease;width:' + progressPct + '%;"></div></div>';
+        } else {
+            var accuracy = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+            var ppScore = Math.max(0, Math.min(100, quizState.ppScore));
+            var circ = 2 * Math.PI * 18;
+            var dash = circ - (ppScore / 100) * circ;
+
+            html += '<div class="pp-scoreboard">' +
+                '<div class="pp-ring"><svg width="44" height="44" viewBox="0 0 44 44">' +
+                    '<circle class="pp-ring-bg" cx="22" cy="22" r="18"/>' +
+                    '<circle class="pp-ring-fill" cx="22" cy="22" r="18" stroke-dasharray="' + circ.toFixed(1) + '" stroke-dashoffset="' + dash.toFixed(1) + '"/>' +
+                '</svg><div class="pp-ring-text">' + ppScore + '</div></div>' +
+                '<div><div class="pp-label">PowerPath</div><div class="pp-score-text">' + ppScore + ' / 100</div></div>' +
+                '<div class="pp-stat"><div class="pp-stat-label">Questions</div><div class="pp-stat-value">' + quizState.total + '</div></div>' +
+                '<div class="pp-stat"><div class="pp-stat-label">Accuracy</div><div class="pp-stat-value">' + accuracy + '%</div></div>' +
+            '</div>';
+        }
+
+        var hasStimulus = (quizState.isReadingQuiz && quizState.accumulatedStimuli.length > 0) || (stimulus && stimulus.length > 10);
 
         // Build question + choices HTML (reused in both layouts)
         var questionHtml = '<div class="question-card"><div class="question-num">Question ' + quizState.questionNum + (isFRQ ? ' — Free Response' : '') + '</div>';
@@ -1094,9 +1120,19 @@
         questionHtml += '<div class="quiz-actions"><button class="quiz-btn quiz-btn-secondary" onclick="goBackToCourse()"><i class="fa-solid fa-arrow-left"></i> Exit</button><button class="quiz-btn quiz-btn-primary" id="quiz-submit" onclick="submitQuizAnswer()" disabled><i class="fa-solid fa-check"></i> Submit</button></div>';
 
         if (hasStimulus) {
+            // Build stimulus content — accumulated for reading quizzes
+            var stimContent = '';
+            if (quizState.isReadingQuiz && quizState.accumulatedStimuli.length > 0) {
+                for (var si = 0; si < quizState.accumulatedStimuli.length; si++) {
+                    if (si > 0) stimContent += '<hr style="border:none;border-top:2px dashed #E8ECF1;margin:20px 0;">';
+                    stimContent += quizState.accumulatedStimuli[si];
+                }
+            } else {
+                stimContent = stimulus;
+            }
             // Split layout: article left, questions right
             html += '<div class="pp-split-layout">';
-            html += '<div class="pp-split-left">' + stimulus + '</div>';
+            html += '<div class="pp-split-left">' + stimContent + '</div>';
             html += '<div class="pp-split-right">' + questionHtml + '</div>';
             html += '</div>';
         } else {
@@ -1195,8 +1231,8 @@
         // Update scoreboard
         updateScoreboard();
 
-        // Next button
-        if (quizState.ppScore >= 100) {
+        // Next button — reading quizzes don't end on PP score
+        if (!quizState.isReadingQuiz && quizState.ppScore >= 100) {
             btn.innerHTML = '<i class="fa-solid fa-trophy"></i> PowerPath 100 — Complete!';
             btn.disabled = false;
             btn.onclick = function() { showQuizResults(); };
@@ -1413,6 +1449,14 @@
             });
 
             quizState.staticIdx = 0;
+
+            // Detect reading quiz (questions with article stimuli)
+            var hasAnyStimulus = quizState.staticQuestions.some(function(q) { return q.stimulus && q.stimulus.length > 10; });
+            if (hasAnyStimulus) {
+                quizState.isReadingQuiz = true;
+                quizState.totalQuestions = quizState.staticQuestions.length;
+                quizState.accumulatedStimuli = [];
+            }
 
             // AP exam UI only for cumulative reviews and MCQ assessments
             var titleLower = (quizState.title || '').toLowerCase();
