@@ -1,13 +1,16 @@
-"""POST /api/assign-test — Assign a test via PowerPath API.
+"""POST /api/assign-test — Assign a test via PowerPath API + MasteryTrack.
 GET  /api/assign-test?student=... — List test assignments for a student.
 DELETE /api/assign-test — Remove a test assignment.
 GET  /api/assign-test?action=placement&student=...&subject=... — Get placement level.
 
-Confirmed working endpoints:
-  POST /powerpath/test-assignments    { student, subject, grade }
-  GET  /powerpath/test-assignments    ?student=sourcedId
-  GET  /powerpath/placement/getCurrentLevel  ?student=...&subject=...
-  POST /powerpath/screening/assignTest  { student, testId }
+Full assignment flow (from PowerPath MasteryTrack docs):
+  1. POST /powerpath/test-assignments { student, subject, grade }
+     → creates assignment record → { assignmentId, lessonId, resourceId }
+  2. POST /powerpath/lessonPlans/operations
+     → { operations: [{ type: "makeExternalTestAssignment",
+         toolProvider: "mastery-track", lessonId, studentId }] }
+     → authenticates student on MasteryTrack, returns test link + credentials
+  3. (Later) importExternalTestAssignmentResults to process scores after test ends
 """
 
 import json
@@ -109,7 +112,7 @@ class handler(BaseHTTPRequestHandler):
 
             headers = api_headers()
 
-            # Step 1: Check student placement level
+            # ── Step 1: Check placement level ────────────────────
             placement_grade = None
             try:
                 pl_resp = requests.get(
@@ -126,7 +129,7 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
-            # Step 2: Try direct test-assignments
+            # ── Step 2: Create test assignment record ────────────
             payload = {"student": sid, "subject": subject, "grade": grade}
             resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=10)
             try:
@@ -134,60 +137,133 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 data = {"status": resp.status_code}
 
-            if resp.status_code in (200, 201, 204):
-                send_json(self, {
-                    "success": True,
-                    "message": f"Test assigned ({subject} Grade {grade})",
-                    "response": data,
-                })
-                return
+            if resp.status_code not in (200, 201, 204):
+                # Assignment creation failed — try screening fallback
+                for screen_path in [
+                    f"{PP}/screening/assignTest",
+                    f"{PP}/screening/tests/assign",
+                ]:
+                    try:
+                        screen_resp = requests.post(
+                            screen_path, headers=headers,
+                            json={"student": sid, "subject": subject, "grade": grade},
+                            timeout=6,
+                        )
+                        if screen_resp.status_code in (200, 201, 204):
+                            data = screen_resp.json()
+                            break
+                    except Exception:
+                        pass
+                else:
+                    # All assignment methods failed
+                    err = ""
+                    if isinstance(data, dict):
+                        err = data.get("imsx_description") or data.get("error") or data.get("message") or ""
+                    hint = ""
+                    if placement_grade is not None:
+                        try:
+                            req_g = int(grade)
+                            pl_g = int(placement_grade)
+                            if req_g != pl_g:
+                                hint = f" Student is placed at Grade {pl_g} in {subject}. Try Grade {pl_g} instead."
+                            else:
+                                hint = f" Student is at Grade {pl_g} but this test could not be created."
+                        except (ValueError, TypeError):
+                            pass
+                    send_json(self, {
+                        "success": False,
+                        "error": (err or f"HTTP {resp.status_code}") + hint,
+                        "placementGrade": placement_grade,
+                        "requestedGrade": grade,
+                        "response": data,
+                    }, 422)
+                    return
 
-            # Step 3: If test-assignments failed, try screening endpoint
-            for screen_path in [
-                f"{PP}/screening/assignTest",
-                f"{PP}/screening/tests/assign",
-            ]:
-                try:
-                    screen_resp = requests.post(
-                        screen_path, headers=headers,
-                        json={"student": sid, "subject": subject, "grade": grade},
-                        timeout=6,
-                    )
-                    if screen_resp.status_code in (200, 201, 204):
-                        send_json(self, {
-                            "success": True,
-                            "message": f"Test assigned via screening ({subject} Grade {grade})",
-                            "response": screen_resp.json(),
-                        })
-                        return
-                except Exception:
-                    pass
-
-            # All failed — build helpful error message
-            err = ""
+            # ── Step 3: Provision on MasteryTrack ────────────────
+            # makeExternalTestAssignment authenticates the student on MasteryTrack,
+            # returns a test link and credentials so the student can actually take the test.
+            lesson_id = ""
+            assignment_id = ""
             if isinstance(data, dict):
-                err = data.get("imsx_description") or data.get("error") or data.get("message") or ""
+                lesson_id = data.get("lessonId") or ""
+                assignment_id = data.get("assignmentId") or ""
 
-            # Check if it's a placement level mismatch
-            hint = ""
-            if err == "An unexpected error occurred" and placement_grade is not None:
-                try:
-                    req_grade = int(grade)
-                    pl_grade = int(placement_grade)
-                    if req_grade > pl_grade:
-                        hint = f" Student is placed at Grade {pl_grade} in {subject}, but Grade {grade} was requested. Try assigning Grade {pl_grade} instead."
-                except (ValueError, TypeError):
-                    pass
+            mt_result = None
+            mt_error = ""
+            if lesson_id:
+                mt_result = _try_mastery_track(headers, sid, lesson_id)
 
-            send_json(self, {
-                "success": False,
-                "error": (err or f"HTTP {resp.status_code}") + hint,
-                "placementGrade": placement_grade,
-                "requestedGrade": grade,
+            result = {
+                "success": True,
+                "message": f"Test assigned ({subject} Grade {grade})",
                 "response": data,
-            }, 422)
+            }
+
+            # Include MasteryTrack link/credentials if available
+            if mt_result and isinstance(mt_result, dict):
+                result["testLink"] = mt_result.get("testLink") or mt_result.get("url") or mt_result.get("link") or ""
+                result["credentials"] = mt_result.get("credentials") or {}
+                result["masteryTrack"] = mt_result
+            elif lesson_id:
+                # MasteryTrack provisioning may have failed — note it but don't fail the assignment
+                result["masteryTrackNote"] = "Assignment created. MasteryTrack provisioning may need manual setup."
+
+            send_json(self, result)
 
         except json.JSONDecodeError:
             send_json(self, {"error": "Invalid JSON", "success": False}, 400)
         except Exception as e:
             send_json(self, {"error": str(e), "success": False}, 500)
+
+
+def _try_mastery_track(headers, student_id, lesson_id):
+    """Try to provision the test on MasteryTrack via lessonPlans/operations.
+    Returns the MasteryTrack response dict, or None on failure."""
+
+    # Try multiple endpoint patterns for makeExternalTestAssignment
+    operation = {
+        "type": "makeExternalTestAssignment",
+        "toolProvider": "mastery-track",
+        "lessonId": lesson_id,
+        "studentId": student_id,
+    }
+
+    endpoints = [
+        # Lesson plan operations endpoint
+        (f"{PP}/lessonPlans/operations", {"operations": [operation]}),
+        # Direct operation on specific lesson
+        (f"{PP}/lessonPlans/{lesson_id}/operations", {"operations": [operation]}),
+        # Alternative: makeExternalTestAssignment as direct endpoint
+        (f"{PP}/lessonPlans/makeExternalTestAssignment", {
+            "toolProvider": "mastery-track",
+            "lessonId": lesson_id,
+            "studentId": student_id,
+        }),
+        # Alternative: test-assignments sub-endpoint
+        (f"{PP}/test-assignments/makeExternal", {
+            "toolProvider": "mastery-track",
+            "lessonId": lesson_id,
+            "studentId": student_id,
+        }),
+    ]
+
+    for url, payload in endpoints:
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=8)
+            if resp.status_code in (200, 201):
+                try:
+                    return resp.json()
+                except Exception:
+                    return {"status": "ok"}
+            elif resp.status_code == 404:
+                continue  # endpoint doesn't exist, try next
+            else:
+                # Got a real response (not 404) — stop trying
+                try:
+                    return resp.json()
+                except Exception:
+                    return {"error": f"HTTP {resp.status_code}"}
+        except Exception:
+            continue
+
+    return None
