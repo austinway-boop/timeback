@@ -1,12 +1,14 @@
 """POST /api/submit-result — Record a result via OneRoster Gradebook.
 
-Two-step process:
-  1. PUT (upsert) an AssessmentLineItem so the reference exists
-  2. PUT (upsert) an AssessmentResult referencing that line item
+If a PowerPath assessmentLineItemSourcedId is provided (UUID format), we use it directly.
+Otherwise, we create/upsert our own assessmentLineItem.
+
+Then we create/upsert an AssessmentResult referencing that line item.
 """
 
 import json
 import hashlib
+import re
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 
@@ -20,9 +22,10 @@ def _deterministic_id(seed: str) -> str:
     return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
 
 
-def _uuid():
-    import uuid
-    return str(uuid.uuid4())
+def _is_uuid(s: str) -> bool:
+    """Check if a string looks like a UUID."""
+    uuid_pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$', re.IGNORECASE)
+    return bool(uuid_pattern.match(s))
 
 
 GRADEBOOK = f"{API_BASE}/ims/oneroster/gradebook/v1p2"
@@ -60,57 +63,71 @@ class handler(BaseHTTPRequestHandler):
         headers = api_headers()
         debug = []
 
-        # ── Step 1: Ensure the AssessmentLineItem exists (upsert) ──
-        # Use a deterministic ID from the original resource ID so repeated
-        # attempts for the same quiz always reference the same line item.
-        ali_seed = line_item_id or lesson_title or "unknown"
-        ali_id = _deterministic_id(f"ali:{ali_seed}")
-        ali_title = lesson_title or line_item_id or "Quiz"
-
-        ali_payload = {
-            "assessmentLineItem": {
-                "sourcedId": ali_id,
-                "status": "active",
-                "title": ali_title,
-                "description": f"Auto-created for {ali_title}",
-                "assignDate": now,
-                "dueDate": now,
-                "resultValueMin": 0.0,
-                "resultValueMax": 100.0,
-            }
-        }
-
-        ali_url = f"{GRADEBOOK}/assessmentLineItems/{ali_id}"
-        try:
-            resp = requests.put(ali_url, headers=headers, json=ali_payload, timeout=15)
-            if resp.status_code == 401:
-                headers = api_headers()
-                resp = requests.put(ali_url, headers=headers, json=ali_payload, timeout=15)
+        # ── Determine the AssessmentLineItem ID to use ──
+        # If the provided ID looks like a UUID (from PowerPath), use it directly
+        # Otherwise, create our own deterministic ID
+        
+        is_powerpath_id = _is_uuid(line_item_id)
+        
+        if is_powerpath_id:
+            # Use the PowerPath assessmentLineItemSourcedId directly
+            ali_id = line_item_id
             debug.append({
-                "step": "1_upsert_lineItem",
-                "url": ali_url,
-                "status": resp.status_code,
-                "body": resp.text[:300],
+                "step": "0_using_powerpath_ali",
+                "assessmentLineItemSourcedId": ali_id,
+                "note": "Using existing PowerPath assessmentLineItem"
             })
-        except Exception as e:
-            debug.append({"step": "1_upsert_lineItem", "error": str(e)})
-            send_json(self, {
-                "status": "error",
-                "message": "Failed to create assessmentLineItem",
-                "debug": debug,
-            }, 502)
-            return
+        else:
+            # Create our own assessmentLineItem
+            ali_seed = line_item_id or lesson_title or "unknown"
+            ali_id = _deterministic_id(f"ali:{ali_seed}")
+            ali_title = lesson_title or line_item_id or "Quiz"
 
-        if resp.status_code not in (200, 201):
-            send_json(self, {
-                "status": "error",
-                "message": f"AssessmentLineItem upsert failed ({resp.status_code})",
-                "debug": debug,
-            }, 502)
-            return
+            ali_payload = {
+                "assessmentLineItem": {
+                    "sourcedId": ali_id,
+                    "status": "active",
+                    "title": ali_title,
+                    "description": f"Auto-created for {ali_title}",
+                    "assignDate": now,
+                    "dueDate": now,
+                    "resultValueMin": 0.0,
+                    "resultValueMax": 100.0,
+                }
+            }
+
+            ali_url = f"{GRADEBOOK}/assessmentLineItems/{ali_id}"
+            try:
+                resp = requests.put(ali_url, headers=headers, json=ali_payload, timeout=15)
+                if resp.status_code == 401:
+                    headers = api_headers()
+                    resp = requests.put(ali_url, headers=headers, json=ali_payload, timeout=15)
+                debug.append({
+                    "step": "1_upsert_lineItem",
+                    "url": ali_url,
+                    "status": resp.status_code,
+                    "body": resp.text[:300],
+                })
+            except Exception as e:
+                debug.append({"step": "1_upsert_lineItem", "error": str(e)})
+                send_json(self, {
+                    "status": "error",
+                    "message": "Failed to create assessmentLineItem",
+                    "debug": debug,
+                }, 502)
+                return
+
+            if resp.status_code not in (200, 201):
+                send_json(self, {
+                    "status": "error",
+                    "message": f"AssessmentLineItem upsert failed ({resp.status_code})",
+                    "debug": debug,
+                }, 502)
+                return
 
         # ── Step 2: Create the AssessmentResult ──
-        result_id = _deterministic_id(f"result:{ali_seed}:{student_id}:{now[:10]}")
+        result_seed = f"result:{ali_id}:{student_id}:{now[:10]}"
+        result_id = _deterministic_id(result_seed)
 
         result_payload = {
             "assessmentResult": {
@@ -156,6 +173,7 @@ class handler(BaseHTTPRequestHandler):
                 "status": "success",
                 "assessmentLineItemId": ali_id,
                 "resultId": result_id,
+                "usedPowerPathALI": is_powerpath_id,
                 "response": data,
                 "debug": debug,
             }, 201)

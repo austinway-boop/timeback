@@ -618,11 +618,24 @@
 
             // ── Build progress lookup ──────────────────────────────
             var progressByTitle = {};
+            var assessmentLineItemByResId = {};  // Map resource IDs to PowerPath assessmentLineItemSourcedId
             var cp = contentData.courseProgress;
             if (cp && cp.lineItems) {
                 for (var pi = 0; pi < cp.lineItems.length; pi++) {
                     var pItem = cp.lineItems[pi];
                     var pTitle = (pItem.title || '').trim();
+                    
+                    // Store the PowerPath assessmentLineItemSourcedId for this resource
+                    var resSourcedId = pItem.courseComponentResourceSourcedId || '';
+                    var aliSourcedId = pItem.assessmentLineItemSourcedId || '';
+                    if (resSourcedId && aliSourcedId) {
+                        assessmentLineItemByResId[resSourcedId] = aliSourcedId;
+                    }
+                    // Also map by title for fallback
+                    if (pTitle && aliSourcedId) {
+                        assessmentLineItemByResId[pTitle] = aliSourcedId;
+                    }
+                    
                     if (pTitle && pItem.results && pItem.results.length > 0) {
                         var r = pItem.results[0];
                         progressByTitle[pTitle] = {
@@ -860,14 +873,40 @@
 
                             // Store lesson data for navigation
                             var lessonDataKey = 'lesson_' + mi + '_' + li;
+                            
+                            // Find the PowerPath assessmentLineItemSourcedId for this lesson's resources
+                            var ppAssessmentLineItemId = '';
+                            for (var ri = 0; ri < sortedRes.length; ri++) {
+                                var rid = sortedRes[ri].resId || '';
+                                if (rid && assessmentLineItemByResId[rid]) {
+                                    ppAssessmentLineItemId = assessmentLineItemByResId[rid];
+                                    break;
+                                }
+                            }
+                            // Fallback: try by lesson title
+                            if (!ppAssessmentLineItemId && assessmentLineItemByResId[lTitle]) {
+                                ppAssessmentLineItemId = assessmentLineItemByResId[lTitle];
+                            }
+                            
                             window._lessonData[lessonDataKey] = {
                                 title: lTitle,
-                                resources: sortedRes.map(function(r) { return { type: r.type, url: r.url, pillUrl: r.pillUrl, title: r.title, label: r.label, resId: r.resId || '' }; }),
+                                resources: sortedRes.map(function(r) { 
+                                    return { 
+                                        type: r.type, 
+                                        url: r.url, 
+                                        pillUrl: r.pillUrl, 
+                                        title: r.title, 
+                                        label: r.label, 
+                                        resId: r.resId || '',
+                                        assessmentLineItemSourcedId: assessmentLineItemByResId[r.resId] || ''
+                                    }; 
+                                }),
                                 courseTitle: courseTitle,
                                 quizExtra: quizExtra,
                                 enrollmentId: enrollment ? (enrollment.id || enrollment.sourcedId || '') : '',
                                 courseSourcedId: course ? (course.sourcedId || course.id || '') : '',
-                                courseName: course ? (course.title || courseTitle) : courseTitle
+                                courseName: course ? (course.title || courseTitle) : courseTitle,
+                                assessmentLineItemSourcedId: ppAssessmentLineItemId
                             };
 
                             var actAllDone = (doneRes === totalRes && totalRes > 0);

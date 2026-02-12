@@ -632,8 +632,22 @@
 
     /* ── 1. OneRoster: POST assessment result to gradebook ── */
     function submitAssessmentResult(score, passed) {
-        // Build the lineItemId from every possible source
-        var lineItemId = quizState.testId || '';
+        // PRIORITY: Use the PowerPath assessmentLineItemSourcedId if available
+        // This ensures results sync properly with PowerPath getCourseProgress
+        var lineItemId = lessonData.assessmentLineItemSourcedId || '';
+        
+        // Fallback: try to get from resource data
+        if (!lineItemId) {
+            for (var si = 0; si < steps.length; si++) {
+                if (steps[si].type === 'Quiz' && steps[si].resource) {
+                    lineItemId = steps[si].resource.assessmentLineItemSourcedId || steps[si].resource.resId || '';
+                    if (lineItemId) break;
+                }
+            }
+        }
+        
+        // Secondary fallback: quiz testId or resource ID
+        if (!lineItemId) lineItemId = quizState.testId || '';
         if (!lineItemId) {
             for (var si = 0; si < steps.length; si++) {
                 if (steps[si].type === 'Quiz' && steps[si].resource) {
@@ -642,11 +656,11 @@
                 }
             }
         }
-        // Fallback: use the lesson title as the lineItem identifier
-        // (this matches how course progress tracks completion by title)
+        
+        // Final fallback: use the lesson title
         if (!lineItemId) lineItemId = lessonData.title || '';
 
-        console.log('[Sync] Submitting AssessmentResult — userId:', syncState.userId, 'lineItemId:', lineItemId, 'score:', score);
+        console.log('[Sync] Submitting AssessmentResult — userId:', syncState.userId, 'lineItemId:', lineItemId, 'ppALI:', lessonData.assessmentLineItemSourcedId || 'none', 'score:', score);
 
         var payload = {
             studentSourcedId: syncState.userId,
