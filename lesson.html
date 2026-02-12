@@ -1137,15 +1137,17 @@
                 'oninput="document.getElementById(\'quiz-submit\').disabled=!this.value.trim()"></textarea>';
         } else if (choices.length > 0) {
             var letters = 'ABCDEFGHIJ';
+            var correctId = q.correctId || '';
             questionHtml += '<div class="choices" id="choices">';
             for (var i = 0; i < choices.length; i++) {
                 var c = choices[i];
                 var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : '');
                 if (typeof cText === 'object') cText = renderNode(cText);
                 var cId = c.id || c.identifier || letters[i] || String(i);
+                var dotHtml = (correctId && cId === correctId) ? '<span style="width:8px;height:8px;border-radius:50%;background:#16A34A;flex-shrink:0;margin-left:auto;"></span>' : '';
                 questionHtml += '<div class="choice" data-id="' + esc(cId) + '" onclick="selectAnswer(this,\'' + esc(cId) + '\')">' +
                     '<div class="choice-letter">' + (letters[i] || i) + '</div>' +
-                    '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div></div>';
+                    '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' + dotHtml + '</div>';
             }
             questionHtml += '</div>';
         }
@@ -1644,13 +1646,15 @@
         if (q.choices && q.choices.length > 0) {
             html += '<div class="ap-choices' + (apState.crossOutMode ? ' crossout-mode' : '') + '">';
             var co = apState.crossedOut[idx] || {};
+            var apCorrectId = q.correctId || '';
             for (var ci = 0; ci < q.choices.length; ci++) {
                 var c = q.choices[ci];
                 var sel = quizState.answers[idx] === c.id ? ' selected' : '';
                 var crossed = co[c.id] ? ' crossed-out' : '';
+                var apDot = (apCorrectId && c.id === apCorrectId) ? '<span style="width:8px;height:8px;border-radius:50%;background:#16A34A;flex-shrink:0;margin-left:auto;"></span>' : '';
                 html += '<div class="ap-choice' + sel + crossed + '" data-id="' + esc(c.id) + '" onclick="apClickChoice(this,\'' + esc(c.id) + '\')">' +
                     '<div class="ap-choice-letter">' + (letters[ci] || ci) + '</div>' +
-                    '<div class="ap-choice-text">' + (c.text || '') + '</div>' +
+                    '<div class="ap-choice-text">' + (c.text || '') + '</div>' + apDot +
                     '<button class="ap-crossout-btn" onclick="event.stopPropagation();apCrossOutOne(this.parentElement,\'' + esc(c.id) + '\')" title="Cross out"><i class="fa-solid fa-xmark"></i></button>' +
                 '</div>';
             }
