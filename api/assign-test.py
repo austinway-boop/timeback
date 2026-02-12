@@ -163,8 +163,9 @@ class handler(BaseHTTPRequestHandler):
                 data = {"raw": resp.text[:500]}
 
             # On failure: delete existing + reset placement + retry
+            retry_log = None
             if resp.status_code not in (200, 201):
-                retried = _delete_reset_retry(headers, sid, subject, grade, payload)
+                retried, retry_log = _delete_reset_retry(headers, sid, subject, grade, payload)
                 if retried:
                     data = retried
                     resp_status = 200
@@ -182,13 +183,12 @@ class handler(BaseHTTPRequestHandler):
                     if resource_id or assignment_id:
                         mt_result = _provision_mastery_track(headers, sid, resource_id, assignment_id)
 
-                result = {
+                send_json(self, {
                     "success": True,
                     "message": f"Test assigned ({subject} Grade {grade})",
                     "response": data,
-                    "masteryTrack": mt_result,  # always include for debugging
-                }
-                send_json(self, result)
+                    "masteryTrack": mt_result,
+                })
             else:
                 err = ""
                 if isinstance(data, dict):
@@ -198,6 +198,7 @@ class handler(BaseHTTPRequestHandler):
                     "error": err or f"PowerPath returned {resp_status}",
                     "httpStatus": resp_status,
                     "powerpathResponse": data,
+                    "retryLog": retry_log,
                 }, 422)
 
         except json.JSONDecodeError:
@@ -207,9 +208,11 @@ class handler(BaseHTTPRequestHandler):
 
 
 def _delete_reset_retry(headers, student_id, subject, grade, payload):
-    """Delete existing assignment, reset placement, and retry assignment."""
+    """Delete existing assignment, reset placement, and retry. Returns (data, log)."""
+    log = {"deleted": [], "resetAttempts": [], "retryStatus": None}
+
     try:
-        # 1. Delete any existing assignment for this subject (any grade)
+        # 1. Delete ALL existing assignments for this subject (any grade)
         list_resp = requests.get(
             f"{PP}/test-assignments", headers=headers,
             params={"student": student_id}, timeout=8,
@@ -219,26 +222,45 @@ def _delete_reset_retry(headers, student_id, subject, grade, payload):
                 if (a.get("subject") or "").lower() == subject.lower():
                     aid = a.get("sourcedId") or a.get("assignmentId") or ""
                     if aid:
-                        requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=6)
+                        dr = requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=6)
+                        log["deleted"].append({"id": aid, "grade": a.get("grade"), "status": dr.status_code})
 
-        # 2. Reset placement for this subject so any grade can be assigned
-        requests.post(
-            f"{PP}/placement/resetUserPlacement",
-            headers=headers,
-            json={"studentId": student_id, "subject": subject},
-            timeout=8,
-        )
+        # 2. Reset placement — try multiple endpoint patterns
+        reset_body = {"studentId": student_id, "subject": subject}
+        reset_paths = [
+            ("POST", f"{PP}/placement/resetUserPlacement", reset_body),
+            ("POST", f"{PP}/placement/reset", reset_body),
+            ("POST", f"{PP}/placement/resetUserPlacement", {"student": student_id, "subject": subject}),
+            ("DELETE", f"{PP}/placement/getCurrentLevel?student={student_id}&subject={subject}", None),
+        ]
+        for method, url, body in reset_paths:
+            try:
+                if method == "POST":
+                    rr = requests.post(url, headers=headers, json=body, timeout=8)
+                else:
+                    rr = requests.delete(url, headers=headers, timeout=8)
+                try:
+                    rr_body = rr.json()
+                except Exception:
+                    rr_body = rr.text[:200]
+                log["resetAttempts"].append({"path": url.split("/powerpath/")[-1], "method": method, "status": rr.status_code, "response": rr_body})
+                if rr.status_code in (200, 201, 204):
+                    break  # reset succeeded
+            except Exception as e:
+                log["resetAttempts"].append({"path": url.split("/powerpath/")[-1], "error": str(e)})
 
         # 3. Retry the assignment
         retry = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
+        log["retryStatus"] = retry.status_code
         if retry.status_code in (200, 201):
             try:
-                return retry.json()
+                return retry.json(), log
             except Exception:
-                return {"status": "reassigned"}
-    except Exception:
-        pass
-    return None
+                return {"status": "reassigned"}, log
+    except Exception as e:
+        log["error"] = str(e)
+
+    return None, log
 
 
 def _provision_mastery_track(headers, student_id, resource_id, assignment_id):
