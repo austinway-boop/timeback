@@ -785,10 +785,12 @@
                         var _pIsAssessment = /assess|quiz|test|exam|mcq|frq|saq|dbq|leq|cumulative\s*review/i.test(pLTitle);
                         // For the global frontier: ONLY advance when a PowerPath quiz is fully completed (graded with score > 0)
                         var pHasAny = pHasQuizComplete || (_pIsAssessment && _isQuizComplete(pLProg));
+                        // Also check localStorage — articles/videos mark completion here
+                        if (!pHasAny && pLDone) pHasAny = true;
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
                         if (pLDone) { grandDoneAct += pCount; }
-                        else { for (var pr = 0; pr < pRes.length; pr++) { if (localStorage.getItem(pLocalKey + '_r' + pr) === 'true') { grandDoneAct++; pHasAny = pHasAny || false; } } }
+                        else { for (var pr = 0; pr < pRes.length; pr++) { if (localStorage.getItem(pLocalKey + '_r' + pr) === 'true') { grandDoneAct++; } } }
                         globalLessonList.push({ unitIdx: pu, hasProgress: pHasAny });
                     }
                 }
