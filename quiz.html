@@ -756,10 +756,10 @@
                     var qData = {
                         prompt: q.prompt,
                         choices: q.choices.map(function(c) { return { id: c.id, text: c.text }; }),
+                        correctId: q.correctId || '',
                         isFRQ: q.isFRQ,
                         expectedLines: q.expectedLines,
                         stimulus: q.stimulus,
-                        correctId: q.correctId || '',
                     };
                     renderQuestion(qData);
 
