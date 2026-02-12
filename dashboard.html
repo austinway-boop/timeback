@@ -789,8 +789,10 @@
                     const statusColor = isComplete ? '#2E7D32' : isInProgress ? '#F57F17' : '#2B6CB0';
                     const statusBg = isComplete ? '#E8F5E9' : isInProgress ? '#FFF8E1' : '#EBF4FF';
 
-                    // Link to MasteryTrack dashboard where student sees all their tests
-                    const testUrl = 'https://alphatest.alpha.school';
+                    // Direct test link on MasteryTrack
+                    const testUrl = t.assignmentId
+                        ? 'https://alphatest.alpha.school/test/' + encodeURIComponent(t.assignmentId)
+                        : 'https://alphatest.alpha.school';
 
                     const clickAction = testUrl && !isComplete
                         ? `onclick="window.open('${testUrl}', '_blank')"`

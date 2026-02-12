@@ -201,7 +201,7 @@ class handler(BaseHTTPRequestHandler):
                     "success": True,
                     "message": f"Test assigned ({subject} Grade {grade})",
                     "assignmentId": assignment_id,
-                    "testLink": "https://alphatest.alpha.school",
+                    "testLink": f"https://alphatest.alpha.school/test/{assignment_id}",
                     "response": pp_data if pp_ok else li_result,
                     "log": log,
                 })
