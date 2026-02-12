@@ -1002,7 +1002,8 @@
                                 else if (rurl && !rurl.includes('flashcard.com')) { pillUrl = '/quiz?url=' + encodeURIComponent(rurl) + '&title=' + encodeURIComponent(lTitle) + quizExtra; }
                                 else if (resId) { pillUrl = '/quiz?id=' + encodeURIComponent(resId) + '&type=' + encodeURIComponent(rtype || 'assessment') + '&title=' + encodeURIComponent(lTitle) + quizExtra; }
                                 var lbl = resLabel(rtype, rurl);
-                                resDetails.push({ type: rtype, url: rurl, pillUrl: pillUrl, title: rTitle2, label: lbl, resId: resId });
+                                var componentResId = resObj.sourcedId || resObj.id || resId;
+                                resDetails.push({ type: rtype, url: rurl, pillUrl: pillUrl, title: rTitle2, label: lbl, resId: resId, componentResId: componentResId });
                                 if (!openUrl && pillUrl) openUrl = pillUrl;
                             }
 
@@ -1093,6 +1094,7 @@
                                         title: r.title, 
                                         label: r.label, 
                                         resId: r.resId || '',
+                                        componentResId: r.componentResId || r.resId || '',
                                         assessmentLineItemSourcedId: assessmentLineItemByResId[r.resId] || ''
                                     }; 
                                 }),

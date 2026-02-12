@@ -1121,8 +1121,9 @@
         console.log('[Sync] Syncing', stepLabel, 'completion — resourceId:', resourceId, 'userId:', syncState.userId);
         
         // Use the dedicated mark-content-complete endpoint for articles/videos
-        // Pass the valid assessmentLineItemSourcedId so the OneRoster call uses the right lineItem
+        // Pass the componentResId (e.g. USHI23-l45-r104167-v1) that the Timeback API expects
         var stepALI = (step.resource && step.resource.assessmentLineItemSourcedId) || lessonData.assessmentLineItemSourcedId || '';
+        var componentResId = (step.resource && step.resource.componentResId) || resourceId;
         if (resourceId) {
             fetch('/api/mark-content-complete', {
                 method: 'POST',
@@ -1130,10 +1131,9 @@
                 body: JSON.stringify({
                     studentId: syncState.userId,
                     resourceId: resourceId,
+                    componentResId: componentResId,
                     contentType: contentType,
                     title: step.resource.title || lessonData.title || stepLabel,
-                    email: syncState.userEmail || '',
-                    courseId: lessonData.courseId || '',
                     assessmentLineItemSourcedId: stepALI
                 }),
             })
