@@ -139,6 +139,17 @@ class handler(BaseHTTPRequestHandler):
             headers = api_headers()
             log = {}
 
+            # Look up student email if not provided (MasteryTrack needs it)
+            if not email:
+                try:
+                    ur = requests.get(f"{API_BASE}/ims/oneroster/rostering/v1p2/users/{sid}", headers=headers, timeout=6)
+                    if ur.status_code == 200:
+                        ud = ur.json()
+                        user = ud.get("user", ud)
+                        email = user.get("email", "")
+                except Exception:
+                    pass
+
             # Step 1: Delete old assignments for this subject
             try:
                 lr = requests.get(f"{PP}/test-assignments", headers=headers, params={"student": sid}, timeout=8)
@@ -195,7 +206,7 @@ class handler(BaseHTTPRequestHandler):
                     "message": f"Test assigned ({subject} Grade {grade})",
                     "response": pp_data if pp_ok else ar_result,
                     "assignmentId": assignment_id,
-                    "testLink": f"https://alpha.timeback.com/app/lesson/{lid}" if lid else "",
+                    "testLink": f"https://alphatest.alpha.school/assignment/{assignment_id}",
                     "log": log,
                 })
             else:
