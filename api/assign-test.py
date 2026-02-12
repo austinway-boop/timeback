@@ -184,34 +184,25 @@ class handler(BaseHTTPRequestHandler):
                 pp_data = {}
             log["powerpath"] = {"status": pp_resp.status_code}
 
-            # Step 5: Create OneRoster assessment result (this is what MasteryTrack reads)
             assignment_id = str(uuid.uuid4())
             if isinstance(pp_data, dict) and pp_data.get("assignmentId"):
                 assignment_id = pp_data["assignmentId"]
 
+            # Step 5: Create OneRoster line item (syncs to MasteryTrack)
             test_name = f"{subject} Grade {grade} Test"
-            ar_result = _create_mastery_track_assignment(
-                headers, assignment_id, sid, email, subject, grade, test_name
-            )
-            log["masteryTrack"] = ar_result
+            li_result = _create_line_item(headers, assignment_id, sid, email, subject, grade, test_name)
+            log["lineItem"] = li_result
 
-            # Return success if either PowerPath or MasteryTrack assignment succeeded
             pp_ok = pp_resp.status_code in (200, 201)
-            mt_ok = ar_result.get("success", False)
+            li_ok = li_result.get("success", False)
 
-            if pp_ok or mt_ok:
-                msg = f"Test assigned ({subject} Grade {grade})"
-                if pp_ok:
-                    msg += " — available in MasteryTrack"
-                else:
-                    msg += " — record created (PowerPath unavailable for this grade)"
+            if pp_ok or li_ok:
                 send_json(self, {
                     "success": True,
-                    "message": msg,
-                    "response": pp_data if pp_ok else ar_result,
+                    "message": f"Test assigned ({subject} Grade {grade})",
                     "assignmentId": assignment_id,
                     "testLink": "https://alphatest.alpha.school",
-                    "powerpathOk": pp_ok,
+                    "response": pp_data if pp_ok else li_result,
                     "log": log,
                 })
             else:
@@ -220,7 +211,7 @@ class handler(BaseHTTPRequestHandler):
                     err = pp_data.get("error") or pp_data.get("imsx_description") or ""
                 send_json(self, {
                     "success": False,
-                    "error": err or f"Assignment failed",
+                    "error": err or "Assignment failed",
                     "log": log,
                 }, 422)
 
@@ -230,47 +221,56 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": str(e), "success": False}, 500)
 
 
-def _create_mastery_track_assignment(headers, assignment_id, student_id, email, subject, grade, test_name):
-    """Create an assessment result in OneRoster gradebook so MasteryTrack can see it."""
-    ar = {
-        "assessmentResult": {
+def _create_line_item(headers, assignment_id, student_id, email, subject, grade, test_name):
+    """Create a OneRoster line item that syncs to MasteryTrack's assignment system."""
+    # Get the placement class for this subject (used as the class reference)
+    key = subject.lower()
+    cls = PLACEMENT_CLASSES.get(key, PLACEMENT_CLASSES.get("math"))
+    class_id = cls["classId"]
+
+    line_item = {
+        "lineItem": {
             "sourcedId": assignment_id,
             "status": "active",
+            "title": test_name,
+            "description": f"{subject} Grade {grade} placement test for {email}",
+            "assignDate": time.strftime("%Y-%m-%d", time.gmtime()),
+            "dueDate": "2026-12-31",
+            "class": {"sourcedId": class_id},
+            "category": {"sourcedId": ALPHATEST_LINE_ITEM},
+            "resultValueMin": 0.0,
+            "resultValueMax": 100.0,
             "metadata": {
-                "xp": 0,
+                "toolProvider": "AlphaTest",
                 "subject": subject,
                 "grade": grade,
-                "testName": test_name,
                 "testType": "assessment",
-                "toolProvider": "AlphaTest",
+                "studentSourcedId": student_id,
                 "studentEmail": email,
             },
-            "assessmentLineItem": {"sourcedId": ALPHATEST_LINE_ITEM},
-            "student": {"sourcedId": student_id},
-            "score": 0,
-            "scoreDate": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
-            "scoreStatus": "not submitted",
-            "inProgress": "false",
-            "incomplete": "false",
-            "late": "false",
-            "missing": "false",
         }
     }
 
-    try:
-        resp = requests.put(
-            f"{OR}/gradebook/v1p2/assessmentResults/{assignment_id}",
-            headers=headers,
-            json=ar,
-            timeout=10,
-        )
+    results = {}
+
+    # Try multiple paths — gradebook and rostering
+    for path in [
+        f"{OR}/gradebook/v1p2/lineItems/{assignment_id}",
+        f"{OR}/rostering/v1p2/lineItems/{assignment_id}",
+    ]:
         try:
-            body = resp.json()
-        except Exception:
-            body = {}
-        return {"success": resp.status_code in (200, 201), "status": resp.status_code, "response": body}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+            resp = requests.put(path, headers=headers, json=line_item, timeout=10)
+            try:
+                body = resp.json()
+            except Exception:
+                body = {"status": resp.status_code}
+            results[path.split("/v1p2/")[0].split("/")[-1]] = {"status": resp.status_code}
+            if resp.status_code in (200, 201):
+                return {"success": True, "status": resp.status_code, "response": body, "attempts": results}
+        except Exception as e:
+            results["error"] = str(e)
+
+    return {"success": False, "attempts": results}
 
 
 def _ensure_placement_enrollment(headers, student_id, subject):
