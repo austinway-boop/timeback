@@ -623,6 +623,7 @@
         var html = '';
         for (var key in node) {
             if (key.startsWith('_')) continue;
+            if (key.indexOf('feedback') !== -1) continue;
             var val = node[key];
             if (key === 'strong' || key === 'b') { html += '<strong>' + (typeof val === 'string' ? val : renderNode(val)) + '</strong>'; continue; }
             if (key === 'em' || key === 'i') { html += '<em>' + (typeof val === 'string' ? val : renderNode(val)) + '</em>'; continue; }
@@ -1159,7 +1160,20 @@
                 if (!Array.isArray(sc)) sc = [sc];
                 var choices = isFRQ ? [] : sc.map(function(c, i) {
                     var ca = c['_attributes'] || {};
-                    var t = c.p ? (typeof c.p === 'string' ? c.p : (c.p['_'] || renderNode(c.p))) : renderNode(c);
+                    // Extract choice text, excluding any feedback elements
+                    var t = '';
+                    if (c.p) {
+                        t = typeof c.p === 'string' ? c.p : (c.p['_'] || renderNode(c.p));
+                    } else if (c.span && !c['qti-feedback-inline']) {
+                        t = typeof c.span === 'string' ? c.span : renderNode(c.span);
+                    } else {
+                        // Build a clean copy without feedback keys
+                        var clean = {};
+                        for (var ck in c) {
+                            if (ck.indexOf('feedback') === -1) clean[ck] = c[ck];
+                        }
+                        t = renderNode(clean);
+                    }
                     return { id: ca.identifier || String(i), text: t };
                 });
 
