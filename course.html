@@ -1044,6 +1044,7 @@
                             var totalRes = resDetails.length;
                             var doneRes = 0;
                             for (var dc = 0; dc < resDetails.length; dc++) { if (resDetails[dc]._resDone) doneRes++; }
+                            var actualDoneRes = doneRes; // track real per-resource count before override
                             if (isDone) doneRes = totalRes;
                             var lessonPctVal = totalRes > 0 ? Math.round((doneRes / totalRes) * 100) : (isDone ? 100 : 0);
 
@@ -1108,7 +1109,7 @@
                                 lessonSourcedId: lesson.sourcedId || lesson.id || ''
                             };
 
-                            var actAllDone = (doneRes === totalRes && totalRes > 0);
+                            var actAllDone = (actualDoneRes === totalRes && totalRes > 0);
                             var statsHtml = '';
                             if (actAllDone) {
                                 statsHtml = '<div class="lesson-stats">' +
