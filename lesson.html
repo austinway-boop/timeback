@@ -541,6 +541,55 @@
             color: var(--neu-text-muted); font-weight: 500;
         }
 
+        /* ── Quiz Loading Screen (spinner reel) ────────────────── */
+        .quiz-loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 420px;
+            padding: 60px 24px;
+            gap: 28px;
+        }
+        .quiz-loading-spinner {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--neu-bg);
+            box-shadow:
+                5px 5px 10px var(--neu-shadow-dark),
+                -5px -5px 10px var(--neu-shadow-light);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .quiz-loading-spinner::after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3.5px solid var(--neu-bg-alt);
+            border-top-color: var(--neu-primary);
+            border-right-color: var(--neu-primary-soft);
+            animation: quizSpin 0.75s linear infinite;
+        }
+        @keyframes quizSpin {
+            to { transform: rotate(360deg); }
+        }
+        .quiz-loading-text {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--neu-text-muted);
+            letter-spacing: 0.01em;
+            animation: quizLoadPulse 1.8s ease-in-out infinite;
+        }
+        @keyframes quizLoadPulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
         /* ── AP Exam UI (fullscreen overlay) ────────────────── */
         .ap-overlay { position: fixed; inset: 0; z-index: 9999; background: #f5f5f5; display: flex; flex-direction: column; font-family: var(--font); }
         .ap-header { display: flex; align-items: center; padding: 8px 20px; background: #fff; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; gap: 6px; }
@@ -585,8 +634,13 @@
         .ap-choice:hover { background: #f9f9f9; }
         .ap-choice.selected { background: #EDF2FF; border-color: #9bb8f0; }
         .ap-choice.selected + .ap-choice { border-top-color: #9bb8f0; }
-        .ap-choice.crossed-out { opacity: 0.45; }
-        .ap-choice.crossed-out .ap-choice-text { text-decoration: line-through; }
+        .ap-choice.crossed-out { opacity: 0.4; }
+        .ap-choice.crossed-out .ap-choice-text { text-decoration: line-through; color: #999; }
+        .ap-choice.crossed-out .ap-choice-letter { border-color: #ccc; color: #ccc; }
+        .ap-crossout-btn { display: none; margin-left: auto; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #ddd; background: #fff; color: #bbb; font-size: 0.7rem; cursor: pointer; flex-shrink: 0; align-items: center; justify-content: center; transition: all 0.12s; }
+        .ap-crossout-btn:hover { border-color: #E53E3E; color: #E53E3E; background: #FFF5F5; }
+        .ap-choices.crossout-mode .ap-crossout-btn { display: flex; }
+        .ap-choice.crossed-out .ap-crossout-btn { border-color: #E53E3E; color: #E53E3E; background: #FEE2E2; }
         .ap-choice-letter { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #bbb; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.82rem; color: #555; flex-shrink: 0; }
         .ap-choice.selected .ap-choice-letter { border-color: #3366cc; background: #3366cc; color: #fff; }
         .ap-choice-text { flex: 1; font-size: 0.93rem; line-height: 1.5; color: #333; }
@@ -876,16 +930,16 @@
                 contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content</p><p class="sub">No article URL available for this lesson.</p></div>';
             }
         } else if (step.type === 'Quiz') {
-            // Show nav with exit option
-            nav.classList.remove('hidden');
-            var btnBack = document.getElementById('btn-back');
-            btnBack.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Exit Quiz';
-            btnBack.onclick = function() { goBackToCourse(); };
-            btnContinue.style.display = 'none';
+            // Hide all UI — show only loading spinner until quiz mode is determined
+            nav.classList.add('hidden');
             resetQuizState();
             quizState.active = true;
             quizState.title = lessonData.title || 'Quiz';
-            contentEl.innerHTML = '<div class="quiz-area" id="quiz-area"><div class="loading-msg"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.3rem;display:block;margin-bottom:10px;"></i>Starting quiz...</div></div>';
+            contentEl.innerHTML = '<div class="quiz-area" id="quiz-area">' +
+                '<div class="quiz-loading-screen">' +
+                    '<div class="quiz-loading-spinner"></div>' +
+                    '<div class="quiz-loading-text">Preparing your quiz…</div>' +
+                '</div></div>';
             quizArea = document.getElementById('quiz-area');
             startInlineQuiz(step.resource);
         }
@@ -948,7 +1002,10 @@
     /* ── PowerPath adaptive: one question at a time ────────── */
     async function loadNextQuestion() {
         if (!quizState.attemptId) return;
-        quizArea.innerHTML = '<div class="loading-msg"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.2rem;display:block;margin-bottom:10px;"></i>Loading question...</div>';
+        // Keep the initial loading spinner for the first question; show inline loading for subsequent ones
+        if (quizState.questionNum > 0) {
+            quizArea.innerHTML = '<div class="loading-msg"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.2rem;display:block;margin-bottom:10px;"></i>Loading question...</div>';
+        }
         try {
             var resp = await fetch('/api/quiz-session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId));
             var data = await resp.json();
@@ -968,6 +1025,14 @@
 
     /* ── Render a question ─────────────────────────────────── */
     function renderQuestion(q) {
+        // Show nav with exit option now that quiz content is ready
+        var nav = document.getElementById('lesson-nav');
+        nav.classList.remove('hidden');
+        var btnBack = document.getElementById('btn-back');
+        btnBack.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Exit Quiz';
+        btnBack.onclick = function() { goBackToCourse(); };
+        document.getElementById('btn-continue').style.display = 'none';
+
         var prompt = q.prompt || q.question || q.text || q.body || '';
         if (typeof prompt === 'object') prompt = renderNode(prompt);
         var choices = q.choices || q.options || q.answers || [];
@@ -1407,7 +1472,7 @@
 
         // Choices
         if (q.choices && q.choices.length > 0) {
-            html += '<div class="ap-choices">';
+            html += '<div class="ap-choices' + (apState.crossOutMode ? ' crossout-mode' : '') + '">';
             var co = apState.crossedOut[idx] || {};
             for (var ci = 0; ci < q.choices.length; ci++) {
                 var c = q.choices[ci];
@@ -1415,7 +1480,9 @@
                 var crossed = co[c.id] ? ' crossed-out' : '';
                 html += '<div class="ap-choice' + sel + crossed + '" data-id="' + esc(c.id) + '" onclick="apClickChoice(this,\'' + esc(c.id) + '\')">' +
                     '<div class="ap-choice-letter">' + (letters[ci] || ci) + '</div>' +
-                    '<div class="ap-choice-text">' + (c.text || '') + '</div></div>';
+                    '<div class="ap-choice-text">' + (c.text || '') + '</div>' +
+                    '<button class="ap-crossout-btn" onclick="event.stopPropagation();apCrossOutOne(this.parentElement,\'' + esc(c.id) + '\')" title="Cross out"><i class="fa-solid fa-xmark"></i></button>' +
+                '</div>';
             }
             html += '</div>';
         } else if (q.isFRQ) {
@@ -1498,6 +1565,18 @@
     function apToggleCrossOut() {
         apState.crossOutMode = !apState.crossOutMode;
         renderAPQuestion();
+    }
+
+    function apCrossOutOne(el, choiceId) {
+        var idx = quizState.staticIdx;
+        if (!apState.crossedOut[idx]) apState.crossedOut[idx] = {};
+        if (apState.crossedOut[idx][choiceId]) {
+            delete apState.crossedOut[idx][choiceId];
+            el.classList.remove('crossed-out');
+        } else {
+            apState.crossedOut[idx][choiceId] = true;
+            el.classList.add('crossed-out');
+        }
     }
 
     // ── Navigation ──
