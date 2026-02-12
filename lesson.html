@@ -737,8 +737,14 @@
     function syncQuizCompletion(pct, passed) {
         if (!syncState.userId) {
             console.error('[Sync] NO userId — cannot sync! Check localStorage alphalearn_userId');
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncQuizCompletion',message:'NO userId',data:{},timestamp:Date.now(),hypothesisId:'D'})}).catch(function(){});
+            // #endregion
             return;
         }
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncQuizCompletion',message:'SYNC FIRING',data:{pct:pct,passed:passed,xp:quizState.xpEarned,userId:syncState.userId,testId:quizState.testId,lessonTitle:lessonData.title},timestamp:Date.now(),hypothesisId:'entry'})}).catch(function(){});
+        // #endregion
         console.log('[Sync] === Syncing quiz completion === pct:', pct, 'passed:', passed, 'xp:', quizState.xpEarned);
         submitAssessmentResult(pct, passed);
         sendCaliperActivity(passed);
