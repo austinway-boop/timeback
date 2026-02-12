@@ -2333,7 +2333,7 @@
     /* ==================================================================
        NAVIGATION
        ================================================================== */
-    function goNext() {
+    async function goNext() {
         // Mark current step (video/article) as completed locally
         markStepComplete(currentStep);
 
@@ -2348,11 +2348,15 @@
         } else {
             // Last step — save to localStorage and go back
             saveLessonToLocalStorage();
-            // If no quiz in this lesson, sync completion to server APIs now
-            // (quizzes handle their own sync via syncQuizCompletion)
+            // If no quiz in this lesson, sync completion to server APIs BEFORE navigating
             var hasQuiz = steps.some(function(s) { return s.type === 'Quiz'; });
             if (!hasQuiz) {
-                syncNonQuizCompletion();
+                // Show a brief "Saving..." state and wait for sync
+                var btn = document.getElementById('btn-continue');
+                if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...'; }
+                await syncNonQuizCompletion();
+                // Small delay to ensure localStorage is written
+                await new Promise(function(r) { setTimeout(r, 300); });
             }
             goBackToCourse();
         }
@@ -2420,7 +2424,7 @@
     }
 
     /* ── Sync non-quiz lesson completion (video/article only) to server ── */
-    function syncNonQuizCompletion() {
+    async function syncNonQuizCompletion() {
         if (!syncState.userId) {
             console.warn('[Sync] No userId — cannot sync non-quiz completion');
             return;
@@ -2432,14 +2436,38 @@
         quizState.total = 1;
         quizState.correct = 1;
 
-        // 1. PowerPath: mark lesson as complete with score 100
-        markLessonComplete(100);
+        // Fire all sync calls in parallel and wait for all to complete (or fail)
+        var promises = [];
 
-        // 2. Caliper: send ActivityCompletedEvent with masteredUnits=1
-        sendCaliperActivity(true);
+        // 1. PowerPath: mark lesson as complete
+        promises.push(
+            fetch('/api/finalize-lesson', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ studentId: syncState.userId, lessonId: lessonData.lessonSourcedId || '' }),
+            }).catch(function(e) { console.warn('[Sync] Finalize failed:', e.message); })
+        );
 
-        // 3. Activity record: update XP on dashboards
-        sendActivityRecord(true);
+        // 2. Activity record: update XP
+        var email = localStorage.getItem('alphalearn_email') || '';
+        var courseCode = lessonData.courseSourcedId || '';
+        var activityId = lessonData.lessonSourcedId || lessonData.title || '';
+        promises.push(
+            fetch('/api/activity-record', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: syncState.userId, email: email,
+                    activityId: activityId, activityName: lessonData.title || 'Lesson',
+                    courseCode: courseCode, xpEarned: 1, totalQuestions: 1, correctQuestions: 1, pctComplete: 100,
+                }),
+            }).then(function(r) { return r.json(); }).then(function(d) {
+                console.log('[Sync] Activity-record response:', JSON.stringify(d));
+            }).catch(function(e) { console.warn('[Sync] Activity-record failed:', e.message); })
+        );
+
+        // Wait for all to settle (don't block on failures)
+        try { await Promise.allSettled(promises); } catch(e) {}
     }
 
     /* ── Utilities ──────────────────────────────────────────── */
