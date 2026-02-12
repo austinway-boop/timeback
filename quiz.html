@@ -67,6 +67,12 @@
         .back-btn:hover { color: var(--color-primary); }
         .stimulus-box { background: var(--color-bg); border-radius: var(--radius-sm); padding: 20px; margin-bottom: 20px; line-height: 1.7; font-size: 0.95rem; max-height: 400px; overflow-y: auto; }
         .stimulus-box img { max-width: 100%; border-radius: 8px; }
+        /* Answer key dot — hidden by default, shown via toggle */
+        .answer-dot { width: 8px; height: 8px; border-radius: 50%; background: #16A34A; flex-shrink: 0; margin-left: auto; display: none; }
+        body.show-answer-key .answer-dot { display: block; }
+        .answer-key-toggle { position: fixed; bottom: 20px; left: 20px; z-index: 9999; display: none; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: 2px solid #86efac; background: #fff; color: #16A34A; box-shadow: 0 3px 0 #4ade80; font-family: var(--font); transition: all 0.15s; }
+        .answer-key-toggle:active { transform: translateY(2px); box-shadow: none; }
+        .answer-key-toggle.active { background: #16A34A; color: #fff; border-color: #16A34A; }
     </style>
 </head>
 <body data-view="student" data-active="home">
@@ -139,6 +145,25 @@
     };
 
     var area = document.getElementById('quiz-area');
+
+    // Answer key toggle — only for evan.klein@alpha.school
+    (function() {
+        var email = (localStorage.getItem('alphalearn_email') || '').toLowerCase();
+        if (email === 'evan.klein@alpha.school') {
+            var btn = document.createElement('button');
+            btn.className = 'answer-key-toggle';
+            btn.style.display = 'inline-flex';
+            btn.innerHTML = '<i class="fa-solid fa-eye"></i> Answers';
+            btn.onclick = function() {
+                document.body.classList.toggle('show-answer-key');
+                btn.classList.toggle('active');
+                btn.innerHTML = btn.classList.contains('active')
+                    ? '<i class="fa-solid fa-eye-slash"></i> Hide'
+                    : '<i class="fa-solid fa-eye"></i> Answers';
+            };
+            document.body.appendChild(btn);
+        }
+    })();
 
     // Mark quiz complete — saves ALL possible keys so course.html can detect it
     function _markQuizComplete() {
@@ -308,15 +333,17 @@
                 '<div style="text-align:right;font-size:0.75rem;color:var(--color-text-muted);margin-top:4px;">Write a complete response. Be specific and use evidence.</div>';
         } else if (choices.length > 0) {
             var letters = 'ABCDEFGHIJ';
+            var _correctId = q.correctId || '';
             html += '<div class="choices" id="choices">';
             for (var i = 0; i < choices.length; i++) {
                 var c = choices[i];
                 var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : '');
                 if (typeof cText === 'object') cText = renderNode(cText);
                 var cId = c.id || c.identifier || letters[i] || String(i);
+                var answerDot = (_correctId && cId === _correctId) ? '<span class="answer-dot"></span>' : '';
                 html += '<div class="choice" data-id="' + esc(cId) + '" onclick="selectAnswer(this, \'' + esc(cId) + '\')">' +
                     '<div class="choice-letter">' + (letters[i] || i) + '</div>' +
-                    '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' +
+                    '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' + answerDot +
                 '</div>';
             }
             html += '</div>';
@@ -732,6 +759,7 @@
                         isFRQ: q.isFRQ,
                         expectedLines: q.expectedLines,
                         stimulus: q.stimulus,
+                        correctId: q.correctId || '',
                     };
                     renderQuestion(qData);
 
