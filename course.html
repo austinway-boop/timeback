@@ -125,37 +125,46 @@
         /* ── Timeline ────────────────────────────────────────────── */
         .timeline {
             position: relative;
-            padding: 4px 22px 16px 48px;
+            padding: 4px 22px 16px 56px;
         }
         .timeline::before {
             content: ''; position: absolute;
-            left: 33px; top: 0; bottom: 16px;
-            width: 2.5px; background: var(--color-orange);
-            z-index: 0;
+            left: 38px; top: 0; bottom: 16px;
+            width: 3px; background: #E8ECF1;
+            z-index: 0; border-radius: 2px;
         }
 
         .tl-item {
             position: relative; background: var(--color-surface);
-            border: 1px solid var(--color-border); border-radius: var(--radius);
+            border: 1px solid var(--color-border); border-radius: 12px;
             padding: 2px 0;
         }
-        .tl-item + .tl-item { margin-top: 8px; }
+        .tl-item + .tl-item { margin-top: 10px; }
         .tl-item.review { background: #FFFBEB; border-color: #FDE68A; }
-        .tl-item.locked { opacity: 0.5; }
+        .tl-item.locked { opacity: 0.45; }
 
         .tl-dot {
-            position: absolute; left: -27px; top: 14px;
-            width: 22px; height: 22px; border-radius: 50%;
+            position: absolute; left: -34px; top: 10px;
+            width: 30px; height: 30px; border-radius: 50%;
             background: #fff;
-            border: 3px solid var(--color-orange);
+            border: 3px solid #E8ECF1;
             display: flex; align-items: center; justify-content: center;
-            z-index: 2; font-size: 0.55rem;
+            z-index: 2; font-size: 0.7rem;
             transition: all var(--transition);
-            box-shadow: 0 0 0 3px #fff;
+            box-shadow: 0 0 0 4px #fff;
         }
-        .tl-dot.done { background: #fff; border-color: var(--color-orange); color: var(--color-orange); box-shadow: 0 0 0 3px #fff; }
-        .tl-dot.active { width: 26px; height: 26px; left: -29px; top: 12px; background: var(--color-orange); border-color: var(--color-orange); color: #fff; box-shadow: 0 0 0 3px #fff; }
-        .tl-dot.locked { background: #F4F6F9; border-color: #E2E8F0; color: #CBD5E0; box-shadow: 0 0 0 3px #F4F6F9; }
+        .tl-dot.done {
+            background: #16A34A; border-color: #16A34A; color: #fff;
+            box-shadow: 0 0 0 4px #fff;
+        }
+        .tl-dot.active {
+            background: var(--color-primary); border-color: var(--color-primary); color: #fff;
+            box-shadow: 0 0 0 4px #fff, 0 0 0 7px rgba(75, 192, 176, 0.2);
+        }
+        .tl-dot.locked {
+            background: #F4F6F9; border-color: #E2E8F0; color: #CBD5E0;
+            box-shadow: 0 0 0 4px #fff;
+        }
 
         /* ── Lesson Row ──────────────────────────────────────────── */
         .lesson-row {
@@ -742,9 +751,9 @@
                             else if (lessonLocked) dotClass += ' locked';
                             else dotClass += ' active';
                             html += '<div class="' + dotClass + '">';
-                            if (isDone) html += '<i class="fa-solid fa-check"></i>';
-                            else if (lessonLocked) html += '<i class="fa-solid fa-lock"></i>';
-                            // active: no icon (solid filled dot)
+                            if (isDone) html += '<i class="fa-solid fa-check" style="font-size:0.7rem;"></i>';
+                            else if (lessonLocked) html += '<i class="fa-solid fa-lock" style="font-size:0.65rem;"></i>';
+                            else html += '<i class="fa-solid fa-play" style="font-size:0.6rem;margin-left:1px;"></i>';
                             html += '</div>';
 
                             // Store lesson data for navigation
