@@ -1,20 +1,23 @@
-"""POST /api/caliper-event — Proxy Caliper events to TimeBack Platform.
+"""POST /api/caliper-event — Proxy Caliper events to the Alpha Caliper API.
 
-Accepts a JSON body containing one or more Caliper events and forwards them
-to the TimeBack Caliper endpoint with proper OAuth authentication.
+Accepts a JSON body with an array of Caliper event objects and wraps them
+in a Caliper Envelope before forwarding to caliper.alpha-1edtech.ai.
 
-Body:
-  Single event:  { "event": { ... caliper event ... } }
-  Batch events:  { "events": [ { ... }, { ... } ] }
+Auth uses the same Cognito credentials as the rest of the platform
+(TIMEBACK_CLIENT_ID / TIMEBACK_CLIENT_SECRET).
+
+Body:  { "data": [ { ...caliper event... }, ... ] }
 """
 
 import json
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
-from api._helpers import get_token, send_json, ED_APP_ID
+from api._helpers import get_token, send_json
 
 import requests
 
-CALIPER_URL = "https://platform.timeback.com/events/1.0/"
+CALIPER_URL = "https://caliper.alpha-1edtech.ai/caliper/event"
+SENSOR_ID = "https://alphalearn.alpha.school"
 
 
 class handler(BaseHTTPRequestHandler):
@@ -25,10 +28,6 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-    def do_GET(self):
-        """Return the edApp ID so the frontend can build events."""
-        send_json(self, {"edAppId": ED_APP_ID})
-
     def do_POST(self):
         try:
             cl = int(self.headers.get("Content-Length", 0))
@@ -37,57 +36,53 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": "Invalid JSON body"}, 400)
             return
 
-        events = body.get("events") or []
-        if not events and body.get("event"):
-            events = [body["event"]]
-
+        events = body.get("data") or body.get("events") or []
         if not events:
             send_json(self, {"error": "No events provided"}, 400)
             return
 
-        if not ED_APP_ID:
-            # Still save locally — just can't forward to platform
-            send_json(
-                self,
-                {
-                    "warning": "TIMEBACK_ED_APP_ID not configured, events not forwarded",
-                    "sent": 0,
-                    "total": len(events),
-                },
-            )
-            return
-
-        token = get_token()
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
+        # Build Caliper Envelope
+        envelope = {
+            "sensor": SENSOR_ID,
+            "sendTime": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+            "dataVersion": "http://purl.imsglobal.org/ctx/caliper/v1p2",
+            "data": events,
         }
 
-        sent = 0
-        errors = []
-        for evt in events:
-            # Inject edApp if not set
-            if not evt.get("edApp"):
-                evt["edApp"] = f"urn:uuid:{ED_APP_ID}"
+        try:
+            token = get_token()
+            resp = requests.post(
+                CALIPER_URL,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json=envelope,
+                timeout=15,
+            )
 
-            try:
-                resp = requests.post(
-                    CALIPER_URL, headers=headers, json=evt, timeout=10
-                )
-                if resp.status_code in (200, 201, 204):
-                    sent += 1
-                else:
-                    errors.append(
-                        {
-                            "status": resp.status_code,
-                            "body": resp.text[:200],
-                            "eventId": evt.get("id", ""),
-                        }
-                    )
-            except Exception as e:
-                errors.append({"error": str(e), "eventId": evt.get("id", "")})
-
-        send_json(
-            self,
-            {"sent": sent, "total": len(events), "errors": errors if errors else None},
-        )
+            if resp.status_code in (200, 201, 204):
+                result = {}
+                try:
+                    result = resp.json()
+                except Exception:
+                    pass
+                send_json(self, {
+                    "status": "success",
+                    "sent": len(events),
+                    "response": result,
+                })
+            else:
+                error_body = ""
+                try:
+                    error_body = resp.text[:500]
+                except Exception:
+                    pass
+                send_json(self, {
+                    "status": "error",
+                    "httpStatus": resp.status_code,
+                    "body": error_body,
+                    "sent": 0,
+                }, resp.status_code if resp.status_code < 500 else 502)
+        except Exception as e:
+            send_json(self, {"status": "error", "error": str(e), "sent": 0}, 500)

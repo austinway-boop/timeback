@@ -21,7 +21,6 @@ COGNITO_URL = "https://prod-beyond-timeback-api-2-idp.auth.us-east-1.amazoncogni
 CLIENT_ID = os.environ.get("TIMEBACK_CLIENT_ID", "")
 CLIENT_SECRET = os.environ.get("TIMEBACK_CLIENT_SECRET", "")
 API_BASE = "https://api.alpha-1edtech.ai"
-ED_APP_ID = os.environ.get("TIMEBACK_ED_APP_ID", "")  # Caliper edApp UUID
 PAGE_SIZE = 3000
 
 

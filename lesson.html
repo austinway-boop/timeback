@@ -607,9 +607,11 @@
 
     /* ══════════════════════════════════════════════════════════
        Caliper Event System — sync with TimeBack Platform
+       Posts to /api/caliper-event which wraps events in a
+       Caliper Envelope and forwards to caliper.alpha-1edtech.ai
+       using the same Cognito credentials (CLIENT_ID/SECRET).
        ══════════════════════════════════════════════════════════ */
     var caliperState = {
-        edAppId: '',
         userId: '',             // platform sourcedId
         lessonStartTime: null,  // ISO string
         quizStartTime: null,    // ISO string
@@ -617,8 +619,9 @@
         quizAttemptId: '',      // urn:uuid for this quiz attempt
     };
 
+    var APP_SENSOR = 'https://alphalearn.alpha.school';
+
     function _uuid() {
-        // crypto.randomUUID with fallback
         if (crypto && crypto.randomUUID) return crypto.randomUUID();
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
             var r = Math.random() * 16 | 0;
@@ -627,215 +630,219 @@
     }
 
     function _sendCaliperEvents(events) {
-        if (!events || !events.length) return;
+        if (!events || !events.length || !caliperState.userId) return;
         fetch('/api/caliper-event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ events: events }),
+            body: JSON.stringify({ data: events }),
         }).catch(function(e) { console.warn('[Caliper] Send failed:', e.message); });
     }
 
+    function _lessonObjectId() {
+        return APP_SENSOR + '/lessons/' + encodeURIComponent((lessonData.courseSourcedId || '') + '/' + (lessonData.title || 'lesson'));
+    }
+
     function _buildLessonObject() {
-        var lessonId = (lessonData.courseSourcedId || '') + '/' + (lessonData.title || 'lesson');
-        return {
-            id: window.location.origin + '/lessons/' + encodeURIComponent(lessonId),
+        var obj = {
+            id: _lessonObjectId(),
             type: 'AssignableDigitalResource',
             mediaType: 'curriculum/lesson',
             name: lessonData.title || 'Lesson',
-            isPartOf: lessonData.courseName ? {
-                id: window.location.origin + '/courses/' + encodeURIComponent(lessonData.courseSourcedId || lessonData.courseName),
+        };
+        if (lessonData.courseName) {
+            obj.isPartOf = {
+                id: APP_SENSOR + '/courses/' + encodeURIComponent(lessonData.courseSourcedId || lessonData.courseName),
                 type: 'AssignableDigitalResource',
                 mediaType: 'curriculum/course',
                 name: lessonData.courseName,
-            } : undefined,
-        };
+            };
+        }
+        return obj;
+    }
+
+    function _quizObjectId() {
+        return APP_SENSOR + '/assessments/' + encodeURIComponent(quizState.testId || quizState.title || 'quiz');
+    }
+
+    function _actorId() {
+        return APP_SENSOR + '/users/' + caliperState.userId;
     }
 
     function fireLessonStarted() {
         caliperState.lessonStartTime = new Date().toISOString();
         caliperState.lessonAttemptId = 'urn:uuid:' + _uuid();
-        var actor = 'urn:uuid:' + caliperState.userId;
         _sendCaliperEvents([{
             '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
             id: 'urn:uuid:' + _uuid(),
             type: 'AssignableEvent',
-            actor: actor,
+            profile: 'AssignableProfile',
+            actor: { id: _actorId(), type: 'Person' },
             action: 'Started',
             object: _buildLessonObject(),
             generated: {
                 id: caliperState.lessonAttemptId,
                 type: 'Attempt',
-                assignee: actor,
-                assignable: _buildLessonObject().id,
+                assignee: _actorId(),
+                assignable: _lessonObjectId(),
                 startedAtTime: caliperState.lessonStartTime,
             },
             eventTime: caliperState.lessonStartTime,
-            edApp: 'urn:uuid:' + caliperState.edAppId,
-            session: 'urn:tag:auto-attach',
+            edApp: APP_SENSOR,
         }]);
     }
 
     function fireLessonCompleted() {
         var now = new Date().toISOString();
-        var actor = 'urn:uuid:' + caliperState.userId;
         _sendCaliperEvents([{
             '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
             id: 'urn:uuid:' + _uuid(),
             type: 'AssignableEvent',
-            actor: actor,
+            profile: 'AssignableProfile',
+            actor: { id: _actorId(), type: 'Person' },
             action: 'Completed',
-            object: _buildLessonObject().id,
+            object: _buildLessonObject(),
             generated: {
                 id: caliperState.lessonAttemptId,
                 type: 'Attempt',
-                assignee: actor,
-                assignable: _buildLessonObject().id,
+                assignee: _actorId(),
+                assignable: _lessonObjectId(),
                 startedAtTime: caliperState.lessonStartTime || now,
                 endedAtTime: now,
             },
             eventTime: now,
-            edApp: 'urn:uuid:' + caliperState.edAppId,
-            session: 'urn:tag:auto-attach',
+            edApp: APP_SENSOR,
         }]);
     }
 
     function fireQuizStarted() {
         caliperState.quizStartTime = new Date().toISOString();
         caliperState.quizAttemptId = 'urn:uuid:' + _uuid();
-        var actor = 'urn:uuid:' + caliperState.userId;
-        var quizObj = {
-            id: window.location.origin + '/assessments/' + encodeURIComponent(quizState.testId || quizState.title || 'quiz'),
-            type: 'Assessment',
-            name: quizState.title || 'Quiz',
-            isPartOf: _buildLessonObject(),
-        };
         _sendCaliperEvents([{
             '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
             id: 'urn:uuid:' + _uuid(),
             type: 'AssessmentEvent',
-            actor: actor,
+            profile: 'AssessmentProfile',
+            actor: { id: _actorId(), type: 'Person' },
             action: 'Started',
-            object: quizObj,
+            object: {
+                id: _quizObjectId(),
+                type: 'Assessment',
+                name: quizState.title || 'Quiz',
+                isPartOf: _buildLessonObject(),
+            },
             generated: {
                 id: caliperState.quizAttemptId,
                 type: 'Attempt',
-                assignee: actor,
-                assignable: quizObj.id,
+                assignee: _actorId(),
+                assignable: _quizObjectId(),
                 startedAtTime: caliperState.quizStartTime,
             },
             eventTime: caliperState.quizStartTime,
-            edApp: 'urn:uuid:' + caliperState.edAppId,
-            session: 'urn:tag:auto-attach',
+            edApp: APP_SENSOR,
         }]);
     }
 
     function fireQuizSubmitted() {
         var now = new Date().toISOString();
-        var actor = 'urn:uuid:' + caliperState.userId;
-        var quizObjId = window.location.origin + '/assessments/' + encodeURIComponent(quizState.testId || quizState.title || 'quiz');
         _sendCaliperEvents([{
             '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
             id: 'urn:uuid:' + _uuid(),
             type: 'AssessmentEvent',
-            actor: actor,
+            profile: 'AssessmentProfile',
+            actor: { id: _actorId(), type: 'Person' },
             action: 'Submitted',
-            object: quizObjId,
+            object: { id: _quizObjectId(), type: 'Assessment' },
             generated: {
                 id: caliperState.quizAttemptId,
                 type: 'Attempt',
-                assignee: actor,
-                assignable: quizObjId,
+                assignee: _actorId(),
+                assignable: _quizObjectId(),
                 startedAtTime: caliperState.quizStartTime || now,
                 endedAtTime: now,
             },
             eventTime: now,
-            edApp: 'urn:uuid:' + caliperState.edAppId,
-            session: 'urn:tag:auto-attach',
+            edApp: APP_SENSOR,
         }]);
     }
 
     function fireQuestionGraded(isCorrect) {
         var now = new Date().toISOString();
-        var actor = 'urn:uuid:' + caliperState.userId;
         var qAttemptId = 'urn:uuid:' + _uuid();
         _sendCaliperEvents([{
             '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
             id: 'urn:uuid:' + _uuid(),
             type: 'GradeEvent',
-            actor: actor,
+            profile: 'GradingProfile',
+            actor: { id: _actorId(), type: 'Person' },
             action: 'Graded',
-            object: qAttemptId,
+            object: { id: qAttemptId, type: 'Attempt' },
             generated: {
                 id: 'urn:uuid:' + _uuid(),
                 type: 'Score',
-                scoreType: 'QUESTION_RESULT',
                 attempt: qAttemptId,
                 maxScore: 1,
                 scoreGiven: isCorrect ? 1 : 0,
             },
             eventTime: now,
-            edApp: 'urn:uuid:' + caliperState.edAppId,
-            session: 'urn:tag:auto-attach',
+            edApp: APP_SENSOR,
         }]);
     }
 
     function fireXpAwarded(xpAmount) {
         if (!xpAmount || xpAmount <= 0) return;
         var now = new Date().toISOString();
-        var actor = 'urn:uuid:' + caliperState.userId;
         var xpAttemptId = 'urn:uuid:' + _uuid();
         _sendCaliperEvents([{
             '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
             id: 'urn:uuid:' + _uuid(),
             type: 'GradeEvent',
-            actor: actor,
+            profile: 'GradingProfile',
+            actor: { id: _actorId(), type: 'Person' },
             action: 'Graded',
             object: {
                 id: xpAttemptId,
                 type: 'Attempt',
-                assignee: actor,
+                assignee: _actorId(),
                 assignable: _buildLessonObject(),
             },
             generated: {
                 id: 'urn:uuid:' + _uuid(),
                 type: 'Score',
-                scoreType: 'XP',
                 attempt: xpAttemptId,
                 scoreGiven: xpAmount,
+                extensions: { scoreType: 'XP' },
             },
             eventTime: now,
-            edApp: 'urn:uuid:' + caliperState.edAppId,
-            session: 'urn:tag:auto-attach',
+            edApp: APP_SENSOR,
         }]);
     }
 
     function fireMasteryAchieved() {
         var now = new Date().toISOString();
-        var actor = 'urn:uuid:' + caliperState.userId;
         var masteryAttemptId = 'urn:uuid:' + _uuid();
         _sendCaliperEvents([{
             '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
             id: 'urn:uuid:' + _uuid(),
             type: 'GradeEvent',
-            actor: actor,
+            profile: 'GradingProfile',
+            actor: { id: _actorId(), type: 'Person' },
             action: 'Graded',
             object: {
                 id: masteryAttemptId,
                 type: 'Attempt',
-                assignee: actor,
+                assignee: _actorId(),
                 assignable: _buildLessonObject(),
             },
             generated: {
                 id: 'urn:uuid:' + _uuid(),
                 type: 'Score',
-                scoreType: 'MASTERY',
                 attempt: masteryAttemptId,
                 maxScore: 100,
                 scoreGiven: 100,
+                extensions: { scoreType: 'MASTERY' },
             },
             eventTime: now,
-            edApp: 'urn:uuid:' + caliperState.edAppId,
-            session: 'urn:tag:auto-attach',
+            edApp: APP_SENSOR,
         }]);
     }
 
@@ -844,16 +851,7 @@
             || localStorage.getItem('alphalearn_sourcedId') || '';
         if (!caliperState.userId) {
             console.warn('[Caliper] No userId found, events will not be sent');
-            return;
         }
-        // Fetch edApp ID from backend
-        fetch('/api/caliper-event')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                if (d.edAppId) caliperState.edAppId = d.edAppId;
-                console.log('[Caliper] Initialized, edAppId:', caliperState.edAppId ? 'set' : 'not configured');
-            })
-            .catch(function() {});
     }
 
     function resetQuizState() {
