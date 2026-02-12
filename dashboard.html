@@ -739,69 +739,81 @@
                 courses.push(item);
             }
 
-            /* 4. Render mastery track tests + PowerPath assigned tests in top section */
-            // Also fetch PowerPath test assignments for this student
+            /* 4. Render PowerPath assigned tests in top section */
+            // Fetch test assignments from PowerPath
             let ppAssignments = [];
             try {
                 const ppResp = await fetch('/api/assign-test?student=' + encodeURIComponent(userId));
                 const ppData = await ppResp.json();
                 ppAssignments = (ppData.testAssignments || []).filter(a => {
                     const st = (a.assignmentStatus || a.status || '').toLowerCase();
-                    return st !== 'completed' && st !== 'cancelled' && st !== 'expired';
+                    return st !== 'cancelled' && st !== 'expired';
                 });
             } catch(e) {}
 
-            // Combine mastery track tests + PowerPath assignments
+            // Build test list: PowerPath assignments + mastery track enrollments
             const allTests = [];
-            tests.forEach(t => allTests.push({ title: t.title, subject: t.subject, type: 'mastery' }));
             ppAssignments.forEach(a => {
                 const subj = a.subject || '';
-                const gr = a.gradeLevel || a.grade || '';
-                const name = a.testName || (subj + ' Grade ' + gr);
-                // Skip duplicates
-                if (!allTests.some(x => x.title === name)) {
-                    allTests.push({
-                        title: name,
-                        subject: subj,
-                        grade: gr,
-                        type: 'assigned',
-                        sourcedId: a.sourcedId || a.assignmentId || '',
-                        resourceSourcedId: a.resourceSourcedId || '',
-                    });
+                const gr = a.grade || a.gradeLevel || '';
+                const name = a.testName || (subj && gr ? subj + ' Grade ' + gr : 'Test Assignment');
+                const status = (a.assignmentStatus || a.status || 'assigned').toLowerCase();
+                const assignmentId = a.sourcedId || a.assignmentId || '';
+                allTests.push({
+                    title: name, subject: subj, grade: gr,
+                    status: status, assignmentId: assignmentId,
+                    type: 'assigned',
+                });
+            });
+            tests.forEach(t => {
+                if (!allTests.some(x => x.title === t.title)) {
+                    allTests.push({ title: t.title, subject: t.subject, type: 'mastery', status: 'assigned', assignmentId: '' });
                 }
             });
 
             if (allTests.length) {
                 document.getElementById('tests-section').style.display = '';
                 document.getElementById('tests-grid').innerHTML = allTests.map(t => {
-                    const gradientColor = t.type === 'assigned'
-                        ? 'linear-gradient(135deg,#EBF4FF 0%,#BEE3F8 50%,#90CDF4 100%)'
-                        : 'linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 50%,#A5D6A7 100%)';
-                    const iconColor = t.type === 'assigned' ? '#2B6CB0' : '#2E7D32';
-                    const dotClass = t.type === 'assigned' ? 'blue' : 'green';
-                    const quizUrl = t.resourceSourcedId
-                        ? '/quiz?id=' + encodeURIComponent(t.resourceSourcedId) + '&title=' + encodeURIComponent(t.title) + '&subject=' + encodeURIComponent(t.subject || '')
-                        : t.sourcedId
-                        ? '/quiz?id=' + encodeURIComponent(t.sourcedId) + '&title=' + encodeURIComponent(t.title) + '&subject=' + encodeURIComponent(t.subject || '')
+                    const isComplete = t.status === 'completed';
+                    const isInProgress = t.status === 'in_progress';
+                    const gradient = isComplete
+                        ? 'linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 50%,#A5D6A7 100%)'
+                        : isInProgress
+                        ? 'linear-gradient(135deg,#FFFDE7 0%,#FFF9C4 50%,#FFF176 100%)'
+                        : 'linear-gradient(135deg,#EBF4FF 0%,#BEE3F8 50%,#90CDF4 100%)';
+                    const iconColor = isComplete ? '#2E7D32' : isInProgress ? '#F57F17' : '#2B6CB0';
+                    const icon = isComplete ? 'fa-check-circle' : 'fa-clipboard-check';
+                    const statusLabel = isComplete ? 'Completed' : isInProgress ? 'In Progress' : 'Assigned';
+                    const statusColor = isComplete ? '#2E7D32' : isInProgress ? '#F57F17' : '#2B6CB0';
+                    const statusBg = isComplete ? '#E8F5E9' : isInProgress ? '#FFF8E1' : '#EBF4FF';
+
+                    // Deep link to MasteryTrack — student takes test there
+                    const testUrl = t.assignmentId
+                        ? 'https://alphatest.alpha.school/assignment/' + encodeURIComponent(t.assignmentId)
                         : '';
-                    return `<a href="${quizUrl || '#'}" style="text-decoration:none;color:inherit;">
-                    <div class="test-card" style="cursor:pointer;">
-                        <div class="test-card-image" style="background:${gradientColor};">
+
+                    const clickAction = testUrl && !isComplete
+                        ? `onclick="window.open('${testUrl}', '_blank')"`
+                        : '';
+
+                    return `<div class="test-card" style="cursor:${testUrl && !isComplete ? 'pointer' : 'default'};" ${clickAction}>
+                        <div class="test-card-image" style="background:${gradient};">
                             <div class="test-card-illustration" style="color:${iconColor};">
-                                <i class="fa-solid fa-clipboard-check"></i>
+                                <i class="fa-solid ${icon}"></i>
                             </div>
                         </div>
                         <div class="test-card-info">
                             <div class="test-card-status">
-                                <span class="status-dot ${dotClass}"></span>
+                                <span class="status-dot" style="background:${statusColor};"></span>
                                 <span class="test-card-name">${t.title}</span>
                             </div>
                             <div class="test-card-meta">
                                 <span class="test-badge">${t.subject}</span>
-                                ${t.type === 'assigned' ? '<span class="test-badge" style="background:#EBF4FF;color:#2B6CB0;">Assigned</span>' : ''}
+                                <span class="test-badge" style="background:${statusBg};color:${statusColor};">${statusLabel}</span>
                             </div>
+                            ${testUrl && !isComplete ? '<div style="margin-top:8px;"><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;background:#2B6CB0;color:#fff;border-radius:6px;font-size:0.75rem;font-weight:600;"><i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.65rem;"></i> Take Test</span></div>' : ''}
                         </div>
-                    </div></a>`;
+                    </div>`;
                 }).join('');
             }
 
