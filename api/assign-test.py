@@ -132,11 +132,23 @@ class handler(BaseHTTPRequestHandler):
                 data = {"raw": resp.text[:500]}
 
             if resp.status_code in (200, 201):
-                send_json(self, {
+                # Step 2: Provision on MasteryTrack via screening.assignTest
+                # Uses the resourceId from the assignment as the testId
+                mt_result = None
+                if isinstance(data, dict):
+                    resource_id = data.get("resourceId") or data.get("lessonId") or ""
+                    assignment_id = data.get("assignmentId") or ""
+                    if resource_id:
+                        mt_result = _provision_mastery_track(headers, sid, resource_id, assignment_id)
+
+                result = {
                     "success": True,
                     "message": f"Test assigned ({subject} Grade {grade})",
                     "response": data,
-                })
+                }
+                if mt_result:
+                    result["masteryTrack"] = mt_result
+                send_json(self, result)
             else:
                 err = ""
                 if isinstance(data, dict):
@@ -152,6 +164,46 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": "Invalid JSON", "success": False}, 400)
         except Exception as e:
             send_json(self, {"error": str(e), "success": False}, 500)
+
+
+def _provision_mastery_track(headers, student_id, resource_id, assignment_id):
+    """Provision the test on MasteryTrack via screening.assignTest.
+    SDK: client.screening.assignTest({ studentId, testId })
+    This makes the test available at alphatest.alpha.school/assignment/{assignmentId}
+    """
+    # Try with resourceId first, then assignmentId as testId
+    test_ids = [resource_id, assignment_id] if resource_id != assignment_id else [resource_id]
+
+    for test_id in test_ids:
+        if not test_id:
+            continue
+        # Try multiple endpoint path patterns
+        for path in [
+            f"{PP}/screening/assignTest",
+            f"{PP}/screening/tests/assign",
+        ]:
+            try:
+                resp = requests.post(
+                    path, headers=headers,
+                    json={"studentId": student_id, "testId": test_id},
+                    timeout=8,
+                )
+                if resp.status_code in (200, 201):
+                    try:
+                        return resp.json()
+                    except Exception:
+                        return {"status": "provisioned"}
+                elif resp.status_code == 404:
+                    continue  # try next path
+                else:
+                    # Got a real response — return it for debugging
+                    try:
+                        return {"status": resp.status_code, "response": resp.json()}
+                    except Exception:
+                        return {"status": resp.status_code}
+            except Exception:
+                continue
+    return None
 
 
 def _proxy_get(handler, headers, url, params):
