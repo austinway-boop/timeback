@@ -659,6 +659,7 @@
                 'timeback.passed': passed,
                 'timeback.lessonTitle': lessonData.title || '',
                 'timeback.courseTitle': lessonData.courseName || lessonData.courseTitle || '',
+                'timeback.enrollmentId': lessonData.enrollmentId || '',
             },
         };
 
@@ -695,6 +696,7 @@
         else if (titleLower.includes('language') || titleLower.includes('spanish') || titleLower.includes('french')) subject = 'Language';
 
         var courseCode = lessonData.courseSourcedId || lessonData.courseName || lessonData.courseTitle || '';
+        var enrollmentId = lessonData.enrollmentId || '';
 
         // Build ActivityCompletedEvent per Timeback docs
         var metrics = [
@@ -708,6 +710,8 @@
 
         var activityId = APP_SENSOR + '/activities/' + encodeURIComponent(subject) + '/' + encodeURIComponent(lessonData.title || 'lesson');
         var metricsId = 'https://api.alpha-1edtech.ai/ims/metrics/collections/activity/' + runId;
+
+        console.log('[Sync] Caliper event enrollmentId:', enrollmentId, 'courseId:', courseCode);
 
         var event = {
             '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
@@ -737,6 +741,7 @@
             extensions: {
                 runId: runId,
                 courseId: courseCode,
+                enrollmentId: enrollmentId || undefined,
             },
         };
 
