@@ -445,9 +445,7 @@ async function assignTest(subject, grade, idx) {
 
         if (resp.ok && data.success) {
             // Step 2: Provision on MasteryTrack via Timeback's makeExternalTestAssignment
-            // This call goes to alpha.timeback.com — admin's browser has the Clerk session
-            var ppResponse = data.response || {};
-            var lessonId = ppResponse.lessonId || ppResponse.componentResourceSourcedId || '';
+            var lessonId = data.lessonId || (data.response || {}).lessonId || '';
             var mtResult = null;
 
             if (lessonId && selectedStudent.sourcedId) {
