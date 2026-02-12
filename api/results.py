@@ -3,12 +3,14 @@
 Optional query params:
   ?userId=...   — filter by student sourcedId
   ?classId=...  — filter by class sourcedId
+  ?limit=...    — max results per endpoint (default 100)
 """
 
 from http.server import BaseHTTPRequestHandler
+import requests
 from api._helpers import (
-    fetch_all_paginated,
-    fetch_with_params,
+    API_BASE,
+    api_headers,
     send_json,
     get_query_params,
 )
@@ -37,72 +39,47 @@ def parse_result(raw: dict) -> dict:
 
 
 # OneRoster gradebook paths to try (in order of preference)
-# Include BOTH assessmentResults (gradebook API) and results (rostering API)
+# Only include paths that actually work
 _RESULTS_PATHS = [
-    "/ims/oneroster/gradebook/v1p2/assessmentResults",  # This is where submit-result.py writes!
-    "/ims/oneroster/gradebook/v1p2/results",
-    "/ims/oneroster/v1p2/results",
+    ("/ims/oneroster/gradebook/v1p2/assessmentResults", "assessmentResults"),
+    ("/ims/oneroster/gradebook/v1p2/results", "results"),
 ]
 
 
-def _fetch_results(filter_param: str | None = None, is_assessment: bool = False) -> list:
-    """Fetch results, trying multiple OneRoster paths.
-
-    Attempts the gradebook path first, then falls back to the generic path.
-    Optionally applies a OneRoster filter string.
+def _fetch_results_single_page(path: str, collection_key: str, params: dict, limit: int = 100) -> list:
+    """Fetch a single page of results from a OneRoster endpoint."""
+    headers = api_headers()
+    url = f"{API_BASE}{path}"
     
-    Args:
-        filter_param: OneRoster filter string
-        is_assessment: If True, query assessmentResults paths first
-    """
-    # Reorder paths based on whether we expect assessment results
-    paths = _RESULTS_PATHS if is_assessment else _RESULTS_PATHS[::-1]
+    query_params = {"limit": limit}
+    if params.get("filter"):
+        query_params["filter"] = params["filter"]
     
-    all_results = []
-    
-    for path in _RESULTS_PATHS:
-        # Determine the collection key based on path
-        if "assessmentResults" in path:
-            collection_key = "assessmentResults"
-        else:
-            collection_key = "results"
-            
-        try:
-            if filter_param:
-                data, status = fetch_with_params(
-                    path, {"filter": filter_param}
-                )
-                if data and status == 200:
-                    results = data.get(collection_key, []) or data.get("results", [])
-                    if not results:
-                        for val in data.values():
-                            if isinstance(val, list):
-                                results = val
-                                break
-                    if results:
-                        all_results.extend(results)
-            else:
-                items = fetch_all_paginated(path, collection_key)
-                if not items:
-                    # Try alternate key
-                    items = fetch_all_paginated(path, "results")
-                if items:
-                    all_results.extend(items)
-        except Exception:
-            continue
-    
-    # Deduplicate by sourcedId
-    seen = set()
-    unique_results = []
-    for r in all_results:
-        sid = r.get("sourcedId", "")
-        if sid and sid not in seen:
-            seen.add(sid)
-            unique_results.append(r)
-        elif not sid:
-            unique_results.append(r)
-    
-    return unique_results
+    try:
+        resp = requests.get(url, headers=headers, params=query_params, timeout=30)
+        if resp.status_code == 401:
+            headers = api_headers()
+            resp = requests.get(url, headers=headers, params=query_params, timeout=30)
+        
+        if resp.status_code != 200:
+            return []
+        
+        data = resp.json()
+        results = data.get(collection_key, [])
+        if not results:
+            # Try alternate keys
+            for key in ["results", "assessmentResults"]:
+                if key in data and isinstance(data[key], list):
+                    results = data[key]
+                    break
+            if not results:
+                for val in data.values():
+                    if isinstance(val, list):
+                        results = val
+                        break
+        return results
+    except Exception:
+        return []
 
 
 class handler(BaseHTTPRequestHandler):
@@ -111,29 +88,45 @@ class handler(BaseHTTPRequestHandler):
             params = get_query_params(self)
             user_id = params.get("userId", "")
             class_id = params.get("classId", "")
+            limit = int(params.get("limit", "100"))
 
             # Build OneRoster filter
             # Note: gradebook API uses nested format (student.sourcedId)
-            # while rostering API uses flat format (studentSourcedId)
             filters = []
             if user_id:
-                # Use nested format for gradebook assessmentResults
                 filters.append(f"student.sourcedId='{user_id}'")
             if class_id:
                 filters.append(f"class.sourcedId='{class_id}'")
 
             filter_param = " AND ".join(filters) if filters else None
-
-            raw_results = _fetch_results(filter_param)
-            results = [parse_result(r) for r in raw_results]
+            fetch_params = {"filter": filter_param} if filter_param else {}
+            
+            all_results = []
+            
+            # Fetch from both endpoints
+            for path, collection_key in _RESULTS_PATHS:
+                items = _fetch_results_single_page(path, collection_key, fetch_params, limit)
+                if items:
+                    all_results.extend(items)
+            
+            # Deduplicate by sourcedId
+            seen = set()
+            unique_results = []
+            for r in all_results:
+                sid = r.get("sourcedId", "")
+                if sid and sid not in seen:
+                    seen.add(sid)
+                    unique_results.append(r)
+                elif not sid:
+                    unique_results.append(r)
+            
+            results = [parse_result(r) for r in unique_results]
 
             # Client-side fallback filter (in case the API ignores filters)
             if user_id:
                 results = [r for r in results if r["studentSourcedId"] == user_id]
             if class_id:
-                results = [
-                    r for r in results if r.get("classSourcedId") == class_id
-                ]
+                results = [r for r in results if r.get("classSourcedId") == class_id]
 
             send_json(self, {"results": results, "count": len(results)})
         except Exception as e:
