@@ -1205,8 +1205,29 @@
         var passed = pct >= 90;
         if (pct < 80) quizState.xpEarned = 0;
 
+        // ═══ SYNC FIRST — before any DOM writes that could fail ═══
+        // Mark lesson complete locally
+        if (passed) {
+            var lessonId = lessonData.title || '';
+            if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
+        }
+
+        // Sync with TimeBack Platform
+        syncQuizCompletion(pct, passed);
+
+        // Finalize PowerPath attempt
+        if (quizState.attemptId) {
+            fetch('/api/quiz-session?action=finalize', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ attemptId: quizState.attemptId }),
+            }).catch(function(){});
+        }
+
+        // ═══ Now render the results UI ═══
+        // quizArea may be null if coming from AP exam (overlay was removed)
+        if (!quizArea) quizArea = document.getElementById('quiz-area');
         var resultColor = passed ? '#16A34A' : pct >= 80 ? '#D97706' : '#DC2626';
-        quizArea.innerHTML = '<div class="result-card">' +
+        var resultHtml = '<div class="result-card">' +
             '<div class="result-emoji">' + (passed ? '🎉' : pct >= 80 ? '👍' : '📝') + '</div>' +
             '<div class="result-score" style="color:' + resultColor + ';">' + pct + '%</div>' +
             '<div class="result-label">' + (passed ? 'Mastery Achieved!' : pct >= 80 ? 'Good Work!' : 'Keep Practicing') + '</div>' +
@@ -1220,24 +1241,9 @@
             (passed ? '<div style="margin-top:18px;padding:12px 20px;background:#DCFCE7;border:2px solid #86efac;border-radius:12px;color:#166534;font-size:0.88rem;font-weight:600;box-shadow:0 2px 0 #4ade80;"><i class="fa-solid fa-check-circle" style="margin-right:6px;"></i>Lesson complete! You can continue.</div>' : '') +
         '</div>';
 
-        // Finalize PowerPath attempt
-        if (quizState.attemptId) {
-            fetch('/api/quiz-session?action=finalize', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ attemptId: quizState.attemptId }),
-            }).catch(function(){});
+        if (quizArea) {
+            quizArea.innerHTML = resultHtml;
         }
-
-        // Mark lesson complete if passed
-        if (passed) {
-            var lessonId = lessonData.title || '';
-            if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
-        }
-
-        // ── Sync with TimeBack Platform ──
-        // 1. OneRoster AssessmentResult → gradebook score
-        // 2. Caliper ToolUseEvent → activity metrics (XP, accuracy, mastery)
-        syncQuizCompletion(pct, passed);
 
         // Show nav with finish/retry
         showNavAfterQuiz(passed);
