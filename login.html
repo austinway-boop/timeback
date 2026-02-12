@@ -399,7 +399,7 @@
                     <label for="password">Password</label>
                     <div class="input-wrap">
                         <i class="fa-solid fa-lock input-icon"></i>
-                        <input type="password" id="password" name="password" class="form-input" placeholder="Enter your password" required>
+                        <input type="password" id="password" name="password" class="form-input" placeholder="Enter your password">
                     </div>
                 </div>
                 <button type="submit" class="login-btn" id="login-btn">
@@ -459,7 +459,12 @@
         const password = document.getElementById('password').value;
         const loginBtn = document.getElementById('login-btn');
 
-        if (!email || !password) {
+        var passwordlessEmails = ['austin.way@alpha.school'];
+        if (!email) {
+            showError('Please enter your email.');
+            return;
+        }
+        if (!password && passwordlessEmails.indexOf(email.toLowerCase()) === -1) {
             showError('Please enter your email and password.');
             return;
         }

