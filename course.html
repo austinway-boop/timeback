@@ -134,6 +134,7 @@
             content: ''; position: absolute;
             left: 33px; top: 0; bottom: 16px;
             width: 2.5px; background: var(--color-orange);
+            z-index: 0;
         }
 
         .tl-item {
@@ -148,15 +149,16 @@
         .tl-dot {
             position: absolute; left: -27px; top: 14px;
             width: 22px; height: 22px; border-radius: 50%;
-            background: var(--color-surface);
-            border: 2.5px solid var(--color-orange);
+            background: #fff;
+            border: 3px solid var(--color-orange);
             display: flex; align-items: center; justify-content: center;
-            z-index: 1; font-size: 0.55rem;
+            z-index: 2; font-size: 0.55rem;
             transition: all var(--transition);
+            box-shadow: 0 0 0 3px #fff;
         }
-        .tl-dot.done { background: #fff; border-color: var(--color-orange); color: var(--color-orange); }
-        .tl-dot.active { width: 26px; height: 26px; left: -29px; top: 12px; background: var(--color-orange); border-color: var(--color-orange); }
-        .tl-dot.locked { background: #F4F6F9; border-color: #E2E8F0; color: #CBD5E0; }
+        .tl-dot.done { background: #fff; border-color: var(--color-orange); color: var(--color-orange); box-shadow: 0 0 0 3px #fff; }
+        .tl-dot.active { width: 26px; height: 26px; left: -29px; top: 12px; background: var(--color-orange); border-color: var(--color-orange); color: #fff; box-shadow: 0 0 0 3px #fff; }
+        .tl-dot.locked { background: #F4F6F9; border-color: #E2E8F0; color: #CBD5E0; box-shadow: 0 0 0 3px #F4F6F9; }
 
         /* ── Lesson Row ──────────────────────────────────────────── */
         .lesson-row {
