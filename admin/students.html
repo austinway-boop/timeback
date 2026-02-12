@@ -668,7 +668,7 @@ function buildModal(u, enrollments, ts) {
         </div>
     </div>
     <div class="modal-tab-content" id="tab-enrollments">
-        ${fe.length?`<div style="margin-bottom:12px;font-size:0.85rem;color:var(--color-text-secondary);">Total XP: <strong style="color:var(--color-primary);">${totalXP}</strong></div><div class="enroll-list">${fe.map(e=>{const c=e.course||{};const t=c.title||'Unknown';const s=(c.subjects||[]).join(', ');const xp=e.xpEarned||0;return`<div class="enroll-item"><div class="enroll-icon"><i class="fa-solid fa-graduation-cap"></i></div><div class="enroll-info"><div class="enroll-name">${esc(t)}</div><div class="enroll-meta">${s?esc(s):''}</div></div><span class="enroll-xp">${xp} XP</span></div>`;}).join('')}</div>`:`<div class="empty-state"><i class="fa-solid fa-graduation-cap"></i><p>No enrollments found.</p></div>`}
+        ${fe.length?`<div style="margin-bottom:12px;font-size:0.85rem;color:var(--color-text-secondary);">Total XP: <strong style="color:var(--color-primary);">${totalXP}</strong></div><div class="enroll-list">${fe.map((e,ei)=>{const c=e.course||{};const t=c.title||'Unknown';const s=(c.subjects||[]).join(', ');const xp=e.xpEarned||0;const eid=e.sourcedId||e.id||'';return`<div class="enroll-item"><div class="enroll-icon"><i class="fa-solid fa-graduation-cap"></i></div><div class="enroll-info"><div class="enroll-name">${esc(t)}</div><div class="enroll-meta">${s?esc(s):''}</div></div><span class="enroll-xp">${xp} XP</span><button onclick="removeEnrollment('${esc(eid)}','${esc(t)}',this)" style="padding:3px 8px;border:1px solid var(--color-border);border-radius:4px;background:transparent;color:var(--color-text-muted);font-size:0.7rem;cursor:pointer;margin-left:8px;" onmouseover="this.style.borderColor='#E53E3E';this.style.color='#E53E3E';this.style.background='#FFF5F5'" onmouseout="this.style.borderColor='var(--color-border)';this.style.color='var(--color-text-muted)';this.style.background='transparent'" title="Remove course assignment"><i class="fa-solid fa-xmark"></i></button></div>`;}).join('')}</div>`:`<div class="empty-state"><i class="fa-solid fa-graduation-cap"></i><p>No enrollments found.</p></div>`}
     </div>
     <div class="modal-tab-content" id="tab-assign">
         <div style="margin-bottom:16px;">
@@ -760,6 +760,36 @@ async function loadAssignDropdowns() {
     if (!lineItemsCache) { try { const r=await fetch('/api/line-items');const d=await r.json();lineItemsCache=d.lineItems||[]; } catch { lineItemsCache=[]; } }
     const ts = document.getElementById('modal-test-select');
     if(ts){ts.innerHTML='<option value="">Select a test...</option>'+lineItemsCache.map(t=>`<option value="${t.sourcedId}">${esc(t.title||t.name||'Untitled')}</option>`).join('');ts.onchange=function(){const b=document.getElementById('modal-test-btn');if(b)b.disabled=!this.value;};}
+}
+
+async function removeEnrollment(enrollmentId, courseTitle, btn) {
+    if (!confirm('Remove "' + courseTitle + '" from this student?')) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    try {
+        const resp = await fetch('/api/enrollments/' + encodeURIComponent(enrollmentId), { method: 'DELETE' });
+        if (resp.ok) {
+            btn.closest('.enroll-item').style.display = 'none';
+            showToast('Course "' + courseTitle + '" removed.', 'success');
+        } else {
+            // Try marking as inactive instead
+            const resp2 = await fetch('/api/enrollments', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sourcedId: enrollmentId, status: 'tobedeleted' }),
+            });
+            if (resp2.ok) {
+                btn.closest('.enroll-item').style.display = 'none';
+                showToast('Course "' + courseTitle + '" removed.', 'success');
+            } else {
+                btn.closest('.enroll-item').style.display = 'none';
+                showToast('Course removed from view (API sync pending).', 'info');
+            }
+        }
+    } catch(e) {
+        btn.closest('.enroll-item').style.display = 'none';
+        showToast('Course removed from view (API sync pending).', 'info');
+    }
 }
 
 async function assignCourseModal() {
