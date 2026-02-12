@@ -796,7 +796,40 @@
         .catch(function(e) { console.error('[Sync] Caliper FAILED:', e.message); });
     }
 
-    /* ── 3. PowerPath: finalize lesson via finalStudentAssessmentResponse API ── */
+    /* ── 3. SDK-style activity record (updates XP on Timeback dashboards) ── */
+    function sendActivityRecord(passed) {
+        var xp = passed ? quizState.xpEarned : 0;
+        if (xp <= 0) return;
+
+        var email = localStorage.getItem('alphalearn_email') || '';
+        var courseCode = lessonData.courseSourcedId || lessonData.courseName || '';
+        var activityId = lessonData.lessonSourcedId || quizState.testId || lessonData.title || '';
+
+        var payload = {
+            userId: syncState.userId,
+            email: email,
+            activityId: activityId,
+            activityName: lessonData.title || 'Quiz',
+            courseCode: courseCode,
+            xpEarned: xp,
+            totalQuestions: quizState.total,
+            correctQuestions: quizState.correct,
+            pctComplete: quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 100,
+        };
+
+        console.log('[Sync] Sending activity-record — xp:', xp, 'course:', courseCode, 'activity:', activityId);
+
+        fetch('/api/activity-record', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) { console.log('[Sync] Activity-record response:', JSON.stringify(d)); })
+        .catch(function(e) { console.error('[Sync] Activity-record FAILED:', e.message); });
+    }
+
+    /* ── 4. PowerPath: finalize lesson via finalStudentAssessmentResponse API ── */
     function markLessonComplete() {
         // Get the courseComponentResource sourcedId from lesson data
         var lessonId = '';
@@ -854,13 +887,18 @@
         // 2. Caliper: Send activity event for XP/metrics
         sendCaliperActivity(passed);
         
-        // 3. PowerPath: Mark lesson as complete (if passed)
+        // 3. SDK-style activity record (this is what updates XP on Timeback dashboards)
+        if (passed) {
+            sendActivityRecord(passed);
+        }
+
+        // 4. PowerPath: Mark lesson as complete (if passed)
         if (passed) {
             markLessonComplete();
             saveLessonToLocalStorage();
         }
 
-        // 4. Save XP locally so the course page can show it immediately
+        // 5. Save XP locally so the course page can show it immediately
         var xp = passed ? quizState.xpEarned : 0;
         if (xp > 0) {
             var enrollId = lessonData.enrollmentId || '';
