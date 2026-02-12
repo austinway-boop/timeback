@@ -611,12 +611,7 @@
                 }
                 var currentUnitIdx = globalFrontier >= 0 ? globalLessonList[globalFrontier].unitIdx : 0;
 
-                // ── Slim progress bar ──
                 var overallPct = grandTotalAct > 0 ? Math.round((grandDoneAct / grandTotalAct) * 100) : 0;
-                html += '<div class="progress-slim">' +
-                    '<span class="count">' + grandDoneAct + '/' + grandTotalAct + ' activities</span>' +
-                    '<div class="bar"><div class="bar-fill" style="width:' + overallPct + '%;"></div></div>' +
-                    '<span class="pct">' + overallPct + '%</span></div>';
 
                 // ── Render Units ───────────────────────────────────
                 var globalIdx = 0;
