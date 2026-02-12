@@ -85,8 +85,8 @@
             box-shadow: none;
         }
         .unit-card.complete {
-            border-color: #86efac;
-            box-shadow: 0 4px 0 #4ade80;
+            border-color: #e5e7eb;
+            box-shadow: 0 4px 0 #e5e7eb;
         }
         .unit-card.locked {
             opacity: 0.5;
@@ -121,30 +121,24 @@
 
         .complete-badge {
             display: inline-flex; align-items: center; gap: 5px;
-            padding: 6px 14px; border-radius: 12px;
-            font-size: 0.72rem; font-weight: 800;
+            padding: 5px 14px; border-radius: 20px;
+            font-size: 0.72rem; font-weight: 700;
             text-transform: uppercase; letter-spacing: 0.3px;
             background: #DCFCE7;
             color: #16A34A;
-            border: 2px solid #86efac;
-            box-shadow: 0 2px 0 #4ade80;
+            border: none;
         }
         .complete-badge i { font-size: 0.6rem; }
 
         /* SVG progress ring */
         .unit-ring {
-            position: relative; width: 42px; height: 42px; flex-shrink: 0;
-            background: #fff; border-radius: 50%;
-            border: 2px solid #e5e7eb;
-            box-shadow: 0 2px 0 #e5e7eb;
-            display: flex; align-items: center; justify-content: center;
-            padding: 2px;
+            position: relative; width: 40px; height: 40px; flex-shrink: 0;
         }
         .unit-ring svg { transform: rotate(-90deg); }
         .unit-ring .ring-pct {
             position: absolute; inset: 0;
             display: flex; align-items: center; justify-content: center;
-            font-size: 0.62rem; font-weight: 800; color: #374151;
+            font-size: 0.62rem; font-weight: 700; color: var(--color-text);
         }
 
         .unit-chevron {
