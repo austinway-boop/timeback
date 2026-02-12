@@ -541,6 +541,7 @@
         var gradeLevel = qParams.grade || '';
         if (qParams.title) quizState.title = qParams.title;
         quizState.testId = testId;
+        apState.subject = _apSubjectKey(subject) || _apSubjectKey(quizState.title);
 
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
@@ -975,14 +976,57 @@
        ================================================================== */
     var apState = {
         crossOutMode: false,
-        crossedOut: [],   // array of Sets per question
-        notes: [],        // string per question
+        crossedOut: [],
+        notes: [],
         notesOpen: false,
         calcOpen: false,
         refOpen: false,
-        zoomLevel: 100,
         highlightMode: false,
+        subject: '',
     };
+
+    // Subject detection helpers
+    function _apSubjectKey(subj) {
+        var s = (subj || '').toLowerCase();
+        if (/physics/.test(s)) return 'physics';
+        if (/chem/.test(s)) return 'chemistry';
+        if (/bio/.test(s)) return 'biology';
+        if (/stat/.test(s)) return 'statistics';
+        if (/calc/.test(s)) return 'calculus';
+        if (/precalc/.test(s)) return 'precalculus';
+        if (/math/.test(s)) return 'math';
+        if (/environ/.test(s)) return 'environmental';
+        if (/computer/.test(s)) return 'cs';
+        return '';
+    }
+    function _apHasCalc(key) {
+        return ['physics','chemistry','biology','calculus','precalculus','math','environmental'].indexOf(key) >= 0;
+    }
+    function _apHasRef(key) {
+        return ['physics','chemistry','biology','statistics','environmental','cs'].indexOf(key) >= 0;
+    }
+    function _apRefHTML(key) {
+        if (key === 'physics') return '<h3>Constants</h3><table><tr><td>g</td><td>9.8 m/s\u00B2</td></tr><tr><td>G</td><td>6.674 \u00D7 10\u207B\u00B9\u00B9 N\u00B7m\u00B2/kg\u00B2</td></tr><tr><td>Speed of light (c)</td><td>3.0 \u00D7 10\u2078 m/s</td></tr><tr><td>Electron charge (e)</td><td>1.6 \u00D7 10\u207B\u00B9\u2079 C</td></tr><tr><td>1 atm</td><td>1.0 \u00D7 10\u2075 Pa</td></tr></table>' +
+            '<h3>Kinematics</h3><table><tr><td>v = v\u2080 + at</td><td>x = x\u2080 + v\u2080t + \u00BDat\u00B2</td></tr><tr><td>v\u00B2 = v\u2080\u00B2 + 2a\u0394x</td><td>\u0394x = \u00BD(v + v\u2080)t</td></tr></table>' +
+            '<h3>Forces &amp; Energy</h3><table><tr><td>F = ma</td><td>F\u2091 = mg</td></tr><tr><td>f = \u03BCN</td><td>F\u209B = -kx</td></tr><tr><td>KE = \u00BDmv\u00B2</td><td>PE = mgh</td></tr><tr><td>W = Fd cos\u03B8</td><td>P = W/t</td></tr></table>' +
+            '<h3>Momentum &amp; Rotation</h3><table><tr><td>p = mv</td><td>J = F\u0394t = \u0394p</td></tr><tr><td>\u03C4 = rF sin\u03B8</td><td>L = I\u03C9</td></tr><tr><td>a\u1D04 = v\u00B2/r</td><td>F\u1D04 = mv\u00B2/r</td></tr></table>' +
+            '<h3>Waves &amp; Fluids</h3><table><tr><td>v = f\u03BB</td><td>T = 1/f</td></tr><tr><td>T\u209B = 2\u03C0\u221A(m/k)</td><td>T\u209A = 2\u03C0\u221A(L/g)</td></tr><tr><td>P = F/A</td><td>\u03C1 = m/V</td></tr><tr><td>F\u2095 = \u03C1Vg</td><td>P = P\u2080 + \u03C1gh</td></tr></table>';
+        if (key === 'chemistry') return '<h3>Atomic Structure</h3><table><tr><td>E = hf</td><td>c = f\u03BB</td></tr><tr><td>h = 6.626 \u00D7 10\u207B\u00B3\u2074 J\u00B7s</td><td>N\u2090 = 6.022 \u00D7 10\u00B2\u00B3</td></tr></table>' +
+            '<h3>Gases</h3><table><tr><td>PV = nRT</td><td>R = 8.314 J/(mol\u00B7K)</td></tr><tr><td>P\u2081V\u2081/T\u2081 = P\u2082V\u2082/T\u2082</td><td>P\u209C = P\u2081 + P\u2082 + ...</td></tr><tr><td>KE = \u00BDmv\u00B2 = 3/2 kT</td><td>M = m/n</td></tr></table>' +
+            '<h3>Equilibrium &amp; Acid-Base</h3><table><tr><td>K\u2091 = [products]/[reactants]</td><td>pH = -log[H\u207A]</td></tr><tr><td>pOH = -log[OH\u207B]</td><td>pH + pOH = 14</td></tr><tr><td>K\u2090 \u00D7 K\u2095 = K\u2092</td><td>Henderson-Hasselbalch: pH = pK\u2090 + log([A\u207B]/[HA])</td></tr></table>' +
+            '<h3>Thermodynamics</h3><table><tr><td>q = mc\u0394T</td><td>\u0394G = \u0394H - T\u0394S</td></tr><tr><td>\u0394G\u00B0 = -RT ln K</td><td>E\u00B0\u1D04\u2091\u2097\u2097 = E\u00B0\u1D04\u2090\u209C\u2095 - E\u00B0\u2090\u2099\u2092\u209E\u2091</td></tr></table>';
+        if (key === 'biology') return '<h3>Hardy-Weinberg</h3><table><tr><td>p + q = 1</td><td>p\u00B2 + 2pq + q\u00B2 = 1</td></tr></table>' +
+            '<h3>Population Growth</h3><table><tr><td>Exponential</td><td>dN/dt = r\u2098\u2090\u2093N</td></tr><tr><td>Logistic</td><td>dN/dt = r\u2098\u2090\u2093N(K - N)/K</td></tr></table>' +
+            '<h3>Energy &amp; Water</h3><table><tr><td>Gibbs Free Energy</td><td>\u0394G = \u0394H - T\u0394S</td></tr><tr><td>Water Potential</td><td>\u03A8 = \u03A8\u209A + \u03A8\u209B</td></tr><tr><td>Solute Potential</td><td>\u03A8\u209B = -iCRT</td></tr></table>' +
+            '<h3>Statistics</h3><table><tr><td>Chi-Square</td><td>\u03C7\u00B2 = \u03A3(O - E)\u00B2/E</td></tr><tr><td>SA/V Ratio</td><td>Surface Area / Volume</td></tr></table>';
+        if (key === 'statistics') return '<h3>Descriptive Statistics</h3><table><tr><td>Mean</td><td>x\u0304 = \u03A3x\u1D62/n</td></tr><tr><td>Std Dev</td><td>s = \u221A[\u03A3(x\u1D62 - x\u0304)\u00B2/(n-1)]</td></tr><tr><td>Regression</td><td>\u0177 = a + bx, b = r(s\u1D67/s\u2093)</td></tr></table>' +
+            '<h3>Probability</h3><table><tr><td>Addition</td><td>P(A\u222AB) = P(A) + P(B) - P(A\u2229B)</td></tr><tr><td>Conditional</td><td>P(A|B) = P(A\u2229B)/P(B)</td></tr><tr><td>Binomial</td><td>P(X=x) = C(n,x)p\u02E3(1-p)\u207F\u207B\u02E3</td></tr><tr><td>\u03BC = np</td><td>\u03C3 = \u221A[np(1-p)]</td></tr></table>' +
+            '<h3>Inference</h3><table><tr><td>Confidence Interval</td><td>statistic \u00B1 (critical value)(SE)</td></tr><tr><td>Test Statistic</td><td>(statistic - parameter)/SE</td></tr><tr><td>Chi-Square</td><td>\u03C7\u00B2 = \u03A3(O-E)\u00B2/E</td></tr><tr><td>SE (proportion)</td><td>\u221A[p\u0302(1-p\u0302)/n]</td></tr><tr><td>SE (mean)</td><td>s/\u221An</td></tr></table>';
+        if (key === 'environmental') return '<h3>Earth Systems</h3><table><tr><td>Earth radius</td><td>6,371 km</td></tr><tr><td>Atmosphere</td><td>78% N\u2082, 21% O\u2082, 1% other</td></tr><tr><td>Water distribution</td><td>97.5% saltwater, 2.5% freshwater</td></tr></table>' +
+            '<h3>Energy &amp; Ecology</h3><table><tr><td>10% rule</td><td>~10% energy transfers between trophic levels</td></tr><tr><td>LD50</td><td>Lethal dose for 50% of test population</td></tr><tr><td>Population growth</td><td>r = (birth rate - death rate)/1000</td></tr><tr><td>Rule of 70</td><td>Doubling time = 70/growth rate(%)</td></tr></table>';
+        if (key === 'cs') return '<h3>Java Quick Reference</h3><table><tr><td>String methods</td><td>length(), substring(), indexOf(), equals(), compareTo()</td></tr><tr><td>Math methods</td><td>abs(), pow(), sqrt(), random()</td></tr><tr><td>ArrayList</td><td>add(), get(), set(), remove(), size()</td></tr><tr><td>Array</td><td>arr.length, Arrays.sort()</td></tr></table>';
+        return '';
+    }
 
     function startAPExam() {
         var n = quizState.staticQuestions.length;
@@ -993,8 +1037,8 @@
         apState.notesOpen = false;
         apState.calcOpen = false;
         apState.refOpen = false;
-        apState.zoomLevel = 100;
         apState.highlightMode = false;
+        // Subject is stored from startInlineQuiz
         renderAPQuestion();
     }
 
@@ -1025,8 +1069,8 @@
                     '<button class="ap-tool-btn" onclick="apToggleMore()" title="More tools"><i class="fa-solid fa-ellipsis-vertical"></i><span>More</span></button>' +
                     '<div class="ap-more-dropdown" id="ap-more-dd">' +
                         '<button class="ap-more-item" onclick="apAddNote();apCloseMore()"><i class="fa-solid fa-sticky-note"></i>Sticky Note</button>' +
-                        '<button class="ap-more-item" onclick="apToggleCalc();apCloseMore()"><i class="fa-solid fa-calculator"></i>Calculator</button>' +
-                        '<button class="ap-more-item" onclick="apToggleRef();apCloseMore()"><i class="fa-solid fa-book-open"></i>Reference Sheet</button>' +
+                        (_apHasCalc(apState.subject) ? '<button class="ap-more-item" onclick="apToggleCalc();apCloseMore()"><i class="fa-solid fa-calculator"></i>Calculator</button>' : '') +
+                        (_apHasRef(apState.subject) ? '<button class="ap-more-item" onclick="apToggleRef();apCloseMore()"><i class="fa-solid fa-book-open"></i>Reference Sheet</button>' : '') +
                         '<button class="ap-more-item" onclick="apShowReview();apCloseMore()"><i class="fa-solid fa-list-check"></i>Review Answers</button>' +
                         '<button class="ap-more-item" onclick="exitAPExam()"><i class="fa-solid fa-right-from-bracket"></i>Exit Exam</button>' +
                     '</div>' +
@@ -1109,15 +1153,13 @@
             '<div class="ap-calc-header" onmousedown="apStartDrag(event,\'ap-calc\')"><span>Graphing Calculator</span><button onclick="apToggleCalc()">&times;</button></div>' +
             '<iframe src="https://www.desmos.com/calculator" loading="lazy"></iframe></div>';
 
-        // Reference panel
-        html += '<div class="ap-ref-panel' + (apState.refOpen ? ' open' : '') + '" id="ap-ref">' +
-            '<div class="ap-ref-header"><span>Reference Sheet</span><button onclick="apToggleRef()">&times;</button></div>' +
-            '<div class="ap-ref-body">' +
-                '<h3>Algebra</h3><table><tr><td>Slope</td><td>m = (y2 - y1) / (x2 - x1)</td></tr><tr><td>Slope-intercept</td><td>y = mx + b</td></tr><tr><td>Point-slope</td><td>y - y1 = m(x - x1)</td></tr><tr><td>Quadratic</td><td>x = (-b +/- sqrt(b2 - 4ac)) / 2a</td></tr><tr><td>Distance</td><td>d = sqrt((x2-x1)2 + (y2-y1)2)</td></tr><tr><td>Midpoint</td><td>M = ((x1+x2)/2, (y1+y2)/2)</td></tr></table>' +
-                '<h3>Geometry</h3><table><tr><td>Area (rect)</td><td>A = lw</td></tr><tr><td>Area (triangle)</td><td>A = 1/2 bh</td></tr><tr><td>Area (circle)</td><td>A = pi * r2</td></tr><tr><td>Circumference</td><td>C = 2 * pi * r</td></tr><tr><td>Volume (rect prism)</td><td>V = lwh</td></tr><tr><td>Volume (cylinder)</td><td>V = pi * r2 * h</td></tr><tr><td>Volume (sphere)</td><td>V = 4/3 * pi * r3</td></tr><tr><td>Pythagorean</td><td>a2 + b2 = c2</td></tr></table>' +
-                '<h3>Statistics</h3><table><tr><td>Mean</td><td>sum of values / n</td></tr><tr><td>Probability</td><td>P(A) = favorable / total</td></tr><tr><td>Percent change</td><td>(new - old) / old * 100</td></tr></table>' +
-                '<h3>Trigonometry</h3><table><tr><td>sin</td><td>opposite / hypotenuse</td></tr><tr><td>cos</td><td>adjacent / hypotenuse</td></tr><tr><td>tan</td><td>opposite / adjacent</td></tr></table>' +
-            '</div></div>';
+        // Reference panel (subject-specific)
+        var refContent = _apRefHTML(apState.subject);
+        if (refContent) {
+            html += '<div class="ap-ref-panel' + (apState.refOpen ? ' open' : '') + '" id="ap-ref">' +
+                '<div class="ap-ref-header"><span>Reference Sheet</span><button onclick="apToggleRef()">&times;</button></div>' +
+                '<div class="ap-ref-body">' + refContent + '</div></div>';
+        }
 
         overlay.innerHTML = html;
         document.body.appendChild(overlay);
