@@ -606,17 +606,16 @@
     var quizArea = null; // reference to the quiz container element
 
     /* ══════════════════════════════════════════════════════════
-       Caliper Event System — sync with TimeBack Platform
-       Posts to /api/caliper-event which wraps events in a
-       Caliper Envelope and forwards to caliper.alpha-1edtech.ai
-       using the same Cognito credentials (CLIENT_ID/SECRET).
+       Progress Sync — OneRoster Results + Caliper Activity
+       ══════════════════════════════════════════════════════════
+       Two sync mechanisms (per Timeback docs):
+       1. OneRoster AssessmentResult — records score in gradebook
+       2. Caliper ToolUseEvent      — records activity metrics (XP, accuracy, mastery)
        ══════════════════════════════════════════════════════════ */
-    var caliperState = {
-        userId: '',             // platform sourcedId
-        lessonStartTime: null,  // ISO string
-        quizStartTime: null,    // ISO string
-        lessonAttemptId: '',    // urn:uuid for this lesson attempt
-        quizAttemptId: '',      // urn:uuid for this quiz attempt
+    var syncState = {
+        userId: '',              // platform sourcedId
+        userEmail: '',           // for Caliper actor
+        lessonStartTime: null,   // ISO string — set when lesson opens
     };
 
     var APP_SENSOR = 'https://alphalearn.alpha.school';
@@ -629,228 +628,120 @@
         });
     }
 
-    function _sendCaliperEvents(events) {
-        if (!events || !events.length || !caliperState.userId) return;
+    /* ── 1. OneRoster: POST assessment result to gradebook ── */
+    function submitAssessmentResult(score, passed) {
+        if (!syncState.userId) return;
+        // assessmentLineItem = the quiz's testId or resId
+        var lineItemId = quizState.testId || '';
+        if (!lineItemId) {
+            // Try to find it from the current quiz step resource
+            var quizStep = steps.find(function(s) { return s.type === 'Quiz'; });
+            if (quizStep && quizStep.resource) lineItemId = quizStep.resource.resId || '';
+        }
+        if (!lineItemId) {
+            console.warn('[Sync] No assessmentLineItem ID available, skipping result POST');
+            return;
+        }
+
+        var payload = {
+            studentSourcedId: syncState.userId,
+            assessmentLineItemSourcedId: lineItemId,
+            score: score,
+            scoreStatus: 'fully graded',
+            comment: (lessonData.title || 'Quiz') + ' — ' + score + '% accuracy',
+            metadata: {
+                'timeback.xp': passed ? quizState.xpEarned : 0,
+                'timeback.correct': quizState.correct,
+                'timeback.total': quizState.total,
+                'timeback.passed': passed,
+            },
+        };
+
+        fetch('/api/submit-result', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) { console.log('[Sync] AssessmentResult:', d.status || d.error); })
+        .catch(function(e) { console.warn('[Sync] AssessmentResult failed:', e.message); });
+    }
+
+    /* ── 2. Caliper: send activity event with metrics ── */
+    function sendCaliperActivity(passed) {
+        if (!syncState.userId) return;
+
+        var now = new Date().toISOString();
+        var sessionId = 'urn:uuid:' + _uuid();
+        var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+        var xp = passed ? quizState.xpEarned : 0;
+
+        // Build metrics as AggregateMeasure items
+        var metrics = [
+            { id: sessionId, type: 'AggregateMeasure', metric: 'xpEarned', metricValue: xp },
+            { id: sessionId, type: 'AggregateMeasure', metric: 'totalQuestions', metricValue: quizState.total },
+            { id: sessionId, type: 'AggregateMeasure', metric: 'correctQuestions', metricValue: quizState.correct },
+        ];
+        if (passed) {
+            metrics.push({ id: sessionId, type: 'AggregateMeasure', metric: 'masteredUnits', metricValue: 1 });
+            metrics.push({ id: sessionId, type: 'AggregateMeasure', metric: 'pctComplete', metricValue: 100 });
+        }
+
+        var event = {
+            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
+            id: 'urn:uuid:' + _uuid(),
+            type: 'ToolUseEvent',
+            profile: 'ToolUseProfile',
+            actor: {
+                id: APP_SENSOR + '/users/' + syncState.userId,
+                type: 'Person',
+                extensions: syncState.userEmail ? { email: syncState.userEmail } : undefined,
+            },
+            action: 'Used',
+            object: {
+                id: APP_SENSOR,
+                name: 'AlphaLearn',
+                type: 'SoftwareApplication',
+            },
+            generated: {
+                id: sessionId,
+                type: 'AggregateMeasureCollection',
+                items: metrics,
+            },
+            session: {
+                id: sessionId,
+                type: 'Session',
+                startedAtTime: syncState.lessonStartTime || now,
+                endedAtTime: now,
+            },
+            eventTime: now,
+            edApp: APP_SENSOR,
+        };
+
         fetch('/api/caliper-event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: events }),
-        }).catch(function(e) { console.warn('[Caliper] Send failed:', e.message); });
+            body: JSON.stringify({ data: [event] }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) { console.log('[Sync] Caliper activity:', d.status || d.error); })
+        .catch(function(e) { console.warn('[Sync] Caliper failed:', e.message); });
     }
 
-    function _lessonObjectId() {
-        return APP_SENSOR + '/lessons/' + encodeURIComponent((lessonData.courseSourcedId || '') + '/' + (lessonData.title || 'lesson'));
+    /* ── Combined: fire both on quiz completion ── */
+    function syncQuizCompletion(pct, passed) {
+        if (!syncState.userId) return;
+        submitAssessmentResult(pct, passed);
+        sendCaliperActivity(passed);
     }
 
-    function _buildLessonObject() {
-        var obj = {
-            id: _lessonObjectId(),
-            type: 'AssignableDigitalResource',
-            mediaType: 'curriculum/lesson',
-            name: lessonData.title || 'Lesson',
-        };
-        if (lessonData.courseName) {
-            obj.isPartOf = {
-                id: APP_SENSOR + '/courses/' + encodeURIComponent(lessonData.courseSourcedId || lessonData.courseName),
-                type: 'AssignableDigitalResource',
-                mediaType: 'curriculum/course',
-                name: lessonData.courseName,
-            };
-        }
-        return obj;
-    }
-
-    function _quizObjectId() {
-        return APP_SENSOR + '/assessments/' + encodeURIComponent(quizState.testId || quizState.title || 'quiz');
-    }
-
-    function _actorId() {
-        return APP_SENSOR + '/users/' + caliperState.userId;
-    }
-
-    function fireLessonStarted() {
-        caliperState.lessonStartTime = new Date().toISOString();
-        caliperState.lessonAttemptId = 'urn:uuid:' + _uuid();
-        _sendCaliperEvents([{
-            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
-            id: 'urn:uuid:' + _uuid(),
-            type: 'AssignableEvent',
-            profile: 'AssignableProfile',
-            actor: { id: _actorId(), type: 'Person' },
-            action: 'Started',
-            object: _buildLessonObject(),
-            generated: {
-                id: caliperState.lessonAttemptId,
-                type: 'Attempt',
-                assignee: _actorId(),
-                assignable: _lessonObjectId(),
-                startedAtTime: caliperState.lessonStartTime,
-            },
-            eventTime: caliperState.lessonStartTime,
-            edApp: APP_SENSOR,
-        }]);
-    }
-
-    function fireLessonCompleted() {
-        var now = new Date().toISOString();
-        _sendCaliperEvents([{
-            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
-            id: 'urn:uuid:' + _uuid(),
-            type: 'AssignableEvent',
-            profile: 'AssignableProfile',
-            actor: { id: _actorId(), type: 'Person' },
-            action: 'Completed',
-            object: _buildLessonObject(),
-            generated: {
-                id: caliperState.lessonAttemptId,
-                type: 'Attempt',
-                assignee: _actorId(),
-                assignable: _lessonObjectId(),
-                startedAtTime: caliperState.lessonStartTime || now,
-                endedAtTime: now,
-            },
-            eventTime: now,
-            edApp: APP_SENSOR,
-        }]);
-    }
-
-    function fireQuizStarted() {
-        caliperState.quizStartTime = new Date().toISOString();
-        caliperState.quizAttemptId = 'urn:uuid:' + _uuid();
-        _sendCaliperEvents([{
-            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
-            id: 'urn:uuid:' + _uuid(),
-            type: 'AssessmentEvent',
-            profile: 'AssessmentProfile',
-            actor: { id: _actorId(), type: 'Person' },
-            action: 'Started',
-            object: {
-                id: _quizObjectId(),
-                type: 'Assessment',
-                name: quizState.title || 'Quiz',
-                isPartOf: _buildLessonObject(),
-            },
-            generated: {
-                id: caliperState.quizAttemptId,
-                type: 'Attempt',
-                assignee: _actorId(),
-                assignable: _quizObjectId(),
-                startedAtTime: caliperState.quizStartTime,
-            },
-            eventTime: caliperState.quizStartTime,
-            edApp: APP_SENSOR,
-        }]);
-    }
-
-    function fireQuizSubmitted() {
-        var now = new Date().toISOString();
-        _sendCaliperEvents([{
-            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
-            id: 'urn:uuid:' + _uuid(),
-            type: 'AssessmentEvent',
-            profile: 'AssessmentProfile',
-            actor: { id: _actorId(), type: 'Person' },
-            action: 'Submitted',
-            object: { id: _quizObjectId(), type: 'Assessment' },
-            generated: {
-                id: caliperState.quizAttemptId,
-                type: 'Attempt',
-                assignee: _actorId(),
-                assignable: _quizObjectId(),
-                startedAtTime: caliperState.quizStartTime || now,
-                endedAtTime: now,
-            },
-            eventTime: now,
-            edApp: APP_SENSOR,
-        }]);
-    }
-
-    function fireQuestionGraded(isCorrect) {
-        var now = new Date().toISOString();
-        var qAttemptId = 'urn:uuid:' + _uuid();
-        _sendCaliperEvents([{
-            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
-            id: 'urn:uuid:' + _uuid(),
-            type: 'GradeEvent',
-            profile: 'GradingProfile',
-            actor: { id: _actorId(), type: 'Person' },
-            action: 'Graded',
-            object: { id: qAttemptId, type: 'Attempt' },
-            generated: {
-                id: 'urn:uuid:' + _uuid(),
-                type: 'Score',
-                attempt: qAttemptId,
-                maxScore: 1,
-                scoreGiven: isCorrect ? 1 : 0,
-            },
-            eventTime: now,
-            edApp: APP_SENSOR,
-        }]);
-    }
-
-    function fireXpAwarded(xpAmount) {
-        if (!xpAmount || xpAmount <= 0) return;
-        var now = new Date().toISOString();
-        var xpAttemptId = 'urn:uuid:' + _uuid();
-        _sendCaliperEvents([{
-            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
-            id: 'urn:uuid:' + _uuid(),
-            type: 'GradeEvent',
-            profile: 'GradingProfile',
-            actor: { id: _actorId(), type: 'Person' },
-            action: 'Graded',
-            object: {
-                id: xpAttemptId,
-                type: 'Attempt',
-                assignee: _actorId(),
-                assignable: _buildLessonObject(),
-            },
-            generated: {
-                id: 'urn:uuid:' + _uuid(),
-                type: 'Score',
-                attempt: xpAttemptId,
-                scoreGiven: xpAmount,
-                extensions: { scoreType: 'XP' },
-            },
-            eventTime: now,
-            edApp: APP_SENSOR,
-        }]);
-    }
-
-    function fireMasteryAchieved() {
-        var now = new Date().toISOString();
-        var masteryAttemptId = 'urn:uuid:' + _uuid();
-        _sendCaliperEvents([{
-            '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
-            id: 'urn:uuid:' + _uuid(),
-            type: 'GradeEvent',
-            profile: 'GradingProfile',
-            actor: { id: _actorId(), type: 'Person' },
-            action: 'Graded',
-            object: {
-                id: masteryAttemptId,
-                type: 'Attempt',
-                assignee: _actorId(),
-                assignable: _buildLessonObject(),
-            },
-            generated: {
-                id: 'urn:uuid:' + _uuid(),
-                type: 'Score',
-                attempt: masteryAttemptId,
-                maxScore: 100,
-                scoreGiven: 100,
-                extensions: { scoreType: 'MASTERY' },
-            },
-            eventTime: now,
-            edApp: APP_SENSOR,
-        }]);
-    }
-
-    function initCaliper() {
-        caliperState.userId = localStorage.getItem('alphalearn_userId')
+    function initSync() {
+        syncState.userId = localStorage.getItem('alphalearn_userId')
             || localStorage.getItem('alphalearn_sourcedId') || '';
-        if (!caliperState.userId) {
-            console.warn('[Caliper] No userId found, events will not be sent');
+        syncState.userEmail = localStorage.getItem('alphalearn_email') || '';
+        syncState.lessonStartTime = new Date().toISOString();
+        if (!syncState.userId) {
+            console.warn('[Sync] No userId found, progress will not be synced');
         }
     }
 
@@ -911,9 +802,8 @@
 
         if (steps.length === 0) { showError('This lesson has no content yet.'); return; }
 
-        // Initialize Caliper event system and fire lesson started
-        initCaliper();
-        fireLessonStarted();
+        // Initialize progress sync
+        initSync();
 
         renderStepper();
         showStep(0);
@@ -1003,7 +893,6 @@
             // Prepare quiz area (hidden behind overlay)
             contentEl.innerHTML = '<div class="quiz-area" id="quiz-area"></div>';
             quizArea = document.getElementById('quiz-area');
-            fireQuizStarted();
             startInlineQuiz(step.resource);
         }
     }
@@ -1222,9 +1111,6 @@
             }
         }
 
-        // Fire question graded Caliper event
-        if (caliperState.userId) fireQuestionGraded(isCorrect);
-
         // Score
         var pointsChange = 0;
         if (isCorrect) {
@@ -1339,22 +1225,10 @@
             if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
         }
 
-        // ── Sync with TimeBack Platform via Caliper events ──
-        if (caliperState.userId) {
-            // Always fire quiz submitted
-            fireQuizSubmitted();
-
-            // Award XP if earned
-            if (quizState.xpEarned > 0) {
-                fireXpAwarded(quizState.xpEarned);
-            }
-
-            // Fire mastery + lesson completed if passed
-            if (passed) {
-                fireMasteryAchieved();
-                fireLessonCompleted();
-            }
-        }
+        // ── Sync with TimeBack Platform ──
+        // 1. OneRoster AssessmentResult → gradebook score
+        // 2. Caliper ToolUseEvent → activity metrics (XP, accuracy, mastery)
+        syncQuizCompletion(pct, passed);
 
         // Show nav with finish/retry
         showNavAfterQuiz(passed);
