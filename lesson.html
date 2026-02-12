@@ -675,55 +675,69 @@
         .catch(function(e) { console.error('[Sync] AssessmentResult FAILED:', e.message); });
     }
 
-    /* ── 2. Caliper: send activity event with metrics ── */
+    /* ── 2. Caliper: send ActivityCompletedEvent (TimebackProfile) ── */
     function sendCaliperActivity(passed) {
         var now = new Date().toISOString();
-        var sessionId = 'urn:uuid:' + _uuid();
-        var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+        var runId = _uuid();
         var xp = passed ? quizState.xpEarned : 0;
 
-        console.log('[Sync] Sending Caliper activity — userId:', syncState.userId, 'xp:', xp, 'correct:', quizState.correct, '/', quizState.total, 'passed:', passed);
+        console.log('[Sync] Sending Caliper ActivityCompletedEvent — userId:', syncState.userId, 'email:', syncState.userEmail, 'xp:', xp, 'correct:', quizState.correct, '/', quizState.total, 'passed:', passed);
 
-        // Build metrics as AggregateMeasure items
+        // Subject detection from lesson data
+        var subject = 'Other';
+        var titleLower = ((lessonData.courseName || lessonData.courseTitle || lessonData.title) || '').toLowerCase();
+        if (titleLower.includes('math')) subject = 'Math';
+        else if (titleLower.includes('reading') || titleLower.includes('ela') || titleLower.includes('english')) subject = 'Reading';
+        else if (titleLower.includes('science') || titleLower.includes('biology') || titleLower.includes('chemistry') || titleLower.includes('physics')) subject = 'Science';
+        else if (titleLower.includes('history') || titleLower.includes('social') || titleLower.includes('government') || titleLower.includes('geography')) subject = 'Social Studies';
+        else if (titleLower.includes('writing') || titleLower.includes('essay')) subject = 'Writing';
+        else if (titleLower.includes('vocabulary') || titleLower.includes('vocab')) subject = 'Vocabulary';
+        else if (titleLower.includes('language') || titleLower.includes('spanish') || titleLower.includes('french')) subject = 'Language';
+
+        var courseCode = lessonData.courseSourcedId || lessonData.courseName || lessonData.courseTitle || '';
+
+        // Build ActivityCompletedEvent per Timeback docs
         var metrics = [
-            { id: sessionId, type: 'AggregateMeasure', metric: 'xpEarned', metricValue: xp },
-            { id: sessionId, type: 'AggregateMeasure', metric: 'totalQuestions', metricValue: quizState.total },
-            { id: sessionId, type: 'AggregateMeasure', metric: 'correctQuestions', metricValue: quizState.correct },
+            { type: 'xpEarned', value: xp },
+            { type: 'totalQuestions', value: quizState.total },
+            { type: 'correctQuestions', value: quizState.correct },
         ];
         if (passed) {
-            metrics.push({ id: sessionId, type: 'AggregateMeasure', metric: 'masteredUnits', metricValue: 1 });
-            metrics.push({ id: sessionId, type: 'AggregateMeasure', metric: 'pctComplete', metricValue: 100 });
+            metrics.push({ type: 'masteredUnits', value: 1 });
         }
+
+        var activityId = APP_SENSOR + '/activities/' + encodeURIComponent(subject) + '/' + encodeURIComponent(lessonData.title || 'lesson');
+        var metricsId = 'https://api.alpha-1edtech.ai/ims/metrics/collections/activity/' + runId;
 
         var event = {
             '@context': 'http://purl.imsglobal.org/ctx/caliper/v1p2',
             id: 'urn:uuid:' + _uuid(),
-            type: 'ToolUseEvent',
-            profile: 'ToolUseProfile',
+            type: 'ActivityEvent',
+            action: 'Completed',
+            profile: 'TimebackProfile',
+            eventTime: now,
             actor: {
-                id: APP_SENSOR + '/users/' + syncState.userId,
-                type: 'Person',
-                extensions: syncState.userEmail ? { email: syncState.userEmail } : undefined,
+                id: 'https://api.alpha-1edtech.ai/ims/oneroster/rostering/v1p2/users/' + syncState.userId,
+                type: 'TimebackUser',
+                email: syncState.userEmail || undefined,
             },
-            action: 'Used',
             object: {
-                id: APP_SENSOR,
-                name: 'AlphaLearn',
-                type: 'SoftwareApplication',
+                id: activityId,
+                type: 'TimebackActivityContext',
+                subject: subject,
+                app: { name: 'AlphaLearn' },
             },
             generated: {
-                id: sessionId,
-                type: 'AggregateMeasureCollection',
+                id: metricsId,
+                type: 'TimebackActivityMetricsCollection',
                 items: metrics,
+                extensions: passed ? { pctCompleteApp: 100 } : undefined,
             },
-            session: {
-                id: sessionId,
-                type: 'Session',
-                startedAtTime: syncState.lessonStartTime || now,
-                endedAtTime: now,
-            },
-            eventTime: now,
             edApp: APP_SENSOR,
+            extensions: {
+                runId: runId,
+                courseId: courseCode,
+            },
         };
 
         fetch('/api/caliper-event', {
