@@ -181,110 +181,102 @@
         .nav-btn i { font-size: 0.82rem; }
 
         /* ══════════════════════════════════════════════════════════
-           Quiz (Inline) — Polished Cards
+           Quiz — Flat, no nested cards
            ══════════════════════════════════════════════════════════ */
-        .quiz-area { padding: 28px; }
+        /* When quiz is active, strip the outer content card */
+        .lesson-content.quiz-mode {
+            background: transparent; border: none;
+            box-shadow: none; overflow: visible;
+        }
+
+        .quiz-area { padding: 0; }
         .quiz-header {
-            display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
         }
-        .quiz-header-icon {
-            width: 40px; height: 40px; border-radius: 10px;
-            background: var(--color-purple); color: #fff;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1rem; flex-shrink: 0;
-            box-shadow: 0 2px 0 #9B8FE8;
-        }
-        .quiz-title { font-size: 1.05rem; font-weight: 800; flex: 1; color: #111827; }
+        .quiz-title { font-size: 0.95rem; font-weight: 700; flex: 1; color: #111827; }
 
         .pp-scoreboard {
-            display: flex; align-items: center; gap: 20px;
-            background: #fff; border: 2px solid #e5e7eb;
-            box-shadow: 0 3px 0 #e5e7eb;
-            border-radius: 12px; padding: 16px 20px;
-            margin-bottom: 20px; flex-wrap: wrap;
+            display: flex; align-items: center; gap: 16px;
+            background: transparent; border: none; box-shadow: none;
+            border-radius: 0; padding: 0 0 16px;
+            margin-bottom: 0; flex-wrap: wrap;
+            border-bottom: 1px solid #e5e7eb;
         }
-        .pp-ring { position: relative; width: 56px; height: 56px; flex-shrink: 0; }
+        .pp-ring { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
         .pp-ring svg { transform: rotate(-90deg); }
         .pp-ring-bg { fill: none; stroke: #E8ECF1; stroke-width: 4; }
         .pp-ring-fill { fill: none; stroke: var(--color-primary); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
-        .pp-ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; color: var(--color-primary); }
-        .pp-stat { text-align: center; padding: 0 14px; border-left: 2px solid #f3f4f6; }
-        .pp-stat-label { font-size: 0.68rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
-        .pp-stat-value { font-size: 1.1rem; font-weight: 800; color: #111827; }
-        .pp-label { font-size: 0.7rem; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
-        .pp-score-text { font-weight: 800; font-size: 0.9rem; color: #111827; }
+        .pp-ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; color: var(--color-primary); }
+        .pp-stat { text-align: center; padding: 0 12px; border-left: 1px solid #e5e7eb; }
+        .pp-stat-label { font-size: 0.65rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
+        .pp-stat-value { font-size: 1rem; font-weight: 800; color: #111827; }
+        .pp-label { font-size: 0.65rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
+        .pp-score-text { font-weight: 800; font-size: 0.85rem; color: #111827; }
 
         .question-card {
-            background: #fff; border: 2px solid #e5e7eb;
-            box-shadow: 0 3px 0 #e5e7eb;
-            border-radius: 12px; padding: 24px; margin-bottom: 16px;
+            background: transparent; border: none;
+            box-shadow: none; border-radius: 0;
+            padding: 20px 0 0; margin-bottom: 0;
         }
         .question-num {
-            font-size: 0.72rem; font-weight: 800; color: var(--color-primary);
-            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+            font-size: 0.7rem; font-weight: 800; color: var(--color-primary);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
         }
-        .question-text { font-size: 1rem; font-weight: 500; line-height: 1.7; margin-bottom: 18px; }
+        .question-text { font-size: 1rem; font-weight: 500; line-height: 1.7; margin-bottom: 16px; }
         .question-text img { max-width: 100%; border-radius: 8px; margin: 10px 0; }
 
-        .choices { display: flex; flex-direction: column; gap: 8px; }
+        .choices { display: flex; flex-direction: column; gap: 6px; }
         .choice {
             display: flex; align-items: flex-start; gap: 12px;
-            padding: 14px 16px; border: 2px solid #e5e7eb;
-            border-radius: 12px; cursor: pointer; transition: all 0.15s;
-            box-shadow: 0 2px 0 #e5e7eb; background: #fff;
+            padding: 12px 14px; border: 1.5px solid #e5e7eb;
+            border-radius: 10px; cursor: pointer; transition: all 0.15s;
+            box-shadow: none; background: #fff;
         }
-        .choice:hover { border-color: var(--color-primary); background: var(--color-primary-light); box-shadow: 0 2px 0 #2d9f94; }
-        .choice:active { transform: translateY(2px); box-shadow: none; }
-        .choice.selected { border-color: var(--color-primary); background: var(--color-primary-light); box-shadow: 0 2px 0 #2d9f94; }
-        .choice.correct { border-color: #16A34A; background: #DCFCE7; box-shadow: 0 2px 0 #16A34A; }
-        .choice.incorrect { border-color: #DC2626; background: #FEE2E2; box-shadow: 0 2px 0 #DC2626; }
+        .choice:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+        .choice.selected { border-color: var(--color-primary); background: var(--color-primary-light); }
+        .choice.correct { border-color: #16A34A; background: #DCFCE7; }
+        .choice.incorrect { border-color: #DC2626; background: #FEE2E2; }
         .choice-letter {
-            width: 32px; height: 32px; border-radius: 50%;
+            width: 28px; height: 28px; border-radius: 50%;
             background: #f3f4f6; display: flex; align-items: center;
-            justify-content: center; font-weight: 800; font-size: 0.82rem;
-            flex-shrink: 0; border: 2px solid #e5e7eb; color: #6b7280;
+            justify-content: center; font-weight: 700; font-size: 0.78rem;
+            flex-shrink: 0; color: #6b7280;
         }
-        .choice.selected .choice-letter { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
-        .choice.correct .choice-letter { background: #16A34A; color: #fff; border-color: #16A34A; }
-        .choice.incorrect .choice-letter { background: #DC2626; color: #fff; border-color: #DC2626; }
-        .choice-text { flex: 1; font-size: 0.92rem; line-height: 1.5; padding-top: 4px; }
+        .choice.selected .choice-letter { background: var(--color-primary); color: #fff; }
+        .choice.correct .choice-letter { background: #16A34A; color: #fff; }
+        .choice.incorrect .choice-letter { background: #DC2626; color: #fff; }
+        .choice-text { flex: 1; font-size: 0.92rem; line-height: 1.5; padding-top: 2px; }
 
         .feedback {
-            padding: 16px 18px; border-radius: 12px; margin-top: 16px;
+            padding: 14px 16px; border-radius: 10px; margin-top: 14px;
             font-size: 0.88rem; line-height: 1.6; display: none;
-            border: 2px solid;
         }
-        .feedback.correct { background: #DCFCE7; border-color: #86efac; color: #166534; display: block; box-shadow: 0 2px 0 #4ade80; }
-        .feedback.incorrect { background: #FEE2E2; border-color: #fca5a5; color: #991B1B; display: block; box-shadow: 0 2px 0 #ef4444; }
+        .feedback.correct { background: #DCFCE7; color: #166534; display: block; }
+        .feedback.incorrect { background: #FEE2E2; color: #991B1B; display: block; }
 
         .stimulus-box {
-            background: #f9fafb; border: 2px solid #e5e7eb;
-            border-radius: 12px; padding: 18px; margin-bottom: 16px;
+            background: #f9fafb; border: 1px solid #e5e7eb;
+            border-radius: 10px; padding: 16px; margin-bottom: 14px;
             line-height: 1.7; font-size: 0.93rem; max-height: 350px; overflow-y: auto;
         }
         .stimulus-box img { max-width: 100%; border-radius: 8px; }
 
         .quiz-btn {
-            padding: 12px 28px; border: 2px solid;
-            border-radius: 12px; font-weight: 700; font-size: 0.88rem;
+            padding: 11px 24px; border: none;
+            border-radius: 10px; font-weight: 700; font-size: 0.85rem;
             cursor: pointer; transition: all 0.15s ease;
             display: inline-flex; align-items: center; gap: 8px;
             font-family: var(--font);
         }
-        .quiz-btn:active { transform: translateY(2px); box-shadow: none !important; }
         .quiz-btn-primary {
             background: var(--color-primary); color: #fff;
-            border-color: var(--color-primary);
-            box-shadow: 0 3px 0 #2d9f94;
         }
         .quiz-btn-primary:hover { background: var(--color-primary-dark); }
-        .quiz-btn-primary:disabled { background: #d1d5db; border-color: #d1d5db; box-shadow: 0 3px 0 #9ca3af; cursor: not-allowed; }
+        .quiz-btn-primary:disabled { background: #d1d5db; cursor: not-allowed; }
         .quiz-btn-secondary {
-            background: #fff; color: #6b7280;
-            border-color: #e5e7eb;
-            box-shadow: 0 3px 0 #e5e7eb;
+            background: #f3f4f6; color: #6b7280;
         }
-        .quiz-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .quiz-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; }
 
         /* ── Results Card ────────────────────────────────────── */
         .result-card {
@@ -688,6 +680,9 @@
         var lessonPage = document.querySelector('.lesson-page');
         if (lessonPage) lessonPage.style.display = '';
 
+        // Toggle quiz-mode (strips outer card styling for quiz)
+        contentEl.classList.toggle('quiz-mode', step.type === 'Quiz');
+
         if (step.type === 'Video') {
             nav.classList.remove('hidden');
             btnContinue.style.display = '';
@@ -835,16 +830,15 @@
 
         var accuracy = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
         var ppScore = Math.max(0, Math.min(100, quizState.ppScore));
-        var circ = 2 * Math.PI * 24;
+        var circ = 2 * Math.PI * 18;
         var dash = circ - (ppScore / 100) * circ;
 
-        var html = '<div class="quiz-header"><div class="quiz-header-icon"><i class="fa-solid fa-clipboard-question"></i></div><div class="quiz-title">' + esc(quizState.title) + '</div></div>' +
-        '<div class="pp-scoreboard">' +
-            '<div class="pp-ring"><svg width="56" height="56" viewBox="0 0 56 56">' +
-                '<circle class="pp-ring-bg" cx="28" cy="28" r="24"/>' +
-                '<circle class="pp-ring-fill" cx="28" cy="28" r="24" stroke-dasharray="' + circ.toFixed(1) + '" stroke-dashoffset="' + dash.toFixed(1) + '"/>' +
+        var html = '<div class="pp-scoreboard">' +
+            '<div class="pp-ring"><svg width="44" height="44" viewBox="0 0 44 44">' +
+                '<circle class="pp-ring-bg" cx="22" cy="22" r="18"/>' +
+                '<circle class="pp-ring-fill" cx="22" cy="22" r="18" stroke-dasharray="' + circ.toFixed(1) + '" stroke-dashoffset="' + dash.toFixed(1) + '"/>' +
             '</svg><div class="pp-ring-text">' + ppScore + '</div></div>' +
-            '<div><div class="pp-label">PowerPath 100</div><div class="pp-score-text">' + ppScore + ' / 100</div></div>' +
+            '<div><div class="pp-label">PowerPath</div><div class="pp-score-text">' + ppScore + ' / 100</div></div>' +
             '<div class="pp-stat"><div class="pp-stat-label">Questions</div><div class="pp-stat-value">' + quizState.total + '</div></div>' +
             '<div class="pp-stat"><div class="pp-stat-label">Accuracy</div><div class="pp-stat-value">' + accuracy + '%</div></div>' +
         '</div>';
@@ -995,7 +989,7 @@
     function updateScoreboard() {
         var ppScore = Math.max(0, Math.min(100, quizState.ppScore));
         var accuracy = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
-        var circ = 2 * Math.PI * 24;
+        var circ = 2 * Math.PI * 18;
         var dash = circ - (ppScore / 100) * circ;
         var sb = document.querySelector('.pp-scoreboard');
         if (!sb) return;
