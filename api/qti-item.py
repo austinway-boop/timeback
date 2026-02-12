@@ -625,10 +625,41 @@ class handler(BaseHTTPRequestHandler):
                                 href = f"{QTI_BASE}/api/assessment-items/{ref_id}"
                     if href:
                         data, st = _fetch(href, headers)
-                        if data:
-                            # Attach the section's stimulus to this question
-                            if section_stimulus and isinstance(data, dict):
+                        if data and isinstance(data, dict):
+                            # Attach section-level stimulus
+                            if section_stimulus:
                                 data["_sectionStimulus"] = section_stimulus
+
+                            # Also check for item-level stimulus ref
+                            # (inside content['qti-assessment-item']['qti-assessment-stimulus-ref'])
+                            if not section_stimulus:
+                                item_qi = None
+                                if isinstance(data.get("content"), dict):
+                                    item_qi = data["content"].get("qti-assessment-item")
+                                if item_qi and isinstance(item_qi, dict):
+                                    item_stim_ref = item_qi.get("qti-assessment-stimulus-ref")
+                                    if item_stim_ref:
+                                        s_attrs = item_stim_ref.get("_attributes", item_stim_ref) if isinstance(item_stim_ref, dict) else {}
+                                        s_href = s_attrs.get("href", "")
+                                        s_id = s_attrs.get("identifier", "")
+                                        s_key = s_href or s_id
+                                        if s_key:
+                                            if s_key in stimulus_cache:
+                                                data["_sectionStimulus"] = stimulus_cache[s_key]
+                                            else:
+                                                for surl in [
+                                                    s_href,
+                                                    f"{QTI_BASE}/api/stimuli/{s_id}" if s_id else "",
+                                                    f"{QTI_BASE}/api/assessment-stimuli/{s_id}" if s_id else "",
+                                                ]:
+                                                    if not surl:
+                                                        continue
+                                                    sdata, sst = _fetch(surl, headers)
+                                                    if sdata:
+                                                        stimulus_cache[s_key] = sdata
+                                                        data["_sectionStimulus"] = sdata
+                                                        break
+
                             questions.append(data)
 
         return questions
