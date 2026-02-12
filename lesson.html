@@ -1107,32 +1107,39 @@
             console.warn('[Sync] No userId — skipping step sync');
             return;
         }
-        var lessonId = lessonData.lessonSourcedId || '';
-        if (!lessonId) {
-            // Fallback to resource resId
-            lessonId = (step.resource && step.resource.resId) || '';
-        }
+        
+        var resourceId = (step.resource && step.resource.resId) || lessonData.lessonSourcedId || '';
         var stepLabel = step.type || 'Content';
+        var contentType = stepLabel.toLowerCase(); // 'video' or 'article'
         
-        console.log('[Sync] Syncing', stepLabel, 'completion — lessonId:', lessonId, 'userId:', syncState.userId);
+        console.log('[Sync] Syncing', stepLabel, 'completion — resourceId:', resourceId, 'userId:', syncState.userId);
         
-        // 1. PowerPath: register completion with score 100
-        if (lessonId) {
-            fetch('/api/powerpath-complete', {
+        // Use the dedicated mark-content-complete endpoint for articles/videos
+        // This properly records completion in OneRoster + Caliper
+        if (resourceId) {
+            fetch('/api/mark-content-complete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     studentId: syncState.userId,
-                    lessonId: lessonId,
-                    score: 100
+                    resourceId: resourceId,
+                    contentType: contentType,
+                    title: step.resource.title || lessonData.title || stepLabel,
+                    email: syncState.userEmail || '',
+                    courseId: lessonData.courseId || ''
                 }),
             })
             .then(function(r) { return r.json(); })
-            .then(function(d) { console.log('[Sync]', stepLabel, 'PowerPath complete response:', JSON.stringify(d)); })
-            .catch(function(e) { console.error('[Sync]', stepLabel, 'PowerPath complete FAILED:', e.message); });
+            .then(function(d) { 
+                console.log('[Sync]', stepLabel, 'mark-content-complete response:', JSON.stringify(d));
+                if (d.success) {
+                    console.log('[Sync]', stepLabel, 'successfully marked as complete via API');
+                }
+            })
+            .catch(function(e) { console.error('[Sync]', stepLabel, 'mark-content-complete FAILED:', e.message); });
         }
         
-        // 2. OneRoster: record result as fully graded with score 100
+        // Also submit to OneRoster for backwards compatibility
         var lineItemId = lessonData.assessmentLineItemSourcedId || '';
         if (!lineItemId && step.resource) {
             lineItemId = step.resource.assessmentLineItemSourcedId || step.resource.resId || '';

@@ -643,14 +643,25 @@
             var html = '';
 
             // Helper: check if a progress entry represents actual completion (for display)
+            // For articles/videos: 'fully graded' with score 100 means complete
+            // For quizzes: must be 'fully graded' with score >= 90 (mastery threshold)
             function _isComplete(p) {
                 if (!p) return false;
-                return p.scoreStatus === 'fully graded' || p.textScore === 'Completed' || p.score >= 90 || p.scoreStatus === 'submitted';
+                // Fully graded with any score = complete for display purposes
+                if (p.scoreStatus === 'fully graded') return true;
+                // Legacy: textScore 'Completed' also counts
+                if (p.textScore === 'Completed') return true;
+                return false;
             }
-            // Stricter: quiz must be fully graded WITH a real score (not just started/viewed)
+            // Stricter: quiz must be fully graded WITH a passing score (90%+ = mastery)
             function _isQuizComplete(p) {
                 if (!p) return false;
-                return (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score > 0);
+                return (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score >= 90);
+            }
+            // Check if a quiz/assessment is mastered (90%+ score, finalized)
+            function _isMastered(p) {
+                if (!p) return false;
+                return (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score >= 90);
             }
 
             // ── Build progress lookup ──────────────────────────────
@@ -833,25 +844,63 @@
                     var unitLocked = isAdmin ? false : (unitFirstIdx > globalFrontier + 1);
 
                     var unitDone = 0;
+                    var unitQuizzesMastered = true; // Track if ALL quizzes in unit are mastered
+                    var unitHasQuizzes = false;
+                    
                     for (var lc = 0; lc < modLessons.length; lc++) {
                         var lcTitle = (modLessons[lc].title || '').trim();
                         var lcId = modLessons[lc].id || modLessons[lc].sourcedId || '';
                         var lcLocalKey = 'completed_' + (lcId || lcTitle);
                         var lcProg = progressByTitle[lcTitle] || (lcId ? progressById[lcId] : null);
                         var lcFound = _isComplete(lcProg) || localStorage.getItem(lcLocalKey) === 'true';
-                        // Also check componentResources by unique ID only (not title — titles repeat across units)
-                        if (!lcFound) {
-                            var lcRes = modLessons[lc].componentResources || [];
-                            for (var _lri = 0; _lri < lcRes.length; _lri++) {
-                                var _lr = lcRes[_lri].resource || lcRes[_lri] || {};
-                                var _lrId = _lr.id || _lr.sourcedId || lcRes[_lri].id || lcRes[_lri].sourcedId || '';
-                                if (_lrId && _isComplete(progressById[_lrId])) { lcFound = true; break; }
+                        
+                        // Check if this lesson is a quiz/assessment
+                        var lcIsAssessment = /assess|quiz|test|exam|mcq|frq|saq|dbq|leq|cumulative\s*review/i.test(lcTitle);
+                        
+                        // Also check componentResources
+                        var lcRes = modLessons[lc].componentResources || [];
+                        var lcHasQuizResource = false;
+                        var lcQuizMastered = false;
+                        
+                        for (var _lri = 0; _lri < lcRes.length; _lri++) {
+                            var _lr = lcRes[_lri].resource || lcRes[_lri] || {};
+                            var _lrId = _lr.id || _lr.sourcedId || lcRes[_lri].id || lcRes[_lri].sourcedId || '';
+                            var _lrType = ((_lr.metadata || {}).type || '').toLowerCase();
+                            var _lrIsQuiz = _lrType.includes('assess') || _lrType === 'quiz' || _lrType === 'test' || (_lrId && _lrId.includes('-bank-'));
+                            
+                            if (_lrIsQuiz) {
+                                lcHasQuizResource = true;
+                                unitHasQuizzes = true;
+                                // Check if this quiz is mastered (90%+ score)
+                                var _lrProg = _lrId ? progressById[_lrId] : null;
+                                if (_isMastered(_lrProg)) {
+                                    lcQuizMastered = true;
+                                }
+                            }
+                            
+                            if (!lcFound && _lrId && _isComplete(progressById[_lrId])) { 
+                                lcFound = true; 
                             }
                         }
+                        
+                        // If this lesson has a quiz, check if it's mastered
+                        if (lcIsAssessment || lcHasQuizResource) {
+                            if (!lcQuizMastered && !_isMastered(lcProg)) {
+                                unitQuizzesMastered = false;
+                            }
+                        }
+                        
                         if (lcFound) unitDone++;
                     }
                     var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
-                    var unitComplete = forceComplete || (unitDone === modLessons.length && modLessons.length > 0);
+                    // Unit is only complete if:
+                    // 1. All lessons are done (unitDone === modLessons.length) AND
+                    // 2. If unit has quizzes, ALL quizzes must be mastered (90%+)
+                    var unitComplete = forceComplete || (
+                        unitDone === modLessons.length && 
+                        modLessons.length > 0 && 
+                        (!unitHasQuizzes || unitQuizzesMastered)
+                    );
                     var isCurrentUnit = (mi === currentUnitIdx);
                     var autoExpand = !unitLocked && isCurrentUnit;
 
