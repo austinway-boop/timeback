@@ -409,7 +409,7 @@
             quizState.correct++;
             quizState.streak++;
             // Streak multiplier: base 5pts, +0.2x per streak, cap x2
-            var multiplier = quizState.streak <= 3 ? 1 : Math.min(2.5, 1 + (quizState.streak - 3) * 0.75);
+            var multiplier = quizState.streak <= 3 ? 1 : Math.min(3.5, 1 + (quizState.streak - 3) * 0.75);
             pointsChange = Math.round(5 * multiplier);
             quizState.ppScore = Math.min(100, quizState.ppScore + pointsChange);
             quizState.xpEarned += 1;
@@ -423,7 +423,7 @@
         var feedbackEl = document.getElementById('feedback');
         if (feedbackEl) {
             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-            var streakText = isCorrect && quizState.streak > 3 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (quizState.streak <= 3 ? 1 : Math.min(2.5, 1 + (quizState.streak - 3) * 0.75)).toFixed(1) + ')</span>' : '';
+            var streakText = isCorrect && quizState.streak > 3 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (quizState.streak <= 3 ? 1 : Math.min(3.5, 1 + (quizState.streak - 3) * 0.75)).toFixed(1) + ')</span>' : '';
             feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong>' + streakText : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong> <span style="font-size:0.85rem;">Streak reset</span>') +
                 (feedback ? '<p style="margin-top:8px;">' + feedback + '</p>' : '');
         }
@@ -787,7 +787,7 @@
                         if (isCorrect) {
                             quizState.correct++;
                             quizState.streak++;
-                            var multiplier = quizState.streak <= 3 ? 1 : Math.min(2.5, 1 + (quizState.streak - 3) * 0.75);
+                            var multiplier = quizState.streak <= 3 ? 1 : Math.min(3.5, 1 + (quizState.streak - 3) * 0.75);
                             pointsChange = Math.round(5 * multiplier);
                             quizState.ppScore = Math.min(100, quizState.ppScore + pointsChange);
                             quizState.xpEarned += q.isFRQ ? 2 : 1;
@@ -814,7 +814,7 @@
                             });
                             var feedbackEl = document.getElementById('feedback');
                             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-                            var streakText = isCorrect && quizState.streak > 3 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (quizState.streak <= 3 ? 1 : Math.min(2.5, 1 + (quizState.streak - 3) * 0.75)).toFixed(1) + ')</span>' : '';
+                            var streakText = isCorrect && quizState.streak > 3 ? ' <span style="font-size:0.85rem;">🔥 ' + quizState.streak + ' streak (x' + (quizState.streak <= 3 ? 1 : Math.min(3.5, 1 + (quizState.streak - 3) * 0.75)).toFixed(1) + ')</span>' : '';
                             feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong>' + streakText : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
                         }
 
