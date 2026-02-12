@@ -162,7 +162,8 @@ class handler(BaseHTTPRequestHandler):
                 "course": {
                     "code": course_code,
                     "name": course_code
-                }
+                },
+                "process": True
             },
             "generated": {
                 "id": f"{API_BASE}/ims/metrics/collections/activity/{run_id}",
