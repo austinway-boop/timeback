@@ -914,7 +914,7 @@
         var circ = 2 * Math.PI * 24;
         var dash = circ - (ppScore / 100) * circ;
 
-        var html = '<div class="quiz-header"><div class="quiz-title">' + esc(quizState.title) + '</div></div>' +
+        var html = '<div class="quiz-header"><div class="quiz-header-icon"><i class="fa-solid fa-clipboard-question"></i></div><div class="quiz-title">' + esc(quizState.title) + '</div></div>' +
         '<div class="pp-scoreboard">' +
             '<div class="pp-ring"><svg width="56" height="56" viewBox="0 0 56 56">' +
                 '<circle class="pp-ring-bg" cx="28" cy="28" r="24"/>' +
@@ -1093,18 +1093,19 @@
         var passed = pct >= 90;
         if (pct < 80) quizState.xpEarned = 0;
 
+        var resultColor = passed ? '#16A34A' : pct >= 80 ? '#D97706' : '#DC2626';
         quizArea.innerHTML = '<div class="result-card">' +
-            '<div style="font-size:2.5rem;margin-bottom:6px;">' + (passed ? '🎉' : pct >= 80 ? '👍' : '📝') + '</div>' +
-            '<div class="result-score">' + pct + '%</div>' +
+            '<div class="result-emoji">' + (passed ? '🎉' : pct >= 80 ? '👍' : '📝') + '</div>' +
+            '<div class="result-score" style="color:' + resultColor + ';">' + pct + '%</div>' +
             '<div class="result-label">' + (passed ? 'Mastery Achieved!' : pct >= 80 ? 'Good Work!' : 'Keep Practicing') + '</div>' +
-            '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned' + (pct < 80 ? ' (need ≥80% for XP)' : '') + '</div>' +
+            '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned' + (pct < 80 ? ' (need 80%+ for XP)' : '') + '</div>' +
             '<div class="result-details">' +
-                '<div class="result-stat"><div class="result-stat-val" style="color:#2E7D32;">' + quizState.correct + '</div><div class="result-stat-label">Correct</div></div>' +
-                '<div class="result-stat"><div class="result-stat-val">' + (quizState.total - quizState.correct) + '</div><div class="result-stat-label">Incorrect</div></div>' +
+                '<div class="result-stat"><div class="result-stat-val" style="color:#16A34A;">' + quizState.correct + '</div><div class="result-stat-label">Correct</div></div>' +
+                '<div class="result-stat"><div class="result-stat-val" style="color:#DC2626;">' + (quizState.total - quizState.correct) + '</div><div class="result-stat-label">Incorrect</div></div>' +
                 '<div class="result-stat"><div class="result-stat-val">' + quizState.total + '</div><div class="result-stat-label">Questions</div></div>' +
-                '<div class="result-stat"><div class="result-stat-val" style="color:' + (passed ? '#2E7D32' : pct >= 80 ? '#F9A825' : '#E53E3E') + ';">' + pct + '%</div><div class="result-stat-label">Accuracy</div></div>' +
+                '<div class="result-stat"><div class="result-stat-val" style="color:' + resultColor + ';">' + pct + '%</div><div class="result-stat-label">Accuracy</div></div>' +
             '</div>' +
-            (passed ? '<div style="margin-top:14px;padding:10px 18px;background:#E8F5E9;border-radius:10px;color:#1B5E20;font-size:0.88rem;"><i class="fa-solid fa-check-circle" style="margin-right:6px;"></i>Lesson complete! You can continue.</div>' : '') +
+            (passed ? '<div style="margin-top:18px;padding:12px 20px;background:#DCFCE7;border:2px solid #86efac;border-radius:12px;color:#166534;font-size:0.88rem;font-weight:600;box-shadow:0 2px 0 #4ade80;"><i class="fa-solid fa-check-circle" style="margin-right:6px;"></i>Lesson complete! You can continue.</div>' : '') +
         '</div>';
 
         // Finalize PowerPath attempt
@@ -1794,9 +1795,10 @@
     }
 
     function showError(msg) {
+        document.getElementById('lesson-hero').innerHTML = '<h1>Lesson</h1><div class="meta"><span class="meta-item"><i class="fa-solid fa-info-circle"></i> Content unavailable</span></div>';
         document.getElementById('lesson-content').innerHTML =
-            '<div class="lesson-placeholder"><i class="fa-solid fa-circle-exclamation"></i><p>' + msg + '</p>' +
-            '<p class="sub"><a href="/dashboard" style="color:var(--color-primary);">Back to Dashboard</a></p></div>';
+            '<div class="lesson-placeholder"><div class="ph-icon"><i class="fa-solid fa-circle-exclamation" style="color:#DC2626;"></i></div><p>' + msg + '</p>' +
+            '<p class="sub"><a href="/dashboard" style="color:var(--color-primary);font-weight:600;">Back to Dashboard</a></p></div>';
         document.getElementById('btn-continue').style.display = 'none';
     }
 
