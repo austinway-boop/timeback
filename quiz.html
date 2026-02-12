@@ -440,16 +440,12 @@
 
                 if (startData.attemptId || startData.id) {
                     quizState.attemptId = startData.attemptId || startData.id;
-                    // Restore progress from a previous session
-                    if (startData.hasExistingProgress) {
-                        var restored = _restoreProgress();
-                        if (!restored) {
-                            // No localStorage data — use server hints
-                            quizState.questionNum = startData.answeredCount || 0;
-                            if (startData.score != null) quizState.ppScore = Math.max(0, Math.min(100, startData.score));
-                        }
-                    } else {
-                        _clearProgress();
+                    // Always try localStorage restore first (never clear it here)
+                    var restored = _restoreProgress();
+                    if (!restored && startData.hasExistingProgress) {
+                        // No localStorage but server has progress — use server hints
+                        quizState.questionNum = startData.answeredCount || 0;
+                        if (startData.score != null) quizState.ppScore = Math.max(0, Math.min(100, startData.score));
                     }
                     await loadNextQuestion();
                     return;
