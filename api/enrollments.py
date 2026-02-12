@@ -1,13 +1,26 @@
-"""GET /api/enrollments?userId=... — Active enrollments for a student (EduBridge)
+"""GET  /api/enrollments?userId=... — Active enrollments for a student.
+POST /api/enrollments — Enroll a user in a course.
 
-Docs: https://docs.timeback.com/beta/api-reference/beyond-ai/edubridge/enrollments/get-all-active-enrollments-for-a-user
+EduBridge docs:
+  GET  /edubridge/enrollments/user/{userId}
+  POST /edubridge/enrollments/enroll/{userId}/{courseId}/{schoolId?}
 """
 
+import json
 from http.server import BaseHTTPRequestHandler
-from api._helpers import fetch_one, send_json, get_query_params
+
+import requests
+from api._helpers import API_BASE, api_headers, fetch_one, send_json, get_query_params
 
 
 class handler(BaseHTTPRequestHandler):
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def do_GET(self):
         params = get_query_params(self)
         user_id = params.get("userId", "")
@@ -24,3 +37,56 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": f"HTTP {status}", "enrollments": []}, status)
         except Exception as e:
             send_json(self, {"error": str(e), "enrollments": []}, 500)
+
+    def do_POST(self):
+        """Enroll a user in a course via EduBridge."""
+        try:
+            raw = self.rfile.read(int(self.headers.get("Content-Length", 0)) or 0)
+            if not raw:
+                send_json(self, {"error": "Empty body"}, 400)
+                return
+
+            body = json.loads(raw)
+            user_id = (body.get("userId") or body.get("studentId") or body.get("student") or "").strip()
+            course_id = (body.get("courseId") or body.get("course") or "").strip()
+            role = (body.get("role") or "student").strip()
+
+            if not user_id or not course_id:
+                send_json(self, {"error": "userId and courseId are required"}, 400)
+                return
+
+            headers = api_headers()
+            url = f"{API_BASE}/edubridge/enrollments/enroll/{user_id}/{course_id}"
+
+            payload = {"role": role}
+            # Pass optional metadata (goals, metrics) if provided
+            if body.get("metadata"):
+                payload["metadata"] = body["metadata"]
+
+            resp = requests.post(url, headers=headers, json=payload, timeout=15)
+
+            if resp.status_code == 401:
+                headers = api_headers()
+                resp = requests.post(url, headers=headers, json=payload, timeout=15)
+
+            try:
+                data = resp.json()
+            except Exception:
+                data = {"status": resp.status_code}
+
+            if resp.status_code in (200, 201):
+                send_json(self, {"success": True, "enrollment": data.get("data", data)}, 201)
+            else:
+                err = ""
+                if isinstance(data, dict):
+                    err = data.get("error") or data.get("message") or data.get("imsx_description") or ""
+                send_json(self, {
+                    "success": False,
+                    "error": err or f"HTTP {resp.status_code}",
+                    "response": data,
+                }, resp.status_code if resp.status_code >= 400 else 422)
+
+        except json.JSONDecodeError:
+            send_json(self, {"error": "Invalid JSON"}, 400)
+        except Exception as e:
+            send_json(self, {"error": str(e)}, 500)

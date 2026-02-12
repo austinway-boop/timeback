@@ -762,12 +762,23 @@ async function loadAssignDropdowns() {
     if(ts){ts.innerHTML='<option value="">Select a test...</option>'+lineItemsCache.map(t=>`<option value="${t.sourcedId}">${esc(t.title||t.name||'Untitled')}</option>`).join('');ts.onchange=function(){const b=document.getElementById('modal-test-btn');if(b)b.disabled=!this.value;};}
 }
 
-function assignCourseModal() {
+async function assignCourseModal() {
     const state=coursePickers.modal; const a=document.getElementById('modal-course-alert');
     if(!state.selectedId||!currentStudentId) return;
     const course=state.courses.find(c=>c.sourcedId===state.selectedId);
     const student=allUsers.find(u=>u.sourcedId===currentStudentId);
-    a.className='alert alert-warning'; a.textContent=`Course "${course?.title||'Unknown'}" assignment requested for ${student?student.givenName+' '+student.familyName:currentStudentId}. (API integration pending)`;
+    const courseName=course?.title||'Unknown';
+    const studentName=student?`${student.givenName} ${student.familyName}`:currentStudentId;
+    a.className='alert alert-info'; a.textContent=`Enrolling ${studentName} in "${courseName}"...`;
+    try {
+        const resp=await fetch('/api/enrollments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:currentStudentId,courseId:state.selectedId,role:'student'})});
+        const data=await resp.json().catch(()=>({}));
+        if(resp.ok&&data.success){
+            a.className='alert alert-success'; a.textContent=`${studentName} enrolled in "${courseName}".`;
+        } else {
+            a.className='alert alert-error'; a.textContent=data.error||`Failed to enroll in "${courseName}".`;
+        }
+    } catch(e) { a.className='alert alert-error'; a.textContent='Network error. Try again.'; }
 }
 
 async function assignTestModal() {
@@ -842,12 +853,23 @@ function bulkAssignCourse() {
     document.getElementById('bulk-course-alert').className='alert';document.getElementById('bulk-course-alert').textContent='';
     initCoursePicker('bulk');
 }
-function confirmBulkCourse(){
+async function confirmBulkCourse(){
     const state=coursePickers.bulk;if(!state.selectedId)return;
     const course=state.courses.find(c=>c.sourcedId===state.selectedId);
+    const courseName=course?.title||'Unknown';
+    let okCount=0,failCount=0;
+    for(const u of assignTargetUsers){
+        try{
+            const r=await fetch('/api/enrollments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:u.sourcedId,courseId:state.selectedId,role:'student'})});
+            const d=await r.json().catch(()=>({}));
+            if(r.ok&&d.success) okCount++; else failCount++;
+        }catch{failCount++;}
+    }
     const names=assignTargetUsers.map(u=>`${u.givenName} ${u.familyName}`).join(', ');
     closeBulkCourse();
-    showToast(`Course "${course?.title||'Unknown'}" assignment requested for ${names}.`,'success');
+    if(okCount>0&&failCount===0) showToast(`${names} enrolled in "${courseName}".`,'success');
+    else if(okCount>0) showToast(`"${courseName}": ${okCount} enrolled, ${failCount} failed.`,'warning');
+    else showToast(`Failed to enroll in "${courseName}".`,'error');
 }
 function closeBulkCourse(){closeAllCoursePickers();document.getElementById('bulk-course-modal').classList.remove('open');}
 document.getElementById('bulk-course-modal').addEventListener('click',function(e){if(e.target===this)closeBulkCourse();});
