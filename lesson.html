@@ -780,6 +780,14 @@
         if (key) localStorage.removeItem(key);
     }
 
+    // Save progress automatically when leaving or hiding the page
+    window.addEventListener('beforeunload', function() {
+        if (quizState.total > 0) _saveQuizProgress();
+    });
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden && quizState.total > 0) _saveQuizProgress();
+    });
+
     // ── Question Reporting: init ──
     (function initReporting() {
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
@@ -1369,6 +1377,9 @@
         quizState.testId = testId;
         apState.subject = _apSubjectKey(subject) || _apSubjectKey(quizState.title);
 
+        // ── Restore progress from previous session BEFORE any API calls ──
+        _restoreQuizProgress();
+
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
         // ── 1. PowerPath adaptive flow ──
@@ -1382,10 +1393,8 @@
                 var startData = await startResp.json();
                 if (startData.attemptId || startData.id) {
                     quizState.attemptId = startData.attemptId || startData.id;
-                    // Always try localStorage restore first (never clear it here)
-                    var restored = _restoreQuizProgress();
-                    if (!restored && startData.hasExistingProgress) {
-                        // No localStorage but server has progress — use server hints
+                    // Progress already restored above; use server hints as fallback
+                    if (quizState.total === 0 && startData.hasExistingProgress) {
                         quizState.questionNum = startData.answeredCount || 0;
                         if (startData.score != null) quizState.ppScore = Math.max(0, Math.min(100, startData.score));
                     }

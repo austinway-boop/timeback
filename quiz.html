@@ -344,6 +344,14 @@
         window.location.href = url.toString();
     }
 
+    // Save progress automatically when leaving or hiding the page
+    window.addEventListener('beforeunload', function() {
+        if (quizState.total > 0) _saveProgress();
+    });
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden && quizState.total > 0) _saveProgress();
+    });
+
     var area = document.getElementById('quiz-area');
 
     // ── Question Reporting: init ──
@@ -415,6 +423,11 @@
             _clearProgress();
         }
 
+        // ── Restore progress from previous session BEFORE any API calls ──
+        if (!isRetry) {
+            _restoreProgress();
+        }
+
         // ── Detect reading/stimulus content (not a quiz) ──
         var isReading = contentType === 'stimulus' || contentType === 'stimuli'
             || contentType === 'reading' || contentType === 'article';
@@ -440,10 +453,8 @@
 
                 if (startData.attemptId || startData.id) {
                     quizState.attemptId = startData.attemptId || startData.id;
-                    // Always try localStorage restore first (never clear it here)
-                    var restored = _restoreProgress();
-                    if (!restored && startData.hasExistingProgress) {
-                        // No localStorage but server has progress — use server hints
+                    // Progress already restored above; use server hints as fallback
+                    if (quizState.total === 0 && startData.hasExistingProgress) {
                         quizState.questionNum = startData.answeredCount || 0;
                         if (startData.score != null) quizState.ppScore = Math.max(0, Math.min(100, startData.score));
                     }

@@ -150,6 +150,22 @@
     .course-picker-load-more { display:inline-block; padding:5px 16px; border:1px solid var(--color-primary); border-radius:var(--radius-sm); background:transparent; color:var(--color-primary); font-size:0.8rem; font-weight:600; cursor:pointer; transition:all var(--transition); }
     .course-picker-load-more:hover { background:var(--color-primary); color:white; }
     .course-picker-status { padding:14px; text-align:center; font-size:0.82rem; color:var(--color-text-muted); }
+
+    /* Reporting toggle */
+    .reporting-toggle-section { margin-top:16px; padding:14px 16px; background:var(--color-bg); border-radius:var(--radius-sm); }
+    .reporting-toggle-section h4 { font-size:0.88rem; font-weight:600; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+    .reporting-toggle-section h4 i { color:#E67E22; }
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .toggle-label-text { font-size:0.85rem; color:var(--color-text-secondary); }
+    .toggle-switch { position:relative; width:44px; height:24px; cursor:pointer; flex-shrink:0; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-track { position:absolute; inset:0; background:var(--color-border); border-radius:12px; transition:background 0.2s ease; }
+    .toggle-track::after { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; border-radius:50%; background:white; transition:transform 0.2s ease; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-switch input:checked + .toggle-track { background:var(--color-primary); }
+    .toggle-switch input:checked + .toggle-track::after { transform:translateX(20px); }
+    .global-reporting-btn { padding:8px 16px; border:1px solid #E67E22; border-radius:var(--radius-sm); background:transparent; color:#E67E22; font-weight:600; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all var(--transition); }
+    .global-reporting-btn:hover { background:#E67E22; color:white; }
+    .global-reporting-btn.active { background:#E67E22; color:white; }
     </style>
 </head>
 <body data-view="admin" data-active="students">
@@ -163,7 +179,10 @@
                     <h1 class="page-title">Students</h1>
                     <p class="page-subtitle">Manage and view all enrolled students</p>
                 </div>
-                <button class="create-user-btn" onclick="openCreateUserModal()"><i class="fa-solid fa-plus"></i> Create User</button>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button class="global-reporting-btn" id="global-reporting-btn" onclick="toggleGlobalReporting()"><i class="fa-solid fa-flag"></i> <span id="global-reporting-label">Loading...</span></button>
+                    <button class="create-user-btn" onclick="openCreateUserModal()"><i class="fa-solid fa-plus"></i> Create User</button>
+                </div>
             </div>
 
             <div class="role-stats" id="role-stats"></div>
@@ -611,6 +630,7 @@ async function viewStudent(id) {
         document.getElementById('modal-student-name').textContent = `${u.givenName} ${u.familyName}`;
         document.getElementById('modal-body').innerHTML = buildModal(u, enrollments, timeSaved);
         switchTab('profile');
+        setStudentReportingToggle(u.sourcedId);
         if (u.email) loadAnalytics(u.email);
         loadAssignDropdowns();
     } catch { document.getElementById('modal-body').innerHTML = '<p class="error-text">Failed to load student details.</p>'; }
@@ -665,6 +685,17 @@ function buildModal(u, enrollments, ts) {
                 <input class="form-input" id="whitelist-email" placeholder="Add admin email..." style="flex:1;">
                 <button class="btn-sm btn-primary" onclick="addWhitelistEmail()">Add</button>
             </div>
+        </div>
+        <div class="reporting-toggle-section">
+            <h4><i class="fa-solid fa-flag"></i> Question Reporting</h4>
+            <div class="toggle-row">
+                <span class="toggle-label-text">Enable question reporting for this student</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="student-reporting-toggle" onchange="toggleStudentReporting('${u.sourcedId}', this.checked)">
+                    <span class="toggle-track"></span>
+                </label>
+            </div>
+            <div class="alert" id="reporting-toggle-alert" style="margin-top:8px;"></div>
         </div>
     </div>
     <div class="modal-tab-content" id="tab-enrollments">
@@ -932,6 +963,88 @@ async function confirmBulkTest(){
 }
 function closeBulkTest(){document.getElementById('bulk-test-modal').classList.remove('open');}
 document.getElementById('bulk-test-modal').addEventListener('click',function(e){if(e.target===this)closeBulkTest();});
+
+/* =====================================================================
+   Question Reporting Toggles
+   ===================================================================== */
+var _reportingConfig = null;
+
+async function loadReportingConfig() {
+    try {
+        const resp = await fetch('/api/reporting-config');
+        const data = await resp.json();
+        _reportingConfig = data.config || { globalEnabled: true, students: {} };
+        updateGlobalReportingBtn();
+    } catch(e) {
+        _reportingConfig = { globalEnabled: true, students: {} };
+        updateGlobalReportingBtn();
+    }
+}
+
+function updateGlobalReportingBtn() {
+    const btn = document.getElementById('global-reporting-btn');
+    const label = document.getElementById('global-reporting-label');
+    if (!_reportingConfig) return;
+    const enabled = _reportingConfig.globalEnabled;
+    label.textContent = enabled ? 'Reporting: ON' : 'Reporting: OFF';
+    btn.classList.toggle('active', enabled);
+}
+
+async function toggleGlobalReporting() {
+    if (!_reportingConfig) return;
+    const newState = !_reportingConfig.globalEnabled;
+    try {
+        const resp = await fetch('/api/reporting-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ global: true, enabled: newState }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            _reportingConfig = data.config;
+            updateGlobalReportingBtn();
+            showToast(`Question reporting ${newState ? 'enabled' : 'disabled'} globally.`, 'success');
+        }
+    } catch(e) {
+        showToast('Failed to update reporting config.', 'warning');
+    }
+}
+
+async function toggleStudentReporting(studentId, enabled) {
+    try {
+        const resp = await fetch('/api/reporting-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studentId: studentId, enabled: enabled }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            _reportingConfig = data.config;
+            const alert = document.getElementById('reporting-toggle-alert');
+            if (alert) {
+                alert.className = 'alert success';
+                alert.textContent = `Reporting ${enabled ? 'enabled' : 'disabled'} for this student.`;
+                setTimeout(() => { alert.className = 'alert'; alert.textContent = ''; }, 3000);
+            }
+        }
+    } catch(e) {
+        showToast('Failed to update student reporting.', 'warning');
+    }
+}
+
+function setStudentReportingToggle(studentId) {
+    const toggle = document.getElementById('student-reporting-toggle');
+    if (!toggle || !_reportingConfig) return;
+    const override = (_reportingConfig.students || {})[studentId];
+    if (override !== undefined && override !== null) {
+        toggle.checked = override;
+    } else {
+        toggle.checked = _reportingConfig.globalEnabled;
+    }
+}
+
+// Load config on init
+loadReportingConfig();
 
 /* =====================================================================
    Utilities
