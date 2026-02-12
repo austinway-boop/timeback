@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - Thinking Tree</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preload" href="/css/style.css" as="style">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .hero-banner { position:relative; border-radius:var(--radius); overflow:hidden; margin-bottom:24px; box-shadow:var(--shadow); }
+        .hero-banner .hero-bg { width:100%; height:150px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#45B5AA 0%,#2D8E84 50%,#1A6B63 100%); }
+        .hero-overlay { position:absolute; inset:0; display:flex; align-items:center; padding:0 32px; }
+        .hero-overlay h1 { font-size:1.7rem; font-weight:700; color:#fff; margin:0 0 4px; }
+        .hero-overlay p { font-size:0.95rem; color:rgba(255,255,255,0.85); margin:0; }
+
+        .search-wrap { position:relative; margin-bottom:24px; }
+        .search-wrap .search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--color-text-muted); font-size:0.9rem; pointer-events:none; }
+        .search-wrap input { width:100%; padding:10px 14px 10px 40px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-surface); color:var(--color-text); font-size:0.9rem; outline:none; transition:border-color var(--transition); box-shadow:var(--shadow); }
+        .search-wrap input:focus { border-color:var(--color-primary); }
+        .search-wrap input::placeholder { color:var(--color-text-muted); }
+
+        .search-dropdown { position:absolute; top:100%; left:0; right:0; z-index:1000; background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-sm); box-shadow:var(--shadow-md); max-height:320px; overflow-y:auto; display:none; margin-top:4px; }
+        .search-dropdown.open { display:block; }
+        .search-item { display:flex; align-items:center; gap:12px; padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--color-border); transition:background 0.1s; }
+        .search-item:last-child { border-bottom:none; }
+        .search-item:hover { background:var(--color-primary-light); }
+        .search-item-name { font-weight:600; font-size:0.9rem; color:var(--color-text); }
+        .search-item-email { font-size:0.8rem; color:var(--color-text-muted); }
+        .search-empty { padding:20px; text-align:center; color:var(--color-text-muted); font-size:0.85rem; }
+
+        /* Selected student card */
+        .selected-student { display:flex; align-items:center; gap:14px; background:var(--color-surface); border:1px solid var(--color-primary); border-radius:var(--radius); padding:14px 18px; margin-bottom:24px; box-shadow:var(--shadow); }
+        .selected-student .student-avatar { width:42px; height:42px; border-radius:50%; background:var(--color-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; flex-shrink:0; }
+        .selected-student .student-info { flex:1; min-width:0; }
+        .selected-student .student-name { font-weight:600; font-size:0.95rem; color:var(--color-text); }
+        .selected-student .student-email { font-size:0.82rem; color:var(--color-text-muted); }
+        .selected-student .deselect-btn { padding:5px 12px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:transparent; color:var(--color-text-muted); font-size:0.78rem; font-weight:600; cursor:pointer; transition:all var(--transition); }
+        .selected-student .deselect-btn:hover { border-color:#E53E3E; color:#E53E3E; background:#FFF5F5; }
+
+        /* Placeholder state */
+        .placeholder-state { text-align:center; padding:60px 24px; color:var(--color-text-muted); }
+        .placeholder-state i { font-size:2.8rem; margin-bottom:16px; display:block; opacity:0.18; }
+        .placeholder-state p { font-size:0.95rem; margin:0 0 4px; }
+        .placeholder-state .hint { font-size:0.82rem; opacity:0.7; }
+    </style>
+</head>
+<body data-view="admin" data-active="thinking-tree">
+
+<div class="layout">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="main-content">
+        <div>
+            <div class="hero-banner">
+                <div class="hero-bg"></div>
+                <div class="hero-overlay">
+                    <div>
+                        <h1><i class="fa-solid fa-brain" style="margin-right:10px; opacity:0.85;"></i>Thinking Tree</h1>
+                        <p>Explore and visualize a student's learning thought processes.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search (visible when no student selected) -->
+            <div id="search-section">
+                <div class="search-wrap">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="student-search" placeholder="Search for a student by name or email..." autocomplete="off">
+                    <div class="search-dropdown" id="search-dropdown"></div>
+                </div>
+            </div>
+
+            <!-- Selected student card (hidden until selected) -->
+            <div id="selected-student-card" style="display:none;"></div>
+
+            <!-- Placeholder when no student selected -->
+            <div id="placeholder">
+                <div class="placeholder-state">
+                    <i class="fa-solid fa-brain"></i>
+                    <p>Select a student to get started</p>
+                    <p class="hint">Search by name or email above</p>
+                </div>
+            </div>
+
+            <!-- Future content area (shown after student selected) -->
+            <div id="tree-content" style="display:none;">
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/js/auth-guard.js?v=3"></script>
+<script src="/js/layout.js?v=2"></script>
+<script src="/js/app.js"></script>
+<script>
+var selectedStudent = null;
+
+function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Init ──────────────────────────────────────────────────── */
+var searchInput, searchTimer;
+
+document.addEventListener('DOMContentLoaded', function() {
+    searchInput = document.getElementById('student-search');
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        var q = this.value.trim();
+        if (q.length < 2) { closeDD(); return; }
+        searchTimer = setTimeout(function() { doSearch(q); }, 250);
+    });
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-wrap')) closeDD();
+    });
+});
+
+/* ── Search via API ────────────────────────────────────────── */
+var searchController = null;
+
+function doSearch(q) {
+    if (searchController) searchController.abort();
+    searchController = new AbortController();
+
+    var dd = document.getElementById('search-dropdown');
+    dd.innerHTML = '<div class="search-empty"><i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i>Searching...</div>';
+    dd.classList.add('open');
+
+    fetch('/api/users-page?search=' + encodeURIComponent(q) + '&limit=20', { signal: searchController.signal })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var users = d.users || [];
+            renderDD(users);
+        })
+        .catch(function(e) {
+            if (e.name !== 'AbortError') {
+                dd.innerHTML = '<div class="search-empty">Search failed. Try again.</div>';
+            }
+        });
+}
+
+function renderDD(list) {
+    var dd = document.getElementById('search-dropdown');
+    if (!list.length) {
+        dd.innerHTML = '<div class="search-empty">No students found.</div>';
+        dd.classList.add('open');
+        return;
+    }
+    dd.innerHTML = list.map(function(u) {
+        var nm = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
+        return '<div class="search-item" data-id="' + esc(u.sourcedId) + '"' +
+            ' data-given="' + esc(u.givenName) + '"' +
+            ' data-family="' + esc(u.familyName) + '"' +
+            ' data-email="' + esc(u.email) + '"' +
+            ' onclick="pickStudent(this)">' +
+            '<div class="user-cell-avatar">' + esc((u.givenName || '?')[0].toUpperCase()) + '</div>' +
+            '<div style="flex:1;min-width:0;">' +
+                '<div class="search-item-name">' + esc(nm) + '</div>' +
+                '<div class="search-item-email">' + esc(u.email || '') + '</div>' +
+            '</div></div>';
+    }).join('');
+    dd.classList.add('open');
+}
+
+function closeDD() {
+    document.getElementById('search-dropdown').classList.remove('open');
+}
+
+/* ── Pick Student ──────────────────────────────────────────── */
+function pickStudent(el) {
+    var user = {
+        sourcedId:  el.getAttribute('data-id'),
+        givenName:  el.getAttribute('data-given') || '',
+        familyName: el.getAttribute('data-family') || '',
+        email:      el.getAttribute('data-email') || '',
+    };
+
+    selectedStudent = user;
+    closeDD();
+
+    var nm = ((user.givenName || '') + ' ' + (user.familyName || '')).trim() || 'Unknown';
+    var initial = (user.givenName || '?')[0].toUpperCase();
+
+    // Show selected card, hide search & placeholder
+    document.getElementById('search-section').style.display = 'none';
+    document.getElementById('placeholder').style.display = 'none';
+
+    document.getElementById('selected-student-card').style.display = '';
+    document.getElementById('selected-student-card').innerHTML =
+        '<div class="selected-student">' +
+            '<div class="student-avatar">' + esc(initial) + '</div>' +
+            '<div class="student-info">' +
+                '<div class="student-name">' + esc(nm) + '</div>' +
+                '<div class="student-email">' + esc(user.email) + '</div>' +
+            '</div>' +
+            '<button class="deselect-btn" onclick="clearStudent()"><i class="fa-solid fa-xmark" style="margin-right:4px;"></i>Change</button>' +
+        '</div>';
+
+    document.getElementById('tree-content').style.display = '';
+}
+
+/* ── Clear Student ─────────────────────────────────────────── */
+function clearStudent() {
+    selectedStudent = null;
+
+    document.getElementById('selected-student-card').style.display = 'none';
+    document.getElementById('tree-content').style.display = 'none';
+
+    document.getElementById('search-section').style.display = '';
+    document.getElementById('placeholder').style.display = '';
+
+    searchInput.value = '';
+    searchInput.focus();
+}
+</script>
+</body>
+</html>

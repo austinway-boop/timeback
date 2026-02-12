@@ -54,10 +54,11 @@
     ];
 
     const adminNav = [
-        { id: 'students',     icon: 'fa-users',           label: 'Students',     href: '/admin/students' },
-        { id: 'courses',      icon: 'fa-book',            label: 'Courses',      href: '/admin/courses' },
-        { id: 'assign-tests', icon: 'fa-clipboard-check', label: 'Assign Tests', href: '/admin/assign-tests' },
-        { id: 'settings',     icon: 'fa-gear',            label: 'Settings',     href: '/admin/settings' },
+        { id: 'students',      icon: 'fa-users',           label: 'Students',      href: '/admin/students' },
+        { id: 'courses',       icon: 'fa-book',            label: 'Courses',       href: '/admin/courses' },
+        { id: 'assign-tests',  icon: 'fa-clipboard-check', label: 'Assign Tests',  href: '/admin/assign-tests' },
+        { id: 'thinking-tree', icon: 'fa-brain',           label: 'Thinking Tree', href: '/admin/thinking-tree' },
+        { id: 'settings',      icon: 'fa-gear',            label: 'Settings',      href: '/admin/settings' },
     ];
 
     const items = view === 'student' ? studentNav : adminNav;
