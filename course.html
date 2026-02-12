@@ -425,6 +425,28 @@
        Course Detail Page — Units → Lessons → Resources (Video/Article/Quiz)
        ==================================================================== */
 
+    /* ── Refresh on back/forward navigation ────────────────────
+       When the user completes a lesson or quiz and hits "Back to Course",
+       the browser may serve this page from the bfcache (back-forward cache).
+       In that case DOMContentLoaded does NOT re-fire, so progress is stale.
+       We listen for `pageshow` with `event.persisted` and also check a
+       sessionStorage flag set by quiz/lesson pages on completion. Either
+       condition triggers a full reload so the progress UI is rebuilt. */
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted || sessionStorage.getItem('al_progress_changed') === 'true') {
+            sessionStorage.removeItem('al_progress_changed');
+            window.location.reload();
+        }
+    });
+
+    // Also handle visibility change (e.g. tab switching or mobile backgrounding)
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible' && sessionStorage.getItem('al_progress_changed') === 'true') {
+            sessionStorage.removeItem('al_progress_changed');
+            window.location.reload();
+        }
+    });
+
     function esc(str) {
         if (str === null || str === undefined) return '';
         if (typeof str !== 'string') str = String(str);

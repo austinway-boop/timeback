@@ -1372,6 +1372,8 @@
         if (passed) {
             var lessonId = lessonData.title || '';
             if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
+            // Signal course.html to refresh progress when we navigate back
+            sessionStorage.setItem('al_progress_changed', 'true');
         }
 
         // Sync with TimeBack Platform

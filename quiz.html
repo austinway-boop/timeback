@@ -172,6 +172,8 @@
         for (var i = 0; i < ids.length; i++) {
             if (ids[i]) localStorage.setItem('completed_' + ids[i], 'true');
         }
+        // Signal course.html to refresh progress when we navigate back
+        sessionStorage.setItem('al_progress_changed', 'true');
     }
 
     document.addEventListener('DOMContentLoaded', async function() {
@@ -485,7 +487,7 @@
             (!passed && pct < 80 ? '<div style="margin-top:16px;font-size:0.88rem;color:#E53E3E;">Below 80% — no XP awarded. Review the material and try again.</div>' : '') +
             '<div style="margin-top:24px;display:flex;gap:12px;justify-content:center;">' +
                 (passed ? '<button class="quiz-btn quiz-btn-primary" onclick="history.back()"><i class="fa-solid fa-arrow-right"></i> Continue to Next Lesson</button>' : '<button class="quiz-btn quiz-btn-primary" onclick="location.reload()"><i class="fa-solid fa-redo"></i> Try Again</button>') +
-                '<button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button>' +
+                '<button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course' + (passed ? ' (Progress Saved)' : '') + '</button>' +
             '</div>' +
         '</div>';
 
@@ -551,7 +553,7 @@
                 '<div class="quiz-actions" style="margin-top:20px;">' +
                     '<button class="quiz-btn quiz-btn-primary" onclick="_markQuizComplete(); this.innerHTML=\'<i class=\\\'fa-solid fa-check\\\'></i> Marked Complete\'; this.disabled=true; this.style.background=\'#2E7D32\';">' +
                         '<i class="fa-solid fa-check"></i> Mark as Read</button>' +
-                    '<button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button>' +
+                    '<button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course (Progress Saved)</button>' +
                 '</div>';
             return true;
         } catch(e) {
