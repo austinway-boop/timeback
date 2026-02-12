@@ -160,6 +160,24 @@
         .xp-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 1rem; font-weight: 700; color: var(--color-primary); background: var(--color-primary-light); padding: 6px 16px; border-radius: 20px; margin-top: 14px; }
         .loading-msg { text-align: center; padding: 48px; color: var(--color-text-muted); }
 
+        /* ── Top Nav Bar ─────────────────────────────────────── */
+        .lesson-topnav {
+            display: flex; align-items: center; gap: 12px;
+            padding: 16px 0 0; flex-shrink: 0;
+        }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 7px 14px; border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm); background: var(--color-surface);
+            color: var(--color-text-secondary); font-size: 0.82rem; font-weight: 500;
+            cursor: pointer; text-decoration: none; transition: all var(--transition);
+        }
+        .back-link:hover { border-color: var(--color-primary); color: var(--color-primary); }
+        .lesson-topnav .lesson-title-text {
+            flex: 1; font-size: 0.95rem; font-weight: 600; color: var(--color-text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
         /* ── Responsive ──────────────────────────────────────── */
         @media (max-width: 768px) {
             .stepper { flex-wrap: wrap; }
@@ -172,6 +190,14 @@
 </head>
 <body>
     <div class="lesson-page">
+        <!-- Top Nav -->
+        <div class="lesson-topnav">
+            <a class="back-link" id="back-to-course" onclick="goBackToCourse()">
+                <i class="fa-solid fa-arrow-left"></i> Back to Course
+            </a>
+            <span class="lesson-title-text" id="lesson-title-text"></span>
+        </div>
+
         <!-- Stepper -->
         <div class="stepper" id="stepper"></div>
 
@@ -256,6 +282,8 @@
         try { lessonData = JSON.parse(raw); } catch(e) { showError('Invalid lesson data.'); return; }
 
         document.title = 'AlphaLearn - ' + (lessonData.title || 'Lesson');
+        var titleEl = document.getElementById('lesson-title-text');
+        if (titleEl) titleEl.textContent = lessonData.title || 'Lesson';
 
         var resources = lessonData.resources || [];
         var videos = [], articles = [], quizzes = [];
@@ -303,7 +331,11 @@
 
         if (step.type === 'Video') {
             nav.classList.remove('hidden');
+            btnContinue.style.display = '';
             btnContinue.innerHTML = (idx === steps.length - 1) ? 'Finish <i class="fa-solid fa-check"></i>' : 'Continue <i class="fa-solid fa-arrow-right"></i>';
+            var btnBack = document.getElementById('btn-back');
+            btnBack.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back';
+            btnBack.onclick = function() { goBack(); };
             var embedUrl = toEmbedUrl(url);
             if (embedUrl) {
                 contentEl.innerHTML = '<div class="video-wrap"><iframe src="' + esc(embedUrl) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>';
@@ -312,7 +344,11 @@
             }
         } else if (step.type === 'Article') {
             nav.classList.remove('hidden');
+            btnContinue.style.display = '';
             btnContinue.innerHTML = (idx === steps.length - 1) ? 'Finish <i class="fa-solid fa-check"></i>' : 'Continue <i class="fa-solid fa-arrow-right"></i>';
+            var btnBack = document.getElementById('btn-back');
+            btnBack.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back';
+            btnBack.onclick = function() { goBack(); };
             var resId = step.resource.resId || '';
             if (url || resId) {
                 contentEl.innerHTML = '<div class="article-loading"><i class="fa-solid fa-spinner fa-spin"></i><span>Loading article...</span></div>';
@@ -321,8 +357,12 @@
                 contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content</p><p class="sub">No article URL available for this lesson.</p></div>';
             }
         } else if (step.type === 'Quiz') {
-            // Hide bottom nav — quiz has its own controls
-            nav.classList.add('hidden');
+            // Show nav with exit option
+            nav.classList.remove('hidden');
+            var btnBack = document.getElementById('btn-back');
+            btnBack.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Exit Quiz';
+            btnBack.onclick = function() { goBackToCourse(); };
+            btnContinue.style.display = 'none';
             resetQuizState();
             quizState.active = true;
             quizState.title = lessonData.title || 'Quiz';
@@ -637,12 +677,17 @@
         var nav = document.getElementById('lesson-nav');
         nav.classList.remove('hidden');
         var btnContinue = document.getElementById('btn-continue');
+        btnContinue.style.display = '';
         if (passed || quizState.finished) {
             btnContinue.innerHTML = 'Finish Lesson <i class="fa-solid fa-check"></i>';
             btnContinue.onclick = function() { goBackToCourse(); };
         } else {
             btnContinue.innerHTML = 'Continue <i class="fa-solid fa-arrow-right"></i>';
+            btnContinue.onclick = function() { goBackToCourse(); };
         }
+        var btnBack = document.getElementById('btn-back');
+        btnBack.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back to Course';
+        btnBack.onclick = function() { goBackToCourse(); };
     }
 
     /* ── QTI static questions (fallback) ───────────────────── */
