@@ -541,112 +541,125 @@
             color: var(--neu-text-muted); font-weight: 500;
         }
 
-        /* ── AP Exam UI (fullscreen overlay, flat/clean) ───── */
-        .ap-overlay {
-            position: fixed; inset: 0; z-index: 9999;
-            background: #f7f7f7; display: flex; flex-direction: column;
-            font-family: var(--font);
-        }
-        .ap-header {
-            display: flex; align-items: center; padding: 10px 24px;
-            background: #fff; border-bottom: 1px solid #e0e0e0;
-            flex-shrink: 0;
-        }
-        .ap-header-title { flex: 1; font-size: 0.92rem; font-weight: 600; color: #222; }
-        .ap-tools { display: flex; gap: 14px; align-items: center; }
-        .ap-tool-btn {
-            display: flex; flex-direction: column; align-items: center; gap: 1px;
-            background: none; border: none; cursor: pointer; color: #666;
-            font-size: 0.62rem; font-weight: 500; padding: 6px 10px;
-        }
-        .ap-tool-btn i { font-size: 1rem; color: #444; }
-        .ap-tool-btn:hover i { color: #000; }
-        .ap-divider {
-            height: 5px; flex-shrink: 0;
-            background: repeating-linear-gradient(90deg,
-                #E8C840 0 6px, transparent 6px 9px,
-                #5B9BD5 9px 15px, transparent 15px 18px,
-                #333 18px 24px, transparent 24px 27px);
-        }
+        /* ── AP Exam UI (fullscreen overlay) ────────────────── */
+        .ap-overlay { position: fixed; inset: 0; z-index: 9999; background: #f5f5f5; display: flex; flex-direction: column; font-family: var(--font); }
+        .ap-header { display: flex; align-items: center; padding: 8px 20px; background: #fff; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; gap: 6px; }
+        .ap-header-title { flex: 1; font-size: 0.9rem; font-weight: 600; color: #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ap-tools { display: flex; gap: 4px; align-items: center; }
+        .ap-tool-btn { display: flex; flex-direction: column; align-items: center; gap: 1px; background: none; border: none; cursor: pointer; color: #666; font-size: 0.58rem; font-weight: 500; padding: 5px 8px; border-radius: 6px; transition: background 0.12s; position: relative; }
+        .ap-tool-btn i { font-size: 0.92rem; color: #444; }
+        .ap-tool-btn:hover { background: #f0f0f0; }
+        .ap-tool-btn.active { background: #e8e8e8; color: #1a237e; }
+        .ap-tool-btn.active i { color: #1a237e; }
+        .ap-tool-sep { width: 1px; height: 28px; background: #e0e0e0; margin: 0 4px; }
+        .ap-divider { height: 5px; flex-shrink: 0; background: repeating-linear-gradient(90deg, #E8C840 0 6px, transparent 6px 9px, #5B9BD5 9px 15px, transparent 15px 18px, #333 18px 24px, transparent 24px 27px); }
         .ap-body { display: flex; flex: 1; overflow: hidden; background: #fff; }
-        .ap-passage {
-            width: 45%; min-width: 300px; padding: 32px 36px; overflow-y: auto;
-            background: #fff; border-right: 1px solid #e0e0e0;
-            font-size: 0.95rem; line-height: 1.85; color: #333;
-        }
+        .ap-passage { width: 45%; min-width: 280px; padding: 28px 32px; overflow-y: auto; background: #fff; border-right: 1px solid #e0e0e0; font-size: 0.95rem; line-height: 1.85; color: #333; }
         .ap-passage p { margin-bottom: 14px; }
         .ap-passage img { max-width: 100%; border-radius: 4px; margin: 10px 0; }
-        .ap-question-panel { flex: 1; padding: 28px 36px; overflow-y: auto; background: #fff; }
-        .ap-q-tools { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-        .ap-q-num { display: flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 8px; border-radius: 6px; background: #2d2d2d; color: #fff; font-size: 0.85rem; font-weight: 800; flex-shrink: 0; }
-        .ap-q-bookmark { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; font-size: 0.82rem; font-weight: 400; color: #666; padding: 4px 0; }
+        .ap-passage ::selection { background: #FFEB3B; }
+        .ap-question-panel { flex: 1; padding: 24px 32px; overflow-y: auto; background: #fff; }
+        .ap-q-tools { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .ap-q-num { display: flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 7px; border-radius: 5px; background: #2d2d2d; color: #fff; font-size: 0.82rem; font-weight: 800; flex-shrink: 0; }
+        .ap-q-bookmark { display: inline-flex; align-items: center; gap: 4px; background: none; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 400; color: #666; padding: 3px 0; }
         .ap-q-bookmark:hover { color: #333; }
         .ap-q-bookmark.marked { color: #B45309; font-weight: 600; }
         .ap-q-bookmark.marked i { color: #B45309; }
-        .ap-q-abc { margin-left: auto; width: 28px; height: 28px; border: 1.5px solid #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #999; cursor: pointer; background: #fff; }
-        .ap-q-prompt { font-size: 1rem; line-height: 1.75; margin-bottom: 24px; color: #222; }
+        .ap-q-abc { margin-left: auto; width: 30px; height: 28px; border: 1.5px solid #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; color: #999; cursor: pointer; background: #fff; position: relative; }
+        .ap-q-abc.active { border-color: #1a237e; color: #1a237e; background: #EEF; }
+        .ap-q-abc .abc-strike { position: absolute; width: 100%; height: 2px; background: currentColor; transform: rotate(-30deg); top: 50%; left: 0; pointer-events: none; }
+        .ap-q-prompt { font-size: 0.98rem; line-height: 1.75; margin-bottom: 20px; color: #222; }
+        .ap-q-prompt ::selection { background: #FFEB3B; }
         .ap-choices { display: flex; flex-direction: column; gap: 0; }
-        .ap-choice { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1.5px solid #ddd; border-bottom: none; cursor: pointer; transition: background 0.1s; background: #fff; }
+        .ap-choice { display: flex; align-items: center; gap: 14px; padding: 13px 16px; border: 1.5px solid #ddd; border-bottom: none; cursor: pointer; transition: background 0.1s; background: #fff; }
         .ap-choice:first-child { border-radius: 8px 8px 0 0; }
         .ap-choice:last-child { border-bottom: 1.5px solid #ddd; border-radius: 0 0 8px 8px; }
         .ap-choice:only-child { border-radius: 8px; border-bottom: 1.5px solid #ddd; }
         .ap-choice:hover { background: #f9f9f9; }
         .ap-choice.selected { background: #EDF2FF; border-color: #9bb8f0; }
         .ap-choice.selected + .ap-choice { border-top-color: #9bb8f0; }
-        .ap-choice-letter { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #bbb; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.85rem; color: #555; flex-shrink: 0; }
+        .ap-choice.crossed-out { opacity: 0.45; }
+        .ap-choice.crossed-out .ap-choice-text { text-decoration: line-through; }
+        .ap-choice-letter { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #bbb; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.82rem; color: #555; flex-shrink: 0; }
         .ap-choice.selected .ap-choice-letter { border-color: #3366cc; background: #3366cc; color: #fff; }
-        .ap-choice-text { flex: 1; font-size: 0.95rem; line-height: 1.5; color: #333; }
+        .ap-choice-text { flex: 1; font-size: 0.93rem; line-height: 1.5; color: #333; }
         .ap-footer-divider { height: 5px; flex-shrink: 0; background: repeating-linear-gradient(90deg, #E8C840 0 6px, transparent 6px 9px, #5B9BD5 9px 15px, transparent 15px 18px, #333 18px 24px, transparent 24px 27px); }
-        .ap-footer { display: flex; align-items: center; padding: 10px 24px; background: #fff; border-top: 1px solid #ddd; flex-shrink: 0; }
-        .ap-nav-btn { padding: 10px 28px; border: none; border-radius: 20px; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+        .ap-footer { display: flex; align-items: center; padding: 8px 20px; background: #fff; border-top: 1px solid #ddd; flex-shrink: 0; }
+        .ap-nav-btn { padding: 9px 24px; border: none; border-radius: 20px; font-weight: 600; font-size: 0.85rem; cursor: pointer; font-family: var(--font); transition: all 0.15s; }
         .ap-nav-prev { background: transparent; color: #555; border: 1.5px solid #ccc; }
         .ap-nav-prev:hover { background: #f0f0f0; }
         .ap-nav-next { background: #1a237e; color: #fff; }
         .ap-nav-next:hover { background: #0d1557; }
         .ap-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-        .ap-q-nav { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border: 1.5px solid #ccc; border-radius: 20px; background: #fff; font-size: 0.85rem; font-weight: 600; color: #333; cursor: pointer; }
+        .ap-q-nav { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border: 1.5px solid #ccc; border-radius: 20px; background: #fff; font-size: 0.82rem; font-weight: 600; color: #333; cursor: pointer; }
         .ap-q-nav:hover { border-color: #999; }
         .ap-body.no-passage .ap-question-panel { max-width: 680px; margin: 0 auto; }
-
+        /* Highlight */
+        mark.ap-hl { background: #FFEB3B; padding: 0 1px; border-radius: 2px; }
+        /* Notes panel */
+        .ap-notes-panel { position: absolute; bottom: 60px; right: 20px; width: 280px; background: #FFFDE7; border: 1px solid #FDD835; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); z-index: 20; display: none; flex-direction: column; }
+        .ap-notes-panel.open { display: flex; }
+        .ap-notes-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: #795548; border-bottom: 1px solid #FDD835; }
+        .ap-notes-header button { background: none; border: none; cursor: pointer; color: #795548; font-size: 0.9rem; }
+        .ap-notes-body textarea { width: 100%; min-height: 100px; border: none; background: transparent; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; line-height: 1.6; resize: vertical; outline: none; box-sizing: border-box; }
+        /* Calculator panel */
+        .ap-calc-panel { position: fixed; top: 60px; right: 20px; width: 420px; height: 520px; background: #fff; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.18); z-index: 10001; display: none; flex-direction: column; overflow: hidden; }
+        .ap-calc-panel.open { display: flex; }
+        .ap-calc-header { display: flex; align-items: center; padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; cursor: move; user-select: none; }
+        .ap-calc-header span { flex: 1; font-size: 0.82rem; font-weight: 700; color: #333; }
+        .ap-calc-header button { background: none; border: none; cursor: pointer; font-size: 1rem; color: #666; }
+        .ap-calc-panel iframe { flex: 1; border: none; }
+        /* Reference panel */
+        .ap-ref-panel { position: fixed; top: 60px; left: 20px; width: 380px; max-height: 80vh; background: #fff; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.18); z-index: 10001; display: none; flex-direction: column; overflow: hidden; }
+        .ap-ref-panel.open { display: flex; }
+        .ap-ref-header { display: flex; align-items: center; padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; }
+        .ap-ref-header span { flex: 1; font-size: 0.82rem; font-weight: 700; color: #333; }
+        .ap-ref-header button { background: none; border: none; cursor: pointer; font-size: 1rem; color: #666; }
+        .ap-ref-body { padding: 16px; overflow-y: auto; font-size: 0.85rem; line-height: 1.7; color: #333; }
+        .ap-ref-body h3 { font-size: 0.9rem; margin: 14px 0 6px; color: #1a237e; }
+        .ap-ref-body h3:first-child { margin-top: 0; }
+        .ap-ref-body table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+        .ap-ref-body td { padding: 4px 8px; border: 1px solid #e0e0e0; font-size: 0.82rem; }
+        /* Confirm modal */
+        .ap-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 10002; display: flex; align-items: center; justify-content: center; }
+        .ap-modal { background: #fff; border-radius: 12px; padding: 28px; max-width: 420px; width: 90%; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+        .ap-modal h3 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
+        .ap-modal p { font-size: 0.88rem; color: #555; line-height: 1.6; margin-bottom: 16px; }
+        .ap-modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+        .ap-modal-btns button { padding: 9px 22px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; border: none; font-family: var(--font); }
+        /* Review page */
+        .ap-review { padding: 32px; overflow-y: auto; flex: 1; }
+        .ap-review h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; color: #222; }
+        .ap-review-table { width: 100%; max-width: 600px; border-collapse: collapse; margin: 0 auto; }
+        .ap-review-table th { text-align: left; font-size: 0.72rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border-bottom: 2px solid #e0e0e0; }
+        .ap-review-table td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; cursor: pointer; }
+        .ap-review-table tr:hover td { background: #f5f5f5; }
+        .ap-review-table .status-answered { color: #16A34A; font-weight: 600; }
+        .ap-review-table .status-unanswered { color: #DC2626; font-weight: 600; }
+        .ap-review-table .status-marked { color: #D97706; font-weight: 600; }
         /* Question nav dropdown */
-        .ap-nav-dropdown {
-            display: none; position: absolute; bottom: 100%; left: 50%;
-            transform: translateX(-50%); margin-bottom: 8px;
-            background: #fff; border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
-            padding: 16px; min-width: 280px; z-index: 10;
-        }
+        .ap-nav-dropdown { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px; background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08); padding: 16px; min-width: 280px; z-index: 10; }
         .ap-nav-dropdown.open { display: block; }
-        .ap-nav-dropdown-header {
-            font-size: 0.78rem; font-weight: 700; color: #666;
-            text-transform: uppercase; letter-spacing: 0.5px;
-            margin-bottom: 12px; padding-bottom: 8px;
-            border-bottom: 1px solid #eee;
-        }
-        .ap-nav-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
-            gap: 6px;
-        }
-        .ap-nav-item {
-            width: 36px; height: 36px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.82rem; font-weight: 600; cursor: pointer;
-            border: 1.5px solid #ddd; background: #fff; color: #555;
-            transition: all 0.12s;
-        }
+        .ap-nav-dropdown-header { font-size: 0.75rem; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #eee; }
+        .ap-nav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 5px; }
+        .ap-nav-item { width: 34px; height: 34px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 1.5px solid #ddd; background: #fff; color: #555; transition: all 0.12s; }
         .ap-nav-item:hover { background: #f5f5f5; border-color: #bbb; }
         .ap-nav-item.answered { background: #3366cc; border-color: #3366cc; color: #fff; }
         .ap-nav-item.current { border-color: #222; border-width: 2.5px; }
         .ap-nav-item.marked { background: #FEF3C7; border-color: #D97706; color: #92400E; }
-
+        /* Zoom */
+        .ap-zoom-label { font-size: 0.72rem; font-weight: 700; color: #555; min-width: 32px; text-align: center; }
+        /* Scrollbars */
+        .ap-passage::-webkit-scrollbar, .ap-question-panel::-webkit-scrollbar, .ap-review::-webkit-scrollbar { width: 6px; }
+        .ap-passage::-webkit-scrollbar-thumb, .ap-question-panel::-webkit-scrollbar-thumb, .ap-review::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        .ap-passage::-webkit-scrollbar-track, .ap-question-panel::-webkit-scrollbar-track, .ap-review::-webkit-scrollbar-track { background: transparent; }
         @media (max-width: 900px) {
             .ap-body { flex-direction: column; }
-            .ap-passage {
-                width: 100%; min-width: 0; max-height: 40vh;
-                box-shadow: inset 0 -4px 10px -4px var(--neu-shadow-dark);
-            }
-            .ap-question-panel { padding: 24px; }
-            .ap-timer { font-size: 1.2rem; margin: 0 16px; padding: 5px 14px; }
+            .ap-passage { width: 100%; min-width: 0; max-height: 40vh; border-right: none; border-bottom: 1px solid #e0e0e0; }
+            .ap-question-panel { padding: 20px; }
+            .ap-tools { flex-wrap: wrap; }
+            .ap-calc-panel { width: 90%; right: 5%; }
+            .ap-ref-panel { width: 90%; left: 5%; }
         }
 
         /* ── Responsive ──────────────────────────────────────── */
@@ -1303,82 +1316,97 @@
     }
 
     /* ==================================================================
-       AP EXAM UI (for static QTI quizzes)
+       AP EXAM UI — full feature set
        ================================================================== */
-    var apTimer = { seconds: 0, interval: null, paused: false };
+    var apState = {
+        crossOutMode: false,
+        crossedOut: [],   // array of Sets per question
+        notes: [],        // string per question
+        notesOpen: false,
+        calcOpen: false,
+        refOpen: false,
+        zoomLevel: 100,
+        highlightMode: false,
+    };
 
     function startAPExam() {
+        var n = quizState.staticQuestions.length;
+        apState.crossedOut = [];
+        apState.notes = [];
+        for (var i = 0; i < n; i++) { apState.crossedOut.push({}); apState.notes.push(''); }
+        apState.crossOutMode = false;
+        apState.notesOpen = false;
+        apState.calcOpen = false;
+        apState.refOpen = false;
+        apState.zoomLevel = 100;
+        apState.highlightMode = false;
         renderAPQuestion();
-    }
-
-    function updateAPTimer() {
-        var el = document.getElementById('ap-timer');
-        if (!el) return;
-        var m = Math.floor(apTimer.seconds / 60);
-        var s = apTimer.seconds % 60;
-        el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-        if (apTimer.seconds < 60) el.style.color = '#E53E3E';
-        else if (apTimer.seconds < 120) el.style.color = '#D97706';
     }
 
     function renderAPQuestion() {
         var idx = quizState.staticIdx;
         var q = quizState.staticQuestions[idx];
         var totalQ = quizState.staticQuestions.length;
-
-        // Get passage from the cached article content
         var passage = quizState.cachedPassage || '';
         if (q.stimulus) passage = q.stimulus;
         var hasPassage = passage && passage.length > 10;
         var letters = 'ABCDEFGHIJ';
         var isMarked = quizState.marked[idx];
-
-        // Remove old overlay if exists
         var old = document.getElementById('ap-overlay');
         if (old) old.remove();
-
-        // Build fullscreen overlay
         var overlay = document.createElement('div');
         overlay.id = 'ap-overlay';
         overlay.className = 'ap-overlay';
-
+        var z = apState.zoomLevel;
         var html = '';
 
-        // Header
+        // ── Header with all tools ──
         html += '<div class="ap-header">' +
             '<div class="ap-header-title">' + esc(quizState.title) + '</div>' +
             '<div class="ap-tools">' +
-                '<button class="ap-tool-btn" onclick="submitAPExam()"><i class="fa-solid fa-paper-plane"></i><span>Submit</span></button>' +
-                '<button class="ap-tool-btn" onclick="exitAPExam()"><i class="fa-solid fa-right-from-bracket"></i><span>Exit</span></button>' +
+                '<button class="ap-tool-btn' + (apState.highlightMode ? ' active' : '') + '" onclick="apToggleHighlight()" title="Highlight text"><i class="fa-solid fa-highlighter"></i><span>Highlight</span></button>' +
+                '<button class="ap-tool-btn" onclick="apAddNote()" title="Add notes"><i class="fa-solid fa-sticky-note"></i><span>Annotate</span></button>' +
+                '<button class="ap-tool-btn" onclick="apZoom(-10)" title="Zoom out"><i class="fa-solid fa-minus"></i><span>Zoom-</span></button>' +
+                '<div class="ap-zoom-label">' + z + '%</div>' +
+                '<button class="ap-tool-btn" onclick="apZoom(10)" title="Zoom in"><i class="fa-solid fa-plus"></i><span>Zoom+</span></button>' +
+                '<div class="ap-tool-sep"></div>' +
+                '<button class="ap-tool-btn" onclick="apToggleCalc()" title="Calculator"><i class="fa-solid fa-calculator"></i><span>Calc</span></button>' +
+                '<button class="ap-tool-btn" onclick="apToggleRef()" title="Reference sheet"><i class="fa-solid fa-book-open"></i><span>Reference</span></button>' +
+                '<div class="ap-tool-sep"></div>' +
+                '<button class="ap-tool-btn" onclick="apShowReview()" title="Review answers"><i class="fa-solid fa-list-check"></i><span>Review</span></button>' +
+                '<button class="ap-tool-btn" onclick="exitAPExam()" title="Exit exam"><i class="fa-solid fa-right-from-bracket"></i><span>Exit</span></button>' +
             '</div></div>';
 
         html += '<div class="ap-divider"></div>';
 
-        // Body
+        // ── Body ──
         html += '<div class="ap-body' + (hasPassage ? '' : ' no-passage') + '">';
         if (hasPassage) {
-            html += '<div class="ap-passage">' + passage + '</div>';
+            html += '<div class="ap-passage" id="ap-passage" style="font-size:' + z + '%">' + passage + '</div>';
         }
+        html += '<div class="ap-question-panel" id="ap-qpanel" style="font-size:' + z + '%">';
 
-        html += '<div class="ap-question-panel">';
-
-        // Question tools row
+        // Question tools
+        var abcActive = apState.crossOutMode;
         html += '<div class="ap-q-tools">' +
             '<div class="ap-q-num">' + (idx + 1) + '</div>' +
             '<button class="ap-q-bookmark' + (isMarked ? ' marked' : '') + '" onclick="toggleAPMark()">' +
                 '<i class="fa-' + (isMarked ? 'solid' : 'regular') + ' fa-bookmark"></i> Mark for Review' +
             '</button>' +
-            '<div class="ap-q-abc">ABC</div>' +
+            '<div class="ap-q-abc' + (abcActive ? ' active' : '') + '" onclick="apToggleCrossOut()" title="Eliminate answers">ABC' + (abcActive ? '<div class="abc-strike"></div>' : '') + '</div>' +
         '</div>';
 
         html += '<div class="ap-q-prompt">' + (q.prompt || '') + '</div>';
 
+        // Choices
         if (q.choices && q.choices.length > 0) {
             html += '<div class="ap-choices">';
+            var co = apState.crossedOut[idx] || {};
             for (var ci = 0; ci < q.choices.length; ci++) {
                 var c = q.choices[ci];
                 var sel = quizState.answers[idx] === c.id ? ' selected' : '';
-                html += '<div class="ap-choice' + sel + '" data-id="' + esc(c.id) + '" onclick="selectAPAnswer(this,\'' + esc(c.id) + '\')">' +
+                var crossed = co[c.id] ? ' crossed-out' : '';
+                html += '<div class="ap-choice' + sel + crossed + '" data-id="' + esc(c.id) + '" onclick="apClickChoice(this,\'' + esc(c.id) + '\')">' +
                     '<div class="ap-choice-letter">' + (letters[ci] || ci) + '</div>' +
                     '<div class="ap-choice-text">' + (c.text || '') + '</div></div>';
             }
@@ -1390,11 +1418,16 @@
                 'oninput="quizState.answers[quizState.staticIdx]=this.value">' + esc(saved) + '</textarea>';
         }
 
+        // Notes panel (sticky note)
+        html += '<div class="ap-notes-panel' + (apState.notesOpen ? ' open' : '') + '" id="ap-notes">' +
+            '<div class="ap-notes-header"><span>Notes (Q' + (idx+1) + ')</span><button onclick="apState.notesOpen=false;document.getElementById(\'ap-notes\').classList.remove(\'open\')">&times;</button></div>' +
+            '<div class="ap-notes-body"><textarea placeholder="Type your notes here..." oninput="apState.notes[' + idx + ']=this.value">' + esc(apState.notes[idx] || '') + '</textarea></div></div>';
+
         html += '</div></div>'; // question-panel, body
 
         html += '<div class="ap-footer-divider"></div>';
 
-        // Footer
+        // ── Footer ──
         html += '<div class="ap-footer">' +
             '<button class="ap-nav-btn ap-nav-prev" onclick="apNav(-1)"' + (idx === 0 ? ' disabled' : '') + '>Back</button>' +
             '<div style="flex:1;display:flex;justify-content:center;position:relative;">' +
@@ -1410,51 +1443,70 @@
             html += '<div class="' + dc + '" onclick="apGoTo(' + di + ')">' + (di + 1) + '</div>';
         }
         html += '</div></div></div>' +
-            '<button class="ap-nav-btn ap-nav-next" onclick="apNav(1)">' + (idx === totalQ - 1 ? 'Submit' : 'Next') + '</button>' +
+            '<button class="ap-nav-btn ap-nav-next" onclick="apNav(1)">' + (idx === totalQ - 1 ? 'Review' : 'Next') + '</button>' +
         '</div>';
+
+        // Calculator panel
+        html += '<div class="ap-calc-panel' + (apState.calcOpen ? ' open' : '') + '" id="ap-calc">' +
+            '<div class="ap-calc-header" onmousedown="apStartDrag(event,\'ap-calc\')"><span>Graphing Calculator</span><button onclick="apToggleCalc()">&times;</button></div>' +
+            '<iframe src="https://www.desmos.com/testing" loading="lazy"></iframe></div>';
+
+        // Reference panel
+        html += '<div class="ap-ref-panel' + (apState.refOpen ? ' open' : '') + '" id="ap-ref">' +
+            '<div class="ap-ref-header"><span>Reference Sheet</span><button onclick="apToggleRef()">&times;</button></div>' +
+            '<div class="ap-ref-body">' +
+                '<h3>Algebra</h3><table><tr><td>Slope</td><td>m = (y2 - y1) / (x2 - x1)</td></tr><tr><td>Slope-intercept</td><td>y = mx + b</td></tr><tr><td>Point-slope</td><td>y - y1 = m(x - x1)</td></tr><tr><td>Quadratic</td><td>x = (-b +/- sqrt(b2 - 4ac)) / 2a</td></tr><tr><td>Distance</td><td>d = sqrt((x2-x1)2 + (y2-y1)2)</td></tr><tr><td>Midpoint</td><td>M = ((x1+x2)/2, (y1+y2)/2)</td></tr></table>' +
+                '<h3>Geometry</h3><table><tr><td>Area (rect)</td><td>A = lw</td></tr><tr><td>Area (triangle)</td><td>A = 1/2 bh</td></tr><tr><td>Area (circle)</td><td>A = pi * r2</td></tr><tr><td>Circumference</td><td>C = 2 * pi * r</td></tr><tr><td>Volume (rect prism)</td><td>V = lwh</td></tr><tr><td>Volume (cylinder)</td><td>V = pi * r2 * h</td></tr><tr><td>Volume (sphere)</td><td>V = 4/3 * pi * r3</td></tr><tr><td>Pythagorean</td><td>a2 + b2 = c2</td></tr></table>' +
+                '<h3>Statistics</h3><table><tr><td>Mean</td><td>sum of values / n</td></tr><tr><td>Probability</td><td>P(A) = favorable / total</td></tr><tr><td>Percent change</td><td>(new - old) / old * 100</td></tr></table>' +
+                '<h3>Trigonometry</h3><table><tr><td>sin</td><td>opposite / hypotenuse</td></tr><tr><td>cos</td><td>adjacent / hypotenuse</td></tr><tr><td>tan</td><td>opposite / adjacent</td></tr></table>' +
+            '</div></div>';
 
         overlay.innerHTML = html;
         document.body.appendChild(overlay);
-        updateAPTimer();
     }
 
-    function selectAPAnswer(el, choiceId) {
-        quizState.answers[quizState.staticIdx] = choiceId;
-        var overlay = document.getElementById('ap-overlay');
-        if (!overlay) return;
-        overlay.querySelectorAll('.ap-choice').forEach(function(c) { c.classList.remove('selected'); });
-        el.classList.add('selected');
-        el.querySelector('.ap-choice-letter').style.cssText = '';
-        var dots = overlay.querySelectorAll('.ap-dot');
-        if (dots[quizState.staticIdx]) dots[quizState.staticIdx].classList.add('answered');
-    }
-
-    function apNav(dir) {
-        var next = quizState.staticIdx + dir;
-        if (next < 0) return;
-        if (next >= quizState.staticQuestions.length) {
-            submitAPExam();
-            return;
+    // ── Choice handling (select or cross-out) ──
+    function apClickChoice(el, choiceId) {
+        var idx = quizState.staticIdx;
+        if (apState.crossOutMode) {
+            // Toggle cross-out
+            if (!apState.crossedOut[idx]) apState.crossedOut[idx] = {};
+            if (apState.crossedOut[idx][choiceId]) {
+                delete apState.crossedOut[idx][choiceId];
+                el.classList.remove('crossed-out');
+            } else {
+                apState.crossedOut[idx][choiceId] = true;
+                el.classList.add('crossed-out');
+            }
+        } else {
+            // Select answer
+            quizState.answers[idx] = choiceId;
+            var overlay = document.getElementById('ap-overlay');
+            if (!overlay) return;
+            overlay.querySelectorAll('.ap-choice').forEach(function(c) { c.classList.remove('selected'); });
+            el.classList.add('selected');
         }
-        quizState.staticIdx = next;
+    }
+
+    function apToggleCrossOut() {
+        apState.crossOutMode = !apState.crossOutMode;
         renderAPQuestion();
     }
 
+    // ── Navigation ──
+    function apNav(dir) {
+        var next = quizState.staticIdx + dir;
+        if (next < 0) return;
+        if (next >= quizState.staticQuestions.length) { apShowReview(); return; }
+        quizState.staticIdx = next;
+        renderAPQuestion();
+    }
     function apGoTo(idx) {
         if (idx < 0 || idx >= quizState.staticQuestions.length) return;
         quizState.staticIdx = idx;
         renderAPQuestion();
     }
-
-    function toggleAPMark() {
-        quizState.marked[quizState.staticIdx] = !quizState.marked[quizState.staticIdx];
-        renderAPQuestion();
-    }
-
-    function toggleAPTimer() {
-        apTimer.paused = !apTimer.paused;
-    }
-
+    function toggleAPMark() { quizState.marked[quizState.staticIdx] = !quizState.marked[quizState.staticIdx]; renderAPQuestion(); }
     function toggleAPNav() {
         var dd = document.getElementById('ap-nav-dropdown');
         var chev = document.getElementById('ap-nav-chevron');
@@ -1463,34 +1515,180 @@
         if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : '';
     }
 
-    function exitAPExam() {
-        if (apTimer.interval) clearInterval(apTimer.interval);
-        var ol = document.getElementById('ap-overlay');
-        if (ol) ol.remove();
-        goBackToCourse();
+    // ── Highlight tool ──
+    function apToggleHighlight() {
+        apState.highlightMode = !apState.highlightMode;
+        renderAPQuestion();
+        if (apState.highlightMode) {
+            document.addEventListener('mouseup', apDoHighlight);
+        } else {
+            document.removeEventListener('mouseup', apDoHighlight);
+        }
+    }
+    function apDoHighlight() {
+        if (!apState.highlightMode) return;
+        var sel = window.getSelection();
+        if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+        var range = sel.getRangeAt(0);
+        // Only highlight in passage or prompt
+        var container = range.commonAncestorContainer;
+        var el = container.nodeType === 3 ? container.parentElement : container;
+        if (!el.closest || (!el.closest('.ap-passage') && !el.closest('.ap-q-prompt'))) return;
+        var mark = document.createElement('mark');
+        mark.className = 'ap-hl';
+        try { range.surroundContents(mark); } catch(e) {}
+        sel.removeAllRanges();
     }
 
+    // ── Notes ──
+    function apAddNote() {
+        apState.notesOpen = !apState.notesOpen;
+        var panel = document.getElementById('ap-notes');
+        if (panel) panel.classList.toggle('open', apState.notesOpen);
+    }
+
+    // ── Zoom ──
+    function apZoom(delta) {
+        apState.zoomLevel = Math.max(75, Math.min(150, apState.zoomLevel + delta));
+        var p = document.getElementById('ap-passage');
+        var q = document.getElementById('ap-qpanel');
+        if (p) p.style.fontSize = apState.zoomLevel + '%';
+        if (q) q.style.fontSize = apState.zoomLevel + '%';
+        var lbl = document.querySelector('.ap-zoom-label');
+        if (lbl) lbl.textContent = apState.zoomLevel + '%';
+    }
+
+    // ── Calculator ──
+    function apToggleCalc() {
+        apState.calcOpen = !apState.calcOpen;
+        var panel = document.getElementById('ap-calc');
+        if (panel) panel.classList.toggle('open', apState.calcOpen);
+    }
+
+    // ── Reference sheet ──
+    function apToggleRef() {
+        apState.refOpen = !apState.refOpen;
+        var panel = document.getElementById('ap-ref');
+        if (panel) panel.classList.toggle('open', apState.refOpen);
+    }
+
+    // ── Draggable panels ──
+    function apStartDrag(e, panelId) {
+        var panel = document.getElementById(panelId);
+        if (!panel) return;
+        var startX = e.clientX, startY = e.clientY;
+        var rect = panel.getBoundingClientRect();
+        var origLeft = rect.left, origTop = rect.top;
+        panel.style.position = 'fixed';
+        function onMove(ev) {
+            panel.style.left = (origLeft + ev.clientX - startX) + 'px';
+            panel.style.top = (origTop + ev.clientY - startY) + 'px';
+            panel.style.right = 'auto';
+        }
+        function onUp() { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    // ── Review page ──
+    function apShowReview() {
+        var old = document.getElementById('ap-overlay');
+        if (old) old.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'ap-overlay';
+        overlay.className = 'ap-overlay';
+        var totalQ = quizState.staticQuestions.length;
+        var answered = 0, markedCount = 0;
+        for (var i = 0; i < totalQ; i++) { if (quizState.answers[i] !== null) answered++; if (quizState.marked[i]) markedCount++; }
+        var letters = 'ABCDEFGHIJ';
+
+        var html = '<div class="ap-header"><div class="ap-header-title">' + esc(quizState.title) + ' - Review</div>' +
+            '<div class="ap-tools"><button class="ap-tool-btn" onclick="exitAPExam()"><i class="fa-solid fa-right-from-bracket"></i><span>Exit</span></button></div></div>' +
+            '<div class="ap-divider"></div>' +
+            '<div class="ap-review">' +
+            '<h2>Review Your Answers</h2>' +
+            '<p style="font-size:0.88rem;color:#555;margin-bottom:20px;">' + answered + ' of ' + totalQ + ' answered' + (markedCount > 0 ? ' &middot; ' + markedCount + ' marked for review' : '') + '</p>' +
+            '<table class="ap-review-table"><thead><tr><th>#</th><th>Status</th><th>Answer</th><th>Marked</th></tr></thead><tbody>';
+
+        for (var ri = 0; ri < totalQ; ri++) {
+            var q = quizState.staticQuestions[ri];
+            var ans = quizState.answers[ri];
+            var statusCls = ans !== null ? 'status-answered' : 'status-unanswered';
+            var statusText = ans !== null ? 'Answered' : 'Unanswered';
+            var ansLetter = '-';
+            if (ans !== null && q.choices) {
+                for (var ai = 0; ai < q.choices.length; ai++) {
+                    if (q.choices[ai].id === ans) { ansLetter = letters[ai] || (ai + 1); break; }
+                }
+            } else if (ans !== null && q.isFRQ) { ansLetter = 'Written'; }
+            var markedStr = quizState.marked[ri] ? '<i class="fa-solid fa-bookmark" style="color:#D97706;"></i>' : '';
+            html += '<tr onclick="apGoTo(' + ri + ')" style="cursor:pointer;"><td><strong>' + (ri + 1) + '</strong></td>' +
+                '<td class="' + statusCls + '">' + statusText + '</td>' +
+                '<td>' + ansLetter + '</td><td>' + markedStr + '</td></tr>';
+        }
+
+        html += '</tbody></table>';
+
+        // Submit area
+        var allDone = answered === totalQ;
+        html += '<div style="text-align:center;margin-top:28px;">';
+        if (allDone) {
+            html += '<button class="ap-nav-btn ap-nav-next" onclick="apFinalSubmit()" style="padding:12px 36px;font-size:0.95rem;">Submit Test</button>';
+        } else {
+            html += '<p style="font-size:0.85rem;color:#DC2626;margin-bottom:12px;">' + (totalQ - answered) + ' question' + (totalQ - answered > 1 ? 's' : '') + ' unanswered</p>' +
+                '<button class="ap-nav-btn ap-nav-next" onclick="apFinalSubmit()" style="padding:12px 36px;font-size:0.95rem;opacity:0.7;">Submit Anyway</button>';
+        }
+        html += '<br><button class="ap-nav-btn ap-nav-prev" onclick="renderAPQuestion()" style="margin-top:10px;">Return to Questions</button>';
+        html += '</div></div>';
+
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+    }
+
+    // ── Submit (from header) — shows confirmation ──
     function submitAPExam() {
-        if (apTimer.interval) clearInterval(apTimer.interval);
+        var totalQ = quizState.staticQuestions.length;
+        var answered = 0;
+        for (var i = 0; i < totalQ; i++) { if (quizState.answers[i] !== null) answered++; }
+        if (answered < totalQ) {
+            // Show confirmation modal
+            var modal = document.createElement('div');
+            modal.className = 'ap-modal-overlay';
+            modal.id = 'ap-confirm-modal';
+            modal.innerHTML = '<div class="ap-modal"><h3>Submit Test?</h3>' +
+                '<p>You have <strong>' + (totalQ - answered) + '</strong> unanswered question' + (totalQ - answered > 1 ? 's' : '') + '. Are you sure you want to submit?</p>' +
+                '<div class="ap-modal-btns">' +
+                    '<button onclick="document.getElementById(\'ap-confirm-modal\').remove()" style="background:#f0f0f0;color:#555;">Go Back</button>' +
+                    '<button onclick="document.getElementById(\'ap-confirm-modal\').remove();apShowReview()" style="background:#1a237e;color:#fff;">Review Answers</button>' +
+                '</div></div>';
+            document.body.appendChild(modal);
+        } else {
+            apShowReview();
+        }
+    }
+
+    // ── Final submit (scores and closes) ──
+    function apFinalSubmit() {
         var ol = document.getElementById('ap-overlay');
         if (ol) ol.remove();
-
-        // Score the exam
         var correct = 0, total = quizState.staticQuestions.length;
         for (var i = 0; i < total; i++) {
             var q = quizState.staticQuestions[i];
             var ans = quizState.answers[i];
-            if (q.isFRQ) {
-                if (ans && ans.length >= 30) correct++;
-            } else {
-                if (ans === q.correctId) correct++;
-            }
+            if (q.isFRQ) { if (ans && ans.length >= 30) correct++; }
+            else { if (ans === q.correctId) correct++; }
         }
         quizState.correct = correct;
         quizState.total = total;
         quizState.xpEarned = correct;
-
         showQuizResults();
+    }
+
+    function exitAPExam() {
+        var ol = document.getElementById('ap-overlay');
+        if (ol) ol.remove();
+        document.removeEventListener('mouseup', apDoHighlight);
+        goBackToCourse();
     }
 
     // Keep old function for PowerPath flow compatibility
