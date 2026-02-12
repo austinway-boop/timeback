@@ -684,6 +684,13 @@
                         // Also index by resource sourcedId for more reliable matching
                         if (resSourcedId) {
                             progressById[resSourcedId] = progEntry;
+                            // Progress IDs have format "USHI23-l44-r155857-bank-v1" but lesson plan
+                            // resource IDs omit the lesson number: "USHI23-r155857-bank-v1"
+                            // Index by the short form too so componentResource lookups work
+                            var shortResId = resSourcedId.replace(/-l\d+-/, '-');
+                            if (shortResId !== resSourcedId) {
+                                progressById[shortResId] = progEntry;
+                            }
                         }
                         // And by the lineItem sourcedId/id
                         var pItemId = pItem.sourcedId || pItem.id || '';
