@@ -144,10 +144,16 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
-            # Step 2: Ensure enrollment in placement class (OneRoster)
+            # Step 2: Reset placement for this subject
+            try:
+                requests.post(f"{PP}/placement/resetUserPlacement", headers=headers, json={"student": sid, "subject": subject}, timeout=6)
+            except Exception:
+                pass
+
+            # Step 3: Ensure enrollment in placement class (OneRoster)
             enroll_result = _ensure_placement_enrollment(headers, sid, subject)
 
-            # Step 3: Assign the test
+            # Step 4: Assign the test
             payload = {"student": sid, "subject": subject, "grade": grade}
             resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
             try:
@@ -218,11 +224,9 @@ def _ensure_placement_enrollment(headers, student_id, subject):
             json=enrollment,
             timeout=10,
         )
-        try:
-            body = resp.json()
-        except Exception:
-            body = {"status": resp.status_code}
-        return {"enrolled": resp.status_code in (200, 201), "status": resp.status_code, "classId": class_id}
+        # 200/201 = created, 422/409 = already exists (both are fine)
+        ok = resp.status_code in (200, 201, 422, 409)
+        return {"enrolled": ok, "status": resp.status_code, "classId": class_id}
     except Exception as e:
         return {"enrolled": False, "error": str(e)}
 
