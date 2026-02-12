@@ -552,6 +552,13 @@
         .ap-tool-btn.active { background: #e8e8e8; color: #1a237e; }
         .ap-tool-btn.active i { color: #1a237e; }
         .ap-tool-sep { width: 1px; height: 28px; background: #e0e0e0; margin: 0 4px; }
+        /* More dropdown */
+        .ap-more-wrap { position: relative; }
+        .ap-more-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 6px; background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.14); padding: 8px 4px; z-index: 20; min-width: 160px; }
+        .ap-more-dropdown.open { display: block; }
+        .ap-more-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; font-size: 0.84rem; font-weight: 500; color: #333; cursor: pointer; border-radius: 6px; border: none; background: none; width: 100%; text-align: left; font-family: var(--font); transition: background 0.1s; }
+        .ap-more-item:hover { background: #f5f5f5; }
+        .ap-more-item i { width: 18px; text-align: center; color: #555; font-size: 0.9rem; }
         .ap-divider { height: 5px; flex-shrink: 0; background: repeating-linear-gradient(90deg, #E8C840 0 6px, transparent 6px 9px, #5B9BD5 9px 15px, transparent 15px 18px, #333 18px 24px, transparent 24px 27px); }
         .ap-body { display: flex; flex: 1; overflow: hidden; background: #fff; }
         .ap-passage { width: 45%; min-width: 280px; padding: 28px 32px; overflow-y: auto; background: #fff; border-right: 1px solid #e0e0e0; font-size: 0.95rem; line-height: 1.85; color: #333; }
@@ -1365,16 +1372,19 @@
             '<div class="ap-header-title">' + esc(quizState.title) + '</div>' +
             '<div class="ap-tools">' +
                 '<button class="ap-tool-btn' + (apState.highlightMode ? ' active' : '') + '" onclick="apToggleHighlight()" title="Highlight text"><i class="fa-solid fa-highlighter"></i><span>Highlight</span></button>' +
-                '<button class="ap-tool-btn" onclick="apAddNote()" title="Add notes"><i class="fa-solid fa-sticky-note"></i><span>Annotate</span></button>' +
-                '<button class="ap-tool-btn" onclick="apZoom(-10)" title="Zoom out"><i class="fa-solid fa-minus"></i><span>Zoom-</span></button>' +
-                '<div class="ap-zoom-label">' + z + '%</div>' +
-                '<button class="ap-tool-btn" onclick="apZoom(10)" title="Zoom in"><i class="fa-solid fa-plus"></i><span>Zoom+</span></button>' +
                 '<div class="ap-tool-sep"></div>' +
-                '<button class="ap-tool-btn" onclick="apToggleCalc()" title="Calculator"><i class="fa-solid fa-calculator"></i><span>Calc</span></button>' +
-                '<button class="ap-tool-btn" onclick="apToggleRef()" title="Reference sheet"><i class="fa-solid fa-book-open"></i><span>Reference</span></button>' +
-                '<div class="ap-tool-sep"></div>' +
-                '<button class="ap-tool-btn" onclick="apShowReview()" title="Review answers"><i class="fa-solid fa-list-check"></i><span>Review</span></button>' +
-                '<button class="ap-tool-btn" onclick="exitAPExam()" title="Exit exam"><i class="fa-solid fa-right-from-bracket"></i><span>Exit</span></button>' +
+                '<div class="ap-more-wrap">' +
+                    '<button class="ap-tool-btn" onclick="apToggleMore()" title="More tools"><i class="fa-solid fa-ellipsis-vertical"></i><span>More</span></button>' +
+                    '<div class="ap-more-dropdown" id="ap-more-dd">' +
+                        '<button class="ap-more-item" onclick="apAddNote();apCloseMore()"><i class="fa-solid fa-sticky-note"></i>Annotate</button>' +
+                        '<button class="ap-more-item" onclick="apZoom(-10)"><i class="fa-solid fa-minus"></i>Zoom Out (' + z + '%)</button>' +
+                        '<button class="ap-more-item" onclick="apZoom(10)"><i class="fa-solid fa-plus"></i>Zoom In (' + z + '%)</button>' +
+                        '<button class="ap-more-item" onclick="apToggleCalc();apCloseMore()"><i class="fa-solid fa-calculator"></i>Calculator</button>' +
+                        '<button class="ap-more-item" onclick="apToggleRef();apCloseMore()"><i class="fa-solid fa-book-open"></i>Reference Sheet</button>' +
+                        '<button class="ap-more-item" onclick="apShowReview();apCloseMore()"><i class="fa-solid fa-list-check"></i>Review Answers</button>' +
+                        '<button class="ap-more-item" onclick="exitAPExam()"><i class="fa-solid fa-right-from-bracket"></i>Exit Exam</button>' +
+                    '</div>' +
+                '</div>' +
             '</div></div>';
 
         html += '<div class="ap-divider"></div>';
@@ -1514,6 +1524,21 @@
         var isOpen = dd.classList.toggle('open');
         if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : '';
     }
+
+    // ── More dropdown ──
+    function apToggleMore() {
+        var dd = document.getElementById('ap-more-dd');
+        if (dd) dd.classList.toggle('open');
+    }
+    function apCloseMore() {
+        var dd = document.getElementById('ap-more-dd');
+        if (dd) dd.classList.remove('open');
+    }
+    // Close more dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        var dd = document.getElementById('ap-more-dd');
+        if (dd && dd.classList.contains('open') && !e.target.closest('.ap-more-wrap')) dd.classList.remove('open');
+    });
 
     // ── Highlight tool ──
     function apToggleHighlight() {
