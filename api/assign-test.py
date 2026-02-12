@@ -251,21 +251,23 @@ def _create_line_item(headers, assignment_id, student_id, email, subject, grade,
         }
     }
 
-    # POST to /ims/oneroster/rostering/v1p2/lineItems (confirmed working endpoint)
+    # POST to /ims/oneroster/rostering/v1p2/lineItems — confirmed working
+    url = f"{API_BASE}/ims/oneroster/rostering/v1p2/lineItems"
     try:
-        resp = requests.post(
-            f"{API_BASE}/ims/oneroster/rostering/v1p2/lineItems",
-            headers=headers,
-            json=line_item,
-            timeout=10,
-        )
+        resp = requests.post(url, headers=headers, json=line_item, timeout=10)
         try:
             body = resp.json()
         except Exception:
-            body = {"status": resp.status_code}
-        return {"success": resp.status_code in (200, 201), "status": resp.status_code, "response": body}
+            body = {"raw": resp.text[:300], "status": resp.status_code}
+        return {
+            "success": resp.status_code in (200, 201),
+            "status": resp.status_code,
+            "url": url,
+            "payload": line_item,
+            "response": body,
+        }
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "url": url}
 
 
 def _ensure_placement_enrollment(headers, student_id, subject):
