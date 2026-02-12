@@ -716,8 +716,6 @@
                 contentEl.innerHTML = '<div class="lesson-placeholder"><div class="ph-icon"><i class="fa-solid fa-file-lines"></i></div><p>Article content</p><p class="sub">No article URL available for this lesson.</p></div>';
             }
         } else if (step.type === 'Quiz') {
-            // Hide entire lesson page immediately
-            document.querySelector('.lesson-page').style.display = 'none';
             nav.classList.add('hidden');
             resetQuizState();
             quizState.active = true;
@@ -1242,6 +1240,9 @@
     }
 
     function startAPExam() {
+        // Hide lesson page — AP exam takes over with fullscreen overlay
+        var lp = document.querySelector('.lesson-page');
+        if (lp) lp.style.display = 'none';
         var n = quizState.staticQuestions.length;
         apState.crossedOut = [];
         apState.notes = [];
