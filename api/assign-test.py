@@ -251,26 +251,21 @@ def _create_line_item(headers, assignment_id, student_id, email, subject, grade,
         }
     }
 
-    results = {}
-
-    # Try multiple paths — gradebook and rostering
-    for path in [
-        f"{OR}/gradebook/v1p2/lineItems/{assignment_id}",
-        f"{OR}/rostering/v1p2/lineItems/{assignment_id}",
-    ]:
+    # POST to /ims/oneroster/rostering/v1p2/lineItems (confirmed working endpoint)
+    try:
+        resp = requests.post(
+            f"{API_BASE}/ims/oneroster/rostering/v1p2/lineItems",
+            headers=headers,
+            json=line_item,
+            timeout=10,
+        )
         try:
-            resp = requests.put(path, headers=headers, json=line_item, timeout=10)
-            try:
-                body = resp.json()
-            except Exception:
-                body = {"status": resp.status_code}
-            results[path.split("/v1p2/")[0].split("/")[-1]] = {"status": resp.status_code}
-            if resp.status_code in (200, 201):
-                return {"success": True, "status": resp.status_code, "response": body, "attempts": results}
-        except Exception as e:
-            results["error"] = str(e)
-
-    return {"success": False, "attempts": results}
+            body = resp.json()
+        except Exception:
+            body = {"status": resp.status_code}
+        return {"success": resp.status_code in (200, 201), "status": resp.status_code, "response": body}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 def _ensure_placement_enrollment(headers, student_id, subject):
