@@ -831,6 +831,10 @@
                 loadXp(email, 'today'),
             ]);
 
+            // Re-render after all parallel fetches complete so masteredIdx
+            // (from loadFullYearXp) is guaranteed to be populated.
+            renderCourses();
+
         } catch (err) {
             showError('Unable to reach the Timeback API. Please try again later.');
             console.error('[AlphaLearn]', err);
@@ -1035,8 +1039,10 @@
             const now = new Date();
             const startOfYear = new Date(now.getFullYear(), 7, 1);
             if (startOfYear > now) startOfYear.setFullYear(startOfYear.getFullYear() - 1);
-            const startDate = localDateStr(startOfYear) + 'T00:00:00Z';
-            const endDate   = localDateStr(now) + 'T23:59:59Z';
+            startOfYear.setHours(0, 0, 0, 0);
+            const endDay = new Date(now); endDay.setHours(23, 59, 59, 999);
+            const startDate = startOfYear.toISOString();
+            const endDate   = endDay.toISOString();
 
             const promises = [];
             for (let i = 0; i < allCourses.length; i++) {
@@ -1046,7 +1052,7 @@
                 if (!c._enrollmentId) continue;
 
                 promises.push(
-                    fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}`)
+                    fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}&timezone=${encodeURIComponent(userTimezone)}`)
                         .then(r => r.json())
                         .then(data => ({ i, data }))
                         .catch(() => null)

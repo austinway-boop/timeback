@@ -534,8 +534,11 @@ document.addEventListener('DOMContentLoaded', async function () {
         /* 3. Fetch per-enrollment analytics for accurate per-course data */
         const soy = new Date(now.getFullYear(), 7, 1);
         if (soy > now) soy.setFullYear(soy.getFullYear() - 1);
-        const startParam = `${fmtD(soy)}T00:00:00Z`;
-        const endParam   = `${fmtD(now)}T23:59:59Z`;
+        soy.setHours(0, 0, 0, 0);
+        const endDay = new Date(now); endDay.setHours(23, 59, 59, 999);
+        const startParam = soy.toISOString();
+        const endParam   = endDay.toISOString();
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
 
         // Fetch goals from KV API in parallel with analytics
         const goalsPromise = fetch(`/api/goals?userId=${encodeURIComponent(uid)}`)
@@ -546,7 +549,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         // Fire per-enrollment analytics calls in parallel for every course with an enrollment ID
         const analyticsPromises = ALL.map((c, i) => {
             if (!c._enrollmentId) return Promise.resolve(null);
-            return fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startParam}&endDate=${endParam}`)
+            return fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startParam}&endDate=${endParam}&timezone=${encodeURIComponent(tz)}`)
                 .then(r => r.json())
                 .then(data => ({ i, data }))
                 .catch(() => null);

@@ -14,6 +14,7 @@ class handler(BaseHTTPRequestHandler):
         student_id = params.get("studentId", "")
         start_date = params.get("startDate", "")
         end_date = params.get("endDate", "")
+        timezone = params.get("timezone", "")
 
         if not email and not student_id:
             send_json(self, {"error": "Provide 'email' or 'studentId' query param"}, 400)
@@ -29,6 +30,8 @@ class handler(BaseHTTPRequestHandler):
                 api_params["startDate"] = start_date
             if end_date:
                 api_params["endDate"] = end_date
+            if timezone:
+                api_params["timezone"] = timezone
 
             data, status = fetch_with_params(
                 "/edubridge/analytics/activity", api_params
