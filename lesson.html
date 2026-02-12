@@ -855,7 +855,7 @@
 
         // ── 3. Fallback: show message ──
         removeQuizLoader();
-        quizArea.innerHTML = '<div class="loading-msg"><i class="fa-solid fa-clipboard-question" style="font-size:2rem;display:block;margin-bottom:12px;opacity:0.3;"></i><p>No quiz questions available for this lesson.</p></div>';
+        quizArea.innerHTML = '<div class="lesson-placeholder"><div class="ph-icon"><i class="fa-solid fa-clipboard-question"></i></div><p>No quiz questions available</p><span class="sub">This quiz has no questions yet.</span></div>';
         showNavAfterQuiz(false);
     }
 
@@ -1826,16 +1826,17 @@
             })
             .then(function(html) {
                 if (html && html.trim().length > 0) {
-                    contentEl.innerHTML = '<div class="article-wrap">' + html + '</div>';
+                    contentEl.innerHTML = '<div class="article-section-header"><div class="as-icon"><i class="fa-solid fa-file-lines"></i></div><div class="as-text">Read Article</div></div>' +
+                        '<div class="article-wrap">' + html + '</div>';
                     // Cache for AP exam passage panel
                     quizState.cachedPassage = html;
                 } else {
-                    contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p>Article content is empty.</p></div>';
+                    contentEl.innerHTML = '<div class="lesson-placeholder"><div class="ph-icon"><i class="fa-solid fa-file-lines"></i></div><p>Article content is empty.</p></div>';
                 }
             })
             .catch(function(err) {
                 console.warn('[Lesson] Article fetch failed:', err);
-                contentEl.innerHTML = '<div class="lesson-placeholder"><i class="fa-solid fa-file-lines"></i><p style="font-weight:600;color:var(--color-text);">Article</p><p class="sub">Could not load article content.</p></div>';
+                contentEl.innerHTML = '<div class="lesson-placeholder"><div class="ph-icon"><i class="fa-solid fa-file-lines"></i></div><p>Article</p><p class="sub">Could not load article content.</p></div>';
             });
     }
 
