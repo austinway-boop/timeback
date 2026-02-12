@@ -354,8 +354,11 @@ function renderTests() {
         return;
     }
 
-    // Sort: enrolled tests first, then non-enrolled (grayed out)
+    // Sort: placement-level first, then enrolled, then rest
     var sorted = tests.slice().sort(function(a, b) {
+        var aPlacement = getPlacementGrade(a.subject) === a.grade ? 0 : 1;
+        var bPlacement = getPlacementGrade(b.subject) === b.grade ? 0 : 1;
+        if (aPlacement !== bPlacement) return aPlacement - bPlacement;
         var aEnrolled = enrolledKeys.has(a.subject + '|' + a.grade) ? 0 : 1;
         var bEnrolled = enrolledKeys.has(b.subject + '|' + b.grade) ? 0 : 1;
         if (aEnrolled !== bEnrolled) return aEnrolled - bEnrolled;
@@ -366,9 +369,11 @@ function renderTests() {
     el.innerHTML = sorted.map(function(t, idx) {
         var key = t.subject.toLowerCase() + '|' + t.grade;
         var status = statusMap[key] || '';
-        var isEnrolled = enrolledKeys.has(t.subject + '|' + t.grade);
         var plGrade = getPlacementGrade(t.subject);
-        var isPlacement = plGrade && plGrade === t.grade;
+        var isPlacement = plGrade != null && plGrade === t.grade;
+        var hasPlacement = plGrade != null;
+        // Assignable = at placement level, OR no placement data yet (let them try)
+        var canAssign = isPlacement || !hasPlacement;
         var btnHtml;
 
         if (status === 'completed') {
@@ -377,19 +382,18 @@ function renderTests() {
             btnHtml = '<span class="test-btn assigned"><i class="fa-solid fa-clock" style="margin-right:3px;"></i>Pending</span>';
         } else if (status === 'failed') {
             btnHtml = '<span class="test-btn failed"><i class="fa-solid fa-rotate" style="margin-right:3px;"></i>Failed</span>';
-        } else if (isEnrolled) {
+        } else if (canAssign) {
             btnHtml = '<button class="test-btn assign" id="tbtn-' + idx + '" onclick="assignTest(\'' + esc(t.subject) + '\',\'' + esc(t.grade) + '\',' + idx + ')"><i class="fa-solid fa-plus" style="margin-right:3px;"></i>Assign</button>';
         } else {
-            // Not enrolled — show grayed-out assign button that still works
-            btnHtml = '<button class="test-btn assign" id="tbtn-' + idx + '" onclick="assignTest(\'' + esc(t.subject) + '\',\'' + esc(t.grade) + '\',' + idx + ')" style="opacity:0.5;"><i class="fa-solid fa-plus" style="margin-right:3px;"></i>Assign</button>';
+            // Not at placement level — disabled
+            btnHtml = '<span class="test-btn" style="background:#F4F6F9;color:#A0AEC0;font-size:0.7rem;cursor:default;">Grade ' + esc(plGrade) + ' only</span>';
         }
 
         // Badges
         var meta = '';
-        if (isPlacement) meta += '<span style="background:#E8F5E9;color:#2E7D32;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:6px;">Placement Level</span>';
-        else if (isEnrolled) meta += '<span style="background:#EBF8FF;color:#2B6CB0;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:6px;">Enrolled</span>';
+        if (isPlacement) meta += '<span style="background:#E8F5E9;color:#2E7D32;font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:6px;">Current Level</span>';
 
-        var rowStyle = isEnrolled ? '' : 'opacity:0.45;';
+        var rowStyle = canAssign || status ? '' : 'opacity:0.35;';
 
         return '<div class="test-row" style="' + rowStyle + '">' +
             '<div class="test-row-info">' +
