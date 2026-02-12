@@ -211,10 +211,7 @@ def _assign_with_autofix(headers, student_id, subject, grade, payload, log):
     if isinstance(data, dict):
         err = (data.get("error") or data.get("imsx_description") or "").lower()
 
-    # 2. Always auto-enroll — PowerPath returns generic 500 when not enrolled
-    log["autoEnroll"] = _auto_enroll(headers, student_id, subject, grade, log)
-
-    # 3. Delete existing assignments for this subject
+    # 2. Delete existing assignments for this subject FIRST
     try:
         lr = requests.get(f"{PP}/test-assignments", headers=headers, params={"student": student_id}, timeout=8)
         if lr.status_code == 200:
@@ -229,7 +226,7 @@ def _assign_with_autofix(headers, student_id, subject, grade, payload, log):
     except Exception:
         pass
 
-    # 4. Reset placement (use "student" field — confirmed working)
+    # 3. Reset placement
     try:
         rr = requests.post(
             f"{PP}/placement/resetUserPlacement", headers=headers,
@@ -242,17 +239,36 @@ def _assign_with_autofix(headers, student_id, subject, grade, payload, log):
     except Exception as e:
         log["placementReset"] = {"error": str(e)}
 
-    # 5. Retry assignment
+    # 4. Auto-enroll in the course
+    log["autoEnroll"] = _auto_enroll(headers, student_id, subject, grade, log)
+
+    # 5. Wait for enrollment to propagate to PowerPath, then retry
+    import time
+    time.sleep(2)
+
+    # 6. Retry assignment (attempt 2)
     retry = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
     try:
         retry_data = retry.json()
     except Exception:
         retry_data = {"raw": retry.text[:500]}
-    log["retryStatus"] = retry.status_code
+    log["retry1Status"] = retry.status_code
 
     if retry.status_code in (200, 201):
         return retry_data, retry.status_code
-    return retry_data, retry.status_code
+
+    # 7. If still failing, wait longer and try once more
+    time.sleep(3)
+    retry2 = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
+    try:
+        retry2_data = retry2.json()
+    except Exception:
+        retry2_data = {"raw": retry2.text[:500]}
+    log["retry2Status"] = retry2.status_code
+
+    if retry2.status_code in (200, 201):
+        return retry2_data, retry2.status_code
+    return retry2_data, retry2.status_code
 
 
 def _auto_enroll(headers, student_id, subject, grade, log):
@@ -279,7 +295,7 @@ def _auto_enroll(headers, student_id, subject, grade, log):
     except Exception:
         pass
 
-    # Fallback: search courses by title pattern
+    # Fallback: search courses by title pattern (skip hole-filling, testing, etc.)
     if not course_id:
         ordinal = {"1": "1st", "2": "2nd", "3": "3rd"}.get(grade, f"{grade}th")
         search_terms = [
@@ -287,6 +303,7 @@ def _auto_enroll(headers, student_id, subject, grade, log):
             f"{subject} Grade {grade}",
             f"{subject} {grade}",
         ]
+        skip_words = ["hole-filling", "hole filling", "testing", "remediation", "staar", "- pp"]
         try:
             cr = requests.get(
                 f"{API_BASE}/ims/oneroster/rostering/v1p2/courses",
@@ -297,7 +314,7 @@ def _auto_enroll(headers, student_id, subject, grade, log):
                 for term in search_terms:
                     for c in courses:
                         title = (c.get("title") or "").lower()
-                        if term.lower() in title:
+                        if term.lower() in title and not any(sw in title for sw in skip_words):
                             course_id = c.get("sourcedId") or ""
                             break
                     if course_id:
