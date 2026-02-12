@@ -724,7 +724,7 @@
         // Crossout tool
         crossOutMode: false, crossedOut: {},
         // Question reporting
-        reportingEnabled: false, pendingReports: [],
+        reportingEnabled: true, pendingReports: [],
         cachedPassage: '',
     };
     var quizArea = null; // reference to the quiz container element
@@ -798,8 +798,8 @@
         } catch(e) {}
         fetch('/api/report-question?studentId=' + encodeURIComponent(userId))
             .then(function(r) { return r.json(); })
-            .then(function(d) { quizState.reportingEnabled = d.enabled === true; })
-            .catch(function() {});
+            .then(function(d) { if (d.enabled === false) quizState.reportingEnabled = false; })
+            .catch(function() { /* keep enabled on error */ });
     })();
 
     // Answer key toggle — only for evan.klein@alpha.school

@@ -281,7 +281,7 @@
         crossOutMode: false,
         crossedOut: {},
         // Question reporting
-        reportingEnabled: false,
+        reportingEnabled: true, // default ON; API can disable
         pendingReports: [], // [{reportId, questionsRemaining}]
     };
 
@@ -363,11 +363,11 @@
             var saved = JSON.parse(localStorage.getItem('pending_reports:' + userId) || '[]');
             if (Array.isArray(saved)) quizState.pendingReports = saved;
         } catch(e) {}
-        // Check if reporting is enabled
+        // Check if reporting is disabled by admin (default is ON)
         fetch('/api/report-question?studentId=' + encodeURIComponent(userId))
             .then(function(r) { return r.json(); })
-            .then(function(d) { quizState.reportingEnabled = d.enabled === true; })
-            .catch(function() {});
+            .then(function(d) { if (d.enabled === false) quizState.reportingEnabled = false; })
+            .catch(function() { /* keep enabled on error */ });
     })();
 
     // Answer key toggle — only for evan.klein@alpha.school
