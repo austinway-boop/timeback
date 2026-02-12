@@ -884,7 +884,21 @@
                     });
                 }
 
-                return { prompt: promptText, choices: choices, correctId: correctId, feedbackMap: feedbackMap, isFRQ: isFRQ, expectedLines: 10 };
+                // Extract stimulus content (article/passage attached by backend)
+                var stimulusHtml = '';
+                var secStim = q['_sectionStimulus'] || qi['_sectionStimulus'] || null;
+                if (secStim) {
+                    var stimObj = secStim;
+                    if (stimObj.content && stimObj.content['qti-assessment-stimulus']) stimObj = stimObj.content['qti-assessment-stimulus'];
+                    else if (stimObj['qti-assessment-stimulus']) stimObj = stimObj['qti-assessment-stimulus'];
+                    var stimContent = stimObj['qti-stimulus-body'] || stimObj.body || stimObj.content || stimObj;
+                    if (typeof stimContent === 'string' && stimContent.length > 10) stimulusHtml = stimContent;
+                    else if (typeof stimContent === 'object') stimulusHtml = renderNode(stimContent);
+                    if (!stimulusHtml && secStim.rawXml) stimulusHtml = secStim.rawXml;
+                    if (!stimulusHtml) stimulusHtml = renderNode(secStim);
+                }
+
+                return { prompt: promptText, choices: choices, correctId: correctId, feedbackMap: feedbackMap, isFRQ: isFRQ, expectedLines: 10, stimulus: stimulusHtml };
             });
 
             quizState.staticIdx = 0;
@@ -1127,7 +1141,7 @@
         quizState.selectedChoice = null;
         quizState.answered = false;
         quizState.questionNum = quizState.staticIdx + 1;
-        renderQuestion({ prompt: q.prompt, choices: q.choices, isFRQ: q.isFRQ, expectedLines: q.expectedLines });
+        renderQuestion({ prompt: q.prompt, choices: q.choices, isFRQ: q.isFRQ, expectedLines: q.expectedLines, stimulus: q.stimulus });
     }
 
     /* ==================================================================
