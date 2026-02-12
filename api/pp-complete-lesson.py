@@ -1,6 +1,7 @@
 """POST /api/pp-complete-lesson — Complete a PowerPath lesson (MCQ/quiz).
 
-Answers all questions correctly and finalizes the assessment.
+Answers all questions correctly (or to target score) and finalizes the assessment.
+Returns the actual XP earned from PowerPath.
 
 Body:
   studentId: string (required)
@@ -77,7 +78,7 @@ class handler(BaseHTTPRequestHandler):
         num_correct = round(total * target_score / 100)
         num_correct = max(0, min(total, num_correct))
 
-        # Step 2: Answer questions
+        # Step 2: Answer questions using PUT (the correct method!)
         for i, q in enumerate(questions):
             q_id = q.get("id", "")
             if not q_id:
@@ -95,6 +96,7 @@ class handler(BaseHTTPRequestHandler):
                 is_correct = False
 
             try:
+                # Use PUT, not POST!
                 resp = requests.put(
                     f"{API_BASE}/powerpath/updateStudentQuestionResponse",
                     headers=headers,
@@ -102,7 +104,7 @@ class handler(BaseHTTPRequestHandler):
                         "student": student_id,
                         "lesson": lesson_id,
                         "question": q_id,
-                        "response": answer
+                        "response": answer  # Send the actual answer, not correct flag
                     },
                     timeout=10
                 )
@@ -116,7 +118,7 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 results["errors"].append(f"Q{i+1}: {str(e)}")
 
-        # Step 3: Finalize
+        # Step 3: Finalize using POST
         try:
             resp = requests.post(
                 f"{API_BASE}/powerpath/finalStudentAssessmentResponse",
@@ -130,7 +132,7 @@ class handler(BaseHTTPRequestHandler):
             finalize_ok = False
             finalize_data = {"error": str(e)}
 
-        # Step 4: Get final score
+        # Step 4: Get final progress WITH XP
         try:
             resp = requests.get(
                 f"{API_BASE}/powerpath/getAssessmentProgress",
@@ -142,6 +144,10 @@ class handler(BaseHTTPRequestHandler):
         except:
             final_progress = {}
 
+        # Extract XP from PowerPath response
+        xp_earned = final_progress.get("xp", 0)
+        multiplier = final_progress.get("multiplier", 1)
+
         send_json(self, {
             "success": finalize_ok and len(results["errors"]) == 0,
             "totalQuestions": total,
@@ -151,5 +157,8 @@ class handler(BaseHTTPRequestHandler):
             "finalScore": final_progress.get("score"),
             "finalized": final_progress.get("finalized"),
             "attempt": final_progress.get("attempt"),
+            "xpEarned": xp_earned,
+            "multiplier": multiplier,
+            "accuracy": final_progress.get("accuracy"),
             "errors": results["errors"] if results["errors"] else None
         })

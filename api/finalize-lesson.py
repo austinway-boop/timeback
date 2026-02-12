@@ -1,11 +1,11 @@
 """POST /api/finalize-lesson — Call PowerPath finalStudentAssessmentResponse.
 
+Returns the XP earned from PowerPath after finalization.
+
 Body:
   studentId: string (required) - student sourcedId
   lessonId: string (required) - lesson sourcedId (e.g. "USHI23-l10-r104084-bank-v1")
   score: number (optional) - score percentage (0-100), included in finalize if provided
-
-Docs: https://docs.timeback.com/beta/api-reference/beyond-ai/powerpath/lesson-mastery/finalize-a-test-assessments
 """
 
 import json
@@ -33,7 +33,7 @@ class handler(BaseHTTPRequestHandler):
 
         student_id = body.get("studentId", "")
         lesson_id = body.get("lessonId", "")
-        score = body.get("score")  # Optional score passthrough
+        score = body.get("score")
 
         if not student_id or not lesson_id:
             send_json(self, {"error": "Missing studentId or lessonId"}, 400)
@@ -62,17 +62,41 @@ class handler(BaseHTTPRequestHandler):
                 "url": url,
                 "payload": payload,
                 "status": resp.status_code,
-                "body": resp.text[:1000]
+                "body": resp.text[:500]
             })
 
             if resp.status_code in (200, 201):
+                finalize_data = resp.json()
+                
+                # Get XP from progress endpoint
+                xp_earned = 0
                 try:
-                    data = resp.json()
-                except:
-                    data = {}
+                    progress_resp = requests.get(
+                        f"{API_BASE}/powerpath/getAssessmentProgress",
+                        headers=headers,
+                        params={"student": student_id, "lesson": lesson_id},
+                        timeout=10
+                    )
+                    if progress_resp.status_code == 200:
+                        progress = progress_resp.json()
+                        xp_earned = progress.get("xp", 0)
+                        debug.append({
+                            "step": "getAssessmentProgress",
+                            "xp": xp_earned,
+                            "score": progress.get("score"),
+                            "accuracy": progress.get("accuracy"),
+                            "multiplier": progress.get("multiplier")
+                        })
+                except Exception as e:
+                    debug.append({"step": "getAssessmentProgress", "error": str(e)})
+                
                 send_json(self, {
                     "status": "success",
-                    "response": data,
+                    "finalized": finalize_data.get("finalized", True),
+                    "lessonType": finalize_data.get("lessonType"),
+                    "attempt": finalize_data.get("attempt"),
+                    "xpEarned": xp_earned,
+                    "response": finalize_data,
                     "debug": debug
                 })
             else:
