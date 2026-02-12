@@ -114,15 +114,15 @@ class handler(BaseHTTPRequestHandler):
             # Remove this enrollment's goal
             goals.pop(enrollment_id, None)
         else:
-            # Merge goal data
-            goal_data = {}
-            if body.get("endDate"):
+            # Merge goal data with existing (preserve fields not in this request)
+            goal_data = goals.get(enrollment_id, {})
+            if "endDate" in body and body["endDate"]:
                 goal_data["endDate"] = body["endDate"]
-            if body.get("target"):
+            if "target" in body and body["target"] is not None:
                 goal_data["target"] = int(body["target"])
             if "excludeNonSchoolDays" in body:
                 goal_data["excludeNonSchoolDays"] = bool(body["excludeNonSchoolDays"])
-            if body.get("dailyXp"):
+            if "dailyXp" in body and body["dailyXp"] is not None:
                 goal_data["dailyXp"] = int(body["dailyXp"])
             goals[enrollment_id] = goal_data
 
