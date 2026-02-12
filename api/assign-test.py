@@ -184,41 +184,96 @@ class handler(BaseHTTPRequestHandler):
                 pp_data = {}
             log["powerpath"] = {"status": pp_resp.status_code}
 
-            assignment_id = str(uuid.uuid4())
-            if isinstance(pp_data, dict) and pp_data.get("assignmentId"):
-                assignment_id = pp_data["assignmentId"]
-
-            # Step 5: Create OneRoster line item (syncs to MasteryTrack)
-            test_name = f"{subject} Grade {grade} Test"
-            li_result = _create_line_item(headers, assignment_id, sid, email, subject, grade, test_name)
-            log["lineItem"] = li_result
-
             pp_ok = pp_resp.status_code in (200, 201)
-            li_ok = li_result.get("success", False)
 
-            if pp_ok or li_ok:
+            assignment_id = ""
+            lesson_id = ""
+            if isinstance(pp_data, dict):
+                assignment_id = pp_data.get("assignmentId") or ""
+                lesson_id = pp_data.get("lessonId") or ""
+
+            # Step 5: Provision on MasteryTrack via Timeback's makeExternalTestAssignment
+            mt_result = None
+            test_link = ""
+            if pp_ok and (lesson_id or assignment_id):
+                mt_result = _make_external_test_assignment(sid, lesson_id or assignment_id)
+                log["masteryTrack"] = mt_result
+                if mt_result and mt_result.get("success"):
+                    test_link = mt_result.get("testUrl") or ""
+
+            if not test_link and assignment_id:
+                test_link = f"https://alphatest.alpha.school/assignment/{assignment_id}"
+
+            if pp_ok:
                 send_json(self, {
                     "success": True,
                     "message": f"Test assigned ({subject} Grade {grade})",
                     "assignmentId": assignment_id,
-                    "testLink": f"https://alphatest.alpha.school/test/{assignment_id}",
-                    "response": pp_data if pp_ok else li_result,
+                    "testLink": test_link,
+                    "response": pp_data,
                     "log": log,
                 })
             else:
-                err = ""
-                if isinstance(pp_data, dict):
-                    err = pp_data.get("error") or pp_data.get("imsx_description") or ""
-                send_json(self, {
-                    "success": False,
-                    "error": err or "Assignment failed",
-                    "log": log,
-                }, 422)
+                # PowerPath failed — try line item as fallback
+                test_name = f"{subject} Grade {grade} Test"
+                fallback_id = assignment_id or str(uuid.uuid4())
+                li_result = _create_line_item(headers, fallback_id, sid, email, subject, grade, test_name)
+                log["lineItem"] = li_result
+
+                if li_result.get("success"):
+                    send_json(self, {
+                        "success": True,
+                        "message": f"Test assigned ({subject} Grade {grade})",
+                        "assignmentId": fallback_id,
+                        "testLink": f"https://alphatest.alpha.school/assignment/{fallback_id}",
+                        "response": li_result,
+                        "log": log,
+                    })
+                else:
+                    err = ""
+                    if isinstance(pp_data, dict):
+                        err = pp_data.get("error") or pp_data.get("imsx_description") or ""
+                    send_json(self, {
+                        "success": False,
+                        "error": err or "Assignment failed",
+                        "log": log,
+                    }, 422)
 
         except json.JSONDecodeError:
             send_json(self, {"error": "Invalid JSON", "success": False}, 400)
         except Exception as e:
             send_json(self, {"error": str(e), "success": False}, 500)
+
+
+def _make_external_test_assignment(student_id, lesson_id):
+    """Call Timeback's makeExternalTestAssignment server function.
+    This provisions the test on MasteryTrack and returns the numeric test ID + URL."""
+    url = "https://alpha.timeback.com/_serverFn/src_features_powerpath-quiz_services_lesson-mastery_ts--makeExternalTestAssignment_createServerFn_handler"
+    try:
+        resp = requests.post(
+            url,
+            params={"createServerFn": ""},
+            headers={"Content-Type": "application/json"},
+            json={"data": {"student": student_id, "lesson": lesson_id}, "context": {}},
+            timeout=10,
+        )
+        try:
+            body = resp.json()
+        except Exception:
+            return {"success": False, "status": resp.status_code, "raw": resp.text[:300]}
+
+        result = body.get("result", {})
+        if result.get("success"):
+            return {
+                "success": True,
+                "testId": result.get("testId"),
+                "testUrl": result.get("testUrl"),
+                "assignmentId": result.get("assignmentId"),
+                "credentials": result.get("credentials"),
+            }
+        return {"success": False, "status": resp.status_code, "response": body}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 def _create_line_item(headers, assignment_id, student_id, email, subject, grade, test_name):
