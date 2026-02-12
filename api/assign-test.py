@@ -251,23 +251,39 @@ def _create_line_item(headers, assignment_id, student_id, email, subject, grade,
         }
     }
 
-    # POST to /ims/oneroster/rostering/v1p2/lineItems — confirmed working
-    url = f"{API_BASE}/ims/oneroster/rostering/v1p2/lineItems"
-    try:
-        resp = requests.post(url, headers=headers, json=line_item, timeout=10)
+    # Try multiple OneRoster paths and payload wrappers
+    GB = f"{API_BASE}/ims/oneroster/gradebook/v1p2"
+    RS = f"{API_BASE}/ims/oneroster/rostering/v1p2"
+    inner = line_item["lineItem"]
+
+    attempts = []
+    # Different wrapper names and endpoints
+    combos = [
+        ("PUT",  f"{GB}/lineItems/{assignment_id}",               {"lineItem": inner}),
+        ("POST", f"{GB}/lineItems",                                {"lineItem": inner}),
+        ("PUT",  f"{GB}/assessmentLineItems/{assignment_id}",     {"assessmentLineItem": inner}),
+        ("POST", f"{GB}/assessmentLineItems",                      {"assessmentLineItem": inner}),
+        ("PUT",  f"{RS}/lineItems/{assignment_id}",               {"lineItem": inner}),
+        ("POST", f"{RS}/lineItems",                                {"lineItem": inner}),
+    ]
+
+    for method, url, payload in combos:
         try:
-            body = resp.json()
-        except Exception:
-            body = {"raw": resp.text[:300], "status": resp.status_code}
-        return {
-            "success": resp.status_code in (200, 201),
-            "status": resp.status_code,
-            "url": url,
-            "payload": line_item,
-            "response": body,
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e), "url": url}
+            if method == "PUT":
+                resp = requests.put(url, headers=headers, json=payload, timeout=8)
+            else:
+                resp = requests.post(url, headers=headers, json=payload, timeout=8)
+            try:
+                body = resp.json()
+            except Exception:
+                body = {"raw": resp.text[:200]}
+            attempts.append({"method": method, "url": url.replace(API_BASE, ""), "status": resp.status_code})
+            if resp.status_code in (200, 201):
+                return {"success": True, "status": resp.status_code, "response": body, "attempts": attempts}
+        except Exception as e:
+            attempts.append({"url": url.replace(API_BASE, ""), "error": str(e)})
+
+    return {"success": False, "attempts": attempts}
 
 
 def _ensure_placement_enrollment(headers, student_id, subject):
