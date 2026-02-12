@@ -1,24 +1,39 @@
-"""PowerPath test assignment + placement API proxy.
+"""MasteryTrack test assignment API.
 
-Endpoints:
-  POST /powerpath/test-assignments                  — Assign test { student, subject, grade }
-  GET  /powerpath/test-assignments?student={id}     — Student assignments
-  GET  /powerpath/test-assignments/admin             — All assignments (admin)
-  GET  /powerpath/test-assignments/{id}              — Single assignment
-  DEL  /powerpath/test-assignments/{id}              — Delete assignment
-  GET  /powerpath/placement/subjects                 — All placement subjects
-  GET  /powerpath/placement/getCurrentLevel          — Current level
-  GET  /powerpath/placement/getSubjectProgress       — Progress
-  POST /powerpath/placement/resetUserPlacement       — Reset placement
+Flow:
+  1. Enroll student in placement class (OneRoster enrollment)
+  2. Assign test (PowerPath test-assignments)
+  3. Student takes test at alphatest.alpha.school/assignment/{assignmentId}
+
+Placement Class IDs:
+  Math     → 514efb44-d13b-41bd-8d6a-dc380b2e5ca2 (school: cf49acb1...)
+  Language → 0b7b2884-cf93-4a09-b1ac-6ebfe9f96f39 (school: f47ac10b...)
+  Science  → science-placement-tests-class-timeback (school: cf49acb1...)
+  Writing  → writing-placement-tests-class-timeback (school: cf49acb1...)
 """
 
 import json
+import time
 from http.server import BaseHTTPRequestHandler
 
 import requests
 from api._helpers import API_BASE, api_headers, send_json
 
 PP = f"{API_BASE}/powerpath"
+OR = f"{API_BASE}/ims/oneroster/rostering/v1p2"
+
+# Placement class IDs — required for enrollment before test assignment
+PLACEMENT_CLASSES = {
+    "math":     {"classId": "514efb44-d13b-41bd-8d6a-dc380b2e5ca2", "schoolId": "cf49acb1-1e67-48c6-8d53-8b3c6a404852"},
+    "language":  {"classId": "0b7b2884-cf93-4a09-b1ac-6ebfe9f96f39", "schoolId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"},
+    "science":  {"classId": "science-placement-tests-class-timeback", "schoolId": "cf49acb1-1e67-48c6-8d53-8b3c6a404852"},
+    "writing":  {"classId": "writing-placement-tests-class-timeback", "schoolId": "cf49acb1-1e67-48c6-8d53-8b3c6a404852"},
+}
+# Aliases
+PLACEMENT_CLASSES["reading"] = PLACEMENT_CLASSES["language"]
+PLACEMENT_CLASSES["vocabulary"] = PLACEMENT_CLASSES["language"]
+PLACEMENT_CLASSES["social studies"] = PLACEMENT_CLASSES["science"]
+PLACEMENT_CLASSES["fastmath"] = PLACEMENT_CLASSES["math"]
 
 
 class handler(BaseHTTPRequestHandler):
@@ -35,39 +50,33 @@ class handler(BaseHTTPRequestHandler):
         action = params.get("action", [""])[0]
         sid = (params.get("student", params.get("studentId", [""]))  [0]).strip()
         subject = params.get("subject", [""])[0].strip()
-
         headers = api_headers()
 
         if action == "placement":
             if not sid or not subject:
-                send_json(self, {"error": "Need student and subject params"}, 400)
+                send_json(self, {"error": "Need student and subject"}, 400)
                 return
             _proxy_get(self, headers, f"{PP}/placement/getCurrentLevel", {"student": sid, "subject": subject})
             return
-
         if action == "progress":
             if not sid or not subject:
-                send_json(self, {"error": "Need student and subject params"}, 400)
+                send_json(self, {"error": "Need student and subject"}, 400)
                 return
             _proxy_get(self, headers, f"{PP}/placement/getSubjectProgress", {"student": sid, "subject": subject})
             return
-
         if action == "subjects":
             _proxy_get(self, headers, f"{PP}/placement/subjects", {})
             return
-
         if action == "admin":
             _proxy_get(self, headers, f"{PP}/test-assignments/admin", {})
             return
-
         if action == "get":
             aid = params.get("id", [""])[0].strip()
             if not aid:
-                send_json(self, {"error": "Need id param"}, 400)
+                send_json(self, {"error": "Need id"}, 400)
                 return
             _proxy_get(self, headers, f"{PP}/test-assignments/{aid}", {})
             return
-
         if not sid:
             send_json(self, {"error": "Missing student param", "testAssignments": []}, 400)
             return
@@ -97,7 +106,6 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(raw)
             action = (body.get("action") or "").strip()
 
-            # ── Reset placement ──
             if action == "resetPlacement":
                 sid = (body.get("student") or body.get("studentId") or "").strip()
                 subject = (body.get("subject") or "").strip()
@@ -105,15 +113,12 @@ class handler(BaseHTTPRequestHandler):
                     send_json(self, {"error": "Need student and subject", "success": False}, 400)
                     return
                 headers = api_headers()
-                resp = requests.post(
-                    f"{PP}/placement/resetUserPlacement", headers=headers,
-                    json={"student": sid, "subject": subject}, timeout=10,
-                )
+                resp = requests.post(f"{PP}/placement/resetUserPlacement", headers=headers, json={"student": sid, "subject": subject}, timeout=10)
                 try:
-                    rdata = resp.json()
+                    d = resp.json()
                 except Exception:
-                    rdata = {"status": resp.status_code}
-                send_json(self, {"success": resp.status_code in (200, 201, 204), "response": rdata}, resp.status_code if resp.status_code >= 400 else 200)
+                    d = {}
+                send_json(self, {"success": resp.status_code in (200, 201, 204), "response": d})
                 return
 
             # ── Assign test ──
@@ -121,28 +126,28 @@ class handler(BaseHTTPRequestHandler):
             subject = (body.get("subject") or "").strip()
             grade = (body.get("grade") or body.get("gradeLevel") or "").strip()
 
-            if not sid:
-                send_json(self, {"error": "student is required", "success": False}, 400)
-                return
-            if not subject or not grade:
-                send_json(self, {"error": "subject and grade are required", "success": False}, 400)
+            if not sid or not subject or not grade:
+                send_json(self, {"error": "Need student, subject, and grade", "success": False}, 400)
                 return
 
             headers = api_headers()
 
-            # Delete any existing assignments for this subject first
+            # Step 1: Delete any existing assignments for this subject
             try:
                 lr = requests.get(f"{PP}/test-assignments", headers=headers, params={"student": sid}, timeout=8)
                 if lr.status_code == 200:
                     for a in lr.json().get("testAssignments", []):
                         if (a.get("subject") or "").lower() == subject.lower():
-                            aid = a.get("sourcedId") or a.get("assignmentId") or ""
+                            aid = a.get("sourcedId") or ""
                             if aid:
                                 requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=6)
             except Exception:
                 pass
 
-            # Assign the test
+            # Step 2: Ensure enrollment in placement class (OneRoster)
+            enroll_result = _ensure_placement_enrollment(headers, sid, subject)
+
+            # Step 3: Assign the test
             payload = {"student": sid, "subject": subject, "grade": grade}
             resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
             try:
@@ -155,30 +160,65 @@ class handler(BaseHTTPRequestHandler):
                     "success": True,
                     "message": f"Test assigned ({subject} Grade {grade})",
                     "response": data,
+                    "testLink": f"https://alphatest.alpha.school/assignment/{data.get('assignmentId', '')}",
                 })
-            else:
-                err = ""
-                if isinstance(data, dict):
-                    err = data.get("error") or data.get("imsx_description") or data.get("message") or ""
+                return
 
-                # Clear error message for the admin
-                if "not enrolled" in (err or "").lower():
-                    friendly = f"Cannot assign {subject} Grade {grade} — this course is not set up in PowerPath for this student. Enroll the student in {subject} Grade {grade} first."
-                elif resp.status_code == 500:
-                    friendly = f"{subject} Grade {grade} test is not available in PowerPath. This grade level may not have test content configured."
-                else:
-                    friendly = err or f"PowerPath returned {resp.status_code}"
-
-                send_json(self, {
-                    "success": False,
-                    "error": friendly,
-                    "httpStatus": resp.status_code,
-                }, 422)
+            # Failed — return error
+            err = ""
+            if isinstance(data, dict):
+                err = data.get("error") or data.get("imsx_description") or ""
+            send_json(self, {
+                "success": False,
+                "error": err or f"PowerPath returned {resp.status_code}",
+                "httpStatus": resp.status_code,
+                "enrollment": enroll_result,
+                "powerpathResponse": data,
+            }, 422)
 
         except json.JSONDecodeError:
             send_json(self, {"error": "Invalid JSON", "success": False}, 400)
         except Exception as e:
             send_json(self, {"error": str(e), "success": False}, 500)
+
+
+def _ensure_placement_enrollment(headers, student_id, subject):
+    """Enroll student in the placement class via OneRoster (required before test assignment)."""
+    key = subject.lower()
+    cls = PLACEMENT_CLASSES.get(key)
+    if not cls:
+        return {"enrolled": False, "reason": f"No placement class for '{subject}'"}
+
+    class_id = cls["classId"]
+    school_id = cls["schoolId"]
+    enrollment_id = f"enrollment-{student_id}-{key}-{int(time.time())}"
+
+    enrollment = {
+        "enrollment": {
+            "sourcedId": enrollment_id,
+            "status": "active",
+            "role": "student",
+            "primary": "false",
+            "user": {"sourcedId": student_id},
+            "class": {"sourcedId": class_id},
+            "school": {"sourcedId": school_id},
+        }
+    }
+
+    try:
+        resp = requests.post(
+            f"{OR}/enrollments",
+            headers=headers,
+            json=enrollment,
+            timeout=10,
+        )
+        try:
+            body = resp.json()
+        except Exception:
+            body = {"status": resp.status_code}
+        return {"enrolled": resp.status_code in (200, 201), "status": resp.status_code, "classId": class_id}
+    except Exception as e:
+        return {"enrolled": False, "error": str(e)}
 
 
 def _proxy_get(handler, headers, url, params):
