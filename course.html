@@ -732,7 +732,7 @@
 
                             var totalRes = resDetails.length;
                             var doneRes = 0;
-                            for (var dc = 0; dc < resDetails.length; dc++) { if (resDetails[dc]._resDone || resDetails[dc]._isQuiz) doneRes++; }
+                            for (var dc = 0; dc < resDetails.length; dc++) { if (resDetails[dc]._resDone) doneRes++; }
                             if (isDone) doneRes = totalRes;
                             var lessonPctVal = totalRes > 0 ? Math.round((doneRes / totalRes) * 100) : (isDone ? 100 : 0);
 
