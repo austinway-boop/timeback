@@ -1,44 +1,31 @@
 """POST /api/submit-result — Record a result via OneRoster Gradebook.
 
-Tries multiple OneRoster strategies to find one that works:
-  1. PUT  /assessmentResults/{id}  (upsert - hypothesis A)
-  2. POST /assessmentResults/       (create - original)
-  3. PUT  /results/{id}             (upsert via results - hypothesis B)
-  4. POST /results/                 (create via results - hypothesis B)
+Two-step process:
+  1. PUT (upsert) an AssessmentLineItem so the reference exists
+  2. PUT (upsert) an AssessmentResult referencing that line item
 """
 
 import json
-import os
+import hashlib
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 
 import requests
-from api._helpers import API_BASE, api_headers, send_json, get_query_params
-
-LOG_PATH = "/Users/austinway/Desktop/hack/.cursor/debug.log"
+from api._helpers import API_BASE, api_headers, send_json
 
 
-def _log(message, data=None, hypothesis=None):
-    """Append a debug log line."""
-    import time
-    entry = {
-        "timestamp": int(time.time() * 1000),
-        "location": "submit-result.py",
-        "message": message,
-        "data": data or {},
-    }
-    if hypothesis:
-        entry["hypothesisId"] = hypothesis
-    try:
-        with open(LOG_PATH, "a") as f:
-            f.write(json.dumps(entry) + "\n")
-    except Exception:
-        pass
+def _deterministic_id(seed: str) -> str:
+    """Generate a stable UUID-like ID from a seed string."""
+    h = hashlib.sha256(seed.encode()).hexdigest()
+    return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
 
 
 def _uuid():
     import uuid
     return str(uuid.uuid4())
+
+
+GRADEBOOK = f"{API_BASE}/ims/oneroster/gradebook/v1p2"
 
 
 class handler(BaseHTTPRequestHandler):
@@ -63,156 +50,118 @@ class handler(BaseHTTPRequestHandler):
         score_status = body.get("scoreStatus", "fully graded")
         comment = body.get("comment", "")
         metadata = body.get("metadata") or {}
+        lesson_title = metadata.get("timeback.lessonTitle", "") or body.get("lessonTitle", "")
 
-        if not student_id or not line_item_id:
-            send_json(self, {"error": "Missing studentSourcedId or assessmentLineItemSourcedId"}, 400)
+        if not student_id:
+            send_json(self, {"error": "Missing studentSourcedId"}, 400)
             return
 
-        result_id = _uuid()
         now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
-        # #region agent log
-        _log("submit-result called", {
-            "studentId": student_id,
-            "lineItemId": line_item_id,
-            "score": score,
-            "resultId": result_id,
-        }, "entry")
-        # #endregion
-
         headers = api_headers()
+        debug = []
 
-        # ── Strategy list: try each until one succeeds ──
-        strategies = [
-            # Hypothesis A: PUT upsert to assessmentResults/{id}
-            {
-                "name": "PUT assessmentResults (upsert)",
-                "hypothesis": "A",
-                "method": "PUT",
-                "url": f"{API_BASE}/ims/oneroster/gradebook/v1p2/assessmentResults/{result_id}",
-                "payload": {
-                    "assessmentResult": {
-                        "sourcedId": result_id,
-                        "status": "active",
-                        "student": {"sourcedId": student_id},
-                        "assessmentLineItem": {"sourcedId": line_item_id},
-                        "score": score,
-                        "scoreStatus": score_status,
-                        "scoreDate": now,
-                        "comment": comment or None,
-                        "metadata": metadata or None,
-                    }
-                },
-            },
-            # Hypothesis B: PUT upsert to results/{id} with lineItem instead of assessmentLineItem
-            {
-                "name": "PUT results (upsert)",
-                "hypothesis": "B",
-                "method": "PUT",
-                "url": f"{API_BASE}/ims/oneroster/gradebook/v1p2/results/{result_id}",
-                "payload": {
-                    "result": {
-                        "sourcedId": result_id,
-                        "status": "active",
-                        "student": {"sourcedId": student_id},
-                        "lineItem": {"sourcedId": line_item_id},
-                        "score": score,
-                        "scoreStatus": score_status,
-                        "scoreDate": now,
-                        "comment": comment or None,
-                        "metadata": metadata or None,
-                    }
-                },
-            },
-            # Original: POST to assessmentResults
-            {
-                "name": "POST assessmentResults",
-                "hypothesis": "A_post",
-                "method": "POST",
-                "url": f"{API_BASE}/ims/oneroster/gradebook/v1p2/assessmentResults/",
-                "payload": {
-                    "assessmentResult": {
-                        "sourcedId": result_id,
-                        "status": "active",
-                        "student": {"sourcedId": student_id},
-                        "assessmentLineItem": {"sourcedId": line_item_id},
-                        "score": score,
-                        "scoreStatus": score_status,
-                        "scoreDate": now,
-                        "comment": comment or None,
-                        "metadata": metadata or None,
-                    }
-                },
-            },
-            # Hypothesis B: POST to results
-            {
-                "name": "POST results",
-                "hypothesis": "B_post",
-                "method": "POST",
-                "url": f"{API_BASE}/ims/oneroster/gradebook/v1p2/results/",
-                "payload": {
-                    "result": {
-                        "sourcedId": result_id,
-                        "status": "active",
-                        "student": {"sourcedId": student_id},
-                        "lineItem": {"sourcedId": line_item_id},
-                        "score": score,
-                        "scoreStatus": score_status,
-                        "scoreDate": now,
-                        "comment": comment or None,
-                        "metadata": metadata or None,
-                    }
-                },
-            },
-        ]
+        # ── Step 1: Ensure the AssessmentLineItem exists (upsert) ──
+        # Use a deterministic ID from the original resource ID so repeated
+        # attempts for the same quiz always reference the same line item.
+        ali_seed = line_item_id or lesson_title or "unknown"
+        ali_id = _deterministic_id(f"ali:{ali_seed}")
+        ali_title = lesson_title or line_item_id or "Quiz"
 
-        attempts = []
-        for strat in strategies:
-            attempt = {"name": strat["name"], "hypothesis": strat["hypothesis"]}
+        ali_payload = {
+            "assessmentLineItem": {
+                "sourcedId": ali_id,
+                "status": "active",
+                "title": ali_title,
+                "description": f"Auto-created for {ali_title}",
+                "assignDate": now,
+                "dueDate": now,
+                "resultValueMin": 0.0,
+                "resultValueMax": 100.0,
+            }
+        }
+
+        ali_url = f"{GRADEBOOK}/assessmentLineItems/{ali_id}"
+        try:
+            resp = requests.put(ali_url, headers=headers, json=ali_payload, timeout=15)
+            if resp.status_code == 401:
+                headers = api_headers()
+                resp = requests.put(ali_url, headers=headers, json=ali_payload, timeout=15)
+            debug.append({
+                "step": "1_upsert_lineItem",
+                "url": ali_url,
+                "status": resp.status_code,
+                "body": resp.text[:300],
+            })
+        except Exception as e:
+            debug.append({"step": "1_upsert_lineItem", "error": str(e)})
+            send_json(self, {
+                "status": "error",
+                "message": "Failed to create assessmentLineItem",
+                "debug": debug,
+            }, 502)
+            return
+
+        if resp.status_code not in (200, 201):
+            send_json(self, {
+                "status": "error",
+                "message": f"AssessmentLineItem upsert failed ({resp.status_code})",
+                "debug": debug,
+            }, 502)
+            return
+
+        # ── Step 2: Create the AssessmentResult ──
+        result_id = _deterministic_id(f"result:{ali_seed}:{student_id}:{now[:10]}")
+
+        result_payload = {
+            "assessmentResult": {
+                "sourcedId": result_id,
+                "status": "active",
+                "student": {"sourcedId": student_id},
+                "assessmentLineItem": {"sourcedId": ali_id},
+                "score": score,
+                "scoreStatus": score_status,
+                "scoreDate": now,
+                "comment": comment or None,
+                "metadata": metadata or None,
+            }
+        }
+
+        result_url = f"{GRADEBOOK}/assessmentResults/{result_id}"
+        try:
+            resp = requests.put(result_url, headers=headers, json=result_payload, timeout=15)
+            if resp.status_code == 401:
+                headers = api_headers()
+                resp = requests.put(result_url, headers=headers, json=result_payload, timeout=15)
+            debug.append({
+                "step": "2_upsert_result",
+                "url": result_url,
+                "status": resp.status_code,
+                "body": resp.text[:300],
+            })
+        except Exception as e:
+            debug.append({"step": "2_upsert_result", "error": str(e)})
+            send_json(self, {
+                "status": "error",
+                "message": "Failed to create assessmentResult",
+                "debug": debug,
+            }, 502)
+            return
+
+        if resp.status_code in (200, 201):
             try:
-                method = strat["method"]
-                url = strat["url"]
-                payload = strat["payload"]
-                attempt["url"] = url
-                attempt["method"] = method
-
-                if method == "PUT":
-                    resp = requests.put(url, headers=headers, json=payload, timeout=15)
-                else:
-                    resp = requests.post(url, headers=headers, json=payload, timeout=15)
-
-                if resp.status_code == 401:
-                    headers = api_headers()
-                    if method == "PUT":
-                        resp = requests.put(url, headers=headers, json=payload, timeout=15)
-                    else:
-                        resp = requests.post(url, headers=headers, json=payload, timeout=15)
-
-                attempt["httpStatus"] = resp.status_code
-                attempt["body"] = resp.text[:500]
-
-                if resp.status_code in (200, 201):
-                    try:
-                        data = resp.json()
-                    except Exception:
-                        data = {}
-                    send_json(self, {
-                        "status": "success",
-                        "strategy": strat["name"],
-                        "sourcedId": result_id,
-                        "response": data,
-                        "attempts": attempts + [attempt],
-                    }, 201)
-                    return
-
-            except Exception as e:
-                attempt["error"] = str(e)
-
-            attempts.append(attempt)
-
-        # All strategies failed — return ALL attempt details
-        send_json(self, {
-            "status": "error",
-            "message": "All OneRoster result strategies failed",
-            "attempts": attempts,
-        }, 502)
+                data = resp.json()
+            except Exception:
+                data = {}
+            send_json(self, {
+                "status": "success",
+                "assessmentLineItemId": ali_id,
+                "resultId": result_id,
+                "response": data,
+                "debug": debug,
+            }, 201)
+        else:
+            send_json(self, {
+                "status": "error",
+                "message": f"AssessmentResult upsert failed ({resp.status_code})",
+                "debug": debug,
+            }, 502)
