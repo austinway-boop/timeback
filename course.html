@@ -661,6 +661,7 @@
             // ── Parse lesson plan ──────────────────────────────────
             var plan = contentData.lessonPlan;
             var innerPlan = (plan && plan.lessonPlan) ? plan.lessonPlan : plan;
+            var lessonPlanId = (innerPlan && innerPlan.id) ? innerPlan.id : '';  // PowerPath lessonPlan ID
             var units = (innerPlan && innerPlan.subComponents) ? innerPlan.subComponents : [];
             units.sort(function(a, b) { return (a.sortOrder || '').localeCompare(b.sortOrder || ''); });
 
@@ -906,7 +907,9 @@
                                 enrollmentId: enrollment ? (enrollment.id || enrollment.sourcedId || '') : '',
                                 courseSourcedId: course ? (course.sourcedId || course.id || '') : '',
                                 courseName: course ? (course.title || courseTitle) : courseTitle,
-                                assessmentLineItemSourcedId: ppAssessmentLineItemId
+                                assessmentLineItemSourcedId: ppAssessmentLineItemId,
+                                lessonPlanId: lessonPlanId,
+                                lessonSourcedId: lesson.sourcedId || lesson.id || ''
                             };
 
                             var actAllDone = (doneRes === totalRes && totalRes > 0);

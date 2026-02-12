@@ -771,7 +771,33 @@
         .catch(function(e) { console.error('[Sync] Caliper FAILED:', e.message); });
     }
 
-    /* ── Combined: fire both on quiz completion ── */
+    /* ── 3. PowerPath: mark lesson complete via operations API ── */
+    function markLessonComplete() {
+        var lessonPlanId = lessonData.lessonPlanId || '';
+        var itemId = lessonData.lessonSourcedId || '';
+        
+        if (!lessonPlanId || !itemId) {
+            console.warn('[Sync] No lessonPlanId or lessonSourcedId - skipping PowerPath mark-complete');
+            return;
+        }
+        
+        console.log('[Sync] Marking lesson complete via PowerPath - lessonPlanId:', lessonPlanId, 'itemId:', itemId);
+        
+        fetch('/api/mark-complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lessonPlanId: lessonPlanId,
+                itemId: itemId,
+                studentId: syncState.userId
+            }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) { console.log('[Sync] PowerPath mark-complete response:', JSON.stringify(d)); })
+        .catch(function(e) { console.error('[Sync] PowerPath mark-complete FAILED:', e.message); });
+    }
+
+    /* ── Combined: fire all sync methods on quiz completion ── */
     function syncQuizCompletion(pct, passed) {
         if (!syncState.userId) {
             console.error('[Sync] NO userId — cannot sync! Check localStorage alphalearn_userId');
@@ -784,8 +810,17 @@
         fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncQuizCompletion',message:'SYNC FIRING',data:{pct:pct,passed:passed,xp:quizState.xpEarned,userId:syncState.userId,testId:quizState.testId,lessonTitle:lessonData.title},timestamp:Date.now(),hypothesisId:'entry'})}).catch(function(){});
         // #endregion
         console.log('[Sync] === Syncing quiz completion === pct:', pct, 'passed:', passed, 'xp:', quizState.xpEarned);
+        
+        // 1. OneRoster: Record assessment result
         submitAssessmentResult(pct, passed);
+        
+        // 2. Caliper: Send activity event for XP/metrics
         sendCaliperActivity(passed);
+        
+        // 3. PowerPath: Mark lesson as complete (if passed)
+        if (passed) {
+            markLessonComplete();
+        }
     }
 
     function initSync() {
