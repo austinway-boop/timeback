@@ -154,34 +154,19 @@ class handler(BaseHTTPRequestHandler):
 
             headers = api_headers()
             payload = {"student": sid, "subject": subject, "grade": grade}
+            log = {}
 
-            # Step 1: Try to assign
-            resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
-            try:
-                data = resp.json()
-            except Exception:
-                data = {"raw": resp.text[:500]}
+            # Full auto-fix flow: assign → if fail → enroll + reset + delete old → retry
+            data, status = _assign_with_autofix(headers, sid, subject, grade, payload, log)
 
-            # On failure: delete existing + reset placement + retry
-            retry_log = None
-            if resp.status_code not in (200, 201):
-                retried, retry_log = _delete_reset_retry(headers, sid, subject, grade, payload)
-                if retried:
-                    data = retried
-                    resp_status = 200
-                else:
-                    resp_status = resp.status_code
-            else:
-                resp_status = resp.status_code
-
-            if resp_status in (200, 201):
-                # Step 2: Provision on MasteryTrack via screening.assignTest
+            if status in (200, 201):
+                # Provision on MasteryTrack
                 mt_result = None
                 if isinstance(data, dict):
-                    resource_id = data.get("resourceId") or data.get("lessonId") or ""
-                    assignment_id = data.get("assignmentId") or ""
-                    if resource_id or assignment_id:
-                        mt_result = _provision_mastery_track(headers, sid, resource_id, assignment_id)
+                    rid = data.get("resourceId") or data.get("lessonId") or ""
+                    aid = data.get("assignmentId") or ""
+                    if rid or aid:
+                        mt_result = _provision_mastery_track(headers, sid, rid, aid)
 
                 send_json(self, {
                     "success": True,
@@ -195,10 +180,10 @@ class handler(BaseHTTPRequestHandler):
                     err = data.get("imsx_description") or data.get("error") or data.get("message") or ""
                 send_json(self, {
                     "success": False,
-                    "error": err or f"PowerPath returned {resp_status}",
-                    "httpStatus": resp_status,
+                    "error": err or f"PowerPath returned {status}",
+                    "httpStatus": status,
                     "powerpathResponse": data,
-                    "retryLog": retry_log,
+                    "log": log,
                 }, 422)
 
         except json.JSONDecodeError:
@@ -207,60 +192,143 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": str(e), "success": False}, 500)
 
 
-def _delete_reset_retry(headers, student_id, subject, grade, payload):
-    """Delete existing assignment, reset placement, and retry. Returns (data, log)."""
-    log = {"deleted": [], "resetAttempts": [], "retryStatus": None}
+def _assign_with_autofix(headers, student_id, subject, grade, payload, log):
+    """Try to assign. On failure: enroll in course + reset placement + delete old + retry.
+    Returns (data_dict, http_status)."""
 
+    # 1. First attempt
+    resp = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
     try:
-        # 1. Delete ALL existing assignments for this subject (any grade)
-        list_resp = requests.get(
-            f"{PP}/test-assignments", headers=headers,
-            params={"student": student_id}, timeout=8,
-        )
-        if list_resp.status_code == 200:
-            for a in list_resp.json().get("testAssignments", []):
+        data = resp.json()
+    except Exception:
+        data = {"raw": resp.text[:500]}
+
+    if resp.status_code in (200, 201):
+        return data, resp.status_code
+
+    log["firstAttempt"] = resp.status_code
+    err = ""
+    if isinstance(data, dict):
+        err = (data.get("error") or data.get("imsx_description") or "").lower()
+
+    # 2. If "not enrolled" error → find course and auto-enroll
+    if "not enrolled" in err or resp.status_code == 400:
+        log["autoEnroll"] = _auto_enroll(headers, student_id, subject, grade, log)
+
+    # 3. Delete existing assignments for this subject
+    try:
+        lr = requests.get(f"{PP}/test-assignments", headers=headers, params={"student": student_id}, timeout=8)
+        if lr.status_code == 200:
+            deleted = []
+            for a in lr.json().get("testAssignments", []):
                 if (a.get("subject") or "").lower() == subject.lower():
                     aid = a.get("sourcedId") or a.get("assignmentId") or ""
                     if aid:
                         dr = requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=6)
-                        log["deleted"].append({"id": aid, "grade": a.get("grade"), "status": dr.status_code})
+                        deleted.append({"id": aid, "status": dr.status_code})
+            log["deleted"] = deleted
+    except Exception:
+        pass
 
-        # 2. Reset placement — try multiple endpoint patterns
-        reset_body = {"studentId": student_id, "subject": subject}
-        reset_paths = [
-            ("POST", f"{PP}/placement/resetUserPlacement", reset_body),
-            ("POST", f"{PP}/placement/reset", reset_body),
-            ("POST", f"{PP}/placement/resetUserPlacement", {"student": student_id, "subject": subject}),
-            ("DELETE", f"{PP}/placement/getCurrentLevel?student={student_id}&subject={subject}", None),
-        ]
-        for method, url, body in reset_paths:
-            try:
-                if method == "POST":
-                    rr = requests.post(url, headers=headers, json=body, timeout=8)
-                else:
-                    rr = requests.delete(url, headers=headers, timeout=8)
-                try:
-                    rr_body = rr.json()
-                except Exception:
-                    rr_body = rr.text[:200]
-                log["resetAttempts"].append({"path": url.split("/powerpath/")[-1], "method": method, "status": rr.status_code, "response": rr_body})
-                if rr.status_code in (200, 201, 204):
-                    break  # reset succeeded
-            except Exception as e:
-                log["resetAttempts"].append({"path": url.split("/powerpath/")[-1], "error": str(e)})
-
-        # 3. Retry the assignment
-        retry = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
-        log["retryStatus"] = retry.status_code
-        if retry.status_code in (200, 201):
-            try:
-                return retry.json(), log
-            except Exception:
-                return {"status": "reassigned"}, log
+    # 4. Reset placement (use "student" field — confirmed working)
+    try:
+        rr = requests.post(
+            f"{PP}/placement/resetUserPlacement", headers=headers,
+            json={"student": student_id, "subject": subject}, timeout=8,
+        )
+        try:
+            log["placementReset"] = {"status": rr.status_code, "response": rr.json()}
+        except Exception:
+            log["placementReset"] = {"status": rr.status_code}
     except Exception as e:
-        log["error"] = str(e)
+        log["placementReset"] = {"error": str(e)}
 
-    return None, log
+    # 5. Retry assignment
+    retry = requests.post(f"{PP}/test-assignments", headers=headers, json=payload, timeout=12)
+    try:
+        retry_data = retry.json()
+    except Exception:
+        retry_data = {"raw": retry.text[:500]}
+    log["retryStatus"] = retry.status_code
+
+    if retry.status_code in (200, 201):
+        return retry_data, retry.status_code
+    return retry_data, retry.status_code
+
+
+def _auto_enroll(headers, student_id, subject, grade, log):
+    """Find the course for subject+grade and enroll the student via EduBridge."""
+    EB = f"{API_BASE}/edubridge"
+
+    # Search for matching course using subject tracks
+    course_id = None
+    try:
+        # Try subject tracks first (maps subject+grade → courseId)
+        st_resp = requests.get(f"{EB}/subject-tracks", headers=headers, timeout=8)
+        if st_resp.status_code == 200:
+            tracks = st_resp.json()
+            if isinstance(tracks, list):
+                for t in tracks:
+                    if (t.get("subject") or "").lower() == subject.lower() and str(t.get("grade") or "") == str(grade):
+                        course_id = t.get("courseId") or t.get("courseSourcedId") or ""
+                        break
+            elif isinstance(tracks, dict):
+                for t in (tracks.get("data") or tracks.get("subjectTracks") or []):
+                    if (t.get("subject") or "").lower() == subject.lower() and str(t.get("grade") or "") == str(grade):
+                        course_id = t.get("courseId") or t.get("courseSourcedId") or ""
+                        break
+    except Exception:
+        pass
+
+    # Fallback: search courses by title pattern
+    if not course_id:
+        ordinal = {"1": "1st", "2": "2nd", "3": "3rd"}.get(grade, f"{grade}th")
+        search_terms = [
+            f"{subject} {ordinal} Grade",
+            f"{subject} Grade {grade}",
+            f"{subject} {grade}",
+        ]
+        try:
+            cr = requests.get(
+                f"{API_BASE}/ims/oneroster/rostering/v1p2/courses",
+                headers=headers, params={"limit": 200}, timeout=10,
+            )
+            if cr.status_code == 200:
+                courses = cr.json().get("courses", [])
+                for term in search_terms:
+                    for c in courses:
+                        title = (c.get("title") or "").lower()
+                        if term.lower() in title:
+                            course_id = c.get("sourcedId") or ""
+                            break
+                    if course_id:
+                        break
+        except Exception:
+            pass
+
+    if not course_id:
+        return {"enrolled": False, "reason": "Could not find course"}
+
+    # Enroll the student
+    try:
+        enroll_resp = requests.post(
+            f"{EB}/enrollments/enroll/{student_id}/{course_id}",
+            headers=headers,
+            json={"role": "student"},
+            timeout=10,
+        )
+        try:
+            enroll_data = enroll_resp.json()
+        except Exception:
+            enroll_data = {"status": enroll_resp.status_code}
+        return {
+            "enrolled": enroll_resp.status_code in (200, 201),
+            "courseId": course_id,
+            "status": enroll_resp.status_code,
+            "response": enroll_data,
+        }
+    except Exception as e:
+        return {"enrolled": False, "error": str(e)}
 
 
 def _provision_mastery_track(headers, student_id, resource_id, assignment_id):
