@@ -1297,7 +1297,7 @@
     }
 
     function openReportModal() {
-        if (!quizState.reportingEnabled || quizState.answered) return;
+        if (!quizState.reportingEnabled) return;
         _selectedReportReason = '';
         document.querySelectorAll('.report-reason').forEach(function(r) { r.classList.remove('selected'); r.querySelector('input').checked = false; });
         document.getElementById('report-other-text').value = '';

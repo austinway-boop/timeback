@@ -355,11 +355,12 @@
 
         /* ── Results Card ────────────────────────────────────── */
         .result-card {
-            padding: 40px; text-align: center;
+            padding: 48px 32px; text-align: center;
+            max-width: 400px; margin: 0 auto;
             animation: cardEnter 0.4s ease-out;
         }
         .result-emoji {
-            font-size: 3.5rem; margin-bottom: 8px;
+            font-size: 3rem; margin-bottom: 4px;
             animation: bounce 0.6s ease;
         }
         @keyframes bounce {
@@ -367,27 +368,26 @@
             40% { transform: translateY(-12px); }
             60% { transform: translateY(-4px); }
         }
-        .result-score { font-size: 3rem; font-weight: 800; color: var(--color-primary); }
-        .result-label { font-size: 0.95rem; color: var(--color-text-secondary); margin-top: 4px; font-weight: 600; }
-        .result-details {
-            display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap;
+        .result-score { font-size: 3.2rem; font-weight: 800; line-height: 1.1; }
+        .result-label { font-size: 1rem; color: var(--color-text-secondary); margin-top: 2px; font-weight: 600; }
+        .result-summary {
+            font-size: 0.88rem; color: var(--color-text-muted); margin-top: 16px;
+            font-weight: 500; letter-spacing: 0.1px;
         }
-        .result-stat {
-            text-align: center; padding: 14px 20px;
-            background: #fff; border: 2px solid #e5e7eb;
-            border-radius: 12px; box-shadow: 0 2px 0 #e5e7eb;
-            min-width: 90px;
-        }
-        .result-stat-val { font-size: 1.3rem; font-weight: 800; }
-        .result-stat-label { font-size: 0.68rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px; }
         .xp-badge {
             display: inline-flex; align-items: center; gap: 6px;
-            font-size: 1rem; font-weight: 800; color: var(--color-primary);
+            font-size: 0.88rem; font-weight: 700; color: var(--color-primary);
             background: var(--color-primary-light);
-            padding: 8px 20px; border-radius: 20px; margin-top: 18px;
-            border: 2px solid var(--color-primary);
-            box-shadow: 0 2px 0 #2d9f94;
+            padding: 6px 16px; border-radius: 20px; margin-top: 14px;
         }
+        .xp-badge-muted {
+            color: #9ca3af; background: #f3f4f6;
+        }
+        .result-complete {
+            margin-top: 20px; font-size: 0.85rem; font-weight: 600;
+            color: #166534;
+        }
+        .result-complete i { margin-right: 4px; }
         .loading-msg { text-align: center; padding: 48px; color: var(--color-text-muted); }
 
         /* ── Skeleton ────────────────────────────────────────── */
@@ -576,8 +576,7 @@
             .article-wrap { padding: 20px 18px; }
             .nav-btn { padding: 10px 18px; font-size: 0.82rem; }
             .lesson-title-bar h1 { font-size: 1rem; }
-            .result-details { gap: 8px; }
-            .result-stat { padding: 10px 14px; min-width: 75px; }
+            .result-card { padding: 36px 20px; }
         }
         /* Answer key dot — hidden by default, shown via toggle */
         .answer-dot { width: 8px; height: 8px; border-radius: 50%; background: #16A34A; flex-shrink: 0; margin-left: auto; display: none; }
@@ -1640,6 +1639,7 @@
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
 
         var isCorrect = false, feedback = '';
+        var apiProvidedXp = false;
 
         // PowerPath adaptive submit
         if (quizState.attemptId) {
@@ -1656,7 +1656,10 @@
                 var data = await resp.json();
                 isCorrect = data.correct || data.isCorrect || false;
                 feedback = data.feedback || data.explanation || '';
-                if (data.xpEarned) quizState.xpEarned += data.xpEarned;
+                if (data.xpEarned) {
+                    quizState.xpEarned += data.xpEarned;
+                    apiProvidedXp = true;
+                }
             } catch(e) {}
         }
         // Static quiz: check locally
@@ -1680,7 +1683,8 @@
             var mult = quizState.streak <= 3 ? 1 : Math.min(3.5, 1 + (quizState.streak - 3) * 0.75);
             pointsChange = Math.round(5 * mult);
             quizState.ppScore = Math.min(100, quizState.ppScore + pointsChange);
-            quizState.xpEarned += 1;
+            // Only add local XP if the API didn't already provide it (avoid double-counting)
+            if (!apiProvidedXp) quizState.xpEarned += 1;
         } else {
             quizState.streak = 0;
             pointsChange = -4;
@@ -1794,18 +1798,14 @@
         // quizArea may be null if coming from AP exam (overlay was removed)
         if (!quizArea) quizArea = document.getElementById('quiz-area');
         var resultColor = passed ? '#16A34A' : pct >= 80 ? '#D97706' : '#DC2626';
+        var incorrect = quizState.total - quizState.correct;
         var resultHtml = '<div class="result-card">' +
             '<div class="result-emoji">' + (passed ? '🎉' : pct >= 80 ? '👍' : '📝') + '</div>' +
             '<div class="result-score" style="color:' + resultColor + ';">' + pct + '%</div>' +
             '<div class="result-label">' + (passed ? 'Mastery Achieved!' : pct >= 80 ? 'Good Work!' : 'Keep Practicing') + '</div>' +
-            '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned' + (pct < 80 ? ' (need 80%+ for XP)' : '') + '</div>' +
-            '<div class="result-details">' +
-                '<div class="result-stat"><div class="result-stat-val" style="color:#16A34A;">' + quizState.correct + '</div><div class="result-stat-label">Correct</div></div>' +
-                '<div class="result-stat"><div class="result-stat-val" style="color:#DC2626;">' + (quizState.total - quizState.correct) + '</div><div class="result-stat-label">Incorrect</div></div>' +
-                '<div class="result-stat"><div class="result-stat-val">' + quizState.total + '</div><div class="result-stat-label">Questions</div></div>' +
-                '<div class="result-stat"><div class="result-stat-val" style="color:' + resultColor + ';">' + pct + '%</div><div class="result-stat-label">Accuracy</div></div>' +
-            '</div>' +
-            (passed ? '<div style="margin-top:18px;padding:12px 20px;background:#DCFCE7;border:2px solid #86efac;border-radius:12px;color:#166534;font-size:0.88rem;font-weight:600;box-shadow:0 2px 0 #4ade80;"><i class="fa-solid fa-check-circle" style="margin-right:6px;"></i>Lesson complete! You can continue.</div>' : '') +
+            '<div class="result-summary">' + quizState.correct + ' of ' + quizState.total + ' correct' + (incorrect > 0 ? ' &middot; ' + incorrect + ' missed' : '') + '</div>' +
+            (quizState.xpEarned > 0 ? '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned</div>' : (pct < 80 ? '<div class="xp-badge xp-badge-muted"><i class="fa-solid fa-bolt"></i> Need 80%+ to earn XP</div>' : '')) +
+            (passed ? '<div class="result-complete"><i class="fa-solid fa-circle-check"></i> Lesson complete</div>' : '') +
         '</div>';
 
         if (quizArea) {
@@ -2726,7 +2726,7 @@
     }
 
     function openReportModal() {
-        if (!quizState.reportingEnabled || quizState.answered) return;
+        if (!quizState.reportingEnabled) return;
         _selectedReportReason = '';
         document.querySelectorAll('.report-reason').forEach(function(r) { r.classList.remove('selected'); r.querySelector('input').checked = false; });
         document.getElementById('report-other-text').value = '';
