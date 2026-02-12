@@ -808,10 +808,13 @@
                         }
                         // Determine if the lesson title itself implies a quiz/test
                         var _pIsAssessment = /assess|quiz|test|exam|mcq|frq|saq|dbq|leq|cumulative\s*review/i.test(pLTitle);
-                        // For the global frontier: ONLY advance when a PowerPath quiz is fully completed (graded with score > 0)
-                        var pHasAny = pHasQuizComplete || (_pIsAssessment && _isQuizComplete(pLProg));
-                        // Also check localStorage — articles/videos mark completion here
-                        if (!pHasAny && pLDone) pHasAny = true;
+                        // For the global frontier: only advance on TRUE lesson completion.
+                        // DO NOT use pLDone here — it's contaminated by video/article step
+                        // submissions that send score:100 to the same assessmentLineItemId.
+                        // Only trust: (1) quiz resource graded, or (2) completionKey in
+                        // localStorage (set only by saveLessonToLocalStorage on full completion).
+                        var pLocalComplete = localStorage.getItem(pLocalKey) === 'true';
+                        var pHasAny = pHasQuizComplete || pLocalComplete;
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
                         if (pLDone) { grandDoneAct += pCount; }

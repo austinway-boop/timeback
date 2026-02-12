@@ -1082,12 +1082,14 @@
         }
 
         // 4. PowerPath: Mark lesson as complete (if passed), including score
+        // AND save to localStorage (only on pass — this is what advances the frontier)
         if (passed) {
             markLessonComplete(pct);
+            saveLessonToLocalStorage();
         }
 
-        // 5. Always save to localStorage so the course page picks up progress
-        saveLessonToLocalStorage();
+        // 5. Always signal course page to refresh (even on fail)
+        sessionStorage.setItem('al_progress_changed', 'true');
 
         // 6. Save XP locally so the course page can show it immediately
         var xp = passed ? quizState.xpEarned : 0;
@@ -2563,22 +2565,22 @@
         var step = steps[idx];
         if (step.type === 'Quiz') return; // Quizzes handle their own completion via syncQuizCompletion
 
-        // Mark this resource as viewed/completed
+        // Mark this individual resource as viewed/completed
         var resId = step.resource.resId || step.resource.id || '';
         var resTitle = step.resource.title || '';
         if (resId) localStorage.setItem('completed_' + resId, 'true');
         if (resTitle) localStorage.setItem('completed_' + resTitle, 'true');
 
-        // Also set the _rN key that course.html uses for per-resource tracking
+        // Set the _rN key that course.html uses for per-resource tracking
         if (lessonData.completionKey) {
             localStorage.setItem(lessonData.completionKey + '_r' + idx, 'true');
         }
 
         console.log('[Complete] Marked step', idx, step.type, ':', resTitle || resId);
 
-        // Always save the lesson completion too
-        // (user clicked Continue so they've engaged with this content)
-        saveLessonToLocalStorage();
+        // Signal course page to refresh (but do NOT mark the whole lesson complete
+        // — that only happens when ALL steps are done + quiz passed)
+        sessionStorage.setItem('al_progress_changed', 'true');
     }
 
     function saveLessonToLocalStorage() {
