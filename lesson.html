@@ -541,299 +541,71 @@
             color: var(--neu-text-muted); font-weight: 500;
         }
 
-        /* ── AP Exam UI (fullscreen overlay) ────────────────── */
+        /* ── AP Exam UI (fullscreen overlay, flat/clean) ───── */
         .ap-overlay {
             position: fixed; inset: 0; z-index: 9999;
-            background: var(--neu-bg); display: flex; flex-direction: column;
+            background: #f7f7f7; display: flex; flex-direction: column;
             font-family: var(--font);
         }
         .ap-header {
-            display: flex; align-items: center; padding: 12px 28px;
-            background: var(--neu-bg);
-            box-shadow: 0 4px 12px var(--neu-shadow-dark);
-            flex-shrink: 0; position: relative; z-index: 1;
+            display: flex; align-items: center; padding: 10px 24px;
+            background: #fff; border-bottom: 1px solid #e0e0e0;
+            flex-shrink: 0;
         }
-        .ap-header-title {
-            flex: 1; font-size: 0.94rem; font-weight: 700;
-            color: var(--neu-text); letter-spacing: -0.01em;
-        }
-        .ap-timer {
-            font-size: 1.5rem; font-weight: 300; color: var(--neu-text);
-            font-variant-numeric: tabular-nums; margin: 0 32px;
-            background: var(--neu-bg); padding: 6px 18px;
-            border-radius: 50px;
-            box-shadow:
-                inset 2px 2px 5px var(--neu-shadow-dark),
-                inset -2px -2px 5px var(--neu-shadow-light);
-        }
-        .ap-timer.warning { color: #D97706; }
-        .ap-timer.danger { color: #DC2626; }
-        .ap-tools { display: flex; gap: 12px; align-items: center; }
+        .ap-header-title { flex: 1; font-size: 0.92rem; font-weight: 600; color: #222; }
+        .ap-tools { display: flex; gap: 14px; align-items: center; }
         .ap-tool-btn {
-            display: flex; flex-direction: column; align-items: center; gap: 2px;
-            background: var(--neu-bg); border: none; cursor: pointer;
-            color: var(--neu-text-secondary);
-            font-size: 0.62rem; font-weight: 600;
-            padding: 8px 12px; border-radius: var(--neu-radius-xs);
-            box-shadow:
-                2px 2px 5px var(--neu-shadow-dark),
-                -2px -2px 5px var(--neu-shadow-light);
-            transition: all var(--neu-transition);
+            display: flex; flex-direction: column; align-items: center; gap: 1px;
+            background: none; border: none; cursor: pointer; color: #666;
+            font-size: 0.62rem; font-weight: 500; padding: 6px 10px;
         }
-        .ap-tool-btn i { font-size: 0.95rem; }
-        .ap-tool-btn:hover {
-            box-shadow:
-                1px 1px 2px var(--neu-shadow-dark),
-                -1px -1px 2px var(--neu-shadow-light);
-        }
-        .ap-tool-btn:active {
-            box-shadow:
-                inset 2px 2px 4px var(--neu-shadow-dark),
-                inset -2px -2px 4px var(--neu-shadow-light);
-        }
+        .ap-tool-btn i { font-size: 1rem; color: #444; }
+        .ap-tool-btn:hover i { color: #000; }
         .ap-divider {
-            height: 4px; flex-shrink: 0;
-            background: linear-gradient(90deg,
-                var(--neu-primary) 0%, #B8AFF8 33%,
-                #E8A96B 66%, var(--neu-primary) 100%
-            );
-            opacity: 0.7;
+            height: 5px; flex-shrink: 0;
+            background: repeating-linear-gradient(90deg,
+                #E8C840 0 6px, transparent 6px 9px,
+                #5B9BD5 9px 15px, transparent 15px 18px,
+                #333 18px 24px, transparent 24px 27px);
         }
-        .ap-body {
-            display: flex; flex: 1; overflow: hidden;
-            background: var(--neu-bg);
-        }
+        .ap-body { display: flex; flex: 1; overflow: hidden; background: #fff; }
         .ap-passage {
             width: 45%; min-width: 300px; padding: 32px 36px; overflow-y: auto;
-            background: var(--neu-bg);
-            border-right: none;
-            box-shadow: inset -4px 0 10px -4px var(--neu-shadow-dark);
-            font-size: 0.95rem; line-height: 1.85; color: var(--neu-text);
+            background: #fff; border-right: 1px solid #e0e0e0;
+            font-size: 0.95rem; line-height: 1.85; color: #333;
         }
         .ap-passage p { margin-bottom: 14px; }
-        .ap-passage img {
-            max-width: 100%; border-radius: var(--neu-radius-xs); margin: 10px 0;
-            box-shadow: 3px 3px 6px var(--neu-shadow-dark), -2px -2px 4px var(--neu-shadow-light);
-        }
-        .ap-question-panel {
-            flex: 1; padding: 32px 40px; overflow-y: auto;
-            background: var(--neu-bg);
-        }
-        .ap-q-tools {
-            display: flex; align-items: center; gap: 14px; margin-bottom: 22px;
-        }
-        .ap-q-num {
-            display: flex; align-items: center; justify-content: center;
-            min-width: 34px; height: 34px; padding: 0 10px;
-            border-radius: var(--neu-radius-xs);
-            background: linear-gradient(145deg, #3a4a5c, #2d3748);
-            color: #fff;
-            font-size: 0.88rem; font-weight: 800; flex-shrink: 0;
-            box-shadow:
-                3px 3px 6px var(--neu-shadow-dark),
-                -1px -1px 3px var(--neu-shadow-light);
-        }
-        .ap-q-bookmark {
-            display: inline-flex; align-items: center; gap: 6px;
-            background: var(--neu-bg); border: none; cursor: pointer;
-            font-size: 0.82rem; font-weight: 500;
-            color: var(--neu-text-secondary); padding: 7px 14px;
-            border-radius: 50px;
-            box-shadow:
-                2px 2px 4px var(--neu-shadow-dark),
-                -2px -2px 4px var(--neu-shadow-light);
-            transition: all var(--neu-transition);
-        }
-        .ap-q-bookmark:hover {
-            box-shadow:
-                1px 1px 2px var(--neu-shadow-dark),
-                -1px -1px 2px var(--neu-shadow-light);
-        }
-        .ap-q-bookmark.marked {
-            color: #B45309; font-weight: 700;
-            box-shadow:
-                inset 2px 2px 4px var(--neu-shadow-dark),
-                inset -2px -2px 4px var(--neu-shadow-light);
-        }
+        .ap-passage img { max-width: 100%; border-radius: 4px; margin: 10px 0; }
+        .ap-question-panel { flex: 1; padding: 28px 36px; overflow-y: auto; background: #fff; }
+        .ap-q-tools { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+        .ap-q-num { display: flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 8px; border-radius: 6px; background: #2d2d2d; color: #fff; font-size: 0.85rem; font-weight: 800; flex-shrink: 0; }
+        .ap-q-bookmark { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; font-size: 0.82rem; font-weight: 400; color: #666; padding: 4px 0; }
+        .ap-q-bookmark:hover { color: #333; }
+        .ap-q-bookmark.marked { color: #B45309; font-weight: 600; }
         .ap-q-bookmark.marked i { color: #B45309; }
-        .ap-q-abc {
-            margin-left: auto; width: 32px; height: 32px;
-            border: none;
-            border-radius: var(--neu-radius-xs);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.7rem; font-weight: 800;
-            color: var(--neu-text-muted); cursor: pointer;
-            background: var(--neu-bg);
-            box-shadow:
-                2px 2px 4px var(--neu-shadow-dark),
-                -2px -2px 4px var(--neu-shadow-light);
-            transition: all var(--neu-transition);
-        }
-        .ap-q-abc:hover {
-            box-shadow:
-                1px 1px 2px var(--neu-shadow-dark),
-                -1px -1px 2px var(--neu-shadow-light);
-        }
-        .ap-q-prompt {
-            font-size: 1rem; line-height: 1.8; margin-bottom: 26px;
-            color: var(--neu-text);
-        }
-        .ap-choices { display: flex; flex-direction: column; gap: 10px; }
-        .ap-choice {
-            display: flex; align-items: center; gap: 16px;
-            padding: 16px 20px;
-            border: none; border-radius: var(--neu-radius-sm);
-            cursor: pointer; transition: all var(--neu-transition);
-            background: var(--neu-bg);
-            box-shadow:
-                3px 3px 7px var(--neu-shadow-dark),
-                -3px -3px 7px var(--neu-shadow-light);
-        }
-        .ap-choice:first-child { border-radius: var(--neu-radius-sm); }
-        .ap-choice:last-child { border-radius: var(--neu-radius-sm); }
-        .ap-choice:only-child { border-radius: var(--neu-radius-sm); }
-        .ap-choice:hover {
-            box-shadow:
-                1px 1px 3px var(--neu-shadow-dark),
-                -1px -1px 3px var(--neu-shadow-light);
-        }
-        .ap-choice.selected {
-            box-shadow:
-                inset 3px 3px 7px var(--neu-shadow-dark),
-                inset -3px -3px 7px var(--neu-shadow-light);
-        }
-        .ap-choice.selected + .ap-choice { border-top-color: transparent; }
-        .ap-choice-letter {
-            width: 36px; height: 36px; border-radius: 50%;
-            border: none;
-            background: var(--neu-bg);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 0.88rem;
-            color: var(--neu-text-secondary); flex-shrink: 0;
-            box-shadow:
-                2px 2px 5px var(--neu-shadow-dark),
-                -2px -2px 5px var(--neu-shadow-light);
-            transition: all var(--neu-transition);
-        }
-        .ap-choice.selected .ap-choice-letter {
-            background: linear-gradient(145deg, #4a7fc7, #3366bb);
-            color: #fff;
-            box-shadow:
-                inset 2px 2px 4px rgba(30, 64, 120, 0.3),
-                inset -1px -1px 2px rgba(255,255,255,0.15);
-        }
-        .ap-choice-text {
-            flex: 1; font-size: 0.95rem; line-height: 1.55;
-            color: var(--neu-text);
-        }
-        .ap-footer-divider {
-            height: 4px; flex-shrink: 0;
-            background: linear-gradient(90deg,
-                var(--neu-primary) 0%, #B8AFF8 33%,
-                #E8A96B 66%, var(--neu-primary) 100%
-            );
-            opacity: 0.7;
-        }
-        .ap-footer {
-            display: flex; align-items: center; padding: 14px 28px;
-            background: var(--neu-bg);
-            box-shadow: 0 -4px 12px -2px var(--neu-shadow-dark);
-            flex-shrink: 0; position: relative; z-index: 1;
-        }
-        .ap-nav-btn {
-            padding: 12px 30px; border: none; border-radius: 50px;
-            font-weight: 700; font-size: 0.88rem; cursor: pointer;
-            font-family: var(--font); transition: all var(--neu-transition);
-            letter-spacing: 0.01em;
-        }
-        .ap-nav-prev {
-            background: var(--neu-bg); color: var(--neu-text-secondary);
-            box-shadow:
-                3px 3px 6px var(--neu-shadow-dark),
-                -3px -3px 6px var(--neu-shadow-light);
-        }
-        .ap-nav-prev:hover {
-            box-shadow:
-                1px 1px 3px var(--neu-shadow-dark),
-                -1px -1px 3px var(--neu-shadow-light);
-        }
-        .ap-nav-prev:active {
-            box-shadow:
-                inset 2px 2px 5px var(--neu-shadow-dark),
-                inset -2px -2px 5px var(--neu-shadow-light);
-        }
-        .ap-nav-next {
-            background: linear-gradient(145deg, #242e42, #1a2236);
-            color: #fff;
-            box-shadow:
-                4px 4px 8px var(--neu-shadow-dark),
-                -2px -2px 5px var(--neu-shadow-light),
-                inset 0 1px 0 rgba(255,255,255,0.08);
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-        }
-        .ap-nav-next:hover {
-            background: linear-gradient(145deg, #2d3a52, #1f2940);
-            box-shadow:
-                2px 2px 5px var(--neu-shadow-dark),
-                -1px -1px 3px var(--neu-shadow-light);
-        }
-        .ap-nav-next:active {
-            box-shadow:
-                inset 3px 3px 6px rgba(0,0,0,0.3),
-                inset -1px -1px 3px rgba(255,255,255,0.05);
-        }
-        .ap-nav-btn:disabled {
-            opacity: 0.35; cursor: not-allowed;
-        }
-        .ap-q-nav {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 10px 22px;
-            border: none; border-radius: 50px;
-            background: var(--neu-bg);
-            font-size: 0.85rem; font-weight: 700;
-            color: var(--neu-text);
-            cursor: pointer; margin: 0 auto;
-            box-shadow:
-                3px 3px 6px var(--neu-shadow-dark),
-                -3px -3px 6px var(--neu-shadow-light);
-            transition: all var(--neu-transition);
-        }
-        .ap-q-nav:hover {
-            box-shadow:
-                1px 1px 3px var(--neu-shadow-dark),
-                -1px -1px 3px var(--neu-shadow-light);
-        }
-        .ap-progress {
-            display: flex; gap: 5px; align-items: center; flex: 1;
-            justify-content: center; flex-wrap: wrap; margin: 0 20px;
-        }
-        .ap-dot {
-            width: 13px; height: 13px; border-radius: 50%;
-            border: none;
-            background: var(--neu-bg);
-            cursor: pointer; transition: all 0.15s ease;
-            box-shadow:
-                2px 2px 4px var(--neu-shadow-dark),
-                -2px -2px 4px var(--neu-shadow-light);
-        }
-        .ap-dot.answered {
-            background: linear-gradient(145deg, #4a7fc7, #3366bb);
-            box-shadow:
-                inset 1px 1px 2px rgba(30, 64, 120, 0.3),
-                inset -1px -1px 2px rgba(255,255,255,0.1);
-        }
-        .ap-dot.current {
-            box-shadow:
-                0 0 0 2.5px var(--neu-text),
-                2px 2px 4px var(--neu-shadow-dark),
-                -2px -2px 4px var(--neu-shadow-light);
-        }
-        .ap-dot.marked {
-            background: linear-gradient(145deg, #fbbf24, #d97706);
-            box-shadow:
-                inset 1px 1px 2px rgba(146, 94, 0, 0.3),
-                inset -1px -1px 2px rgba(255,255,255,0.2);
-        }
+        .ap-q-abc { margin-left: auto; width: 28px; height: 28px; border: 1.5px solid #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #999; cursor: pointer; background: #fff; }
+        .ap-q-prompt { font-size: 1rem; line-height: 1.75; margin-bottom: 24px; color: #222; }
+        .ap-choices { display: flex; flex-direction: column; gap: 0; }
+        .ap-choice { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1.5px solid #ddd; border-bottom: none; cursor: pointer; transition: background 0.1s; background: #fff; }
+        .ap-choice:first-child { border-radius: 8px 8px 0 0; }
+        .ap-choice:last-child { border-bottom: 1.5px solid #ddd; border-radius: 0 0 8px 8px; }
+        .ap-choice:only-child { border-radius: 8px; border-bottom: 1.5px solid #ddd; }
+        .ap-choice:hover { background: #f9f9f9; }
+        .ap-choice.selected { background: #EDF2FF; border-color: #9bb8f0; }
+        .ap-choice.selected + .ap-choice { border-top-color: #9bb8f0; }
+        .ap-choice-letter { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #bbb; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.85rem; color: #555; flex-shrink: 0; }
+        .ap-choice.selected .ap-choice-letter { border-color: #3366cc; background: #3366cc; color: #fff; }
+        .ap-choice-text { flex: 1; font-size: 0.95rem; line-height: 1.5; color: #333; }
+        .ap-footer-divider { height: 5px; flex-shrink: 0; background: repeating-linear-gradient(90deg, #E8C840 0 6px, transparent 6px 9px, #5B9BD5 9px 15px, transparent 15px 18px, #333 18px 24px, transparent 24px 27px); }
+        .ap-footer { display: flex; align-items: center; padding: 10px 24px; background: #fff; border-top: 1px solid #ddd; flex-shrink: 0; }
+        .ap-nav-btn { padding: 10px 28px; border: none; border-radius: 20px; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+        .ap-nav-prev { background: transparent; color: #555; border: 1.5px solid #ccc; }
+        .ap-nav-prev:hover { background: #f0f0f0; }
+        .ap-nav-next { background: #1a237e; color: #fff; }
+        .ap-nav-next:hover { background: #0d1557; }
+        .ap-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .ap-q-nav { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border: 1.5px solid #ccc; border-radius: 20px; background: #fff; font-size: 0.85rem; font-weight: 600; color: #333; cursor: pointer; }
+        .ap-q-nav:hover { border-color: #999; }
         .ap-body.no-passage .ap-question-panel { max-width: 680px; margin: 0 auto; }
 
         /* Question nav dropdown */
