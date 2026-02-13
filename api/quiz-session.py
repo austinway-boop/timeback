@@ -57,7 +57,7 @@ def _extract_correct_answer(question):
 
 PP = f"{API_BASE}/powerpath"
 
-# Synthetic attemptId prefix so we can distinguish ours from a real one
+# Synthetic attemptId prefix (forces Vercel rebuild) so we can distinguish ours from a real one
 _PREFIX = "pp::"
 
 
