@@ -14,9 +14,17 @@ Actions (frontend-facing):
 """
 
 import json
+import re
 from http.server import BaseHTTPRequestHandler
 import requests
 from api._helpers import API_BASE, api_headers, send_json, get_query_params
+
+
+def _extract_correct_answer(question):
+    """Extract the correct answer from the question's QTI XML (for testing)."""
+    raw_xml = question.get("content", {}).get("rawXml", "") if isinstance(question.get("content"), dict) else ""
+    match = re.search(r'<qti-correct-response>\s*<qti-value>([^<]+)</qti-value>', raw_xml)
+    return match.group(1) if match else None
 
 PP = f"{API_BASE}/powerpath"
 
@@ -74,6 +82,10 @@ class handler(BaseHTTPRequestHandler):
                         for q in questions:
                             answered = q.get("answered", False) or q.get("response") is not None
                             if not answered:
+                                # Inject correctId for testing green dot
+                                cid = _extract_correct_answer(q)
+                                if cid:
+                                    q["correctId"] = cid
                                 send_json(self, q)
                                 return
                         # All questions answered
