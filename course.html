@@ -786,19 +786,19 @@
                         var pLDone = _isComplete(pLProg);
                         // Also check componentResources by unique ID only (not title — titles repeat across units)
                         var pRes = pLesson.componentResources || [];
-                        var pHasQuizComplete = false;  // Track if a quiz/test resource has PowerPath score 100
+                        var pHasQuizComplete = false;  // Track if any resource has PowerPath score > 0 (quiz completion)
                         if (pRes.length > 0) {
                             for (var _pri = 0; _pri < pRes.length; _pri++) {
                                 var _prr = pRes[_pri].resource || pRes[_pri] || {};
                                 var _prId = _prr.id || _prr.sourcedId || pRes[_pri].id || pRes[_pri].sourcedId || '';
-                                var _prType = ((_prr.metadata || {}).type || _prr.type || '').toLowerCase();
-                                var _prIsQuiz = _prType.includes('assess') || _prType === 'quiz' || _prType === 'test' || _prType === 'exam' || _prType === 'frq' || (_prId && _prId.includes('-bank-'));
                                 var _prProg = _prId ? progressById[_prId] : null;
                                 if (_prProg && _isComplete(_prProg)) {
                                     if (!pLDone) pLDone = true;
                                 }
-                                // Frontier only advances on quizzes with PowerPath score 100
-                                if (_prIsQuiz && _isQuizComplete(_prProg)) {
+                                // Frontier advances when ANY resource has a positive score (fully graded).
+                                // Videos/articles have score=0 in getCourseProgress so they won't pass.
+                                // Only actual quiz completions (score > 0) advance the frontier.
+                                if (_isQuizComplete(_prProg)) {
                                     pHasQuizComplete = true;
                                 }
                             }
@@ -871,17 +871,14 @@
                         for (var _lri = 0; _lri < lcRes.length; _lri++) {
                             var _lr = lcRes[_lri].resource || lcRes[_lri] || {};
                             var _lrId = _lr.id || _lr.sourcedId || lcRes[_lri].id || lcRes[_lri].sourcedId || '';
-                            var _lrType = ((_lr.metadata || {}).type || '').toLowerCase();
-                            var _lrIsQuiz = _lrType.includes('assess') || _lrType === 'quiz' || _lrType === 'test' || (_lrId && _lrId.includes('-bank-'));
+                            var _lrProg = _lrId ? progressById[_lrId] : null;
                             
-                            if (_lrIsQuiz) {
+                            // Check mastery: any resource with score > 0 and fully graded
+                            // (videos/articles have score=0 so only quizzes pass this check)
+                            if (_isMastered(_lrProg)) {
                                 lcHasQuizResource = true;
+                                lcQuizMastered = true;
                                 unitHasQuizzes = true;
-                                // Check if this quiz has PowerPath score 100
-                                var _lrProg = _lrId ? progressById[_lrId] : null;
-                                if (_isMastered(_lrProg)) {
-                                    lcQuizMastered = true;
-                                }
                             }
                             
                             if (!lcFound && _lrId && _isComplete(progressById[_lrId])) { 
