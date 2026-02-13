@@ -12,96 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preload" href="/css/style.css" as="style">
     <link rel="stylesheet" href="/css/style.css">
-    <style>
-    /* Stats bar */
-    .stats-bar { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
-    .stat-chip { display:flex; align-items:center; gap:8px; padding:10px 18px; background:var(--color-surface); border-radius:var(--radius-sm); box-shadow:var(--shadow); font-size:0.85rem; font-weight:500; color:var(--color-text-secondary); }
-    .stat-chip .stat-num { font-weight:700; font-size:1.15rem; color:var(--color-text); }
-    .stat-chip.pending .stat-num { color:#E67E22; }
-    .stat-chip.valid .stat-num { color:#2E7D32; }
-    .stat-chip.invalid .stat-num { color:#E53E3E; }
-    .stat-chip.reviewed .stat-num { color:#6C5CE7; }
-
-    /* Filter tabs */
-    .filter-tabs { display:flex; gap:0; border-bottom:2px solid var(--color-border); margin-bottom:20px; }
-    .filter-tab { padding:10px 20px; font-size:0.85rem; font-weight:600; color:var(--color-text-muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.15s; background:none; border-top:none; border-left:none; border-right:none; }
-    .filter-tab:hover { color:var(--color-text); }
-    .filter-tab.active { color:var(--color-primary); border-bottom-color:var(--color-primary); }
-    .filter-tab .tab-count { display:inline-block; min-width:18px; height:18px; line-height:18px; text-align:center; border-radius:9px; background:var(--color-bg); font-size:0.72rem; font-weight:700; margin-left:6px; padding:0 5px; }
-    .filter-tab.active .tab-count { background:var(--color-primary-light); color:var(--color-primary); }
-
-    /* Report cards */
-    .report-list { display:flex; flex-direction:column; gap:14px; }
-    .report-card { background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius); padding:20px; transition:box-shadow 0.15s; }
-    .report-card:hover { box-shadow:var(--shadow-md); }
-    .report-card-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
-    .report-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-    .report-student { font-weight:600; font-size:0.9rem; color:var(--color-text); }
-    .report-date { font-size:0.78rem; color:var(--color-text-muted); }
-    .report-lesson { font-size:0.78rem; color:var(--color-text-muted); background:var(--color-bg); padding:2px 8px; border-radius:4px; }
-
-    /* Verdict badges */
-    .verdict-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:20px; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap; }
-    .verdict-badge.pending { background:#FFF3E0; color:#E65100; }
-    .verdict-badge.valid { background:#E8F5E9; color:#2E7D32; }
-    .verdict-badge.invalid { background:#FFEBEE; color:#C62828; }
-    .verdict-badge.error { background:#FFF8E1; color:#F57F17; }
-    .verdict-badge.human-reviewed { background:#EDE7F6; color:#4527A0; }
-
-    /* Question content */
-    .report-question-box { background:var(--color-bg); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:12px; }
-    .report-question-text { font-size:0.9rem; font-weight:500; line-height:1.5; margin-bottom:8px; color:var(--color-text); }
-    .report-choices { display:flex; flex-direction:column; gap:4px; }
-    .report-choice { font-size:0.82rem; color:var(--color-text-secondary); padding:4px 0; display:flex; gap:8px; }
-    .report-choice .choice-letter { font-weight:700; color:var(--color-text-muted); min-width:18px; }
-    .report-choice.correct-choice { color:#2E7D32; font-weight:600; }
-    .report-choice.correct-choice .choice-letter { color:#2E7D32; }
-
-    /* Reason + AI analysis */
-    .report-reason-row { display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
-    .report-reason-tag { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:#FFF3E0; border-radius:var(--radius-sm); font-size:0.82rem; font-weight:500; color:#E65100; }
-    .report-reason-tag i { font-size:0.75rem; }
-    .report-custom-text { font-size:0.82rem; color:var(--color-text-secondary); font-style:italic; }
-    .ai-analysis { background:#F3F0FF; border-radius:var(--radius-sm); padding:12px 16px; margin-bottom:14px; font-size:0.84rem; line-height:1.5; color:#4527A0; }
-    .ai-analysis strong { font-size:0.78rem; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:4px; }
-
-    /* Admin action buttons */
-    .report-actions { display:flex; gap:8px; flex-wrap:wrap; }
-    .action-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-surface); font-size:0.8rem; font-weight:600; cursor:pointer; transition:all 0.15s; color:var(--color-text-secondary); }
-    .action-btn:hover { border-color:var(--color-primary); color:var(--color-primary); background:var(--color-primary-light); }
-    .action-btn.danger:hover { border-color:#E53E3E; color:#E53E3E; background:#FFEBEE; }
-    .action-btn.success:hover { border-color:#2E7D32; color:#2E7D32; background:#E8F5E9; }
-    .action-btn i { font-size:0.75rem; }
-    .action-btn:disabled { opacity:0.5; cursor:not-allowed; }
-
-    /* Admin note */
-    .admin-note { font-size:0.78rem; color:#6C5CE7; font-weight:500; margin-top:8px; display:flex; align-items:center; gap:6px; }
-    .admin-note i { font-size:0.72rem; }
-
-    /* Confirmation modal */
-    .confirm-overlay { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; }
-    .confirm-overlay.open { display:flex; }
-    .confirm-box { background:#fff; border-radius:var(--radius); max-width:420px; width:90%; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
-    .confirm-box h3 { font-size:1rem; font-weight:700; margin-bottom:8px; }
-    .confirm-box p { font-size:0.88rem; color:var(--color-text-secondary); margin-bottom:20px; line-height:1.5; }
-    .confirm-actions { display:flex; gap:10px; justify-content:flex-end; }
-    .confirm-actions button { padding:8px 20px; border-radius:var(--radius-sm); font-weight:600; font-size:0.85rem; cursor:pointer; transition:all 0.15s; }
-    .confirm-cancel { border:1px solid var(--color-border); background:#fff; color:var(--color-text-secondary); }
-    .confirm-primary { border:none; background:var(--color-primary); color:#fff; }
-    .confirm-primary:hover { opacity:0.9; }
-    .confirm-danger { border:none; background:#6C5CE7; color:#fff; }
-    .confirm-danger:hover { opacity:0.9; }
-
-    /* Empty state */
-    .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 20px; text-align:center; color:var(--color-text-muted); }
-    .empty-state i { font-size:3rem; margin-bottom:16px; opacity:0.4; }
-    .empty-state h2 { font-size:1.2rem; font-weight:600; color:var(--color-text-secondary); margin-bottom:8px; }
-    .empty-state p { font-size:0.9rem; }
-
-    /* Loading */
-    .loading-state { text-align:center; padding:60px 20px; color:var(--color-text-muted); font-size:0.9rem; }
-    .loading-state i { font-size:1.5rem; margin-bottom:12px; display:block; }
-    </style>
+    <link rel="stylesheet" href="/css/admin/notifications.css">
 </head>
 <body data-view="admin" data-active="notifications">
 
@@ -117,6 +28,7 @@
 
         <div class="filter-tabs" id="filter-tabs">
             <button class="filter-tab active" data-filter="all" onclick="setFilter('all')">All <span class="tab-count" id="count-all">0</span></button>
+            <button class="filter-tab" data-filter="ai_flagged" onclick="setFilter('ai_flagged')">AI Flagged <span class="tab-count" id="count-flagged">0</span></button>
             <button class="filter-tab" data-filter="pending" onclick="setFilter('pending')">Pending <span class="tab-count" id="count-pending">0</span></button>
             <button class="filter-tab" data-filter="valid" onclick="setFilter('valid')">Valid <span class="tab-count" id="count-valid">0</span></button>
             <button class="filter-tab" data-filter="invalid" onclick="setFilter('invalid')">Invalid <span class="tab-count" id="count-invalid">0</span></button>
@@ -129,14 +41,14 @@
     </main>
 </div>
 
-<!-- Confirm modal for Mark as Correct -->
+<!-- Confirm modal for Mark Good/Bad -->
 <div class="confirm-overlay" id="confirm-modal">
     <div class="confirm-box">
         <h3 id="confirm-title">Confirm Action</h3>
         <p id="confirm-text">Are you sure?</p>
         <div class="confirm-actions">
             <button class="confirm-cancel" onclick="closeConfirm()">Cancel</button>
-            <button class="confirm-danger" id="confirm-btn" onclick="confirmAction()">Confirm</button>
+            <button class="confirm-danger" id="confirm-btn" onclick="executeConfirm()">Confirm</button>
         </div>
     </div>
 </div>
@@ -145,251 +57,8 @@
 
 <script src="/js/auth-guard.js?v=3"></script>
 <script src="/js/layout.js?v=3"></script>
+    <script src="/js/notifications.js"></script>
 <script src="/js/app.js"></script>
-<script>
-/* =====================================================================
-   Admin Notifications — Question Report Queue
-   ===================================================================== */
-var allReports = [];
-var currentFilter = 'all';
-var pendingConfirmAction = null;
-
-function esc(s) { if (s == null) return ''; if (typeof s !== 'string') s = String(s); return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-
-/* ── Load reports ── */
-async function loadReports() {
-    try {
-        var resp = await fetch('/api/report-queue');
-        var data = await resp.json();
-        allReports = data.reports || [];
-        renderStats(data.stats || {});
-        renderTabs();
-        renderReports();
-    } catch(e) {
-        document.getElementById('report-list').innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><h2>Failed to load reports</h2><p>' + esc(e.message) + '</p></div>';
-    }
-}
-
-/* ── Stats bar ── */
-function renderStats(stats) {
-    var el = document.getElementById('stats-bar');
-    el.innerHTML =
-        '<div class="stat-chip"><span class="stat-num">' + (stats.total || 0) + '</span> Total Reports</div>' +
-        '<div class="stat-chip pending"><span class="stat-num">' + (stats.pending || 0) + '</span> Pending</div>' +
-        '<div class="stat-chip valid"><span class="stat-num">' + (stats.valid || 0) + '</span> Valid</div>' +
-        '<div class="stat-chip invalid"><span class="stat-num">' + (stats.invalid || 0) + '</span> Invalid</div>' +
-        '<div class="stat-chip reviewed"><span class="stat-num">' + (stats.humanReviewed || 0) + '</span> Human Reviewed</div>';
-}
-
-/* ── Filter tabs ── */
-function renderTabs() {
-    var counts = { all: allReports.length, pending: 0, valid: 0, invalid: 0, human_reviewed: 0 };
-    allReports.forEach(function(r) {
-        if (r.status === 'pending_review' || r.status === 'ai_error') counts.pending++;
-        if (r.verdict === 'valid') counts.valid++;
-        if (r.verdict === 'invalid') counts.invalid++;
-        if (r.adminAction === 'mark_correct') counts.human_reviewed++;
-    });
-    document.getElementById('count-all').textContent = counts.all;
-    document.getElementById('count-pending').textContent = counts.pending;
-    document.getElementById('count-valid').textContent = counts.valid;
-    document.getElementById('count-invalid').textContent = counts.invalid;
-    document.getElementById('count-reviewed').textContent = counts.human_reviewed;
-}
-
-function setFilter(f) {
-    currentFilter = f;
-    document.querySelectorAll('.filter-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.filter === f); });
-    renderReports();
-}
-
-function filteredReports() {
-    if (currentFilter === 'all') return allReports;
-    return allReports.filter(function(r) {
-        if (currentFilter === 'pending') return r.status === 'pending_review' || r.status === 'ai_error';
-        if (currentFilter === 'valid') return r.verdict === 'valid';
-        if (currentFilter === 'invalid') return r.verdict === 'invalid';
-        if (currentFilter === 'human_reviewed') return r.adminAction === 'mark_correct';
-        return true;
-    });
-}
-
-/* ── Render reports ── */
-function renderReports() {
-    var list = filteredReports();
-    var el = document.getElementById('report-list');
-
-    if (list.length === 0) {
-        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-bell"></i><h2>No reports</h2><p>' +
-            (currentFilter === 'all' ? 'No student question reports yet.' : 'No reports match this filter.') + '</p></div>';
-        return;
-    }
-
-    var html = '';
-    list.forEach(function(r) {
-        html += buildReportCard(r);
-    });
-    el.innerHTML = html;
-}
-
-/* ── Reason label map ── */
-var reasonLabels = {
-    'not_in_source': 'Not in source materials',
-    'factual_error': 'Factual error',
-    'poorly_written': 'Poorly written/unclear',
-    'other': 'Other',
-};
-
-function buildReportCard(r) {
-    var verdictClass = 'pending';
-    var verdictLabel = 'Pending Review';
-    var verdictIcon = 'fa-clock';
-    if (r.adminAction === 'mark_correct') {
-        verdictClass = 'human-reviewed';
-        verdictLabel = 'Human Verified';
-        verdictIcon = 'fa-user-check';
-    } else if (r.status === 'ai_error') {
-        verdictClass = 'error';
-        verdictLabel = 'AI Error';
-        verdictIcon = 'fa-exclamation-triangle';
-    } else if (r.verdict === 'valid') {
-        verdictClass = 'valid';
-        verdictLabel = 'Valid Report';
-        verdictIcon = 'fa-check-circle';
-    } else if (r.verdict === 'invalid') {
-        verdictClass = 'invalid';
-        verdictLabel = 'Invalid Report';
-        verdictIcon = 'fa-times-circle';
-    }
-
-    var date = r.date ? new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-
-    // Choices HTML
-    var choicesHtml = '';
-    var choices = r.choices || [];
-    var letters = 'ABCDEFGHIJ';
-    for (var i = 0; i < choices.length; i++) {
-        var c = choices[i];
-        var isCorrect = (c.id || '') === (r.correctId || '');
-        choicesHtml += '<div class="report-choice' + (isCorrect ? ' correct-choice' : '') + '">' +
-            '<span class="choice-letter">' + (letters[i] || i) + '.</span> ' +
-            esc(c.text || c.label || '') + (isCorrect ? ' <i class="fa-solid fa-check" style="font-size:0.72rem;"></i>' : '') +
-            '</div>';
-    }
-
-    var reasonText = reasonLabels[r.reason] || r.reason || 'Unknown';
-
-    var html = '<div class="report-card" id="card-' + esc(r.id) + '">';
-
-    // Header
-    html += '<div class="report-card-header">';
-    html += '<div class="report-meta">';
-    html += '<span class="report-student"><i class="fa-solid fa-user" style="margin-right:4px;opacity:0.5;"></i> ' + esc(r.studentId || 'Unknown') + '</span>';
-    if (r.lessonTitle) html += '<span class="report-lesson">' + esc(r.lessonTitle) + '</span>';
-    html += '<span class="report-date">' + esc(date) + '</span>';
-    html += '</div>';
-    html += '<span class="verdict-badge ' + verdictClass + '"><i class="fa-solid ' + verdictIcon + '"></i> ' + verdictLabel + '</span>';
-    html += '</div>';
-
-    // Question
-    var qText = r.questionText || '';
-    if (typeof qText === 'object') qText = JSON.stringify(qText);
-    html += '<div class="report-question-box">';
-    html += '<div class="report-question-text">' + esc(qText).substring(0, 500) + '</div>';
-    if (choicesHtml) html += '<div class="report-choices">' + choicesHtml + '</div>';
-    html += '</div>';
-
-    // Reason
-    html += '<div class="report-reason-row">';
-    html += '<span class="report-reason-tag"><i class="fa-solid fa-flag"></i> ' + esc(reasonText) + '</span>';
-    if (r.customText) html += '<span class="report-custom-text">"' + esc(r.customText) + '"</span>';
-    if (r.pointsAwarded > 0) html += '<span class="report-reason-tag" style="background:#E8F5E9;color:#2E7D32;"><i class="fa-solid fa-star"></i> +' + r.pointsAwarded + ' points awarded</span>';
-    html += '</div>';
-
-    // AI Analysis
-    if (r.aiReasoning) {
-        html += '<div class="ai-analysis"><strong><i class="fa-solid fa-brain" style="margin-right:4px;"></i> AI Analysis' +
-            (r.aiConfidence ? ' (Confidence: ' + r.aiConfidence + '%)' : '') + '</strong>' +
-            esc(r.aiReasoning) + '</div>';
-    }
-
-    // Admin note
-    if (r.adminNote) {
-        html += '<div class="admin-note"><i class="fa-solid fa-shield-halved"></i> ' + esc(r.adminNote) + '</div>';
-    }
-
-    // Action buttons
-    html += '<div class="report-actions">';
-    html += '<button class="action-btn danger" onclick="doAction(\'' + esc(r.id) + '\',\'remove\')" title="Remove question from student pool"><i class="fa-solid fa-trash"></i> Remove Question</button>';
-    html += '<button class="action-btn" onclick="doAction(\'' + esc(r.id) + '\',\'regenerate\')" title="Flag for regeneration"><i class="fa-solid fa-rotate"></i> Regenerate</button>';
-    if (r.adminAction !== 'mark_correct') {
-        html += '<button class="action-btn success" onclick="confirmMarkCorrect(\'' + esc(r.id) + '\')" title="Verify question is correct"><i class="fa-solid fa-user-check"></i> Mark as Correct</button>';
-    }
-    html += '</div>';
-
-    html += '</div>';
-    return html;
-}
-
-/* ── Admin actions ── */
-async function doAction(reportId, action) {
-    try {
-        var resp = await fetch('/api/report-queue', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reportId: reportId, action: action }),
-        });
-        var data = await resp.json();
-        if (data.ok) {
-            showToast('Action completed successfully.', 'success');
-            loadReports(); // refresh
-        } else {
-            showToast(data.error || 'Action failed.', 'warning');
-        }
-    } catch(e) {
-        showToast('Network error: ' + e.message, 'warning');
-    }
-}
-
-/* ── Mark as Correct confirmation ── */
-function confirmMarkCorrect(reportId) {
-    pendingConfirmAction = reportId;
-    document.getElementById('confirm-title').textContent = 'Mark Question as Correct?';
-    document.getElementById('confirm-text').innerHTML =
-        'This marks the question as <strong>human-verified correct</strong>. ' +
-        'Future reports on this question will face much stricter AI review. ' +
-        'After 3 human verifications, reports will be auto-rejected.';
-    document.getElementById('confirm-modal').classList.add('open');
-}
-
-function closeConfirm() {
-    document.getElementById('confirm-modal').classList.remove('open');
-    pendingConfirmAction = null;
-}
-
-function confirmAction() {
-    if (pendingConfirmAction) {
-        doAction(pendingConfirmAction, 'mark_correct');
-    }
-    closeConfirm();
-}
-
-document.getElementById('confirm-modal').addEventListener('click', function(e) { if (e.target === this) closeConfirm(); });
-
-/* ── Toast ── */
-function showToast(msg, type) {
-    type = type || 'success';
-    var t = document.getElementById('toast');
-    var ic = type === 'success' ? 'fa-check-circle' : type === 'info' ? 'fa-info-circle' : 'fa-exclamation-triangle';
-    t.className = 'toast ' + type;
-    t.innerHTML = '<i class="fa-solid ' + ic + '"></i> ' + esc(msg);
-    requestAnimationFrame(function() { t.classList.add('visible'); });
-    setTimeout(function() { t.classList.remove('visible'); }, 4000);
-}
-
-/* ── Init ── */
-document.addEventListener('DOMContentLoaded', loadReports);
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeConfirm(); });
-</script>
+    <script src="/js/admin/notifications.js"></script>
 </body>
 </html>

@@ -1,0 +1,83 @@
+/* ===========================================================================
+   AlphaLearn – Design System: Utilities
+   Skeleton loading, animations, responsive helpers
+   =========================================================================== */
+
+/* ===========================================================================
+   Skeleton Loading
+   =========================================================================== */
+@keyframes skeleton-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #E8ECF1 25%, #F4F6F9 50%, #E8ECF1 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+.skeleton-text {
+    height: 12px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+}
+.skeleton-text:last-child { margin-bottom: 0; }
+.skeleton-text.lg { height: 16px; }
+.skeleton-text.sm { height: 10px; }
+.skeleton-text.xs { height: 8px; }
+.skeleton-text.short { width: 40%; }
+.skeleton-text.medium { width: 65%; }
+
+.skeleton-circle {
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.skeleton-rect {
+    border-radius: var(--radius-sm);
+}
+
+/* Dark variant (for dark-bg pages like login, signup, callback) */
+.skeleton-dark {
+    background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+/* Skeleton bar for inside buttons */
+.skeleton-btn-bar {
+    display: block;
+    height: 16px;
+    width: 80px;
+    margin: 0 auto;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(15,23,42,0.1) 25%, rgba(15,23,42,0.25) 50%, rgba(15,23,42,0.1) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* ===========================================================================
+   Responsive
+   =========================================================================== */
+@media (max-width: 1200px) {
+    .course-grid { grid-template-columns: repeat(2, 1fr); }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .course-admin-grid { grid-template-columns: repeat(2, 1fr); }
+    .settings-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main-content { margin-left: 0; padding: 20px 16px; }
+    .course-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .course-admin-grid { grid-template-columns: 1fr; }
+    .settings-grid { grid-template-columns: 1fr; }
+    .controls-bar { flex-direction: column; align-items: stretch; }
+    .controls-right { width: 100%; }
+    .search-box { max-width: 100%; }
+}

@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler
 
 import requests
 from api._helpers import CLIENT_ID, CLIENT_SECRET, send_json, get_query_params, get_token
+from api._kv import kv_list_get
 
 COGNITO_URL = "https://prod-beyond-timeback-api-2-idp.auth.us-east-1.amazoncognito.com/oauth2/token"
 QTI_BASE = "https://qti.alpha-1edtech.ai"
@@ -108,6 +109,32 @@ def _match_items(items, target_subject, code, title_lower):
             scored.append((score, item))
     scored.sort(key=lambda x: -x[0])
     return [s[1] for s in scored]
+
+
+def _get_blocked_question_ids():
+    """Return set of question IDs that should be hidden (globally hidden + permanently bad)."""
+    try:
+        hidden = set(kv_list_get("globally_hidden_questions"))
+        bad = set(kv_list_get("bad_questions"))
+        return hidden | bad
+    except Exception:
+        return set()
+
+
+def _filter_blocked_questions(questions):
+    """Remove any questions whose ID is in the blocked set."""
+    blocked = _get_blocked_question_ids()
+    if not blocked:
+        return questions
+    filtered = []
+    for q in questions:
+        if not isinstance(q, dict):
+            filtered.append(q)
+            continue
+        qid = q.get("identifier") or q.get("id") or ""
+        if qid not in blocked:
+            filtered.append(q)
+    return filtered
 
 
 def _fetch_full_items(items, headers):
@@ -703,6 +730,9 @@ class handler(BaseHTTPRequestHandler):
                 if stim_key and stim_key in stimulus_cache:
                     item["_sectionStimulus"] = stimulus_cache[stim_key]
             questions.append(item)
+
+        # Filter out globally hidden and permanently bad questions
+        questions = _filter_blocked_questions(questions)
 
         return questions
 

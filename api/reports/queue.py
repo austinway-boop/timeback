@@ -4,7 +4,7 @@ GET  /api/report-queue
      → { "reports": [ { id, studentId, questionText, verdict, … }, … ] }
 
 POST /api/report-queue  (JSON body)
-     { "reportId": "rpt_...", "action": "remove"|"regenerate"|"mark_correct" }
+     { "reportId": "rpt_...", "action": "mark_good"|"mark_bad" }
      → { "ok": true, "report": { … } }
 """
 
@@ -12,7 +12,7 @@ import json
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-from _kv import kv_get, kv_set, kv_list_get
+from api._kv import kv_get, kv_set, kv_list_get, kv_list_push, kv_list_remove
 
 
 def _send_json(handler, data, status=200):
@@ -44,8 +44,8 @@ class handler(BaseHTTPRequestHandler):
             if isinstance(report, dict):
                 reports.append(report)
 
-        # Sort: pending first, then by date descending
-        status_order = {"pending_review": 0, "ai_error": 1, "resolved": 2}
+        # Sort: AI-flagged and pending first, then by date descending
+        status_order = {"ai_flagged_bad": 0, "pending_review": 1, "ai_error": 2, "resolved": 3}
         reports.sort(key=lambda r: (
             status_order.get(r.get("status", ""), 9),
             -(hash(r.get("date", "")) & 0xFFFFFFFF),
@@ -55,9 +55,10 @@ class handler(BaseHTTPRequestHandler):
         stats = {
             "total": len(reports),
             "pending": sum(1 for r in reports if r.get("status") in ("pending_review", "ai_error")),
+            "aiFlagged": sum(1 for r in reports if r.get("status") == "ai_flagged_bad"),
             "valid": sum(1 for r in reports if r.get("verdict") == "valid"),
             "invalid": sum(1 for r in reports if r.get("verdict") == "invalid"),
-            "humanReviewed": sum(1 for r in reports if r.get("adminAction") == "mark_correct"),
+            "humanReviewed": sum(1 for r in reports if r.get("adminAction") in ("mark_good", "mark_bad")),
         }
 
         _send_json(self, {"reports": reports, "stats": stats})
@@ -86,45 +87,32 @@ class handler(BaseHTTPRequestHandler):
 
         question_id = report.get("questionId", "")
 
-        if action == "remove":
-            # Mark question as hidden for this student
-            report["adminAction"] = "remove"
-            report["adminNote"] = "Question removed from student's pool"
-            student_id = report.get("studentId", "")
-            if student_id and question_id:
-                hidden = kv_get(f"hidden_questions:{student_id}") or []
+        if action == "mark_good":
+            # Admin confirms question is valid — remove from globally hidden
+            report["adminAction"] = "mark_good"
+            report["adminNote"] = "Human reviewed — question is valid"
+            report["status"] = "resolved"
+            if question_id:
+                kv_list_remove("globally_hidden_questions", question_id)
+            kv_set(f"report:{report_id}", report)
+            _send_json(self, {"ok": True, "report": report})
+
+        elif action == "mark_bad":
+            # Admin confirms question is bad — permanently remove
+            report["adminAction"] = "mark_bad"
+            report["adminNote"] = "Human reviewed — question permanently removed"
+            report["status"] = "resolved"
+            if question_id:
+                # Add to permanent bad list
+                bad = kv_list_get("bad_questions")
+                if question_id not in bad:
+                    kv_list_push("bad_questions", question_id)
+                # Also keep in globally hidden so it stays filtered
+                hidden = kv_list_get("globally_hidden_questions")
                 if question_id not in hidden:
-                    hidden.append(question_id)
-                    kv_set(f"hidden_questions:{student_id}", hidden)
+                    kv_list_push("globally_hidden_questions", question_id)
             kv_set(f"report:{report_id}", report)
             _send_json(self, {"ok": True, "report": report})
-
-        elif action == "regenerate":
-            # Flag for regeneration (future enhancement)
-            report["adminAction"] = "regenerate"
-            report["adminNote"] = "Flagged for question regeneration"
-            student_id = report.get("studentId", "")
-            if student_id and question_id:
-                regen = kv_get(f"regen_questions:{student_id}") or []
-                if question_id not in regen:
-                    regen.append(question_id)
-                    kv_set(f"regen_questions:{student_id}", regen)
-            kv_set(f"report:{report_id}", report)
-            _send_json(self, {"ok": True, "report": report})
-
-        elif action == "mark_correct":
-            # Increment human review count on this question
-            flags = kv_get(f"question_flags:{question_id}") or {}
-            if not isinstance(flags, dict):
-                flags = {}
-            flags["humanReviewCount"] = flags.get("humanReviewCount", 0) + 1
-            flags["lastReviewedBy"] = body.get("adminId", "admin")
-            kv_set(f"question_flags:{question_id}", flags)
-
-            report["adminAction"] = "mark_correct"
-            report["adminNote"] = f"Human verified as correct (review #{flags['humanReviewCount']})"
-            kv_set(f"report:{report_id}", report)
-            _send_json(self, {"ok": True, "report": report, "humanReviewCount": flags["humanReviewCount"]})
 
         else:
             _send_json(self, {"error": f"Unknown action: {action}"}, 400)

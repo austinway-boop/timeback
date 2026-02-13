@@ -1,0 +1,53 @@
+/* ===========================================================================
+   AlphaLearn – Design System: Base
+   Variables, Reset, Typography
+   =========================================================================== */
+
+/* --- Variables ----------------------------------------------------------- */
+:root {
+    --color-primary: #45B5AA;
+    --color-primary-light: #E0F7F4;
+    --color-primary-dark: #389E94;
+
+    --color-purple: #B8AFF8;
+    --color-purple-light: #EDEBFF;
+    --color-pink: #F4A0A0;
+    --color-pink-light: #FFE5E5;
+    --color-orange: #E8A96B;
+    --color-orange-light: #FFF3E6;
+    --color-blue: #4A90D9;
+    --color-blue-light: #E3F0FF;
+
+    --color-bg: #F4F6F9;
+    --color-surface: #FFFFFF;
+    --color-border: #E8ECF1;
+    --color-text: #2D3748;
+    --color-text-secondary: #718096;
+    --color-text-muted: #A0AEC0;
+
+    --sidebar-width: 220px;
+    --topbar-height: 60px;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
+    --transition: 0.2s ease;
+
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* --- Reset --------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+    font-family: var(--font);
+    background: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+ul { list-style: none; }
+button, input, select { font-family: inherit; font-size: inherit; }
+img { max-width: 100%; display: block; }

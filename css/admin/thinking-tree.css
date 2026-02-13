@@ -1,0 +1,36 @@
+        .hero-banner { position:relative; border-radius:var(--radius); overflow:hidden; margin-bottom:24px; box-shadow:var(--shadow); }
+        .hero-banner .hero-bg { width:100%; height:150px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#45B5AA 0%,#2D8E84 50%,#1A6B63 100%); }
+        .hero-overlay { position:absolute; inset:0; display:flex; align-items:center; padding:0 32px; }
+        .hero-overlay h1 { font-size:1.7rem; font-weight:700; color:#fff; margin:0 0 4px; }
+        .hero-overlay p { font-size:0.95rem; color:rgba(255,255,255,0.85); margin:0; }
+
+        .search-wrap { position:relative; margin-bottom:24px; }
+        .search-wrap .search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--color-text-muted); font-size:0.9rem; pointer-events:none; }
+        .search-wrap input { width:100%; padding:10px 14px 10px 40px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-surface); color:var(--color-text); font-size:0.9rem; outline:none; transition:border-color var(--transition); box-shadow:var(--shadow); }
+        .search-wrap input:focus { border-color:var(--color-primary); }
+        .search-wrap input::placeholder { color:var(--color-text-muted); }
+
+        .search-dropdown { position:absolute; top:100%; left:0; right:0; z-index:1000; background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-sm); box-shadow:var(--shadow-md); max-height:320px; overflow-y:auto; display:none; margin-top:4px; }
+        .search-dropdown.open { display:block; }
+        .search-item { display:flex; align-items:center; gap:12px; padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--color-border); transition:background 0.1s; }
+        .search-item:last-child { border-bottom:none; }
+        .search-item:hover { background:var(--color-primary-light); }
+        .search-item-name { font-weight:600; font-size:0.9rem; color:var(--color-text); }
+        .search-item-email { font-size:0.8rem; color:var(--color-text-muted); }
+        .search-empty { padding:20px; text-align:center; color:var(--color-text-muted); font-size:0.85rem; }
+
+        /* Selected student card */
+        .selected-student { display:flex; align-items:center; gap:14px; background:var(--color-surface); border:1px solid var(--color-primary); border-radius:var(--radius); padding:14px 18px; margin-bottom:24px; box-shadow:var(--shadow); }
+        .selected-student .student-avatar { width:42px; height:42px; border-radius:50%; background:var(--color-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; flex-shrink:0; }
+        .selected-student .student-info { flex:1; min-width:0; }
+        .selected-student .student-name { font-weight:600; font-size:0.95rem; color:var(--color-text); }
+        .selected-student .student-email { font-size:0.82rem; color:var(--color-text-muted); }
+        .selected-student .deselect-btn { padding:5px 12px; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:transparent; color:var(--color-text-muted); font-size:0.78rem; font-weight:600; cursor:pointer; transition:all var(--transition); }
+        .selected-student .deselect-btn:hover { border-color:#E53E3E; color:#E53E3E; background:#FFF5F5; }
+
+        /* Placeholder state */
+        .placeholder-state { text-align:center; padding:60px 24px; color:var(--color-text-muted); }
+        .placeholder-state i { font-size:2.8rem; margin-bottom:16px; display:block; opacity:0.18; }
+        .placeholder-state p { font-size:0.95rem; margin:0 0 4px; }
+        .placeholder-state .hint { font-size:0.82rem; opacity:0.7; }
+    

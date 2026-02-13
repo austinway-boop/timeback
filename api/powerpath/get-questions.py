@@ -10,6 +10,7 @@ from http.server import BaseHTTPRequestHandler
 
 import requests
 from api._helpers import API_BASE, api_headers, send_json, get_query_params
+from api._kv import kv_list_get
 
 
 def extract_correct_answer(question):
@@ -64,6 +65,16 @@ class handler(BaseHTTPRequestHandler):
                     "answered": q.get("correct") is not None,
                     "isCorrect": q.get("correct", False)
                 })
+
+            # Filter out globally hidden and permanently bad questions
+            try:
+                hidden_ids = set(kv_list_get("globally_hidden_questions"))
+                bad_ids = set(kv_list_get("bad_questions"))
+                blocked = hidden_ids | bad_ids
+                if blocked:
+                    simplified = [q for q in simplified if q.get("id") not in blocked]
+            except Exception:
+                pass  # If KV fails, don't block question loading
             
             send_json(self, {
                 "score": progress.get("score"),

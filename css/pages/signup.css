@@ -1,0 +1,90 @@
+        body.login-body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        }
+        .login-container { width: 100%; max-width: 420px; padding: 2rem; }
+        .login-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1rem;
+            padding: 2.5rem 2rem;
+            backdrop-filter: blur(12px);
+        }
+        .login-logo { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; }
+        .login-logo .logo-text { font-size: 1.5rem; font-weight: 700; }
+        .login-logo .logo-alpha { color: #45B5AA; }
+        .login-logo .logo-learn { color: #e2e8f0; }
+        .login-title { text-align: center; color: #e2e8f0; font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .login-subtitle { text-align: center; color: #94a3b8; font-size: 0.875rem; margin-bottom: 2rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; color: #cbd5e1; font-size: 0.8125rem; font-weight: 500; margin-bottom: 0.5rem; }
+        .form-group input {
+            width: 100%; padding: 0.75rem 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem; color: #e2e8f0;
+            font-size: 0.9375rem; font-family: 'Inter', sans-serif;
+            transition: border-color 0.2s; box-sizing: border-box;
+        }
+        .form-group input:focus { outline: none; border-color: #45B5AA; box-shadow: 0 0 0 3px rgba(69, 181, 170, 0.15); }
+        .form-group input::placeholder { color: #475569; }
+        .form-row { display: flex; gap: 1rem; }
+        .form-row .form-group { flex: 1; }
+        .login-btn {
+            width: 100%; padding: 0.75rem;
+            background: #45B5AA; color: #0f172a; border: none;
+            border-radius: 0.5rem; font-size: 0.9375rem; font-weight: 600;
+            font-family: 'Inter', sans-serif; cursor: pointer;
+            transition: background 0.2s, transform 0.1s; margin-top: 0.5rem;
+        }
+        .login-btn:hover { background: #38a89d; }
+        .login-btn:active { transform: scale(0.98); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .login-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5; padding: 0.75rem 1rem;
+            border-radius: 0.5rem; font-size: 0.8125rem;
+            margin-bottom: 1.25rem; text-align: center; display: none;
+        }
+        .login-success {
+            background: rgba(69, 181, 170, 0.1);
+            border: 1px solid rgba(69, 181, 170, 0.3);
+            color: #45B5AA; padding: 0.75rem 1rem;
+            border-radius: 0.5rem; font-size: 0.8125rem;
+            margin-bottom: 1.25rem; text-align: center; display: none;
+        }
+        .login-success a { color: #45B5AA; font-weight: 600; text-decoration: underline; }
+        .login-footer { text-align: center; margin-top: 1.5rem; color: #64748b; font-size: 0.8125rem; }
+
+        /* Sign in link */
+        .signin-link {
+            text-align: center; margin-top: 1.25rem;
+            color: #94a3b8; font-size: 0.875rem;
+        }
+        .signin-link a {
+            color: #45B5AA; font-weight: 500;
+            text-decoration: none; transition: color 0.2s;
+        }
+        .signin-link a:hover { color: #38a89d; text-decoration: underline; }
+
+        /* Skeleton loading bar for buttons */
+        .skeleton-btn-bar {
+            display: block;
+            height: 16px;
+            width: 80px;
+            margin: 0 auto;
+            border-radius: 4px;
+            background: linear-gradient(90deg, rgba(15,23,42,0.1) 25%, rgba(15,23,42,0.25) 50%, rgba(15,23,42,0.1) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.5s ease-in-out infinite;
+        }
+        @keyframes skeleton-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    

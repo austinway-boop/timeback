@@ -1,0 +1,72 @@
+        body.login-body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        }
+        .callback-container { width: 100%; max-width: 420px; padding: 2rem; }
+        .callback-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1rem;
+            padding: 2.5rem 2rem;
+            backdrop-filter: blur(12px);
+            text-align: center;
+        }
+        .callback-logo { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; }
+        .callback-logo .logo-text { font-size: 1.5rem; font-weight: 700; }
+        .callback-logo .logo-alpha { color: #45B5AA; }
+        .callback-logo .logo-learn { color: #e2e8f0; }
+
+        /* Skeleton loading for callback */
+        @keyframes skeleton-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton-dark {
+            background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.5s ease-in-out infinite;
+            border-radius: 4px;
+        }
+        .skeleton-dark-circle {
+            background: linear-gradient(90deg, rgba(69,181,170,0.15) 25%, rgba(69,181,170,0.3) 50%, rgba(69,181,170,0.15) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.5s ease-in-out infinite;
+            border-radius: 50%;
+        }
+
+        .callback-status {
+            color: #e2e8f0; font-size: 1.1rem; font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .callback-detail {
+            color: #94a3b8; font-size: 0.875rem;
+        }
+
+        /* Error state */
+        .callback-error {
+            display: none;
+        }
+        .callback-error .error-icon {
+            width: 48px; height: 48px;
+            background: rgba(239, 68, 68, 0.15);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.5rem;
+            color: #fca5a5; font-size: 1.25rem;
+        }
+        .callback-error .error-message {
+            color: #fca5a5; font-size: 0.9375rem; font-weight: 500;
+            margin-bottom: 1.5rem;
+        }
+        .callback-error .back-link {
+            display: inline-block; padding: 0.625rem 1.5rem;
+            background: #45B5AA; color: #0f172a;
+            border-radius: 0.5rem; font-weight: 600; font-size: 0.9375rem;
+            text-decoration: none; transition: background 0.2s;
+        }
+        .callback-error .back-link:hover { background: #38a89d; }
+    

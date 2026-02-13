@@ -12,7 +12,7 @@ import os
 import re
 from http.server import BaseHTTPRequestHandler
 
-from _kv import kv_get, kv_set
+from api._kv import kv_get, kv_set, kv_list_get, kv_list_push
 
 OPENAI_KEY = os.environ.get("OPEN_AI_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.2-thinking")
@@ -105,15 +105,21 @@ def _build_prompt(report: dict, transcript: str, is_human_reviewed: bool) -> lis
         "DEFAULT STANCE: Assume questions are VALID unless the evidence clearly proves otherwise. "
         "Students may report questions simply because they got them wrong. You must be objective.\n\n"
         "ANALYSIS CRITERIA:\n"
-        "1. Out-of-scope content: Does the question require knowledge beyond the provided video transcript and/or article?\n"
-        "2. Factual accuracy: Are the question and answer choices factually correct based on the source material?\n"
-        "3. Question quality: Is the question well-constructed, clear, and unambiguous?\n\n"
+        "1. HYPER-SPECIFICITY: Is this question testing knowledge that is too obscure or hyper-specific "
+        "to be necessary for scoring a 5 on the AP exam? Lean toward the question being acceptable, "
+        "but flag if it tests trivial minutiae not reasonably expected on the AP.\n"
+        "2. CONTENT RELEVANCE: Is the question actually related to the provided source materials "
+        "(video transcript and/or article)? If the question has no connection to the content, it is a bad question.\n"
+        "3. ANSWER CORRECTNESS: Is the marked correct answer actually correct based on the source material? "
+        "Are there multiple fully defensible answers among the choices? If the correct answer is wrong "
+        "or multiple answers are equally defensible, it is a bad question.\n\n"
         "Be thorough. Take your time to reason carefully through each criterion.\n"
         "Return your analysis as JSON with these exact fields:\n"
         '{ "verdict": "valid" or "invalid", "confidence": 0-100, "reasoning": "detailed explanation", '
-        '"recommendation": "remove" or "regenerate" or "keep" }\n\n'
+        '"recommendation": "remove" or "regenerate" or "keep", "is_bad_question": true or false }\n\n'
         "- verdict 'valid' means the student's REPORT is valid (the question IS flawed)\n"
-        "- verdict 'invalid' means the student's report is invalid (the question is fine)"
+        "- verdict 'invalid' means the student's report is invalid (the question is fine)\n"
+        "- is_bad_question: true if the question fails any of the 3 criteria above, false otherwise"
         + strictness
     )
 
@@ -258,10 +264,12 @@ class handler(BaseHTTPRequestHandler):
         confidence = ai_result.get("confidence", 50)
         reasoning = ai_result.get("reasoning", "")
         recommendation = ai_result.get("recommendation", "keep")
+        is_bad_question = bool(ai_result.get("is_bad_question", False))
 
         # For human-reviewed questions, require very high confidence to overturn
         if is_human_reviewed and verdict == "valid" and confidence < 90:
             verdict = "invalid"
+            is_bad_question = False
             reasoning += " [Overridden: confidence too low to overturn human review]"
 
         # Only award points if the student got the question WRONG
@@ -271,12 +279,24 @@ class handler(BaseHTTPRequestHandler):
         else:
             points = 0
 
+        # If AI flagged as bad question, temporarily hide from all users
+        ai_flagged_bad = False
+        if is_bad_question and verdict == "valid":
+            ai_flagged_bad = True
+            hidden = kv_list_get("globally_hidden_questions")
+            if question_id and question_id not in hidden:
+                kv_list_push("globally_hidden_questions", question_id)
+
         # Update report
-        report["status"] = "resolved"
+        if ai_flagged_bad:
+            report["status"] = "ai_flagged_bad"
+        else:
+            report["status"] = "resolved"
         report["verdict"] = verdict
         report["aiReasoning"] = reasoning
         report["aiConfidence"] = confidence
         report["aiRecommendation"] = recommendation
+        report["aiFlaggedBad"] = ai_flagged_bad
         report["pointsAwarded"] = points
         report["answeredCorrectly"] = answered_correctly
         kv_set(f"report:{report_id}", report)
@@ -285,4 +305,5 @@ class handler(BaseHTTPRequestHandler):
             "verdict": verdict,
             "pointsAwarded": points,
             "reasoning": reasoning,
+            "aiFlaggedBad": ai_flagged_bad,
         })

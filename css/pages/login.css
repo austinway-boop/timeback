@@ -1,0 +1,323 @@
+        :root {
+            --primary: #45B5AA;
+            --primary-dark: #389E94;
+            --primary-glow: rgba(69, 181, 170, 0.15);
+            --text: #1a202c;
+            --text-secondary: #718096;
+            --text-muted: #a0aec0;
+            --border: #e2e8f0;
+            --surface: #ffffff;
+            --bg: #f7f8fc;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100%;
+            font-family: var(--font);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            display: flex;
+            min-height: 100vh;
+            background: var(--surface);
+            overflow: hidden;
+        }
+
+        /* ====================================================================
+           LEFT PANEL – Visual / Brand
+           ==================================================================== */
+        .panel-left {
+            flex: 1;
+            background: linear-gradient(160deg, #0d3b38 0%, #14605a 30%, #45B5AA 65%, #7dd3c8 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            padding: 3rem;
+        }
+
+        /* Abstract wave layers */
+        .wave-layer {
+            position: absolute;
+            width: 200%;
+            left: -50%;
+            pointer-events: none;
+        }
+        .wave-1 {
+            bottom: -5%;
+            opacity: 0.12;
+            animation: wave-drift 18s ease-in-out infinite alternate;
+        }
+        .wave-2 {
+            bottom: 2%;
+            opacity: 0.08;
+            animation: wave-drift 22s ease-in-out infinite alternate-reverse;
+        }
+        .wave-3 {
+            top: -8%;
+            opacity: 0.06;
+            transform: rotate(180deg);
+            animation: wave-drift 25s ease-in-out infinite alternate;
+        }
+
+        @keyframes wave-drift {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(5%); }
+        }
+        .wave-3 {
+            animation-name: wave-drift-flip;
+        }
+        @keyframes wave-drift-flip {
+            0%   { transform: rotate(180deg) translateX(0); }
+            100% { transform: rotate(180deg) translateX(5%); }
+        }
+
+        /* Floating orbs */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            pointer-events: none;
+        }
+        .orb-1 { width: 300px; height: 300px; top: -80px; left: -60px; animation: float-1 20s ease-in-out infinite; }
+        .orb-2 { width: 200px; height: 200px; bottom: 10%; right: -40px; animation: float-2 16s ease-in-out infinite; }
+        .orb-3 { width: 120px; height: 120px; top: 40%; left: 15%; background: rgba(255,255,255,0.04); animation: float-3 12s ease-in-out infinite; }
+
+        @keyframes float-1 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(20px, 30px); } }
+        @keyframes float-2 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-15px, -25px); } }
+        @keyframes float-3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(10px, -15px); } }
+
+        /* Brand content on left */
+        .brand-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            max-width: 380px;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-bottom: 2rem;
+        }
+        .brand-logo svg {
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
+        }
+        .brand-logo-text {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: white;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .brand-slogan {
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.92);
+            line-height: 1.5;
+            letter-spacing: -0.2px;
+        }
+
+        .brand-accent {
+            width: 48px;
+            height: 3px;
+            background: rgba(255,255,255,0.4);
+            border-radius: 2px;
+            margin: 1.5rem auto 0;
+        }
+
+        /* ====================================================================
+           RIGHT PANEL – Login Form
+           ==================================================================== */
+        .panel-right {
+            width: 480px;
+            min-width: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            background: var(--surface);
+            position: relative;
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .form-heading {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.3px;
+        }
+        .form-subheading {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        /* Error */
+        .login-error {
+            background: #FFF5F5;
+            border: 1px solid #FED7D7;
+            color: #C53030;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8125rem;
+            margin-bottom: 1.25rem;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            line-height: 1.4;
+        }
+        .login-error i { flex-shrink: 0; }
+
+        /* Form fields */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        .input-wrap {
+            position: relative;
+        }
+        .form-input {
+            width: 100%;
+            padding: 11px 14px 11px 42px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 0.9375rem;
+            font-family: var(--font);
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+        .form-input::placeholder { color: var(--text-muted); }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            pointer-events: none;
+            transition: color 0.2s;
+        }
+        .input-wrap:focus-within .input-icon {
+            color: var(--primary);
+        }
+
+        /* Button */
+        .login-btn {
+            width: 100%;
+            padding: 12px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: var(--font);
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+            margin-top: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .login-btn:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 6px 20px rgba(69,181,170,0.3);
+        }
+        .login-btn:active { transform: scale(0.98); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+
+        /* Create account link */
+        .signup-link {
+            text-align: center;
+            margin-top: 1.75rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        .signup-link a {
+            color: var(--primary);
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .signup-link a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        /* Skeleton loading */
+        .skeleton-btn-bar {
+            display: block;
+            height: 16px;
+            width: 80px;
+            margin: 0 auto;
+            border-radius: 4px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.15) 25%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.15) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* ====================================================================
+           Responsive
+           ==================================================================== */
+        @media (max-width: 900px) {
+            body { flex-direction: column; overflow: auto; }
+            .panel-left {
+                min-height: 280px;
+                flex: none;
+                padding: 2.5rem 2rem;
+            }
+            .brand-logo-text { font-size: 1.6rem; }
+            .brand-slogan { font-size: 1.1rem; }
+            .panel-right {
+                width: 100%;
+                min-width: unset;
+                flex: 1;
+                padding: 2rem 1.5rem;
+            }
+            .form-container { max-width: 400px; }
+        }
+
+        @media (max-width: 480px) {
+            .panel-left { padding: 2rem 1.5rem; min-height: 220px; }
+            .brand-logo svg { width: 40px; height: 40px; }
+            .brand-logo-text { font-size: 1.4rem; }
+            .brand-slogan { font-size: 1rem; }
+            .panel-right { padding: 1.5rem 1.25rem; }
+            .form-heading { font-size: 1.3rem; }
+        }
+    
