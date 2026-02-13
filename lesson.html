@@ -1773,7 +1773,7 @@
         }
 
         // Use real PowerPath score from API if available (overrides synthetic calculation)
-        if (typeof data.powerpathScore === 'number') {
+        if (typeof data !== 'undefined' && data && typeof data.powerpathScore === 'number') {
             quizState.ppScore = data.powerpathScore;
         }
 
