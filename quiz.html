@@ -692,6 +692,12 @@
         quizState.answered = true;
         quizState.total++;
 
+        // Track this question as answered locally (survives reload)
+        var answeredQId = (quizState.currentQuestion && (quizState.currentQuestion.id || quizState.currentQuestion.questionId)) || '';
+        if (answeredQId && quizState.answeredIds.indexOf(answeredQId) === -1) {
+            quizState.answeredIds.push(answeredQId);
+        }
+
         var btn = document.getElementById('submit-btn');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
@@ -798,12 +804,15 @@
         var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
         // Completion-based: finishing the quiz = passed. Accuracy does not gate progression.
         var passed = true;
+        // XP requires 80%+ accuracy
+        var noXp = pct < 80;
+        if (noXp) quizState.xpEarned = 0;
 
         area.innerHTML = '<div class="result-card">' +
             '<div style="font-size:3rem;margin-bottom:8px;">🎉</div>' +
             '<div class="result-score">' + pct + '%</div>' +
             '<div class="result-label">Quiz Complete!</div>' +
-            (quizState.xpEarned > 0 ? '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned</div>' : '') +
+            '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned' + (noXp ? ' (need 80%+ for XP)' : '') + '</div>' +
             '<div class="result-details">' +
                 '<div class="result-stat"><div class="result-stat-val" style="color:#2E7D32;">' + quizState.correct + '</div><div class="result-stat-label">Correct</div></div>' +
                 '<div class="result-stat"><div class="result-stat-val">' + (quizState.total - quizState.correct) + '</div><div class="result-stat-label">Incorrect</div></div>' +

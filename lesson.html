@@ -1899,6 +1899,8 @@
         // Completion-based: quiz is "passed" when the student finishes it
         // Accuracy does NOT gate progression — only completion matters
         var passed = quizState.finished;
+        // XP requires 80%+ accuracy
+        if (pct < 80) quizState.xpEarned = 0;
 
         console.log('[Quiz] Results — ppScore:', quizState.ppScore, 'accuracy:', pct + '%', 'passed:', passed, 'total:', quizState.total);
 
@@ -1939,7 +1941,7 @@
             '<div class="result-score" style="color:' + resultColor + ';">' + pct + '%</div>' +
             '<div class="result-label">Lesson Complete!</div>' +
             '<div class="result-summary">' + quizState.correct + ' of ' + quizState.total + ' correct' + (incorrect > 0 ? ' &middot; ' + incorrect + ' missed' : '') + '</div>' +
-            (quizState.xpEarned > 0 ? '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned</div>' : '') +
+            (quizState.xpEarned > 0 ? '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned</div>' : '<div class="xp-badge xp-badge-muted"><i class="fa-solid fa-bolt"></i> Need 80%+ to earn XP</div>') +
             '<div class="result-complete"><i class="fa-solid fa-circle-check"></i> Lesson complete</div>' +
         '</div>';
 
