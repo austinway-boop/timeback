@@ -873,17 +873,6 @@
                 return;
             }
 
-            // Client-side dedup: if server returned a question we already answered, skip it
-            var returnedQId = String(data.id || data.questionId || '');
-            if (returnedQId && quizState.answeredIds.indexOf(returnedQId) !== -1) {
-                console.log('[Quiz] Skipping duplicate question', returnedQId);
-                // Add to skipIds for the next call and retry (max 50 to prevent infinite loop)
-                if (quizState.questionNum < 50) {
-                    await loadNextQuestion();
-                    return;
-                }
-            }
-
             quizState.currentQuestion = data;
             quizState.questionNum++;
             quizState.selectedChoice = null;
