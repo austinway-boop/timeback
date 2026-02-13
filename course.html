@@ -651,15 +651,21 @@
                 if (p.textScore === 'Completed') return true;
                 return false;
             }
-            // PowerPath 100: quiz is complete only when score reaches 100
+            // PowerPath 100: quiz is complete when score reaches 100,
+            // or fallback: any fully graded quiz with a positive score (PowerPath finalized it)
             function _isQuizComplete(p) {
                 if (!p) return false;
-                return (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score >= 100);
+                if (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score >= 100) return true;
+                if (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score > 0) return true;
+                return false;
             }
-            // PowerPath 100: mastered when score reaches 100
+            // PowerPath 100: mastered when score reaches 100,
+            // or fallback: any fully graded quiz with a positive score
             function _isMastered(p) {
                 if (!p) return false;
-                return (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score >= 100);
+                if (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score >= 100) return true;
+                if (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score > 0) return true;
+                return false;
             }
 
             // ── Build progress lookup ──────────────────────────────

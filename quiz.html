@@ -733,9 +733,9 @@
                     }),
                 });
                 var data = await resp.json();
-                isCorrect = data.correct || data.isCorrect || false;
-                feedback = data.feedback || data.explanation || '';
-                if (data.xpEarned) quizState.xpEarned += data.xpEarned;
+                isCorrect = (data.responseResult && data.responseResult.isCorrect) || data.correct || data.isCorrect || false;
+                feedback = (data.responseResult && data.responseResult.feedback) || data.feedback || data.explanation || '';
+                if (data.xpEarned || data.xp) quizState.xpEarned += (data.xpEarned || data.xp);
             } catch(e) {}
         }
 
@@ -752,6 +752,11 @@
             quizState.streak = 0;
             pointsChange = -4;
             quizState.ppScore = Math.max(0, quizState.ppScore + pointsChange);
+        }
+
+        // Use real PowerPath score from API if available (overrides synthetic calculation)
+        if (typeof data.powerpathScore === 'number') {
+            quizState.ppScore = data.powerpathScore;
         }
 
         // Persist progress to localStorage

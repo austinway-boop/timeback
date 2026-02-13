@@ -1700,10 +1700,10 @@
                     }),
                 });
                 var data = await resp.json();
-                isCorrect = data.correct || data.isCorrect || false;
-                feedback = data.feedback || data.explanation || '';
-                if (data.xpEarned) {
-                    quizState.xpEarned += data.xpEarned;
+                isCorrect = (data.responseResult && data.responseResult.isCorrect) || data.correct || data.isCorrect || false;
+                feedback = (data.responseResult && data.responseResult.feedback) || data.feedback || data.explanation || '';
+                if (data.xpEarned || data.xp) {
+                    quizState.xpEarned += (data.xpEarned || data.xp);
                     apiProvidedXp = true;
                 }
             } catch(e) {}
@@ -1735,6 +1735,11 @@
             quizState.streak = 0;
             pointsChange = -4;
             quizState.ppScore = Math.max(0, quizState.ppScore + pointsChange);
+        }
+
+        // Use real PowerPath score from API if available (overrides synthetic calculation)
+        if (typeof data.powerpathScore === 'number') {
+            quizState.ppScore = data.powerpathScore;
         }
 
         // Persist progress to localStorage
@@ -1829,16 +1834,9 @@
         // Always signal course.html to refresh (even on fail — updates frontier)
         sessionStorage.setItem('al_progress_changed', 'true');
 
-        // Sync with TimeBack Platform
+        // Sync with TimeBack Platform (includes markLessonComplete -> finalize-lesson
+        // which calls finalStudentAssessmentResponse — no separate finalize needed)
         syncQuizCompletion(pct, passed);
-
-        // Finalize PowerPath attempt
-        if (quizState.attemptId) {
-            fetch('/api/quiz-session?action=finalize', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ attemptId: quizState.attemptId }),
-            }).catch(function(){});
-        }
 
         // ═══ Now render the results UI ═══
         // quizArea may be null if coming from AP exam (overlay was removed)
