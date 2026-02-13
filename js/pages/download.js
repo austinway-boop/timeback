@@ -200,10 +200,8 @@ function extractContent() {
     setStatus('');
     startProgress();
 
-    var uid = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
-    var extractUrl = '/api/temp-extract?courseId=' + encodeURIComponent(selectedCourseId);
-    if (uid) extractUrl += '&userId=' + encodeURIComponent(uid);
-    fetch(extractUrl)
+    // No student ID sent — download uses admin catalog endpoints only
+    fetch('/api/temp-extract?courseId=' + encodeURIComponent(selectedCourseId))
         .then(function (r) { return r.json(); })
         .then(function (data) {
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Extract Content';

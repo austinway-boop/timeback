@@ -1,15 +1,13 @@
-"""GET /api/_temp_extract?courseId=...
+"""GET /api/temp-extract?courseId=...
 
 TEMPORARY — Extract all content from an AP course's PowerPath lesson plan tree.
 
-Walks the lesson plan tree (units → lessons → resources) and fetches:
-  - Questions from assessment resources (via QTI catalog)
-  - Video links
-  - Article content (via QTI stimulus API)
+Uses ONLY admin-scoped, read-only catalog endpoints:
+  - PowerPath lesson plan tree (course structure)
+  - QTI catalog (question content, article/stimulus content)
 
-Returns an organized JSON structure with videos, articles, and questions per lesson.
-
-No student context needed — uses the tree endpoint and QTI catalog directly.
+NO student data is read or written. No student IDs are used.
+No POST/PUT/DELETE requests are made. Completely read-only.
 """
 
 import re
@@ -32,7 +30,7 @@ QTI_BASE = "https://qti.alpha-1edtech.ai"
 
 
 # ---------------------------------------------------------------------------
-# Auth — QTI admin-scoped token (same pattern as qti-item.py)
+# Auth — QTI admin-scoped token (catalog access only)
 # ---------------------------------------------------------------------------
 def _qti_token():
     try:
@@ -59,10 +57,10 @@ def _qti_headers():
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Read-only GET helpers
 # ---------------------------------------------------------------------------
-def _fetch(url, headers, timeout=30):
-    """GET url → (json, status) or (None, status)."""
+def _fetch_json(url, headers, timeout=15):
+    """GET url → (json_data, status) or (None, status). Read-only."""
     try:
         resp = requests.get(url, headers=headers, timeout=timeout)
         if resp.status_code == 200:
@@ -73,7 +71,7 @@ def _fetch(url, headers, timeout=30):
 
 
 def _fetch_raw(url, headers, timeout=15):
-    """GET url → (response, content_type) or (None, None).  Returns the raw response."""
+    """GET url → (response, content_type) or (None, None). Read-only."""
     try:
         resp = requests.get(url, headers=headers, timeout=timeout)
         if resp.status_code == 200:
@@ -83,80 +81,17 @@ def _fetch_raw(url, headers, timeout=15):
         return None, None
 
 
-# ---------------------------------------------------------------------------
-# Resource type classification (mirrors course.html resLabel logic)
-# ---------------------------------------------------------------------------
-def _classify_resource(res):
-    """Return 'video', 'article', or 'assessment' for a componentResource."""
-    meta = res.get("metadata") or {}
-    rtype = (meta.get("type", "") or res.get("type", "")).lower()
-    rurl = meta.get("url", "") or res.get("url", "") or meta.get("href", "") or res.get("href", "")
-
-    if rtype == "video":
-        return "video"
-    if rtype in ("assessment", "quiz", "test", "exam", "frq") or "assess" in rtype or "quiz" in rtype or "test" in rtype:
-        return "assessment"
-    # URL-based heuristics
-    if rurl:
-        if "stimuli" in rurl:
-            return "article"
-        if "/assessment" in rurl or "/quiz" in rurl:
-            return "assessment"
-    return "article"
-
-
-# ---------------------------------------------------------------------------
-# Article content fetching (mirrors article-proxy.py logic)
-# ---------------------------------------------------------------------------
-def _extract_article_text(data):
-    """Extract plain text from a QTI stimulus JSON response."""
-    if not isinstance(data, dict):
+def _extract_html_text(raw_xml):
+    """Strip HTML/XML tags to get plain text."""
+    if not raw_xml:
         return ""
-
-    # 1. qti-assessment-stimulus → qti-stimulus-body
-    stim = data.get("qti-assessment-stimulus")
-    if isinstance(stim, dict):
-        body = stim.get("qti-stimulus-body", {})
-        r = _render_node_text(body)
-        if r and r.strip():
-            return r.strip()
-
-    # 2. Nested content wrapper
-    content = data.get("content")
-    if isinstance(content, dict):
-        s2 = content.get("qti-assessment-stimulus")
-        if isinstance(s2, dict):
-            r = _render_node_text(s2.get("qti-stimulus-body", {}))
-            if r and r.strip():
-                return r.strip()
-
-    # 3. Direct qti-stimulus-body
-    sb = data.get("qti-stimulus-body")
-    if sb:
-        r = _render_node_text(sb)
-        if r and r.strip():
-            return r.strip()
-
-    # 4. Simple body/content/html/text fields
-    for f in ("body", "content", "html", "text"):
-        v = data.get(f)
-        if isinstance(v, str) and len(v.strip()) > 10:
-            return _extract_html_text(v)
-        if isinstance(v, dict):
-            r = _render_node_text(v)
-            if r and r.strip():
-                return r.strip()
-
-    # 5. Nested data wrapper
-    inner = data.get("data")
-    if isinstance(inner, dict):
-        return _extract_article_text(inner)
-
-    return ""
+    text = re.sub(r"<[^>]+>", " ", raw_xml)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 
 def _render_node_text(node):
-    """Convert a QTI JSON node tree to plain text."""
+    """Recursively extract text from a QTI JSON node tree."""
     if node is None:
         return ""
     if isinstance(node, str):
@@ -165,7 +100,6 @@ def _render_node_text(node):
         return " ".join(_render_node_text(i) for i in node)
     if not isinstance(node, dict):
         return str(node)
-
     parts = []
     for key, val in node.items():
         if key.startswith("_"):
@@ -177,54 +111,16 @@ def _render_node_text(node):
     return " ".join(p for p in parts if p.strip())
 
 
-def _fetch_article_content(url, res_id, qti_headers):
-    """Fetch article/stimulus content and return plain text."""
-    stim_id = ""
-    if url and "stimuli" in url.lower():
-        m = re.search(r"/stimuli/([^/?#]+)", url)
-        if m:
-            stim_id = m.group(1).strip("/")
-    if not stim_id and res_id:
-        stim_id = res_id
-
-    # Try QTI stimulus endpoints
-    if stim_id:
-        for endpoint in [
-            f"{QTI_BASE}/api/stimuli/{stim_id}",
-            f"{API_BASE}/api/v1/qti/stimuli/{stim_id}/",
-        ]:
-            resp, ct = _fetch_raw(endpoint, qti_headers)
-            if resp:
-                ct_lower = (ct or "").lower()
-                if "json" in ct_lower:
-                    try:
-                        text = _extract_article_text(resp.json())
-                        if text:
-                            return text
-                    except Exception:
-                        pass
-                else:
-                    raw = resp.text or ""
-                    if raw.strip():
-                        return _extract_html_text(raw)
-
-    # Fallback: fetch URL directly
-    if url:
-        resp, ct = _fetch_raw(url, qti_headers)
-        if resp:
-            ct_lower = (ct or "").lower()
-            if "json" in ct_lower:
-                try:
-                    text = _extract_article_text(resp.json())
-                    if text:
-                        return text
-                except Exception:
-                    pass
-            else:
-                raw = resp.text or ""
-                if raw.strip():
-                    return _extract_html_text(raw)
-
+def _deep_text(obj):
+    """Recursively extract all text from nested dict/list."""
+    if isinstance(obj, str):
+        return obj
+    if isinstance(obj, list):
+        return " ".join(_deep_text(i) for i in obj)
+    if isinstance(obj, dict):
+        return " ".join(
+            _deep_text(v) for k, v in obj.items() if not k.startswith("_")
+        )
     return ""
 
 
@@ -240,58 +136,88 @@ def _resolve_bank_to_qti(bank_id):
     return ids
 
 
-def _extract_html_text(raw_xml):
-    """Strip HTML/XML tags to get plain question text."""
-    if not raw_xml:
+# ---------------------------------------------------------------------------
+# Article content fetching (QTI stimulus — read-only catalog)
+# ---------------------------------------------------------------------------
+def _extract_article_text(data):
+    """Extract plain text from a QTI stimulus JSON response."""
+    if not isinstance(data, dict):
         return ""
-    text = re.sub(r"<[^>]+>", " ", raw_xml)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
-
-
-def _find_raw_xml(item):
-    """Recursively find rawXml in a QTI item dict."""
-    if not isinstance(item, dict):
-        return ""
-    # Direct
-    for key in ("rawXml", "raw_xml", "xml"):
-        if isinstance(item.get(key), str) and item[key].strip():
-            return item[key]
-    # Nested in content
-    content = item.get("content")
-    if isinstance(content, dict):
-        for key in ("rawXml", "raw_xml", "xml"):
-            if isinstance(content.get(key), str) and content[key].strip():
-                return content[key]
-    elif isinstance(content, str) and "<" in content:
-        return content
+    for path_fn in [
+        lambda d: (d.get("qti-assessment-stimulus") or {}).get("qti-stimulus-body"),
+        lambda d: ((d.get("content") or {}).get("qti-assessment-stimulus") or {}).get("qti-stimulus-body"),
+        lambda d: d.get("qti-stimulus-body"),
+    ]:
+        try:
+            node = path_fn(data)
+            if node:
+                r = _render_node_text(node)
+                if r and r.strip():
+                    return r.strip()
+        except Exception:
+            pass
+    for f in ("body", "content", "html", "text"):
+        v = data.get(f)
+        if isinstance(v, str) and len(v.strip()) > 10:
+            return _extract_html_text(v)
+        if isinstance(v, dict):
+            r = _render_node_text(v)
+            if r and r.strip():
+                return r.strip()
+    inner = data.get("data")
+    if isinstance(inner, dict):
+        return _extract_article_text(inner)
     return ""
 
 
-def _deep_text(obj):
-    """Recursively extract all text from a nested dict/list (for fallback)."""
-    if isinstance(obj, str):
-        return obj
-    if isinstance(obj, list):
-        return " ".join(_deep_text(i) for i in obj)
-    if isinstance(obj, dict):
-        parts = []
-        for k, v in obj.items():
-            if k.startswith("_"):
-                continue
-            parts.append(_deep_text(v))
-        return " ".join(p for p in parts if p.strip())
+def _fetch_article_content(url, res_id, qti_headers):
+    """Fetch article/stimulus content via QTI catalog. Read-only GET only."""
+    stim_id = ""
+    if url and "stimuli" in url.lower():
+        m = re.search(r"/stimuli/([^/?#]+)", url)
+        if m:
+            stim_id = m.group(1).strip("/")
+    if not stim_id and res_id:
+        stim_id = res_id
+
+    if stim_id:
+        for endpoint in [
+            f"{QTI_BASE}/api/stimuli/{stim_id}",
+            f"{API_BASE}/api/v1/qti/stimuli/{stim_id}/",
+        ]:
+            resp, ct = _fetch_raw(endpoint, qti_headers)
+            if resp:
+                if "json" in (ct or "").lower():
+                    try:
+                        text = _extract_article_text(resp.json())
+                        if text:
+                            return text
+                    except Exception:
+                        pass
+                elif resp.text and resp.text.strip():
+                    return _extract_html_text(resp.text)
+
+    if url:
+        resp, ct = _fetch_raw(url, qti_headers)
+        if resp:
+            if "json" in (ct or "").lower():
+                try:
+                    text = _extract_article_text(resp.json())
+                    if text:
+                        return text
+                except Exception:
+                    pass
+            elif resp.text and resp.text.strip():
+                return _extract_html_text(resp.text)
+
     return ""
 
 
+# ---------------------------------------------------------------------------
+# QTI question fetching (admin-scoped catalog — NO student data)
+# ---------------------------------------------------------------------------
 def _parse_qti_item(item):
-    """Parse a QTI assessment-item into a simplified question dict.
-
-    Strategy:
-      1. Always extract from rawXml first (regex — most reliable)
-      2. Fall back to JSON structure parsing
-      3. Last resort: dump all text content from the item
-    """
+    """Parse a QTI assessment-item into a simplified question dict."""
     if not isinstance(item, dict):
         return None
 
@@ -302,47 +228,47 @@ def _parse_qti_item(item):
     choices = []
     correct_id = ""
 
-    # ── 1. Extract from rawXml (most reliable) ──────────────────────
-    raw_xml = _find_raw_xml(item)
+    # Find rawXml
+    raw_xml = ""
+    content = item.get("content")
+    if isinstance(content, dict):
+        raw_xml = content.get("rawXml", "")
+    elif isinstance(content, str) and "<" in content:
+        raw_xml = content
 
+    # 1. Extract from rawXml (most reliable)
     if raw_xml:
-        # Prompt: try qti-prompt first, then qti-item-body
         pm = re.search(r"<qti-prompt[^>]*>(.*?)</qti-prompt>", raw_xml, re.DOTALL)
         if pm:
             prompt_text = _extract_html_text(pm.group(1))
         else:
             bm = re.search(r"<qti-item-body[^>]*>(.*?)</qti-item-body>", raw_xml, re.DOTALL)
             if bm:
-                prompt_text = _extract_html_text(bm.group(1))[:1000]
+                body_html = bm.group(1)
+                body_html = re.sub(r"<qti-choice-interaction.*?</qti-choice-interaction>", "", body_html, flags=re.DOTALL)
+                prompt_text = _extract_html_text(body_html)[:1000]
 
-        # Choices
         for m in re.finditer(
             r'<qti-simple-choice[^>]*identifier="([^"]*)"[^>]*>(.*?)</qti-simple-choice>',
             raw_xml, re.DOTALL,
         ):
             choices.append({"id": m.group(1), "label": _extract_html_text(m.group(2))})
-        # Also try without identifier attr (some QTI uses value= instead)
+
         if not choices:
-            for m in re.finditer(
-                r"<qti-simple-choice[^>]*>(.*?)</qti-simple-choice>",
-                raw_xml, re.DOTALL,
-            ):
+            for m in re.finditer(r"<qti-simple-choice[^>]*>(.*?)</qti-simple-choice>", raw_xml, re.DOTALL):
                 label = _extract_html_text(m.group(1))
                 if label:
                     choices.append({"id": chr(65 + len(choices)), "label": label})
 
-        # Correct answer
         cm = re.search(r"<qti-correct-response>\s*<qti-value>([^<]+)</qti-value>", raw_xml)
         if cm:
             correct_id = cm.group(1).strip()
 
-        # FRQ detection
         if "qti-extended-text-interaction" in raw_xml:
             q_type = "frq"
 
-    # ── 2. JSON structure parsing (fallback) ────────────────────────
+    # 2. JSON structure fallback
     if not prompt_text or not choices:
-        # Walk the item looking for known QTI JSON structures
         qai = item.get("qti-assessment-item", item)
         if isinstance(qai, dict):
             body = qai.get("qti-item-body") or {}
@@ -354,7 +280,7 @@ def _parse_qti_item(item):
                     if not prompt_text:
                         p = ci.get("qti-prompt", "")
                         if isinstance(p, dict):
-                            p = p.get("#text", "") or p.get("_text", "") or _deep_text(p)
+                            p = _deep_text(p)
                         if p:
                             prompt_text = _extract_html_text(str(p))
                     if not choices:
@@ -364,21 +290,17 @@ def _parse_qti_item(item):
                         for sc in scs:
                             if isinstance(sc, dict):
                                 cid = (sc.get("_attributes") or sc).get("identifier", "")
-                                clabel = sc.get("#text", "") or sc.get("_text", "") or _deep_text(sc)
-                                clabel = _extract_html_text(clabel)
+                                clabel = _extract_html_text(_deep_text(sc))
                                 if cid or clabel:
                                     choices.append({"id": cid or chr(65 + len(choices)), "label": clabel})
-
-                eti = body.get("qti-extended-text-interaction")
-                if eti:
+                if body.get("qti-extended-text-interaction"):
                     q_type = "frq"
                     if not prompt_text:
-                        p = body.get("qti-prompt", "") or (eti.get("qti-prompt", "") if isinstance(eti, dict) else "")
+                        p = body.get("qti-prompt", "")
                         if isinstance(p, dict):
                             p = _deep_text(p)
                         if p:
                             prompt_text = _extract_html_text(str(p))
-
             if not correct_id:
                 rd = qai.get("qti-response-declaration") or qai.get("responseDeclaration") or {}
                 if isinstance(rd, list):
@@ -393,165 +315,141 @@ def _parse_qti_item(item):
                             val = val[0] if val else ""
                         correct_id = str(val).strip()
 
-    # ── 3. Last resort: extract all text from the item ──────────────
+    # 3. Last resort
     if not prompt_text:
-        all_text = _deep_text(item)
-        all_text = _extract_html_text(all_text)
+        all_text = _extract_html_text(_deep_text(item))
         if len(all_text) > 20:
             prompt_text = all_text[:1500]
 
-    # Skip completely empty items
     if not prompt_text and not choices and not title:
         return None
 
-    result = {
-        "id": qid,
-        "title": title,
-        "prompt": prompt_text,
-        "type": q_type,
-    }
+    result = {"id": qid, "title": title, "prompt": prompt_text, "type": q_type}
     if choices:
         result["choices"] = choices
     if correct_id:
         result["correctAnswer"] = correct_id
-    # Include rawXml snippet for debugging/completeness
     if raw_xml and not prompt_text:
         result["rawContent"] = _extract_html_text(raw_xml)[:2000]
 
-    # Attach stimulus if present
     stim = item.get("_sectionStimulus")
     if stim and isinstance(stim, dict):
-        stim_body = stim.get("qti-assessment-stimulus", stim)
-        if isinstance(stim_body, dict):
-            stim_content = stim_body.get("qti-stimulus-body", "")
-            if stim_content:
-                result["stimulus"] = _extract_html_text(str(stim_content))
+        sb = (stim.get("qti-assessment-stimulus") or stim).get("qti-stimulus-body", "")
+        if sb:
+            result["stimulus"] = _extract_html_text(str(sb))
 
     return result
 
 
-# ---------------------------------------------------------------------------
-# PowerPath question fetching (same endpoint the lesson page uses)
-# ---------------------------------------------------------------------------
-def _fetch_questions_powerpath(student_id, lesson_id, pp_headers):
-    """Fetch questions via getAssessmentProgress — the exact same call
-    the lesson page makes.  If the question bank is empty, calls
-    resetAttempt to initialize it first (same as quiz-session.py).
-    Returns the raw question list from PowerPath.
-    """
-    def _get_progress():
-        try:
-            resp = requests.get(
-                f"{API_BASE}/powerpath/getAssessmentProgress",
-                headers=pp_headers,
-                params={"student": student_id, "lesson": lesson_id},
-                timeout=15,
-            )
-            if resp.status_code == 200:
-                return resp.json()
-        except Exception:
-            pass
-        return None
+def _resolve_qti_test_questions(test_data, qti_headers):
+    """Given a QTI assessment-test JSON, walk its parts/sections to
+    collect item refs and fetch each item. Read-only GETs only."""
+    test = test_data.get("qti-assessment-test", test_data)
+    if not isinstance(test, dict):
+        return []
 
-    # 1. Try fetching existing progress
-    data = _get_progress()
-    if data:
-        questions = data.get("questions", [])
-        if len(questions) > 0:
-            return questions
+    parts = test.get("qti-test-part") or test.get("testParts") or []
+    if not isinstance(parts, list):
+        parts = [parts]
 
-    # 2. Question bank is empty — initialize it with resetAttempt
-    #    (same as quiz-session.py _handle_start when total_q == 0)
-    try:
-        requests.post(
-            f"{API_BASE}/powerpath/resetAttempt",
-            headers=pp_headers,
-            json={"student": student_id, "lesson": lesson_id},
-            timeout=10,
-        )
-    except Exception:
-        pass
+    item_hrefs = []
+    for part in parts:
+        sections = part.get("qti-assessment-section") or part.get("sections") or []
+        if not isinstance(sections, list):
+            sections = [sections]
+        for section in sections:
+            refs = section.get("qti-assessment-item-ref") or section.get("itemRefs") or section.get("items") or []
+            if not isinstance(refs, list):
+                refs = [refs]
+            for ref in refs:
+                href = ""
+                if isinstance(ref, str):
+                    href = ref
+                elif isinstance(ref, dict):
+                    href = ref.get("href", "") or (ref.get("_attributes") or {}).get("href", "")
+                    if not href:
+                        rid = ref.get("identifier") or ref.get("id", "")
+                        if rid:
+                            href = f"{QTI_BASE}/api/assessment-items/{rid}"
+                if href:
+                    item_hrefs.append(href)
 
-    # 3. Fetch again after initialization
-    data = _get_progress()
-    if data:
-        return data.get("questions", [])
+    if not item_hrefs:
+        return []
+
+    # Fetch items in parallel (read-only GETs)
+    def _get_item(url):
+        return url, _fetch_json(url, qti_headers)
+
+    items = {}
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futs = [pool.submit(_get_item, h) for h in item_hrefs]
+        for f in as_completed(futs):
+            try:
+                url, (data, _st) = f.result()
+                if data:
+                    items[url] = data
+            except Exception:
+                pass
+
+    return [items[h] for h in item_hrefs if h in items]
+
+
+def _fetch_questions_from_qti(url, res_id, qti_headers):
+    """Fetch questions for a resource via the QTI catalog.
+    Uses ONLY read-only GET requests to admin-scoped QTI endpoints.
+    Returns list of parsed question dicts."""
+
+    all_ids = [res_id] if res_id else []
+    if res_id:
+        all_ids.extend(_resolve_bank_to_qti(res_id))
+
+    # Strategy 1: Direct URL fetch
+    if url:
+        data, st = _fetch_json(url, qti_headers)
+        if data and isinstance(data, dict):
+            test = data.get("qti-assessment-test", data)
+            if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
+                raw_items = _resolve_qti_test_questions(data, qti_headers)
+                parsed = [_parse_qti_item(i) for i in raw_items]
+                parsed = [p for p in parsed if p]
+                if parsed:
+                    return parsed
+            # Single item
+            p = _parse_qti_item(data)
+            if p:
+                return [p]
+            # Might have questions array
+            if data.get("questions"):
+                parsed = [_parse_qti_item(q) for q in data["questions"]]
+                return [p for p in parsed if p]
+
+    # Strategy 2: Try QTI catalog by resource ID
+    for tid in all_ids:
+        for endpoint in ["assessment-tests", "assessment-items"]:
+            data, st = _fetch_json(f"{QTI_BASE}/api/{endpoint}/{tid}", qti_headers)
+            if data and isinstance(data, dict):
+                test = data.get("qti-assessment-test", data)
+                if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
+                    raw_items = _resolve_qti_test_questions(data, qti_headers)
+                    parsed = [_parse_qti_item(i) for i in raw_items]
+                    parsed = [p for p in parsed if p]
+                    if parsed:
+                        return parsed
+                p = _parse_qti_item(data)
+                if p:
+                    return [p]
+                if data.get("questions"):
+                    parsed = [_parse_qti_item(q) for q in data["questions"]]
+                    result = [p for p in parsed if p]
+                    if result:
+                        return result
 
     return []
 
 
-def _parse_powerpath_question(q):
-    """Parse a PowerPath question (from getAssessmentProgress) into a
-    simplified dict.  Uses rawXml which is the proven extraction path."""
-    if not isinstance(q, dict):
-        return None
-
-    qid = q.get("id", "")
-    title = q.get("title", "")
-    raw_xml = ""
-    content = q.get("content")
-    if isinstance(content, dict):
-        raw_xml = content.get("rawXml", "")
-    elif isinstance(content, str):
-        raw_xml = content
-
-    prompt_text = ""
-    choices = []
-    correct_id = ""
-    q_type = "mcq"
-
-    if raw_xml:
-        # Prompt
-        pm = re.search(r"<qti-prompt[^>]*>(.*?)</qti-prompt>", raw_xml, re.DOTALL)
-        if pm:
-            prompt_text = _extract_html_text(pm.group(1))
-        if not prompt_text:
-            bm = re.search(r"<qti-item-body[^>]*>(.*?)</qti-item-body>", raw_xml, re.DOTALL)
-            if bm:
-                # Strip out the choice interaction to get just the prompt
-                body_html = bm.group(1)
-                body_html = re.sub(r"<qti-choice-interaction.*?</qti-choice-interaction>", "", body_html, flags=re.DOTALL)
-                body_html = re.sub(r"<qti-extended-text-interaction[^>]*/>", "", body_html)
-                prompt_text = _extract_html_text(body_html).strip()
-
-        # Choices
-        for m in re.finditer(
-            r'<qti-simple-choice[^>]*identifier="([^"]*)"[^>]*>(.*?)</qti-simple-choice>',
-            raw_xml, re.DOTALL,
-        ):
-            choices.append({"id": m.group(1), "label": _extract_html_text(m.group(2))})
-
-        # Correct answer
-        cm = re.search(r"<qti-correct-response>\s*<qti-value>([^<]+)</qti-value>", raw_xml)
-        if cm:
-            correct_id = cm.group(1).strip()
-
-        # FRQ
-        if "qti-extended-text-interaction" in raw_xml:
-            q_type = "frq"
-
-    # If no rawXml, use title as fallback
-    if not prompt_text and not choices:
-        prompt_text = title or ""
-
-    if not prompt_text and not choices and not title:
-        return None
-
-    result = {
-        "id": qid,
-        "title": title,
-        "prompt": prompt_text,
-        "type": q_type,
-    }
-    if choices:
-        result["choices"] = choices
-    if correct_id:
-        result["correctAnswer"] = correct_id
-    return result
-
-
 # ---------------------------------------------------------------------------
-# Handler
+# Handler — read-only, no student data
 # ---------------------------------------------------------------------------
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -564,7 +462,6 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         params = get_query_params(self)
         course_id = params.get("courseId", "").strip()
-        user_id = params.get("userId", "").strip()
 
         if not course_id:
             send_json(self, {"error": "Need courseId"}, 400)
@@ -574,82 +471,52 @@ class handler(BaseHTTPRequestHandler):
             pp_headers = api_headers()
             qti_headers = _qti_headers()
 
+            # 1. Fetch lesson plan tree (admin catalog, no student ID)
             tree = None
-
-            # 1a. Try student-specific lesson plan (most reliable, needs userId)
-            if user_id:
-                try:
-                    resp = requests.get(
-                        f"{API_BASE}/powerpath/lessonPlans/{course_id}/{user_id}",
-                        headers=pp_headers,
-                        timeout=30,
-                    )
-                    if resp.status_code == 401:
-                        pp_headers = api_headers()
-                        resp = requests.get(
-                            f"{API_BASE}/powerpath/lessonPlans/{course_id}/{user_id}",
-                            headers=pp_headers,
-                            timeout=30,
-                        )
-                    if resp.status_code == 200:
-                        tree = resp.json()
-                except Exception:
-                    pass
-
-            # 1b. Fallback: full lesson plan tree (no userId needed)
-            if not tree:
-                try:
-                    resp = requests.get(
-                        f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
-                        headers=pp_headers,
-                        timeout=30,
-                    )
-                    if resp.status_code == 401:
-                        pp_headers = api_headers()
-                        resp = requests.get(
-                            f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
-                            headers=pp_headers,
-                            timeout=30,
-                        )
-                    if resp.status_code == 200:
-                        tree = resp.json()
-                except Exception:
-                    pass
-
-            if not tree:
-                send_json(
-                    self,
-                    {"error": f"No lesson plan found for course {course_id}", "success": False},
-                    404,
+            resp = requests.get(
+                f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
+                headers=pp_headers,
+                timeout=30,
+            )
+            if resp.status_code == 401:
+                pp_headers = api_headers()
+                resp = requests.get(
+                    f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
+                    headers=pp_headers,
+                    timeout=30,
                 )
+            if resp.status_code == 200:
+                tree = resp.json()
+
+            if not tree:
+                send_json(self, {
+                    "error": f"No lesson plan found for course {course_id}",
+                    "success": False,
+                }, 404)
                 return
+
             inner = tree.get("lessonPlan", tree) if isinstance(tree, dict) else tree
             if isinstance(inner, dict) and inner.get("lessonPlan"):
                 inner = inner["lessonPlan"]
 
             course_title = inner.get("title", "") if isinstance(inner, dict) else ""
-            units_raw = (inner.get("subComponents", []) if isinstance(inner, dict) else [])
+            units_raw = inner.get("subComponents", []) if isinstance(inner, dict) else []
             units_raw.sort(key=lambda u: u.get("sortOrder", ""))
 
-            # 2. Walk tree: units → lessons → resources → videos/articles/questions
-            units_out = []
-            total_questions = 0
-            total_videos = 0
-            total_articles = 0
+            # 2. Collect ALL resources from ALL units upfront
+            #    Each entry: (unit_idx, lesson_idx, res_title, res_id, rurl, kind)
+            all_lessons = []   # [(unit_idx, lesson_dict)]
+            all_resources = [] # [(unit_idx, lesson_idx, res_title, res_id, rurl)]
+            debug = {"attempted": 0, "succeeded": 0, "failed": 0}
 
-            for unit in units_raw:
-                unit_title = unit.get("title", "")
+            for ui, unit in enumerate(units_raw):
                 lessons_raw = unit.get("subComponents", [])
                 lessons_raw.sort(key=lambda l: l.get("sortOrder", ""))
-
-                # Filter out Advanced Organizer items
                 lessons_raw = [
                     les for les in lessons_raw
                     if "advanced organizer" not in (les.get("title", "")).lower()
                     and "organizer submission" not in (les.get("title", "")).lower()
                 ]
-
-                # Also create synthetic lessons from unit-level resources if no sub-lessons
                 unit_res = unit.get("componentResources", [])
                 if not lessons_raw and unit_res:
                     for i, ur in enumerate(unit_res):
@@ -660,101 +527,99 @@ class handler(BaseHTTPRequestHandler):
                             "componentResources": [ur],
                         })
 
-                # ── Collect all assessment resource IDs across all lessons first,
-                #    then fetch questions in parallel to avoid Vercel timeout ──
-                lesson_resource_map = []  # [(lesson_idx, res_title, res_id, rurl, component_res_id, kind)]
-
-                lessons_out = []
-                for lesson in lessons_raw:
-                    lesson_title = lesson.get("title", "")
-                    resources = lesson.get("componentResources", [])
-                    li = len(lessons_out)
-                    lessons_out.append({
-                        "title": lesson_title,
+                for li, lesson in enumerate(lessons_raw):
+                    lesson_idx = len(all_lessons)
+                    all_lessons.append((ui, {
+                        "title": lesson.get("title", ""),
                         "sortOrder": lesson.get("sortOrder", ""),
                         "_videos": [],
                         "_articles": [],
                         "_questions": [],
-                    })
+                    }))
 
-                    for res_wrapper in resources:
+                    for res_wrapper in lesson.get("componentResources", []):
                         res = res_wrapper.get("resource", res_wrapper) if isinstance(res_wrapper, dict) else res_wrapper
                         if not isinstance(res, dict):
                             continue
-
                         meta = res.get("metadata") or {}
                         rurl = meta.get("url", "") or res.get("url", "") or meta.get("href", "") or res.get("href", "")
                         res_id = res.get("id", "") or res.get("sourcedId", "") or ""
-                        component_res_id = (
-                            (res_wrapper.get("sourcedId", "") if isinstance(res_wrapper, dict) else "")
-                            or (res_wrapper.get("id", "") if isinstance(res_wrapper, dict) else "")
-                            or res_id
-                        )
                         res_title = res.get("title", "")
                         rtype = (meta.get("type", "") or res.get("type", "")).lower()
 
                         if rtype == "video":
-                            lessons_out[li]["_videos"].append({
+                            all_lessons[lesson_idx][1]["_videos"].append({
                                 "title": res_title, "url": rurl, "id": res_id,
                             })
+                        elif "stimuli" in rurl:
+                            all_resources.append((lesson_idx, res_title, res_id, rurl, "article"))
                         else:
-                            # Try PowerPath for EVERYTHING that isn't a video.
-                            # If it returns questions, great. If not, treat as article.
-                            lesson_resource_map.append(
-                                (li, res_title, res_id, rurl, component_res_id)
-                            )
+                            all_resources.append((lesson_idx, res_title, res_id, rurl, "assessment"))
 
-                # ── Parallel fetch: all assessment resources at once ──
-                def _fetch_one(entry):
-                    li, res_title, res_id, rurl, crid = entry
-                    questions = []
-                    if user_id and crid:
-                        raw_qs = _fetch_questions_powerpath(user_id, crid, pp_headers)
-                        for rq in raw_qs:
-                            parsed = _parse_powerpath_question(rq)
-                            if parsed:
-                                questions.append(parsed)
-                    return (li, res_title, res_id, rurl, questions)
+            # 3. Parallel fetch: ALL resources in ONE batch (read-only GETs only)
+            debug["attempted"] = len(all_resources)
 
-                with ThreadPoolExecutor(max_workers=8) as pool:
-                    futures = [pool.submit(_fetch_one, e) for e in lesson_resource_map]
-                    for f in as_completed(futures):
-                        try:
-                            li, res_title, res_id, rurl, questions = f.result()
-                            if questions:
-                                lessons_out[li]["_questions"].extend(questions)
-                            else:
-                                # No questions returned — treat as article
-                                article_text = _fetch_article_content(rurl, res_id, qti_headers)
-                                lessons_out[li]["_articles"].append({
-                                    "title": res_title, "url": rurl, "id": res_id,
-                                    "content": article_text[:5000] if article_text else "",
-                                })
-                        except Exception:
-                            pass
+            def _process_resource(entry):
+                lesson_idx, res_title, res_id, rurl, kind = entry
+                if kind == "assessment":
+                    questions = _fetch_questions_from_qti(rurl, res_id, qti_headers)
+                    if questions:
+                        return (lesson_idx, "questions", questions)
+                # Either it's an article, or assessment returned no questions
+                article_text = _fetch_article_content(rurl, res_id, qti_headers)
+                return (lesson_idx, "article", {
+                    "title": res_title, "url": rurl, "id": res_id,
+                    "content": article_text[:5000] if article_text else "",
+                })
 
-                # ── Finalize lesson data ──
-                for ld in lessons_out:
-                    lesson_questions = ld.pop("_questions")
-                    lesson_videos = ld.pop("_videos")
-                    lesson_articles = ld.pop("_articles")
-                    ld["questionCount"] = len(lesson_questions)
-                    ld["questions"] = lesson_questions
-                    if lesson_videos:
-                        ld["videos"] = lesson_videos
-                        ld["videoCount"] = len(lesson_videos)
-                    if lesson_articles:
-                        ld["articles"] = lesson_articles
-                        ld["articleCount"] = len(lesson_articles)
-                    total_questions += len(lesson_questions)
-                    total_videos += len(lesson_videos)
-                    total_articles += len(lesson_articles)
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                futures = [pool.submit(_process_resource, e) for e in all_resources]
+                for f in as_completed(futures):
+                    try:
+                        lesson_idx, result_type, data = f.result()
+                        if result_type == "questions":
+                            all_lessons[lesson_idx][1]["_questions"].extend(data)
+                            debug["succeeded"] += 1
+                        else:
+                            all_lessons[lesson_idx][1]["_articles"].append(data)
+                            debug["succeeded"] += 1
+                    except Exception:
+                        debug["failed"] += 1
 
+            # 4. Build final response
+            units_out = []
+            total_questions = 0
+            total_videos = 0
+            total_articles = 0
+
+            # Group lessons back into units
+            unit_lessons = {}
+            for lesson_idx, (ui, ld) in enumerate(all_lessons):
+                if ui not in unit_lessons:
+                    unit_lessons[ui] = []
+                questions = ld.pop("_questions")
+                videos = ld.pop("_videos")
+                articles = ld.pop("_articles")
+                ld["questionCount"] = len(questions)
+                ld["questions"] = questions
+                if videos:
+                    ld["videos"] = videos
+                    ld["videoCount"] = len(videos)
+                if articles:
+                    ld["articles"] = articles
+                    ld["articleCount"] = len(articles)
+                total_questions += len(questions)
+                total_videos += len(videos)
+                total_articles += len(articles)
+                unit_lessons[ui].append(ld)
+
+            for ui, unit in enumerate(units_raw):
+                lessons = unit_lessons.get(ui, [])
                 units_out.append({
-                    "title": unit_title,
+                    "title": unit.get("title", ""),
                     "sortOrder": unit.get("sortOrder", ""),
-                    "lessonCount": len(lessons_out),
-                    "lessons": lessons_out,
+                    "lessonCount": len(lessons),
+                    "lessons": lessons,
                 })
 
             send_json(self, {
@@ -765,6 +630,7 @@ class handler(BaseHTTPRequestHandler):
                 "totalArticles": total_articles,
                 "unitCount": len(units_out),
                 "units": units_out,
+                "_debug": debug,
             })
 
         except Exception as e:
