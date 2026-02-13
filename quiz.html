@@ -379,11 +379,27 @@
             btn.style.display = 'inline-flex';
             btn.innerHTML = '<i class="fa-solid fa-eye"></i> Answers';
             btn.onclick = function() {
-                document.body.classList.toggle('show-answer-key');
+                var active = document.body.classList.toggle('show-answer-key');
                 btn.classList.toggle('active');
-                btn.innerHTML = btn.classList.contains('active')
+                btn.innerHTML = active
                     ? '<i class="fa-solid fa-eye-slash"></i> Hide'
                     : '<i class="fa-solid fa-eye"></i> Answers';
+                // Dynamically inject / remove answer dots
+                document.querySelectorAll('.answer-dot').forEach(function(d) { d.remove(); });
+                if (active) {
+                    var q = quizState.questions[quizState.questionNum];
+                    var cid = q && (q.correctId || '');
+                    if (cid) {
+                        document.querySelectorAll('.choice').forEach(function(c) {
+                            if (c.dataset.id === cid) {
+                                var dot = document.createElement('span');
+                                dot.className = 'answer-dot';
+                                dot.style.display = 'block';
+                                c.querySelector('.choice-text').after(dot);
+                            }
+                        });
+                    }
+                }
             };
             document.body.appendChild(btn);
         }
@@ -611,11 +627,10 @@
                 var cText = c.text || c.label || c.value || c.content || (typeof c === 'string' ? c : '');
                 if (typeof cText === 'object') cText = renderNode(cText);
                 var cId = c.id || c.identifier || letters[i] || String(i);
-                var answerDot = (_correctId && cId === _correctId) ? '<span class="answer-dot"></span>' : '';
                 var crossedCls = co[cId] ? ' crossed-out' : '';
                 questionHtml += '<div class="choice' + crossedCls + '" data-id="' + esc(cId) + '" onclick="selectAnswer(this, \'' + esc(cId) + '\')">' +
                     '<div class="choice-letter">' + (letters[i] || i) + '</div>' +
-                    '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' + answerDot +
+                    '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' +
                     '<button class="crossout-btn" onclick="event.stopPropagation();crossOutChoice(this.parentElement,\'' + esc(cId) + '\')" title="Cross out"><i class="fa-solid fa-xmark"></i></button>' +
                 '</div>';
             }
