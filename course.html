@@ -787,25 +787,34 @@
                         // Also check componentResources by unique ID only (not title — titles repeat across units)
                         var pRes = pLesson.componentResources || [];
                         var pHasQuizComplete = false;  // Track if any resource has PowerPath score > 0 (quiz completion)
+                        var pCompletedCount = 0;       // Track how many resources are fully complete
+                        var pTotalCount = pRes.length;  // Total resources in this lesson
                         if (pRes.length > 0) {
                             for (var _pri = 0; _pri < pRes.length; _pri++) {
                                 var _prr = pRes[_pri].resource || pRes[_pri] || {};
                                 var _prId = _prr.id || _prr.sourcedId || pRes[_pri].id || pRes[_pri].sourcedId || '';
                                 var _prProg = _prId ? progressById[_prId] : null;
+                                // Also check via assessmentLineItemSourcedId (consistent with rendering logic)
+                                if (!_isComplete(_prProg)) {
+                                    var _prAli = (_prId && assessmentLineItemByResId[_prId]) || '';
+                                    if (_prAli && _isComplete(progressById[_prAli])) {
+                                        _prProg = progressById[_prAli];
+                                    }
+                                }
                                 if (_prProg && _isComplete(_prProg)) {
                                     if (!pLDone) pLDone = true;
+                                    pCompletedCount++;
                                 }
-                                // Frontier advances when ANY resource has a positive score (fully graded).
-                                // Videos/articles have score=0 in getCourseProgress so they won't pass.
-                                // Only actual quiz completions (score > 0) advance the frontier.
+                                // Track quiz completions (score > 0) separately for other uses.
                                 if (_isQuizComplete(_prProg)) {
                                     pHasQuizComplete = true;
                                 }
                             }
                         }
-                        // Frontier: only advance when PowerPath score reaches 100 on a quiz resource.
+                        // Frontier: only advance when ALL activities in the lesson are complete.
+                        // The next lesson must NOT unlock until every activity is finished.
                         // API data is the single source of truth — no localStorage.
-                        var pHasAny = pHasQuizComplete;
+                        var pHasAny = (pTotalCount > 0 && pCompletedCount === pTotalCount);
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
                         if (pLDone) { grandDoneAct += pCount; }
