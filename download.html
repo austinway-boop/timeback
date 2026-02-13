@@ -219,7 +219,16 @@ function setStatus(html) {
         .then(function (r) { return r.json(); })
         .then(function (data) {
             var courses = data.courses || [];
-            apCourses = courses.filter(function (c) { return isAPCourse(c.title); });
+            // Filter AP courses and deduplicate by title (OneRoster returns
+            // separate entries per section/term/teacher for the same course).
+            var seen = {};
+            apCourses = courses.filter(function (c) {
+                if (!isAPCourse(c.title)) return false;
+                var key = (c.title || '').trim().toLowerCase();
+                if (seen[key]) return false;
+                seen[key] = true;
+                return true;
+            });
 
             document.getElementById('courses-loading').style.display = 'none';
 
