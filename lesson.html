@@ -1896,10 +1896,9 @@
 
         quizState.finished = true;
         var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
-        // PowerPath mastery: quiz is only "passed" when ppScore reaches 100
-        // Accuracy alone (pct >= 90) is NOT enough — the PowerPath scoring must confirm mastery
-        var passed = quizState.ppScore >= 100 && pct >= 80;
-        if (pct < 80) quizState.xpEarned = 0;
+        // Completion-based: quiz is "passed" when the student finishes it
+        // Accuracy does NOT gate progression — only completion matters
+        var passed = quizState.finished;
 
         console.log('[Quiz] Results — ppScore:', quizState.ppScore, 'accuracy:', pct + '%', 'passed:', passed, 'total:', quizState.total);
 
@@ -1933,15 +1932,15 @@
 
         // ═══ Now render the results UI with authoritative XP ═══
         if (!quizArea) quizArea = document.getElementById('quiz-area');
-        var resultColor = passed ? '#16A34A' : pct >= 80 ? '#D97706' : '#DC2626';
+        var resultColor = '#16A34A';
         var incorrect = quizState.total - quizState.correct;
         var resultHtml = '<div class="result-card">' +
-            '<div class="result-emoji">' + (passed ? '🎉' : pct >= 80 ? '👍' : '📝') + '</div>' +
+            '<div class="result-emoji">🎉</div>' +
             '<div class="result-score" style="color:' + resultColor + ';">' + pct + '%</div>' +
-            '<div class="result-label">' + (passed ? 'Mastery Achieved!' : pct >= 80 ? 'Good Work!' : 'Keep Practicing') + '</div>' +
+            '<div class="result-label">Lesson Complete!</div>' +
             '<div class="result-summary">' + quizState.correct + ' of ' + quizState.total + ' correct' + (incorrect > 0 ? ' &middot; ' + incorrect + ' missed' : '') + '</div>' +
-            (quizState.xpEarned > 0 ? '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned</div>' : (pct < 80 ? '<div class="xp-badge xp-badge-muted"><i class="fa-solid fa-bolt"></i> Need 80%+ to earn XP</div>' : '')) +
-            (passed ? '<div class="result-complete"><i class="fa-solid fa-circle-check"></i> Lesson complete</div>' : '') +
+            (quizState.xpEarned > 0 ? '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned</div>' : '') +
+            '<div class="result-complete"><i class="fa-solid fa-circle-check"></i> Lesson complete</div>' +
         '</div>';
 
         if (quizArea) {

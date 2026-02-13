@@ -796,29 +796,24 @@
         _clearProgress();
 
         var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
-        var passed = pct >= 90;
-        var noXp = pct < 80;
-
-        // Calculate XP: no XP below 80% accuracy
-        if (noXp) quizState.xpEarned = 0;
+        // Completion-based: finishing the quiz = passed. Accuracy does not gate progression.
+        var passed = true;
 
         area.innerHTML = '<div class="result-card">' +
-            '<div style="font-size:3rem;margin-bottom:8px;">' + (passed ? '🎉' : pct >= 80 ? '👍' : '📝') + '</div>' +
+            '<div style="font-size:3rem;margin-bottom:8px;">🎉</div>' +
             '<div class="result-score">' + pct + '%</div>' +
-            '<div class="result-label">' + (passed ? 'Mastery Achieved!' : pct >= 80 ? 'Good Work!' : 'Keep Practicing') + '</div>' +
-            '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned' + (noXp ? ' (need ≥80% for XP)' : '') + '</div>' +
+            '<div class="result-label">Quiz Complete!</div>' +
+            (quizState.xpEarned > 0 ? '<div class="xp-badge"><i class="fa-solid fa-bolt"></i> ' + quizState.xpEarned + ' XP earned</div>' : '') +
             '<div class="result-details">' +
                 '<div class="result-stat"><div class="result-stat-val" style="color:#2E7D32;">' + quizState.correct + '</div><div class="result-stat-label">Correct</div></div>' +
                 '<div class="result-stat"><div class="result-stat-val">' + (quizState.total - quizState.correct) + '</div><div class="result-stat-label">Incorrect</div></div>' +
                 '<div class="result-stat"><div class="result-stat-val">' + quizState.total + '</div><div class="result-stat-label">Questions</div></div>' +
-                '<div class="result-stat"><div class="result-stat-val" style="color:' + (passed ? '#2E7D32' : pct >= 80 ? '#F9A825' : '#E53E3E') + ';">' + pct + '%</div><div class="result-stat-label">Accuracy</div></div>' +
+                '<div class="result-stat"><div class="result-stat-val" style="color:#2E7D32;">' + pct + '%</div><div class="result-stat-label">Accuracy</div></div>' +
             '</div>' +
-            (passed ? '<div style="margin-top:16px;padding:12px 20px;background:#E8F5E9;border-radius:10px;color:#1B5E20;font-size:0.9rem;"><i class="fa-solid fa-check-circle" style="margin-right:6px;"></i>This lesson is now marked as complete. You can proceed to the next lesson.</div>' : '') +
-            (!passed && pct >= 80 ? '<div style="margin-top:16px;font-size:0.88rem;color:var(--color-text-muted);">Need ≥90% for mastery. You earned XP but need <strong>' + (90 - pct) + '% more</strong> to advance.</div>' : '') +
-            (!passed && pct < 80 ? '<div style="margin-top:16px;font-size:0.88rem;color:#E53E3E;">Below 80% — no XP awarded. Review the material and try again.</div>' : '') +
+            '<div style="margin-top:16px;padding:12px 20px;background:#E8F5E9;border-radius:10px;color:#1B5E20;font-size:0.9rem;"><i class="fa-solid fa-check-circle" style="margin-right:6px;"></i>This lesson is now marked as complete. You can proceed to the next lesson.</div>' +
             '<div style="margin-top:24px;display:flex;gap:12px;justify-content:center;">' +
-                (passed ? '<button class="quiz-btn quiz-btn-primary" onclick="history.back()"><i class="fa-solid fa-arrow-right"></i> Continue to Next Lesson</button>' : '<button class="quiz-btn quiz-btn-primary" onclick="_retryQuiz()"><i class="fa-solid fa-redo"></i> Try Again</button>') +
-                '<button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course' + (passed ? ' (Progress Saved)' : '') + '</button>' +
+                '<button class="quiz-btn quiz-btn-primary" onclick="history.back()"><i class="fa-solid fa-arrow-right"></i> Continue to Next Lesson</button>' +
+                '<button class="quiz-btn quiz-btn-secondary" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back to Course (Progress Saved)</button>' +
             '</div>' +
         '</div>';
 
