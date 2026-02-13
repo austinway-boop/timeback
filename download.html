@@ -293,7 +293,7 @@ function extractContent() {
     document.getElementById('results').style.display = 'none';
     setStatus('<span class="spinner"></span> Fetching lesson plan tree, videos, articles &amp; questions...');
 
-    fetch('/api/_temp_extract?courseId=' + encodeURIComponent(selectedCourseId))
+    fetch('/api/temp-extract?courseId=' + encodeURIComponent(selectedCourseId))
         .then(function (r) { return r.json(); })
         .then(function (data) {
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Extract Content';
