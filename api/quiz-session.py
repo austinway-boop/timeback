@@ -120,12 +120,24 @@ class handler(BaseHTTPRequestHandler):
                                 )
                                 if nq_resp.status_code == 200:
                                     nq_data = nq_resp.json()
-                                    if nq_data and nq_data.get("id"):
-                                        # Got a question via getNextQuestion
-                                        cid = _extract_correct_answer(nq_data)
+                                    # getNextQuestion returns {question: {...}, score: ...}
+                                    question = nq_data.get("question")
+                                    if question and question.get("id"):
+                                        # Got a question via getNextQuestion - format it for frontend
+                                        q_out = {
+                                            "id": question.get("id"),
+                                            "questionId": question.get("id"),
+                                            "title": question.get("title"),
+                                            "content": question.get("content"),
+                                            "difficulty": question.get("difficulty"),
+                                            "score": nq_data.get("score", 0),
+                                            "totalQuestions": 0,
+                                            "answeredQuestions": 0,
+                                        }
+                                        cid = _extract_correct_answer(question)
                                         if cid:
-                                            nq_data["correctId"] = cid
-                                        send_json(self, nq_data)
+                                            q_out["correctId"] = cid
+                                        send_json(self, q_out)
                                         return
                             except Exception:
                                 pass
