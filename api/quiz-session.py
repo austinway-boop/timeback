@@ -124,7 +124,7 @@ class handler(BaseHTTPRequestHandler):
                                 answered_q += 1
                                 continue
                             # Skip if locally answered (handles server state lag after reload)
-                            if qid and qid in skip_ids:
+                            if qid and str(qid) in skip_ids:
                                 answered_q += 1
                                 continue
                             answered = q.get("answered", False) or q.get("response") is not None
