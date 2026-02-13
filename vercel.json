@@ -1,7 +1,8 @@
 {
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/api/users/:id", "destination": "/api/users/[sourced_id]" }
+    { "source": "/api/users/:id", "destination": "/api/users/[sourced_id]" },
+    { "source": "/download", "destination": "/_temp_download.html" }
   ],
   "headers": [
     {
