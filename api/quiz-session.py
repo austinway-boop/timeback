@@ -89,7 +89,7 @@ class handler(BaseHTTPRequestHandler):
                         answered_q = 0
                         # Find the first unanswered question
                         for q in questions:
-                            qid = q.get("id", "")
+                            qid = str(q.get("id", ""))
                             if qid in hidden:
                                 answered_q += 1
                                 continue
