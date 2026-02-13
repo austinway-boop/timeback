@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-from api._kv import kv_get, kv_set, kv_list_get, kv_list_push
+from _kv import kv_get, kv_set, kv_list_get, kv_list_push
 
 DAILY_LIMIT = 5
 CONFIG_KEY = "reporting_config"

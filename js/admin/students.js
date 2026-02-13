@@ -78,7 +78,7 @@ async function loadCoursesForPicker(pickerId, append) {
     try {
         const params = new URLSearchParams({limit:COURSES_PER_PAGE, offset:state.offset});
         if (state.searchQuery) params.set('q', state.searchQuery);
-        const resp = await fetch(`/api/courses/search?${params}`);
+        const resp = await fetch(`/api/courses-search?${params}`);
         const data = await resp.json();
         const newCourses = data.courses || [];
         state.courses = append ? state.courses.concat(newCourses) : newCourses;
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', init);
 async function init() {
     showSkeleton(10);
     try {
-        const resp = await fetch('/api/users/index');
+        const resp = await fetch('/api/users');
         const data = await resp.json();
         allUsers = data.users || [];
         // Merge in locally-created users
@@ -301,7 +301,7 @@ async function viewStudent(id) {
     document.getElementById('student-modal').classList.add('open');
     document.getElementById('modal-body').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:40px;"><div class="loading-spinner"></div></div>';
     try {
-        const [uResp, eResp, tsResp] = await Promise.all([fetch(`/api/users/${id}`), fetch(`/api/enrollments/index?userId=${id}`), fetch(`/api/activity/time-saved?userId=${id}`)]);
+        const [uResp, eResp, tsResp] = await Promise.all([fetch(`/api/users/${id}`), fetch(`/api/enrollments?userId=${id}`), fetch(`/api/time-saved?userId=${id}`)]);
         const u = (await uResp.json()).user;
         let enrollments = []; try { const ed = await eResp.json(); enrollments = ed.data || ed.enrollments || []; } catch {}
         let timeSaved = {}; try { timeSaved = await tsResp.json(); } catch {}
@@ -426,7 +426,7 @@ async function changeRole(userId) {
     alert.className = 'alert alert-info'; alert.textContent = 'Updating...';
 
     try {
-        const resp = await fetch('/api/users/role', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId, newRole}) });
+        const resp = await fetch('/api/update-role', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId, newRole}) });
         if (resp.ok) {
             alert.className = 'alert alert-success'; alert.textContent = `Role updated to ${newRole}.`;
         } else { throw new Error(); }
@@ -454,7 +454,7 @@ function addWhitelistEmail() {
 async function loadAnalytics(email) {
     const c = document.getElementById('analytics-details'); if(!c) return;
     try {
-        const resp = await fetch(`/api/analytics/index?email=${encodeURIComponent(email)}`);
+        const resp = await fetch(`/api/analytics?email=${encodeURIComponent(email)}`);
         const data = await resp.json();
         const facts = data.facts || {};
         const subjectXP = {};
@@ -467,7 +467,7 @@ async function loadAnalytics(email) {
 async function loadAssignDropdowns() {
     initCoursePicker('modal');
 
-    if (!lineItemsCache) { try { const r=await fetch('/api/lineitems/index');const d=await r.json();lineItemsCache=d.lineItems||[]; } catch { lineItemsCache=[]; } }
+    if (!lineItemsCache) { try { const r=await fetch('/api/line-items');const d=await r.json();lineItemsCache=d.lineItems||[]; } catch { lineItemsCache=[]; } }
     const ts = document.getElementById('modal-test-select');
     if(ts){ts.innerHTML='<option value="">Select a test...</option>'+lineItemsCache.map(t=>`<option value="${t.sourcedId}">${esc(t.title||t.name||'Untitled')}</option>`).join('');ts.onchange=function(){const b=document.getElementById('modal-test-btn');if(b)b.disabled=!this.value;};}
 }
@@ -477,7 +477,7 @@ async function removeEnrollment(enrollmentId, courseTitle, btn) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     try {
-        const resp = await fetch('/api/enrollments/index', {
+        const resp = await fetch('/api/enrollments', {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ sourcedId: enrollmentId }),
@@ -505,7 +505,7 @@ async function assignCourseModal() {
     const studentName=student?`${student.givenName} ${student.familyName}`:currentStudentId;
     a.className='alert alert-info'; a.textContent=`Enrolling ${studentName} in "${courseName}"...`;
     try {
-        const resp=await fetch('/api/enrollments/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:currentStudentId,courseId:state.selectedId,role:'student'})});
+        const resp=await fetch('/api/enrollments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:currentStudentId,courseId:state.selectedId,role:'student'})});
         const data=await resp.json().catch(()=>({}));
         if(resp.ok&&data.success){
             a.className='alert alert-success'; a.textContent=`${studentName} enrolled in "${courseName}".`;
@@ -524,7 +524,7 @@ async function assignTestModal() {
     const studentName=student?`${student.givenName} ${student.familyName}`:currentStudentId;
     a.className='alert alert-info'; a.textContent='Submitting...';
     try {
-        const resp=await fetch('/api/tests/assign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId:currentStudentId,lineItemId:s.value})});
+        const resp=await fetch('/api/assign-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId:currentStudentId,lineItemId:s.value})});
         const data=await resp.json().catch(()=>({}));
         if(resp.ok&&data.success&&data.applied){
             a.className='alert alert-success';a.textContent=`Test "${testName}" assigned to ${studentName}.`;
@@ -594,7 +594,7 @@ async function confirmBulkCourse(){
     let okCount=0,failCount=0;
     for(const u of assignTargetUsers){
         try{
-            const r=await fetch('/api/enrollments/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:u.sourcedId,courseId:state.selectedId,role:'student'})});
+            const r=await fetch('/api/enrollments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:u.sourcedId,courseId:state.selectedId,role:'student'})});
             const d=await r.json().catch(()=>({}));
             if(r.ok&&d.success) okCount++; else failCount++;
         }catch{failCount++;}
@@ -617,7 +617,7 @@ async function bulkAssignTest() {
     document.getElementById('bulk-test-target').textContent=`Assigning to ${assignTargetUsers.length} student${assignTargetUsers.length>1?'s':''}`;
     document.getElementById('bulk-test-modal').classList.add('open');
     document.getElementById('bulk-test-alert').className='alert';document.getElementById('bulk-test-alert').textContent='';
-    if(!lineItemsCache){try{const r=await fetch('/api/lineitems/index');const d=await r.json();lineItemsCache=d.lineItems||[];}catch{lineItemsCache=[];}}
+    if(!lineItemsCache){try{const r=await fetch('/api/line-items');const d=await r.json();lineItemsCache=d.lineItems||[];}catch{lineItemsCache=[];}}
     const s=document.getElementById('bulk-test-select');
     s.innerHTML='<option value="">Select a test...</option>'+lineItemsCache.map(t=>`<option value="${t.sourcedId}">${esc(t.title||t.name||'Untitled')}</option>`).join('');
     s.onchange=function(){document.getElementById('bulk-test-confirm').disabled=!this.value;};
@@ -629,7 +629,7 @@ async function confirmBulkTest(){
     let okCount=0,failCount=0;
     for(const u of assignTargetUsers){
         try{
-            const r=await fetch('/api/tests/assign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId:u.sourcedId,lineItemId:s.value})});
+            const r=await fetch('/api/assign-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId:u.sourcedId,lineItemId:s.value})});
             const d=await r.json().catch(()=>({}));
             if(r.ok&&d.success&&d.applied) okCount++; else failCount++;
         }catch{failCount++;}
@@ -650,7 +650,7 @@ var _reportingConfig = null;
 
 async function loadReportingConfig() {
     try {
-        const resp = await fetch('/api/reports/config');
+        const resp = await fetch('/api/reporting-config');
         const data = await resp.json();
         _reportingConfig = data.config || { globalEnabled: true, students: {} };
         updateGlobalReportingBtn();
@@ -673,7 +673,7 @@ async function toggleGlobalReporting() {
     if (!_reportingConfig) return;
     const newState = !_reportingConfig.globalEnabled;
     try {
-        const resp = await fetch('/api/reports/config', {
+        const resp = await fetch('/api/reporting-config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ global: true, enabled: newState }),
@@ -691,7 +691,7 @@ async function toggleGlobalReporting() {
 
 async function toggleStudentReporting(studentId, enabled) {
     try {
-        const resp = await fetch('/api/reports/config', {
+        const resp = await fetch('/api/reporting-config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ studentId: studentId, enabled: enabled }),

@@ -88,7 +88,7 @@ let currentUserId = '';
 
 async function apiSaveGoal(enrollmentId, goalData) {
     try {
-        const resp = await fetch('/api/goals/index', {
+        const resp = await fetch('/api/goals', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: currentUserId, enrollmentId, ...goalData }),
@@ -378,9 +378,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     try {
         /* 1. Fire user-lookup AND enrollments in parallel if we have a cached userId */
         const cachedUid = localStorage.getItem('alphalearn_userId') || '';
-        const luPromise = fetch(`/api/users/lookup?email=${encodeURIComponent(email)}`).then(r => r.json());
+        const luPromise = fetch(`/api/user-lookup?email=${encodeURIComponent(email)}`).then(r => r.json());
         const earlyEnroll = cachedUid
-            ? fetch(`/api/enrollments/index?userId=${cachedUid}`).then(r => r.json())
+            ? fetch(`/api/enrollments?userId=${cachedUid}`).then(r => r.json())
             : null;
 
         const lu = await luPromise;
@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (earlyEnroll && uid === cachedUid) {
             ed = await earlyEnroll;
         } else {
-            ed = await (await fetch(`/api/enrollments/index?userId=${uid}`)).json();
+            ed = await (await fetch(`/api/enrollments?userId=${uid}`)).json();
         }
         const raw = ed.data || ed.enrollments || ed.courses || (Array.isArray(ed) ? ed : []);
         const now = new Date();
@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
 
         // Fetch goals from KV API in parallel with analytics
-        const goalsPromise = fetch(`/api/goals/index?userId=${encodeURIComponent(uid)}`)
+        const goalsPromise = fetch(`/api/goals?userId=${encodeURIComponent(uid)}`)
             .then(r => r.json())
             .then(d => { GOALS = d.goals || {}; })
             .catch(e => console.warn('[AlphaLearn] Goals unavailable:', e.message));
@@ -465,7 +465,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         // Fire per-enrollment analytics calls in parallel for every course with an enrollment ID
         const analyticsPromises = ALL.map((c, i) => {
             if (!c._enrollmentId) return Promise.resolve(null);
-            return fetch(`/api/enrollments/analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startParam}&endDate=${endParam}&timezone=${encodeURIComponent(tz)}`)
+            return fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startParam}&endDate=${endParam}&timezone=${encodeURIComponent(tz)}`)
                 .then(r => r.json())
                 .then(data => ({ i, data }))
                 .catch(() => null);
@@ -545,7 +545,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (!isLesson(c) || c.totalLessons > 0) return null;
             const courseId = (c._course && (c._course.sourcedId || c._course.id)) || '';
             if (!courseId) return null;
-            return fetch(`/api/courses/info?courseId=${encodeURIComponent(courseId)}`)
+            return fetch(`/api/course-info?courseId=${encodeURIComponent(courseId)}`)
                 .then(r => r.json())
                 .then(d => { if (d.totalLessons) ALL[i].totalLessons = d.totalLessons; })
                 .catch(() => null);

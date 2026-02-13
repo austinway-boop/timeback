@@ -10,7 +10,7 @@ function esc(s) { if (s == null) return ''; if (typeof s !== 'string') s = Strin
 /* ── Load reports ── */
 async function loadReports() {
     try {
-        var resp = await fetch('/api/reports/queue');
+        var resp = await fetch('/api/report-queue');
         var data = await resp.json();
         allReports = data.reports || [];
         renderStats(data.stats || {});
@@ -196,7 +196,7 @@ function buildReportCard(r) {
 /* ── Admin actions ── */
 async function doAction(reportId, action) {
     try {
-        var resp = await fetch('/api/reports/queue', {
+        var resp = await fetch('/api/report-queue', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ reportId: reportId, action: action }),

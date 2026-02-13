@@ -12,7 +12,7 @@ import os
 import re
 from http.server import BaseHTTPRequestHandler
 
-from api._kv import kv_get, kv_set, kv_list_get, kv_list_push
+from _kv import kv_get, kv_set, kv_list_get, kv_list_push
 
 OPENAI_KEY = os.environ.get("OPEN_AI_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.2-thinking")

@@ -143,7 +143,7 @@
         // ── Fetch enrollment ───────────────────────────────────────
         var enrollment = null;
         try {
-            var resp = await fetch('/api/enrollments/index?userId=' + encodeURIComponent(userId));
+            var resp = await fetch('/api/enrollments?userId=' + encodeURIComponent(userId));
             var data = await resp.json();
             var enrollments = data.data || data.enrollments || data.courses || (Array.isArray(data) ? data : []);
             for (var i = 0; i < enrollments.length; i++) {
@@ -207,7 +207,7 @@
             var enrollmentId = enrollment.id || enrollment.sourcedId || '';
             var courseSourcedId = course.sourcedId || course.id || '';
 
-            var contentUrl = '/api/courses/content?';
+            var contentUrl = '/api/course-content?';
             if (courseSourcedId) contentUrl += 'courseId=' + encodeURIComponent(courseSourcedId);
             if (enrollmentId) contentUrl += '&enrollmentId=' + encodeURIComponent(enrollmentId);
             if (userId) contentUrl += '&userId=' + encodeURIComponent(userId);

@@ -491,9 +491,9 @@
         try {
             /* 1. Fire user-lookup AND enrollments in parallel when we have a cached userId.
              *    This saves a full API round-trip on return visits (~200-500ms). */
-            const lookupPromise = fetch(`/api/users/lookup?email=${encodeURIComponent(email)}`).then(r => r.json());
+            const lookupPromise = fetch(`/api/user-lookup?email=${encodeURIComponent(email)}`).then(r => r.json());
             const earlyEnrollPromise = cachedUserId
-                ? fetch(`/api/enrollments/index?userId=${cachedUserId}`).then(r => r.json())
+                ? fetch(`/api/enrollments?userId=${cachedUserId}`).then(r => r.json())
                 : null;
 
             const lookupData = await lookupPromise;
@@ -543,7 +543,7 @@
             if (earlyEnrollPromise && userId === cachedUserId) {
                 enrollData = await earlyEnrollPromise;
             } else {
-                const enrollResp = await fetch(`/api/enrollments/index?userId=${userId}`);
+                const enrollResp = await fetch(`/api/enrollments?userId=${userId}`);
                 enrollData = await enrollResp.json();
             }
 
@@ -631,7 +631,7 @@
             // Fetch test assignments from PowerPath
             let ppAssignments = [];
             try {
-                const ppResp = await fetch('/api/tests/assign?student=' + encodeURIComponent(userId));
+                const ppResp = await fetch('/api/assign-test?student=' + encodeURIComponent(userId));
                 const ppData = await ppResp.json();
                 ppAssignments = (ppData.testAssignments || []).filter(a => {
                     const st = (a.assignmentStatus || a.status || '').toLowerCase();
@@ -713,7 +713,7 @@
             const hasInternalCourses = courses.some(c => isInternalCourse(c));
             await Promise.all([
                 // Load goals from KV API
-                fetch(`/api/goals/index?userId=${encodeURIComponent(userId)}`)
+                fetch(`/api/goals?userId=${encodeURIComponent(userId)}`)
                     .then(r => r.json())
                     .then(d => { savedGoals = d.goals || {}; })
                     .catch(e => { console.warn('[AlphaLearn] Goals unavailable:', e.message); }),
@@ -771,7 +771,7 @@
             const ac = new AbortController();
             setTimeout(function() { ac.abort(); }, 10000); // 10s timeout
             const resp = await fetch(
-                `/api/analytics/index?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}&timezone=${encodeURIComponent(userTimezone)}`,
+                `/api/analytics?email=${encodeURIComponent(email)}&startDate=${startDate}&endDate=${endDate}&timezone=${encodeURIComponent(userTimezone)}`,
                 { signal: ac.signal }
             );
             const data = await resp.json();
@@ -846,7 +846,7 @@
                         if (!isInternalCourse(c)) continue;
                         if (!c._enrollmentId) continue;
                         lessonPromises.push(
-                            fetch(`/api/enrollments/analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}&timezone=${encodeURIComponent(userTimezone)}`)
+                            fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}&timezone=${encodeURIComponent(userTimezone)}`)
                                 .then(r => r.json())
                                 .then(data => ({ idx, data }))
                                 .catch(() => null)
@@ -942,7 +942,7 @@
                 if (!c._enrollmentId) continue;
 
                 promises.push(
-                    fetch(`/api/enrollments/analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}&timezone=${encodeURIComponent(userTimezone)}`)
+                    fetch(`/api/enrollment-analytics?enrollmentId=${encodeURIComponent(c._enrollmentId)}&startDate=${startDate}&endDate=${endDate}&timezone=${encodeURIComponent(userTimezone)}`)
                         .then(r => r.json())
                         .then(data => ({ i, data }))
                         .catch(() => null)
@@ -992,7 +992,7 @@
             if (!isInternalCourse(c) || c.totalLessons > 0) return null;
             const cid = (c._course && (c._course.sourcedId || c._course.id)) || '';
             if (!cid) return null;
-            return fetch(`/api/courses/info?courseId=${encodeURIComponent(cid)}`)
+            return fetch(`/api/course-info?courseId=${encodeURIComponent(cid)}`)
                 .then(r => r.json())
                 .then(d => { if (d.totalLessons) allCourses[i].totalLessons = d.totalLessons; })
                 .catch(() => null);

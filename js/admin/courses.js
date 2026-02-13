@@ -92,8 +92,8 @@
     async function refreshData(silent) {
         try {
             const [coursesResp, classesResp] = await Promise.all([
-                fetch('/api/courses/index'),
-                fetch('/api/org/classes')
+                fetch('/api/courses'),
+                fetch('/api/classes')
             ]);
             const coursesData = await coursesResp.json();
             const classesData = await classesResp.json();
@@ -265,7 +265,7 @@
         renderModal([], true);
         let lineItems = [];
         try {
-            const liResp = await fetch('/api/lineitems/index');
+            const liResp = await fetch('/api/line-items');
             const liData = await liResp.json();
             const classIds = new Set(courseClasses.map(cl => cl.sourcedId));
             lineItems = (liData.lineItems || []).filter(li => classIds.has(li.classSourcedId));
@@ -301,7 +301,7 @@
         if (!allUsers.length) {
             body.innerHTML = '<div style="text-align:center;padding:32px;"><div class="loading-spinner" style="margin:0 auto 12px;"></div>Loading students...</div>';
             try {
-                const resp = await fetch('/api/users/index');
+                const resp = await fetch('/api/users');
                 const data = await resp.json();
                 allUsers = (data.users || []).filter(u => u.role === 'student');
             } catch (e) { body.innerHTML = '<p class="error-text">Failed to load students.</p>'; return; }

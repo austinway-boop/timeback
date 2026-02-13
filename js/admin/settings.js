@@ -78,7 +78,7 @@
 
         if (!adminUsers || !allUsersForPromotion) {
             try {
-                const resp = await fetch('/api/users/index');
+                const resp = await fetch('/api/users');
                 const data = await resp.json();
                 const users = data.users || [];
                 adminUsers = users.filter(u => u.role === 'administrator');
@@ -162,7 +162,7 @@
         const section = document.getElementById('promote-section');
         section.innerHTML = '<div style="text-align:center;padding:16px;"><div class="loading-spinner" style="margin:0 auto 12px;"></div>Promoting...</div>';
         try {
-            const resp = await fetch('/api/users/role', {
+            const resp = await fetch('/api/update-role', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, newRole: 'administrator', email }),
@@ -270,11 +270,11 @@
     /* ==== Integrations =================================================== */
     async function openIntegrations() {
         const endpoints = [
-            { name: 'Users',       url: '/api/users/index',      key: 'users' },
-            { name: 'Courses',     url: '/api/courses/index',    key: 'courses' },
-            { name: 'Classes',     url: '/api/org/classes',    key: 'classes' },
-            { name: 'Enrollments', url: '/api/enrollments/index', key: 'enrollments' },
-            { name: 'Line Items',  url: '/api/lineitems/index', key: 'lineItems' },
+            { name: 'Users',       url: '/api/users',      key: 'users' },
+            { name: 'Courses',     url: '/api/courses',    key: 'courses' },
+            { name: 'Classes',     url: '/api/classes',    key: 'classes' },
+            { name: 'Enrollments', url: '/api/enrollments', key: 'enrollments' },
+            { name: 'Line Items',  url: '/api/line-items', key: 'lineItems' },
         ];
 
         openSettingsModal('Integrations & API Status', `
@@ -383,7 +383,7 @@
     document.addEventListener('DOMContentLoaded', async function () {
         const indicator = document.getElementById('api-status-indicator');
         try {
-            const resp = await fetch('/api/users/index');
+            const resp = await fetch('/api/users');
             if (resp.ok) {
                 const data = await resp.json();
                 const count = data.count || (data.users || []).length;

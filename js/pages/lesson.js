@@ -102,7 +102,7 @@
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
         if (!userId) return;
         // Check if reporting is disabled by admin (default is ON)
-        fetch('/api/reports/question?studentId=' + encodeURIComponent(userId))
+        fetch('/api/report-question?studentId=' + encodeURIComponent(userId))
             .then(function(r) { return r.json(); })
             .then(function(d) { if (d.enabled === false) quizState.reportingEnabled = false; })
             .catch(function() { /* keep enabled on error */ });
@@ -193,7 +193,7 @@
             },
         };
 
-        fetch('/api/results/submit', {
+        fetch('/api/submit-result', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -283,7 +283,7 @@
             },
         };
 
-        fetch('/api/activity/caliper-event', {
+        fetch('/api/caliper-event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ data: [event] }),
@@ -316,7 +316,7 @@
 
         console.log('[Sync] Sending activity-record — xp:', xp, 'course:', courseCode, 'activity:', activityId);
 
-        fetch('/api/activity/record', {
+        fetch('/api/activity-record', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -359,7 +359,7 @@
         console.log('[Sync] Finalizing lesson via PowerPath - lessonId:', lessonId, 'userId:', syncState.userId, 'score:', score);
         
         try {
-            var resp = await fetch('/api/lessons/finalize', {
+            var resp = await fetch('/api/finalize-lesson', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -483,7 +483,7 @@
         var stepALI = (step.resource && step.resource.assessmentLineItemSourcedId) || '';
         var componentResId = (step.resource && step.resource.componentResId) || resourceId;
         if (resourceId && stepALI) {
-            fetch('/api/lessons/mark-content-complete', {
+            fetch('/api/mark-content-complete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -522,7 +522,7 @@
         var stepTotal = quizState.total || 0;
         var stepAccuracy = stepTotal > 0 ? Math.round((stepCorrect / stepTotal) * 100) : 100;
 
-        fetch('/api/results/submit', {
+        fetch('/api/submit-result', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -802,7 +802,7 @@
             try {
                 // Use the quiz resource's componentResId as the PowerPath lesson ID
                 // PowerPath needs format like "USHI23-l48-r104178-v1", not "USHI23-l48-v1"
-                var startResp = await fetch('/api/quiz/session?action=start', {
+                var startResp = await fetch('/api/quiz-session?action=start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ studentId: userId, testId: testId, lessonId: quizState.quizLessonId, subject: subject, grade: gradeLevel }),
@@ -843,7 +843,7 @@
         }
         try {
             var skipParam = quizState.answeredIds.length > 0 ? '&skipIds=' + encodeURIComponent(quizState.answeredIds.join(',')) : '';
-            var resp = await fetch('/api/quiz/session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId) + skipParam);
+            var resp = await fetch('/api/quiz-session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId) + skipParam);
             var data = await resp.json();
 
             // Handle errors separately — don't treat API failures as quiz completion
@@ -1112,7 +1112,7 @@
         // PowerPath adaptive submit
         if (quizState.attemptId) {
             try {
-                var resp = await fetch('/api/quiz/session?action=respond', {
+                var resp = await fetch('/api/quiz-session?action=respond', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -1324,7 +1324,7 @@
     /* ── QTI static questions (fallback) ───────────────────── */
     async function loadAllQTIQuestions(qtiUrl, testId, subject, gradeLevel) {
         try {
-            var apiUrl = '/api/qti/item?';
+            var apiUrl = '/api/qti-item?';
             if (qtiUrl) apiUrl += 'url=' + encodeURIComponent(qtiUrl);
             else apiUrl += 'id=' + encodeURIComponent(testId) + '&type=assessment';
             if (subject) apiUrl += '&subject=' + encodeURIComponent(subject);
@@ -2131,7 +2131,7 @@
             var courseCode = lessonData.courseSourcedId || '';
             var activityId = lessonData.lessonSourcedId || lessonData.title || '';
             try {
-                var resp = await fetch('/api/activity/record', {
+                var resp = await fetch('/api/activity-record', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2181,7 +2181,7 @@
     }
 
     function fetchArticle(url, resId, contentEl) {
-        var proxyUrl = '/api/qti/article-proxy?';
+        var proxyUrl = '/api/article-proxy?';
         var params = [];
         if (url) params.push('url=' + encodeURIComponent(url));
         if (resId) params.push('id=' + encodeURIComponent(resId));
@@ -2288,7 +2288,7 @@
         };
 
         try {
-            var resp = await fetch('/api/reports/question', {
+            var resp = await fetch('/api/report-question', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload),
@@ -2317,7 +2317,7 @@
 
     async function triggerAIReview(reportId) {
         try {
-            var resp = await fetch('/api/reports/review', {
+            var resp = await fetch('/api/review-report', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ reportId: reportId }),

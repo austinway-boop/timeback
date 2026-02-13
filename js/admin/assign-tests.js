@@ -34,7 +34,7 @@ function doSearch(q) {
     dd.innerHTML = '<div class="search-empty"><i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i>Searching...</div>';
     dd.classList.add('open');
 
-    fetch('/api/users/page?search=' + encodeURIComponent(q) + '&limit=20', { signal: searchController.signal })
+    fetch('/api/users-page?search=' + encodeURIComponent(q) + '&limit=20', { signal: searchController.signal })
         .then(function(r) { return r.json(); })
         .then(function(d) {
             var users = d.users || [];
@@ -117,8 +117,8 @@ async function loadAssignments(studentId) {
     try {
         // Fetch assignments, enrollments, and placement subjects in parallel
         var [assignResp, enrollResp] = await Promise.all([
-            fetch('/api/tests/assign?student=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { testAssignments: [] }; }),
-            fetch('/api/enrollments/index?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return {}; }),
+            fetch('/api/assign-test?student=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return { testAssignments: [] }; }),
+            fetch('/api/enrollments?userId=' + encodeURIComponent(studentId)).then(function(r) { return r.json(); }).catch(function() { return {}; }),
         ]);
 
         // ── Parse existing assignments ──
@@ -153,7 +153,7 @@ async function loadAssignments(studentId) {
         // ── Fetch placement levels for ALL subjects (non-blocking) ──
         PP_SUBJECTS.forEach(function(subj) {
             // Current level
-            fetch('/api/tests/assign?action=placement&student=' + encodeURIComponent(studentId) + '&subject=' + encodeURIComponent(subj))
+            fetch('/api/assign-test?action=placement&student=' + encodeURIComponent(studentId) + '&subject=' + encodeURIComponent(subj))
                 .then(function(r) { return r.json(); })
                 .then(function(d) {
                     if (d && !d.error) {
@@ -163,7 +163,7 @@ async function loadAssignments(studentId) {
                 })
                 .catch(function() {});
             // Subject progress
-            fetch('/api/tests/assign?action=progress&student=' + encodeURIComponent(studentId) + '&subject=' + encodeURIComponent(subj))
+            fetch('/api/assign-test?action=progress&student=' + encodeURIComponent(studentId) + '&subject=' + encodeURIComponent(subj))
                 .then(function(r) { return r.json(); })
                 .then(function(d) {
                     if (d && !d.error) {
@@ -307,7 +307,7 @@ async function assignTest(subject, grade, idx) {
     clearFeedback();
 
     try {
-        var resp = await fetch('/api/tests/assign', {
+        var resp = await fetch('/api/assign-test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ student: selectedStudent.sourcedId, subject: subject, grade: grade, email: selectedStudent.email || '' }),
@@ -395,7 +395,7 @@ async function removeAssignment(idx) {
     renderPending();
     renderTests();
     try {
-        await fetch('/api/tests/assign', {
+        await fetch('/api/assign-test', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ assignmentId: a.sourcedId || '', student: selectedStudent ? selectedStudent.sourcedId : '', subject: a.subject || '', grade: a.grade || '' }),

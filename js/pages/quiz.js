@@ -136,7 +136,7 @@
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
         if (!userId) return;
         // Check if reporting is disabled by admin (default is ON)
-        fetch('/api/reports/question?studentId=' + encodeURIComponent(userId))
+        fetch('/api/report-question?studentId=' + encodeURIComponent(userId))
             .then(function(r) { return r.json(); })
             .then(function(d) { if (d.enabled === false) quizState.reportingEnabled = false; })
             .catch(function() { /* keep enabled on error */ });
@@ -198,7 +198,7 @@
         if (!isReading && userId && (testId || lessonId)) {
             try {
                 area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Starting assessment...</div>';
-                var startResp = await fetch('/api/quiz/session?action=start', {
+                var startResp = await fetch('/api/quiz-session?action=start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ studentId: userId, testId: testId, lessonId: lessonId, subject: subject, grade: gradeLevel, retry: isRetry }),
@@ -245,7 +245,7 @@
 
         try {
             var skipParam = quizState.answeredIds.length > 0 ? '&skipIds=' + encodeURIComponent(quizState.answeredIds.join(',')) : '';
-            var resp = await fetch('/api/quiz/session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId) + skipParam);
+            var resp = await fetch('/api/quiz-session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId) + skipParam);
             var data = await resp.json();
 
             if (data.complete || data.finished || data.error === 'no_more_questions') {
@@ -482,7 +482,7 @@
         var feedback = '';
         if (quizState.attemptId) {
             try {
-                var resp = await fetch('/api/quiz/session?action=respond', {
+                var resp = await fetch('/api/quiz-session?action=respond', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -602,7 +602,7 @@
 
         // Finalize the attempt
         if (quizState.attemptId) {
-            fetch('/api/quiz/session?action=finalize', {
+            fetch('/api/quiz-session?action=finalize', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({attemptId: quizState.attemptId}),
@@ -615,7 +615,7 @@
     // ── Reading/Article display — fetch content and render as readable article ──
     async function loadReadingContent(qtiUrl, testId, contentType) {
         try {
-            var apiUrl = '/api/qti/item?';
+            var apiUrl = '/api/qti-item?';
             if (qtiUrl) apiUrl += 'url=' + encodeURIComponent(qtiUrl);
             else apiUrl += 'id=' + encodeURIComponent(testId) + '&type=' + encodeURIComponent(contentType || 'stimulus');
             var resp = await fetch(apiUrl);
@@ -676,7 +676,7 @@
     async function loadAllQuestions(qtiUrl, testId, subject, gradeLevel, contentType) {
         area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading quiz...</div>';
         try {
-            var apiUrl = '/api/qti/item?';
+            var apiUrl = '/api/qti-item?';
             if (qtiUrl) apiUrl += 'url=' + encodeURIComponent(qtiUrl);
             else apiUrl += 'id=' + encodeURIComponent(testId) + '&type=' + encodeURIComponent(contentType || 'assessment');
             // Pass subject/title/grade for QTI catalog search when ID isn't a direct QTI ID
@@ -1138,7 +1138,7 @@
         };
 
         try {
-            var resp = await fetch('/api/reports/question', {
+            var resp = await fetch('/api/report-question', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload),
@@ -1167,7 +1167,7 @@
 
     async function triggerAIReview(reportId) {
         try {
-            var resp = await fetch('/api/reports/review', {
+            var resp = await fetch('/api/review-report', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ reportId: reportId }),

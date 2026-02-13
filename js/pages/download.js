@@ -20,9 +20,9 @@ function setStatus(html) {
     // Fetch both sources in parallel: enrollments (correct PowerPath IDs)
     // and course catalog (full list of all AP courses in the org).
     var enrollPromise = userId
-        ? fetch('/api/enrollments/index?userId=' + encodeURIComponent(userId)).then(function (r) { return r.json(); }).catch(function () { return {}; })
+        ? fetch('/api/enrollments?userId=' + encodeURIComponent(userId)).then(function (r) { return r.json(); }).catch(function () { return {}; })
         : Promise.resolve({});
-    var catalogPromise = fetch('/api/courses/index').then(function (r) { return r.json(); }).catch(function () { return {}; });
+    var catalogPromise = fetch('/api/courses').then(function (r) { return r.json(); }).catch(function () { return {}; });
 
     Promise.all([enrollPromise, catalogPromise])
         .then(function (results) {
@@ -201,7 +201,7 @@ function extractContent() {
     startProgress();
 
     var uid = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
-    var extractUrl = '/api/qti/temp-extract?courseId=' + encodeURIComponent(selectedCourseId);
+    var extractUrl = '/api/temp-extract?courseId=' + encodeURIComponent(selectedCourseId);
     if (uid) extractUrl += '&userId=' + encodeURIComponent(uid);
     fetch(extractUrl)
         .then(function (r) { return r.json(); })

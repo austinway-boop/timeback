@@ -14,7 +14,7 @@ import json
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-from api._kv import kv_get, kv_set
+from _kv import kv_get, kv_set
 
 CONFIG_KEY = "reporting_config"
 
