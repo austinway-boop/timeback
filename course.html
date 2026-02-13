@@ -1051,8 +1051,8 @@
                             if (isReview) tlClass += ' review';
                             html += '<div class="' + tlClass + '" id="' + lessonId + '">';
 
-                            // Track the first incomplete, unlocked lesson as the current one
-                            if (!currentLessonElId && !isDone && !lessonLocked) {
+                            // Track the first incomplete, unlocked lesson in the current/later unit
+                            if (!currentLessonElId && !isDone && !lessonLocked && !forceComplete) {
                                 currentLessonElId = lessonId;
                             }
 
@@ -1156,7 +1156,7 @@
                         ? document.getElementById(currentLessonElId)
                         : document.getElementById('unit-' + currentUnitIdx + '-card');
                     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 300);
+                }, 500);
             }
 
         } catch(e) {
