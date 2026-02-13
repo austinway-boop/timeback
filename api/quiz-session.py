@@ -109,38 +109,35 @@ class handler(BaseHTTPRequestHandler):
                                 q["answeredQuestions"] = answered_q
                                 send_json(self, q)
                                 return
-                        # If 0 total questions, try getNextQuestion as fallback
-                        # This is the normal case for PowerPath - getAssessmentProgress doesn't return questions array
-                        try:
-                            nq_resp = requests.get(
-                                f"{PP}/getNextQuestion",
-                                headers=headers,
-                                params={"student": student, "lesson": lesson},
-                                timeout=15,
-                            )
-                            if nq_resp.status_code == 200:
-                                nq_data = nq_resp.json()
-                                # getNextQuestion returns {question: {...}, score: ...}
-                                question = nq_data.get("question")
-                                if question and question.get("id"):
-                                    # Got a question via getNextQuestion - format it for frontend
-                                    q_out = {
-                                        "id": question.get("id"),
-                                        "questionId": question.get("id"),
-                                        "title": question.get("title"),
-                                        "content": question.get("content"),
-                                        "difficulty": question.get("difficulty"),
-                                        "score": nq_data.get("score", 0),
-                                        "totalQuestions": total_q,
-                                        "answeredQuestions": answered_q,
-                                    }
-                                    cid = _extract_correct_answer(question)
-                                    if cid:
-                                        q_out["correctId"] = cid
-                                    send_json(self, q_out)
-                                    return
-                        except Exception:
-                            pass
+                        # Always try getNextQuestion - this is the working PowerPath endpoint
+                        # getAssessmentProgress doesn't return a questions array for powerpath-100
+                        nq_resp = requests.get(
+                            f"{PP}/getNextQuestion",
+                            headers=headers,
+                            params={"student": student, "lesson": lesson},
+                            timeout=15,
+                        )
+                        if nq_resp.status_code == 200:
+                            nq_data = nq_resp.json()
+                            # getNextQuestion returns {question: {...}, score: ...}
+                            question = nq_data.get("question")
+                            if question and question.get("id"):
+                                # Got a question via getNextQuestion - format it for frontend
+                                q_out = {
+                                    "id": question.get("id"),
+                                    "questionId": question.get("id"),
+                                    "title": question.get("title"),
+                                    "content": question.get("content"),
+                                    "difficulty": question.get("difficulty"),
+                                    "score": nq_data.get("score", 0),
+                                    "totalQuestions": total_q,
+                                    "answeredQuestions": answered_q,
+                                }
+                                cid = _extract_correct_answer(question)
+                                if cid:
+                                    q_out["correctId"] = cid
+                                send_json(self, q_out)
+                                return
 
                         # All questions answered — only mark complete if ALL were answered
                         send_json(self, {
