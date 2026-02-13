@@ -127,6 +127,68 @@ function selectCourse(courseId, card) {
 }
 
 /* ---- 3. Extract content ---------------------------------------------- */
+var _progressTimer = null;
+
+var PROGRESS_STAGES = [
+    { at: 0,  label: 'Connecting to PowerPath...' },
+    { at: 5,  label: 'Fetching lesson plan tree...' },
+    { at: 12, label: 'Parsing units and lessons...' },
+    { at: 20, label: 'Extracting video links...' },
+    { at: 30, label: 'Fetching article content...' },
+    { at: 45, label: 'Loading QTI questions...' },
+    { at: 60, label: 'Resolving question details...' },
+    { at: 75, label: 'Assembling results...' },
+    { at: 88, label: 'Almost done...' },
+];
+
+function startProgress() {
+    var bar = document.getElementById('progress-bar');
+    var fill = document.getElementById('progress-fill');
+    var stage = document.getElementById('progress-stage');
+    var pct = document.getElementById('progress-pct');
+    bar.classList.add('active');
+    fill.style.width = '0%';
+    pct.textContent = '0%';
+    stage.innerHTML = '<span class="spinner"></span> Starting...';
+
+    var current = 0;
+    var startTime = Date.now();
+
+    _progressTimer = setInterval(function () {
+        var elapsed = (Date.now() - startTime) / 1000;
+        // Asymptotic curve: approaches 95% over ~60s, never reaches 100
+        current = Math.min(95, 95 * (1 - Math.exp(-elapsed / 20)));
+        var rounded = Math.round(current);
+        fill.style.width = rounded + '%';
+        pct.textContent = rounded + '%';
+
+        // Update stage label
+        var label = PROGRESS_STAGES[0].label;
+        for (var i = 0; i < PROGRESS_STAGES.length; i++) {
+            if (rounded >= PROGRESS_STAGES[i].at) label = PROGRESS_STAGES[i].label;
+        }
+        stage.innerHTML = '<span class="spinner"></span> ' + label;
+    }, 300);
+}
+
+function stopProgress(success) {
+    if (_progressTimer) { clearInterval(_progressTimer); _progressTimer = null; }
+    var fill = document.getElementById('progress-fill');
+    var stage = document.getElementById('progress-stage');
+    var pct = document.getElementById('progress-pct');
+    if (success) {
+        fill.style.width = '100%';
+        pct.textContent = '100%';
+        stage.innerHTML = '<i class="fa-solid fa-check" style="color:#2E7D32"></i> Complete';
+        // Fade out after a moment
+        setTimeout(function () {
+            document.getElementById('progress-bar').classList.remove('active');
+        }, 1500);
+    } else {
+        document.getElementById('progress-bar').classList.remove('active');
+    }
+}
+
 function extractContent() {
     if (!selectedCourseId) return;
 
@@ -135,7 +197,8 @@ function extractContent() {
     btn.innerHTML = '<span class="spinner"></span> Extracting...';
     document.getElementById('btn-download').disabled = true;
     document.getElementById('results').style.display = 'none';
-    setStatus('<span class="spinner"></span> Fetching lesson plan tree, videos, articles &amp; questions...');
+    setStatus('');
+    startProgress();
 
     var uid = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
     var extractUrl = '/api/qti/temp-extract?courseId=' + encodeURIComponent(selectedCourseId);
@@ -147,10 +210,12 @@ function extractContent() {
             btn.disabled = false;
 
             if (!data.success) {
+                stopProgress(false);
                 setStatus('<i class="fa-solid fa-exclamation-triangle" style="color:#E53E3E"></i> ' + escapeHtml(data.error || 'Unknown error'));
                 return;
             }
 
+            stopProgress(true);
             extractedData = data;
             document.getElementById('btn-download').disabled = false;
             var parts = [];
@@ -161,6 +226,7 @@ function extractContent() {
             renderResults(data);
         })
         .catch(function (err) {
+            stopProgress(false);
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Extract Content';
             btn.disabled = false;
             setStatus('<i class="fa-solid fa-exclamation-triangle" style="color:#E53E3E"></i> ' + escapeHtml(err.message));
