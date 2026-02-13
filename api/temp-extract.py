@@ -13,6 +13,7 @@ No student context needed — uses the tree endpoint and QTI catalog directly.
 """
 
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.server import BaseHTTPRequestHandler
 
 import requests
@@ -659,14 +660,22 @@ class handler(BaseHTTPRequestHandler):
                             "componentResources": [ur],
                         })
 
+                # ── Collect all assessment resource IDs across all lessons first,
+                #    then fetch questions in parallel to avoid Vercel timeout ──
+                lesson_resource_map = []  # [(lesson_idx, res_title, res_id, rurl, component_res_id, kind)]
+
                 lessons_out = []
                 for lesson in lessons_raw:
                     lesson_title = lesson.get("title", "")
                     resources = lesson.get("componentResources", [])
-
-                    lesson_questions = []
-                    lesson_videos = []
-                    lesson_articles = []
+                    li = len(lessons_out)
+                    lessons_out.append({
+                        "title": lesson_title,
+                        "sortOrder": lesson.get("sortOrder", ""),
+                        "_videos": [],
+                        "_articles": [],
+                        "_questions": [],
+                    })
 
                     for res_wrapper in resources:
                         res = res_wrapper.get("resource", res_wrapper) if isinstance(res_wrapper, dict) else res_wrapper
@@ -676,58 +685,70 @@ class handler(BaseHTTPRequestHandler):
                         meta = res.get("metadata") or {}
                         rurl = meta.get("url", "") or res.get("url", "") or meta.get("href", "") or res.get("href", "")
                         res_id = res.get("id", "") or res.get("sourcedId", "") or ""
-                        # componentResId: same ID the lesson page uses for PowerPath
                         component_res_id = (
                             (res_wrapper.get("sourcedId", "") if isinstance(res_wrapper, dict) else "")
                             or (res_wrapper.get("id", "") if isinstance(res_wrapper, dict) else "")
                             or res_id
                         )
                         res_title = res.get("title", "")
-                        kind = _classify_resource(res)
+                        rtype = (meta.get("type", "") or res.get("type", "")).lower()
 
-                        if kind == "video":
-                            lesson_videos.append({
-                                "title": res_title,
-                                "url": rurl,
-                                "id": res_id,
+                        if rtype == "video":
+                            lessons_out[li]["_videos"].append({
+                                "title": res_title, "url": rurl, "id": res_id,
                             })
+                        else:
+                            # Try PowerPath for EVERYTHING that isn't a video.
+                            # If it returns questions, great. If not, treat as article.
+                            lesson_resource_map.append(
+                                (li, res_title, res_id, rurl, component_res_id)
+                            )
 
-                        elif kind == "article":
-                            article_text = _fetch_article_content(rurl, res_id, qti_headers)
-                            lesson_articles.append({
-                                "title": res_title,
-                                "url": rurl,
-                                "id": res_id,
-                                "content": article_text[:5000] if article_text else "",
-                            })
+                # ── Parallel fetch: all assessment resources at once ──
+                def _fetch_one(entry):
+                    li, res_title, res_id, rurl, crid = entry
+                    questions = []
+                    if user_id and crid:
+                        raw_qs = _fetch_questions_powerpath(user_id, crid, pp_headers)
+                        for rq in raw_qs:
+                            parsed = _parse_powerpath_question(rq)
+                            if parsed:
+                                questions.append(parsed)
+                    return (li, res_title, res_id, rurl, questions)
 
-                        else:  # assessment
-                            # Use getAssessmentProgress — the exact same
-                            # endpoint the lesson page uses to load questions.
-                            if user_id and component_res_id:
-                                raw_qs = _fetch_questions_powerpath(user_id, component_res_id, pp_headers)
-                                for rq in raw_qs:
-                                    parsed = _parse_powerpath_question(rq)
-                                    if parsed:
-                                        lesson_questions.append(parsed)
+                with ThreadPoolExecutor(max_workers=8) as pool:
+                    futures = [pool.submit(_fetch_one, e) for e in lesson_resource_map]
+                    for f in as_completed(futures):
+                        try:
+                            li, res_title, res_id, rurl, questions = f.result()
+                            if questions:
+                                lessons_out[li]["_questions"].extend(questions)
+                            else:
+                                # No questions returned — treat as article
+                                article_text = _fetch_article_content(rurl, res_id, qti_headers)
+                                lessons_out[li]["_articles"].append({
+                                    "title": res_title, "url": rurl, "id": res_id,
+                                    "content": article_text[:5000] if article_text else "",
+                                })
+                        except Exception:
+                            pass
 
+                # ── Finalize lesson data ──
+                for ld in lessons_out:
+                    lesson_questions = ld.pop("_questions")
+                    lesson_videos = ld.pop("_videos")
+                    lesson_articles = ld.pop("_articles")
+                    ld["questionCount"] = len(lesson_questions)
+                    ld["questions"] = lesson_questions
+                    if lesson_videos:
+                        ld["videos"] = lesson_videos
+                        ld["videoCount"] = len(lesson_videos)
+                    if lesson_articles:
+                        ld["articles"] = lesson_articles
+                        ld["articleCount"] = len(lesson_articles)
                     total_questions += len(lesson_questions)
                     total_videos += len(lesson_videos)
                     total_articles += len(lesson_articles)
-
-                    lesson_data = {
-                        "title": lesson_title,
-                        "sortOrder": lesson.get("sortOrder", ""),
-                        "questionCount": len(lesson_questions),
-                        "questions": lesson_questions,
-                    }
-                    if lesson_videos:
-                        lesson_data["videos"] = lesson_videos
-                        lesson_data["videoCount"] = len(lesson_videos)
-                    if lesson_articles:
-                        lesson_data["articles"] = lesson_articles
-                        lesson_data["articleCount"] = len(lesson_articles)
-                    lessons_out.append(lesson_data)
 
                 units_out.append({
                     "title": unit_title,
