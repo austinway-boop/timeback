@@ -420,6 +420,12 @@
                 }
                 var currentUnitIdx = globalFrontier >= 0 ? globalLessonList[globalFrontier].unitIdx : 0;
 
+                // Target lesson for auto-scroll: next lesson after last fully-complete one
+                var scrollToGlobalIdx = globalFrontier + 1;
+                if (scrollToGlobalIdx >= globalLessonList.length) {
+                    scrollToGlobalIdx = Math.max(0, globalLessonList.length - 1);
+                }
+
                 var overallPct = grandTotalAct > 0 ? Math.round((grandDoneAct / grandTotalAct) * 100) : 0;
 
                 // ── Render Units ───────────────────────────────────
@@ -628,8 +634,8 @@
                             if (isReview) tlClass += ' review';
                             html += '<div class="' + tlClass + '" id="' + lessonId + '">';
 
-                            // Track the first incomplete, unlocked lesson in the current/later unit
-                            if (!currentLessonElId && !isDone && !lessonLocked && !forceComplete) {
+                            // Track the lesson at the scroll target index
+                            if (!currentLessonElId && lessonGlobalIdx === scrollToGlobalIdx) {
                                 currentLessonElId = lessonId;
                             }
 
