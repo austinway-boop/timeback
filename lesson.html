@@ -1013,18 +1013,17 @@
        The backend now always tries getAssessmentProgress even if finalize fails,
        so we can extract XP from "partial" or "error" responses too. */
     async function markLessonComplete(score) {
-        // Priority: use lessonSourcedId (matches documented format like "USHI23-l10-r104084-bank-v1")
-        var lessonId = lessonData.lessonSourcedId || '';
-        
-        // Fallback: try resource sourcedId from quiz steps
-        if (!lessonId) {
-            for (var si = 0; si < steps.length; si++) {
-                if (steps[si].type === 'Quiz' && steps[si].resource) {
-                    lessonId = steps[si].resource.resId || '';
-                    if (lessonId) break;
-                }
+        // Priority: use the quiz resource's componentResId (PowerPath needs this format,
+        // e.g. "USHI23-l48-r104178-v1", not the lesson-level "USHI23-l48-v1")
+        var lessonId = '';
+        for (var si = 0; si < steps.length; si++) {
+            if (steps[si].type === 'Quiz' && steps[si].resource) {
+                lessonId = steps[si].resource.componentResId || steps[si].resource.resId || '';
+                if (lessonId) break;
             }
         }
+        // Fallback: lesson-level sourcedId
+        if (!lessonId) lessonId = lessonData.lessonSourcedId || '';
         
         if (!lessonId || !syncState.userId) {
             console.warn('[Sync] No lessonId or userId - skipping PowerPath finalize');
@@ -1452,10 +1451,13 @@
         // ── 1. PowerPath adaptive flow ──
         if (userId && (testId || qtiUrl)) {
             try {
+                // Use the quiz resource's componentResId as the PowerPath lesson ID
+                // PowerPath needs format like "USHI23-l48-r104178-v1", not "USHI23-l48-v1"
+                var quizLessonId = resource.componentResId || resource.resId || lessonData.lessonSourcedId || testId;
                 var startResp = await fetch('/api/quiz-session?action=start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ studentId: userId, testId: testId, lessonId: lessonData.lessonSourcedId || testId, subject: subject, grade: gradeLevel }),
+                    body: JSON.stringify({ studentId: userId, testId: testId, lessonId: quizLessonId, subject: subject, grade: gradeLevel }),
                 });
                 var startData = await startResp.json();
                 if (startData.attemptId || startData.id) {
