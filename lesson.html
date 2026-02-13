@@ -708,7 +708,7 @@
         attemptId: null, questionNum: 0, correct: 0, total: 0,
         xpEarned: 0, ppScore: 0, streak: 0,
         currentQuestion: null, selectedChoice: null, answered: false,
-        testId: '', title: '', active: false, finished: false,
+        testId: '', quizLessonId: '', title: '', active: false, finished: false,
         // For static (QTI) quiz
         staticQuestions: null, staticIdx: 0,
         // Reading quiz mode
@@ -716,7 +716,7 @@
         // Crossout tool
         crossOutMode: false, crossedOut: {},
         // Question reporting
-        reportingEnabled: true, pendingReports: [],
+        reportingEnabled: true,
         cachedPassage: '',
         // Track answered question IDs locally (survives reload even if server state is stale)
         answeredIds: [],
@@ -726,16 +726,16 @@
     // ── Progress persistence (save/restore across sessions) ──
     function _getQuizProgressKey() {
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
-        var lessonId = (lessonData && lessonData.lessonSourcedId) || quizState.testId || '';
+        var lessonId = quizState.quizLessonId || (lessonData && lessonData.lessonSourcedId) || quizState.testId || '';
         if (!userId || !lessonId) return '';
         return 'quiz_progress:' + userId + ':' + lessonId;
     }
 
     function _saveQuizProgress() {
         var key = _getQuizProgressKey();
-        if (!key) return;
+        if (!key) { console.warn('[QuizProgress] Cannot save — key is empty. quizLessonId:', quizState.quizLessonId, 'lessonSourcedId:', lessonData && lessonData.lessonSourcedId, 'testId:', quizState.testId); return; }
         try {
-            localStorage.setItem(key, JSON.stringify({
+            var payload = {
                 ppScore: quizState.ppScore,
                 correct: quizState.correct,
                 total: quizState.total,
@@ -745,15 +745,19 @@
                 attemptId: quizState.attemptId,
                 answeredIds: quizState.answeredIds,
                 timestamp: Date.now(),
-            }));
-        } catch(e) {}
+            };
+            localStorage.setItem(key, JSON.stringify(payload));
+            console.log('[QuizProgress] Saved —', key, '— answeredIds:', quizState.answeredIds.length, 'questionNum:', quizState.questionNum);
+        } catch(e) { console.warn('[QuizProgress] Save error:', e); }
     }
 
     function _restoreQuizProgress() {
         var key = _getQuizProgressKey();
-        if (!key) return false;
+        if (!key) { console.warn('[QuizProgress] Cannot restore — key is empty'); return false; }
         try {
-            var saved = JSON.parse(localStorage.getItem(key));
+            var raw = localStorage.getItem(key);
+            if (!raw) { console.log('[QuizProgress] No saved data for', key); return false; }
+            var saved = JSON.parse(raw);
             if (!saved || !saved.timestamp) return false;
             // Expire after 7 days
             if (Date.now() - saved.timestamp > 7 * 24 * 60 * 60 * 1000) {
@@ -767,8 +771,9 @@
             quizState.xpEarned = saved.xpEarned || 0;
             quizState.questionNum = saved.questionNum || 0;
             quizState.answeredIds = saved.answeredIds || [];
+            console.log('[QuizProgress] Restored —', key, '— answeredIds:', quizState.answeredIds, 'questionNum:', quizState.questionNum, 'total:', quizState.total);
             return true;
-        } catch(e) { return false; }
+        } catch(e) { console.warn('[QuizProgress] Restore error:', e); return false; }
     }
 
     function _clearQuizProgress() {
@@ -788,10 +793,7 @@
     (function initReporting() {
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
         if (!userId) return;
-        try {
-            var saved = JSON.parse(localStorage.getItem('pending_reports:' + userId) || '[]');
-            if (Array.isArray(saved)) quizState.pendingReports = saved;
-        } catch(e) {}
+        // Check if reporting is disabled by admin (default is ON)
         fetch('/api/report-question?studentId=' + encodeURIComponent(userId))
             .then(function(r) { return r.json(); })
             .then(function(d) { if (d.enabled === false) quizState.reportingEnabled = false; })
@@ -1267,7 +1269,7 @@
         quizState.currentQuestion = null; quizState.selectedChoice = null;
         quizState.answered = false; quizState.active = false;
         quizState.finished = false; quizState.staticQuestions = null;
-        quizState.staticIdx = 0;
+        quizState.staticIdx = 0; quizState.quizLessonId = '';
         quizState.isReadingQuiz = false; quizState.accumulatedStimuli = [];
         quizState.totalQuestions = 0;
         quizState.answeredIds = [];
@@ -1478,6 +1480,8 @@
         var gradeLevel = qParams.grade || '';
         if (qParams.title) quizState.title = qParams.title;
         quizState.testId = testId;
+        // Compute the robust lesson ID used for PowerPath AND progress persistence
+        quizState.quizLessonId = resource.componentResId || resource.resId || (lessonData && lessonData.lessonSourcedId) || testId || '';
         apState.subject = _apSubjectKey(subject) || _apSubjectKey(quizState.title);
 
         // ── Restore progress from previous session BEFORE any API calls ──
@@ -1490,11 +1494,10 @@
             try {
                 // Use the quiz resource's componentResId as the PowerPath lesson ID
                 // PowerPath needs format like "USHI23-l48-r104178-v1", not "USHI23-l48-v1"
-                var quizLessonId = resource.componentResId || resource.resId || lessonData.lessonSourcedId || testId;
                 var startResp = await fetch('/api/quiz-session?action=start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ studentId: userId, testId: testId, lessonId: quizLessonId, subject: subject, grade: gradeLevel }),
+                    body: JSON.stringify({ studentId: userId, testId: testId, lessonId: quizState.quizLessonId, subject: subject, grade: gradeLevel }),
                 });
                 var startData = await startResp.json();
                 if (startData.attemptId || startData.id) {
@@ -1911,8 +1914,7 @@
             };
         }
 
-        // ── Pending report countdown ──
-        handlePendingReportCountdown();
+        // (AI review now triggers immediately on report submission)
     }
 
     function updateScoreboard() {
@@ -2996,15 +2998,16 @@
             });
             var data = await resp.json();
             if (data.ok && data.reportId) {
-                quizState.pendingReports.push({ reportId: data.reportId, questionsRemaining: 3 });
-                _savePendingReports();
+                // Add notification (processing state)
                 if (window._addReportNotif) window._addReportNotif({
                     reportId: data.reportId,
                     questionText: typeof payload.questionText === 'string' ? payload.questionText.substring(0, 80) : '',
                     answeredCorrectly: payload.answeredCorrectly,
                 });
                 closeReportModal();
-                showReportToast('info', '<i class="fa-solid fa-clock"></i> Report submitted! Check the bell icon for updates.');
+                showReportToast('info', '<i class="fa-solid fa-spinner fa-spin"></i> Report submitted! AI is analyzing the question...');
+                // Trigger AI review immediately
+                triggerAIReview(data.reportId);
             } else {
                 closeReportModal();
                 showReportToast('info', '<i class="fa-solid fa-info-circle"></i> ' + (data.error || 'Report submitted.'));
@@ -3015,25 +3018,6 @@
         }
     }
 
-    function _savePendingReports() {
-        var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
-        if (userId) localStorage.setItem('pending_reports:' + userId, JSON.stringify(quizState.pendingReports));
-    }
-
-    function handlePendingReportCountdown() {
-        if (quizState.pendingReports.length === 0) return;
-        var triggered = [];
-        for (var i = 0; i < quizState.pendingReports.length; i++) {
-            quizState.pendingReports[i].questionsRemaining--;
-            if (quizState.pendingReports[i].questionsRemaining <= 0) {
-                triggered.push(quizState.pendingReports[i].reportId);
-            }
-        }
-        quizState.pendingReports = quizState.pendingReports.filter(function(p) { return p.questionsRemaining > 0; });
-        _savePendingReports();
-        triggered.forEach(function(reportId) { triggerAIReview(reportId); });
-    }
-
     async function triggerAIReview(reportId) {
         try {
             var resp = await fetch('/api/review-report', {
@@ -3042,7 +3026,22 @@
                 body: JSON.stringify({ reportId: reportId }),
             });
             var data = await resp.json();
-            if (data.verdict === 'valid' && data.pointsAwarded > 0) {
+            if (data.aiFlaggedBad) {
+                // AI determined the question is bad — notify user, human will review
+                if (window._updateReportNotif) window._updateReportNotif(reportId, {
+                    status: 'ai_flagged_bad',
+                    verdict: 'valid',
+                    pointsAwarded: data.pointsAwarded || 0,
+                    reasoning: 'Our AI has determined this question has an issue. A human will review it shortly. The question has been temporarily removed for other students.'
+                });
+                if (data.pointsAwarded > 0) {
+                    quizState.ppScore = Math.min(100, quizState.ppScore + data.pointsAwarded);
+                    updateScoreboard();
+                    showReportToast('success', '<i class="fa-solid fa-check-circle"></i> AI found an issue with this question! +' + data.pointsAwarded + ' points. A human will review it shortly.');
+                } else {
+                    showReportToast('success', '<i class="fa-solid fa-check-circle"></i> AI found an issue with this question. A human will review it shortly.');
+                }
+            } else if (data.verdict === 'valid' && data.pointsAwarded > 0) {
                 quizState.ppScore = Math.min(100, quizState.ppScore + data.pointsAwarded);
                 updateScoreboard();
                 if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'valid', pointsAwarded: data.pointsAwarded });
