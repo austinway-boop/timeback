@@ -222,7 +222,7 @@ function setStatus(html) {
             // Filter AP courses and deduplicate by title (OneRoster returns
             // separate entries per section/term/teacher for the same course).
             var seen = {};
-            apCourses = courses.filter(function (c) {
+            var candidates = courses.filter(function (c) {
                 if (!isAPCourse(c.title)) return false;
                 var key = (c.title || '').trim().toLowerCase();
                 if (seen[key]) return false;
@@ -230,29 +230,64 @@ function setStatus(html) {
                 return true;
             });
 
-            document.getElementById('courses-loading').style.display = 'none';
-
-            if (apCourses.length === 0) {
+            if (candidates.length === 0) {
+                document.getElementById('courses-loading').style.display = 'none';
                 document.getElementById('empty-state').style.display = '';
                 return;
             }
 
-            var grid = document.getElementById('courses-grid');
-            grid.style.display = '';
-            document.getElementById('actions-bar').style.display = '';
+            // Verify each AP course is in-house by checking if it has a
+            // PowerPath lesson plan tree. External/third-party courses won't.
+            document.getElementById('courses-loading').innerHTML =
+                '<span class="spinner" style="width:20px;height:20px;border:2.5px solid var(--color-border);border-top-color:var(--color-primary);border-radius:50%;animation:spin .6s linear infinite;display:inline-block"></span>' +
+                ' Checking ' + candidates.length + ' AP courses for in-house content...';
 
-            var icons = ['fa-book-open', 'fa-flask', 'fa-calculator', 'fa-globe-americas', 'fa-atom', 'fa-landmark', 'fa-dna', 'fa-laptop-code'];
+            var checks = candidates.map(function (c) {
+                return fetch('/api/course-content?courseId=' + encodeURIComponent(c.sourcedId))
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        // Course is in-house if it has a lesson plan with units
+                        var plan = d.lessonPlan;
+                        var inner = (plan && plan.lessonPlan) ? plan.lessonPlan : plan;
+                        var units = (inner && inner.subComponents) ? inner.subComponents : [];
+                        if (units.length > 0) return c;
+                        // Also check tree fallback
+                        var tree = d.tree;
+                        var tInner = (tree && tree.lessonPlan) ? tree.lessonPlan : tree;
+                        var tUnits = (tInner && tInner.subComponents) ? tInner.subComponents : [];
+                        if (tUnits.length > 0) return c;
+                        return null;
+                    })
+                    .catch(function () { return null; });
+            });
 
-            apCourses.forEach(function (c, i) {
-                var card = document.createElement('div');
-                card.className = 'dl-course-card';
-                card.dataset.id = c.sourcedId;
-                card.innerHTML =
-                    '<div class="cc-icon"><i class="fa-solid ' + icons[i % icons.length] + '"></i></div>' +
-                    '<div class="cc-title">' + escapeHtml(c.title) + '</div>' +
-                    '<div class="cc-meta">' + escapeHtml(c.courseCode || c.sourcedId) + '</div>';
-                card.onclick = function () { selectCourse(c.sourcedId, card); };
-                grid.appendChild(card);
+            Promise.all(checks).then(function (results) {
+                apCourses = results.filter(function (c) { return c !== null; });
+
+                document.getElementById('courses-loading').style.display = 'none';
+
+                if (apCourses.length === 0) {
+                    document.getElementById('empty-state').style.display = '';
+                    return;
+                }
+
+                var grid = document.getElementById('courses-grid');
+                grid.style.display = '';
+                document.getElementById('actions-bar').style.display = '';
+
+                var icons = ['fa-book-open', 'fa-flask', 'fa-calculator', 'fa-globe-americas', 'fa-atom', 'fa-landmark', 'fa-dna', 'fa-laptop-code'];
+
+                apCourses.forEach(function (c, i) {
+                    var card = document.createElement('div');
+                    card.className = 'dl-course-card';
+                    card.dataset.id = c.sourcedId;
+                    card.innerHTML =
+                        '<div class="cc-icon"><i class="fa-solid ' + icons[i % icons.length] + '"></i></div>' +
+                        '<div class="cc-title">' + escapeHtml(c.title) + '</div>' +
+                        '<div class="cc-meta">' + escapeHtml(c.courseCode || c.sourcedId) + '</div>';
+                    card.onclick = function () { selectCourse(c.sourcedId, card); };
+                    grid.appendChild(card);
+                });
             });
         })
         .catch(function (err) {
