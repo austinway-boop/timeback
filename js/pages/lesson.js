@@ -791,6 +791,14 @@
                         quizState.total = startData.answeredCount || 0;
                         if (startData.score != null) quizState.ppScore = Math.max(0, Math.min(100, startData.score));
                     }
+                    // If local answeredIds is empty but server has seenQuestionIds, use those
+                    // This handles cases where localStorage was cleared but server still has progress
+                    if (quizState.answeredIds.length === 0 && startData.seenQuestionIds && startData.seenQuestionIds.length > 0) {
+                        quizState.answeredIds = startData.seenQuestionIds.slice();
+                        quizState.questionNum = startData.seenQuestionIds.length;
+                        quizState.total = startData.seenQuestionIds.length;
+                        console.log('[Quiz] Restored answeredIds from server seenQuestionIds:', quizState.answeredIds);
+                    }
                     await loadNextQuestion();
                     return;
                 }

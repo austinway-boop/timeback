@@ -290,20 +290,38 @@ class handler(BaseHTTPRequestHandler):
                     1 for q in questions
                     if q.get("answered", False) or q.get("response") is not None
                 )
+                
+                # For powerpath-100 lessons, seenQuestions contains IDs of answered questions
+                seen_questions = data.get("seenQuestions", [])
+                # Extract just the question IDs if they're objects
+                seen_ids = []
+                for sq in seen_questions:
+                    if isinstance(sq, dict):
+                        seen_ids.append(sq.get("id") or sq.get("questionId") or "")
+                    elif isinstance(sq, str):
+                        seen_ids.append(sq)
+                seen_ids = [s for s in seen_ids if s]  # filter empty
+                
                 debug.append({
                     "step": "checkProgress",
                     "total": total_q,
                     "answered": answered_q,
+                    "seenCount": len(seen_ids),
                 })
 
-                if total_q > 0:
-                    # Questions exist — resume, never reset
+                # For powerpath-100: use seenQuestions count if questions array is empty
+                effective_answered = answered_q if total_q > 0 else len(seen_ids)
+                effective_total = total_q if total_q > 0 else data.get("totalQuestions", 0)
+
+                if total_q > 0 or len(seen_ids) > 0 or effective_total > 0:
+                    # Questions exist or have been answered — resume, never reset
                     send_json(self, {
                         "attemptId": synthetic_id,
-                        "questionCount": total_q,
-                        "answeredCount": answered_q,
-                        "hasExistingProgress": answered_q > 0,
-                        "score": data.get("score"),
+                        "questionCount": effective_total,
+                        "answeredCount": effective_answered,
+                        "hasExistingProgress": effective_answered > 0,
+                        "score": data.get("score", 0),
+                        "seenQuestionIds": seen_ids,  # Frontend can use these as skipIds
                         "debug": debug,
                     })
                     return
