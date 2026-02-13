@@ -109,6 +109,27 @@ class handler(BaseHTTPRequestHandler):
                                 q["answeredQuestions"] = answered_q
                                 send_json(self, q)
                                 return
+                        # If 0 total questions, try getNextQuestion as fallback
+                        if total_q == 0:
+                            try:
+                                nq_resp = requests.get(
+                                    f"{PP}/getNextQuestion",
+                                    headers=headers,
+                                    params={"student": student, "lesson": lesson},
+                                    timeout=15,
+                                )
+                                if nq_resp.status_code == 200:
+                                    nq_data = nq_resp.json()
+                                    if nq_data and nq_data.get("id"):
+                                        # Got a question via getNextQuestion
+                                        cid = _extract_correct_answer(nq_data)
+                                        if cid:
+                                            nq_data["correctId"] = cid
+                                        send_json(self, nq_data)
+                                        return
+                            except Exception:
+                                pass
+
                         # All questions answered — only mark complete if ALL were answered
                         send_json(self, {
                             "complete": True,
@@ -267,7 +288,8 @@ class handler(BaseHTTPRequestHandler):
         self._return_progress(student_id, lesson_id, headers, debug, synthetic_id)
 
     def _do_reset(self, student_id, lesson_id, headers, debug):
-        """Call resetAttempt to initialize/reset the question bank."""
+        """Call resetAttempt then createNewAttempt to initialize the question bank."""
+        # Step 1: resetAttempt
         try:
             resp = requests.post(
                 f"{PP}/resetAttempt",
@@ -282,14 +304,31 @@ class handler(BaseHTTPRequestHandler):
             })
             if resp.status_code == 401:
                 headers = api_headers()
-                requests.post(
+                resp = requests.post(
                     f"{PP}/resetAttempt",
                     headers=headers,
                     json={"student": student_id, "lesson": lesson_id},
                     timeout=10,
                 )
+                debug.append({"step": "resetAttempt_retry", "status": resp.status_code})
         except Exception as e:
             debug.append({"step": "resetAttempt", "error": str(e)})
+
+        # Step 2: createNewAttempt (documented way to get a fresh question bank)
+        try:
+            resp = requests.post(
+                f"{PP}/createNewAttempt",
+                headers=headers,
+                json={"student": student_id, "lesson": lesson_id},
+                timeout=10,
+            )
+            debug.append({
+                "step": "createNewAttempt",
+                "status": resp.status_code,
+                "body": resp.text[:300],
+            })
+        except Exception as e:
+            debug.append({"step": "createNewAttempt", "error": str(e)})
 
     def _return_progress(self, student_id, lesson_id, headers, debug, synthetic_id):
         """Fetch progress after a reset and return it."""

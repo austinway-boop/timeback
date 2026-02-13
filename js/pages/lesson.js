@@ -780,6 +780,7 @@
                     body: JSON.stringify({ studentId: userId, testId: testId, lessonId: quizState.quizLessonId, subject: subject, grade: gradeLevel }),
                 });
                 var startData = await startResp.json();
+                if (startData.debug) console.log('[Quiz] start debug:', JSON.stringify(startData.debug));
                 if (startData.attemptId || startData.id) {
                     quizState.attemptId = startData.attemptId || startData.id;
                     // Progress already restored above; use server hints as fallback
@@ -849,6 +850,7 @@
                             body: JSON.stringify({ studentId: userId, testId: quizState.testId, lessonId: quizState.quizLessonId, retry: true }),
                         });
                         var retryData = await retryResp.json();
+                        if (retryData.debug) console.log('[Quiz] retry debug:', JSON.stringify(retryData.debug));
                         if (retryData.attemptId || retryData.id) {
                             quizState.attemptId = retryData.attemptId || retryData.id;
                             quizState.ppScore = 0; quizState.correct = 0; quizState.total = 0;
