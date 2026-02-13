@@ -873,6 +873,9 @@
         if (!lineItemId) lineItemId = lessonData.title || '';
 
         console.log('[Sync] Submitting AssessmentResult — userId:', syncState.userId, 'lineItemId:', lineItemId, 'ppALI:', lessonData.assessmentLineItemSourcedId || 'none', 'score:', score);
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:submitAssessmentResult:entry',message:'submit-result payload',data:{lineItemId:lineItemId,lessonALI:lessonData.assessmentLineItemSourcedId||'(empty)',score:passed?100:score,scoreStatus:passed?'fully graded':'submitted',passed:passed,xpInMetadata:passed?quizState.xpEarned:0},timestamp:Date.now(),hypothesisId:'B,D'})}).catch(function(){});
+        // #endregion
 
         var payload = {
             studentSourcedId: syncState.userId,
@@ -900,9 +903,17 @@
         .then(function(r) { return r.json(); })
         .then(function(d) {
             console.log('[Sync] AssessmentResult response:', JSON.stringify(d));
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:submitAssessmentResult:response',message:'submit-result API response',data:{status:d.status,resultId:d.resultId||'(none)',usedPowerPathALI:d.usedPowerPathALI,lineItemUsed:d.assessmentLineItemId||'(none)'},timestamp:Date.now(),hypothesisId:'B,C'})}).catch(function(){});
+            // #endregion
             if (d.attempts) { d.attempts.forEach(function(a) { console.log('[Sync] Attempt:', a.name, a.method, a.httpStatus, (a.body||'').substring(0,200)); }); }
         })
-        .catch(function(e) { console.error('[Sync] AssessmentResult FAILED:', e.message); });
+        .catch(function(e) {
+            console.error('[Sync] AssessmentResult FAILED:', e.message);
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:submitAssessmentResult:error',message:'submit-result FAILED',data:{error:e.message},timestamp:Date.now(),hypothesisId:'C'})}).catch(function(){});
+            // #endregion
+        });
     }
 
     /* ── 2. Caliper: send ActivityCompletedEvent (TimebackProfile) ── */
@@ -1058,6 +1069,9 @@
             });
             var d = await resp.json();
             console.log('[Sync] PowerPath finalize response (status ' + resp.status + '):', JSON.stringify(d));
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:markLessonComplete:response',message:'finalize-lesson API result',data:{httpStatus:resp.status,apiStatus:d.status,xpEarned:d.xpEarned,ppScore:d.powerpathScore,message:d.message||'',lessonId:lessonId},timestamp:Date.now(),hypothesisId:'A'})}).catch(function(){});
+            // #endregion
             
             // The backend now returns xpEarned even on "partial" status
             // (when finalize failed but getAssessmentProgress succeeded)
@@ -2750,6 +2764,9 @@
             return;
         }
         console.log('[Sync] Syncing non-quiz lesson completion (video/article)');
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncNonQuizCompletion:entry',message:'Non-quiz completion started',data:{userId:syncState.userId,lessonALI:lessonData.assessmentLineItemSourcedId||'(empty)',lessonSourcedId:lessonData.lessonSourcedId||'(empty)',title:lessonData.title||'(empty)'},timestamp:Date.now(),hypothesisId:'E'})}).catch(function(){});
+        // #endregion
 
         // Set minimal quiz state so the existing sync functions work
         quizState.xpEarned = 0;  // Start at 0 — PowerPath will provide real XP
@@ -2768,6 +2785,9 @@
         } catch(e) {
             console.warn('[Sync] Non-quiz finalize failed:', e.message);
         }
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncNonQuizCompletion:afterFinalize',message:'Non-quiz after finalize',data:{ppXp:ppXp,xpEarned:quizState.xpEarned,hasSubmitResult:false,note:'syncNonQuizCompletion does NOT call submitAssessmentResult'},timestamp:Date.now(),hypothesisId:'E'})}).catch(function(){});
+        // #endregion
 
         // 2. Report XP via activity record (only if XP > 0)
         if (quizState.xpEarned > 0) {
