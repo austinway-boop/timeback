@@ -857,18 +857,26 @@
         fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:submitAssessmentResult:entry',message:'submit-result payload',data:{lineItemId:lineItemId,lessonALI:lessonData.assessmentLineItemSourcedId||'(empty)',score:passed?100:score,scoreStatus:passed?'fully graded':'submitted',passed:passed,xpInMetadata:passed?quizState.xpEarned:0},timestamp:Date.now(),hypothesisId:'B,D'})}).catch(function(){});
         // #endregion
 
+        // Determine step type from current lesson steps
+        var quizStepType = 'Quiz';
+        for (var si = 0; si < steps.length; si++) {
+            if (steps[si].type === 'Quiz') { quizStepType = 'Quiz'; break; }
+            if (si === steps.length - 1) quizStepType = steps[si].type || 'Quiz';
+        }
+
         var payload = {
             studentSourcedId: syncState.userId,
             assessmentLineItemSourcedId: lineItemId,
-            score: passed ? 100 : score,
-            scoreStatus: passed ? 'fully graded' : 'submitted',
-            comment: (lessonData.title || 'Quiz') + ' — ' + score + '% accuracy' + (passed ? ' — Mastery' : ''),
+            score: score,
+            scoreStatus: 'fully graded',
+            comment: (lessonData.title || 'Quiz') + ' — ' + score + '% accuracy' + (score >= 80 ? ' — Mastery' : ''),
             metadata: {
-                'timeback.xp': passed ? quizState.xpEarned : 0,
+                'timeback.xp': quizState.xpEarned,
                 'timeback.correct': quizState.correct,
                 'timeback.total': quizState.total,
                 'timeback.passed': passed,
                 'timeback.ppScore': quizState.ppScore,
+                'timeback.stepType': quizStepType,
                 'timeback.lessonTitle': lessonData.title || '',
                 'timeback.courseTitle': lessonData.courseName || lessonData.courseTitle || '',
                 'timeback.enrollmentId': lessonData.enrollmentId || '',
@@ -1199,19 +1207,24 @@
         if (!lineItemId) lineItemId = lessonData.assessmentLineItemSourcedId || '';
         if (!lineItemId) lineItemId = lessonData.title || '';
         
+        // Use actual question counts from quizState if available
+        var stepCorrect = quizState.correct || 0;
+        var stepTotal = quizState.total || 0;
+        var stepAccuracy = stepTotal > 0 ? Math.round((stepCorrect / stepTotal) * 100) : 100;
+
         fetch('/api/submit-result', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 studentSourcedId: syncState.userId,
                 assessmentLineItemSourcedId: lineItemId,
-                score: 100,
+                score: stepAccuracy,
                 scoreStatus: 'fully graded',
-                comment: (lessonData.title || stepLabel) + ' — ' + stepLabel + ' completed',
+                comment: (lessonData.title || stepLabel) + ' — ' + stepAccuracy + '% accuracy' + (stepAccuracy >= 80 ? ' — Mastery' : ''),
                 metadata: {
-                    'timeback.xp': 0,
-                    'timeback.correct': 0,
-                    'timeback.total': 0,
+                    'timeback.xp': quizState.xpEarned || 0,
+                    'timeback.correct': stepCorrect,
+                    'timeback.total': stepTotal,
                     'timeback.passed': true,
                     'timeback.lessonTitle': lessonData.title || '',
                     'timeback.courseTitle': lessonData.courseName || lessonData.courseTitle || '',
