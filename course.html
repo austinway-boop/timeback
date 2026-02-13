@@ -847,6 +847,7 @@
 
                 // ── Render Units ───────────────────────────────────
                 var globalIdx = 0;
+                var currentLessonElId = null; // Track current lesson for auto-scroll
 
                 for (var mi = 0; mi < processedUnits.length; mi++) {
                     var puData = processedUnits[mi];
@@ -1048,7 +1049,12 @@
                             var tlClass = 'tl-item';
                             if (lessonLocked) tlClass += ' locked';
                             if (isReview) tlClass += ' review';
-                            html += '<div class="' + tlClass + '">';
+                            html += '<div class="' + tlClass + '" id="' + lessonId + '">';
+
+                            // Track the first incomplete, unlocked lesson as the current one
+                            if (!currentLessonElId && !isDone && !lessonLocked) {
+                                currentLessonElId = lessonId;
+                            }
 
                             // Timeline dot
                             var dotClass = 'tl-dot';
@@ -1143,11 +1149,13 @@
 
             contentEl.innerHTML = html;
 
-            // ── Auto-scroll to current unit ──
+            // ── Auto-scroll to current lesson ──
             if (units.length > 0) {
                 setTimeout(function() {
-                    var target = document.getElementById('unit-' + currentUnitIdx + '-card');
-                    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    var target = currentLessonElId
+                        ? document.getElementById(currentLessonElId)
+                        : document.getElementById('unit-' + currentUnitIdx + '-card');
+                    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 300);
             }
 
