@@ -45,8 +45,7 @@ import json
 import re
 from http.server import BaseHTTPRequestHandler
 import requests
-from api._helpers import API_BASE, api_headers, send_json, get_query_params
-# IMPORTANT: bare import (not "from api._kv"). See docstring note #1.
+from _helpers import API_BASE, api_headers, send_json, get_query_params
 from _kv import kv_get
 
 
