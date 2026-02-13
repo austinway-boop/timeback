@@ -130,12 +130,6 @@
             .quiz-split-left { width: 100%; min-width: 0; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--color-border); }
             .quiz-split-right { padding: 20px; }
         }
-        /* Answer key dot — hidden by default, shown via toggle */
-        .answer-dot { width: 8px; height: 8px; border-radius: 50%; background: #16A34A; flex-shrink: 0; margin-left: auto; display: none; }
-        body.show-answer-key .answer-dot { display: block; }
-        .answer-key-toggle { position: fixed; bottom: 20px; left: 20px; z-index: 9999; display: none; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: 2px solid #86efac; background: #fff; color: #16A34A; box-shadow: 0 3px 0 #4ade80; font-family: var(--font); transition: all 0.15s; }
-        .answer-key-toggle:active { transform: translateY(2px); box-shadow: none; }
-        .answer-key-toggle.active { background: #16A34A; color: #fff; border-color: #16A34A; }
         /* Report Question flag */
     .report-flag { padding:4px 6px; border:none; background:none; color:var(--color-text-muted); font-size:0.78rem; cursor:pointer; transition:color 0.15s; opacity:0.5; }
     .report-flag:hover { color:#E53E3E; opacity:1; }
@@ -374,40 +368,6 @@
             .catch(function() { /* keep enabled on error */ });
     })();
 
-    // Answer key toggle — only for evan.klein@alpha.school
-    (function() {
-        var email = (localStorage.getItem('alphalearn_email') || '').toLowerCase();
-        if (email === 'evan.klein@alpha.school') {
-            var btn = document.createElement('button');
-            btn.className = 'answer-key-toggle';
-            btn.style.display = 'inline-flex';
-            btn.innerHTML = '<i class="fa-solid fa-eye"></i> Answers';
-            btn.onclick = function() {
-                var active = document.body.classList.toggle('show-answer-key');
-                btn.classList.toggle('active');
-                btn.innerHTML = active
-                    ? '<i class="fa-solid fa-eye-slash"></i> Hide'
-                    : '<i class="fa-solid fa-eye"></i> Answers';
-                // Dynamically inject / remove answer dots
-                document.querySelectorAll('.answer-dot').forEach(function(d) { d.remove(); });
-                if (active) {
-                    var q = quizState.questions[quizState.questionNum];
-                    var cid = q && (q.correctId || '');
-                    if (cid) {
-                        document.querySelectorAll('.choice').forEach(function(c) {
-                            if (c.dataset.id === cid) {
-                                var dot = document.createElement('span');
-                                dot.className = 'answer-dot';
-                                dot.style.display = 'block';
-                                c.querySelector('.choice-text').after(dot);
-                            }
-                        });
-                    }
-                }
-            };
-            document.body.appendChild(btn);
-        }
-    })();
 
     // Mark quiz complete — saves ALL possible keys so course.html can detect it
     function _markQuizComplete() {
@@ -623,7 +583,6 @@
                 '<div style="text-align:right;font-size:0.75rem;color:var(--color-text-muted);margin-top:4px;">Write a complete response. Be specific and use evidence.</div>';
         } else if (choices.length > 0) {
             var letters = 'ABCDEFGHIJ';
-            var _correctId = q.correctId || '';
             var co = quizState.crossedOut[quizState.questionNum] || {};
             questionHtml += '<div class="choices' + (quizState.crossOutMode ? ' crossout-mode' : '') + '" id="choices">';
             for (var i = 0; i < choices.length; i++) {
