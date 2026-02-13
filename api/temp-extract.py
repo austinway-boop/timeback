@@ -434,28 +434,48 @@ def _parse_qti_item(item):
 # ---------------------------------------------------------------------------
 def _fetch_questions_powerpath(student_id, lesson_id, pp_headers):
     """Fetch questions via getAssessmentProgress — the exact same call
-    the lesson page makes.  Returns the raw question list from PowerPath.
+    the lesson page makes.  If the question bank is empty, calls
+    resetAttempt to initialize it first (same as quiz-session.py).
+    Returns the raw question list from PowerPath.
     """
-    try:
-        resp = requests.get(
-            f"{API_BASE}/powerpath/getAssessmentProgress",
-            headers=pp_headers,
-            params={"student": student_id, "lesson": lesson_id},
-            timeout=15,
-        )
-        if resp.status_code == 401:
-            pp_headers = api_headers()
+    def _get_progress():
+        try:
             resp = requests.get(
                 f"{API_BASE}/powerpath/getAssessmentProgress",
                 headers=pp_headers,
                 params={"student": student_id, "lesson": lesson_id},
                 timeout=15,
             )
-        if resp.status_code == 200:
-            data = resp.json()
-            return data.get("questions", [])
+            if resp.status_code == 200:
+                return resp.json()
+        except Exception:
+            pass
+        return None
+
+    # 1. Try fetching existing progress
+    data = _get_progress()
+    if data:
+        questions = data.get("questions", [])
+        if len(questions) > 0:
+            return questions
+
+    # 2. Question bank is empty — initialize it with resetAttempt
+    #    (same as quiz-session.py _handle_start when total_q == 0)
+    try:
+        requests.post(
+            f"{API_BASE}/powerpath/resetAttempt",
+            headers=pp_headers,
+            json={"student": student_id, "lesson": lesson_id},
+            timeout=10,
+        )
     except Exception:
         pass
+
+    # 3. Fetch again after initialization
+    data = _get_progress()
+    if data:
+        return data.get("questions", [])
+
     return []
 
 
