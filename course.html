@@ -1035,17 +1035,23 @@
                                     resDetails[rci]._resDone = resLocalDone || resApiDone;
                                     if (resDetails[rci]._resDone) nonQuizDoneCount++;
                                 } else {
-                                    resDetails[rci]._localKey = '';
-                                    resDetails[rci]._resDone = false;
+                                    // Quiz/assessment resources — check actual completion
+                                    var qResKey = localKey + '_r' + rci;
+                                    resDetails[rci]._localKey = qResKey;
+                                    var qResLocalDone = localStorage.getItem(qResKey) === 'true';
+                                    var qResApiDone = false;
+                                    var qResId = resDetails[rci].resId || '';
+                                    if (qResId && localStorage.getItem('completed_' + qResId) === 'true') { qResLocalDone = true; }
+                                    if (qResId && _isComplete(progressById[qResId])) { qResApiDone = true; }
+                                    var qResAli = assessmentLineItemByResId[qResId] || '';
+                                    if (!qResApiDone && qResAli && _isComplete(progressById[qResAli])) { qResApiDone = true; }
+                                    resDetails[rci]._resDone = qResLocalDone || qResApiDone;
                                 }
                             }
-                            if (!isDone && nonQuizCount > 0 && nonQuizDoneCount === nonQuizCount) { isDone = true; localStorage.setItem(localKey, 'true'); }
 
                             var totalRes = resDetails.length;
                             var doneRes = 0;
                             for (var dc = 0; dc < resDetails.length; dc++) { if (resDetails[dc]._resDone) doneRes++; }
-                            var actualDoneRes = doneRes; // track real per-resource count before override
-                            if (isDone) doneRes = totalRes;
                             var lessonPctVal = totalRes > 0 ? Math.round((doneRes / totalRes) * 100) : (isDone ? 100 : 0);
 
                             var typeIcon = lessonType === 'video' ? 'fa-play' : lessonType === 'quiz' ? 'fa-clipboard-question' : 'fa-file-lines';
@@ -1109,7 +1115,7 @@
                                 lessonSourcedId: lesson.sourcedId || lesson.id || ''
                             };
 
-                            var actAllDone = (actualDoneRes === totalRes && totalRes > 0);
+                            var actAllDone = (doneRes === totalRes && totalRes > 0);
                             var statsHtml = '';
                             if (actAllDone) {
                                 statsHtml = '<div class="lesson-stats">' +
