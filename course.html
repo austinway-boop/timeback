@@ -643,25 +643,23 @@
             var html = '';
 
             // Helper: check if a progress entry represents actual completion (for display)
-            // For articles/videos: 'fully graded' with score 100 means complete
-            // For quizzes: must be 'fully graded' with score >= 90 (mastery threshold)
+            // For articles/videos: 'fully graded' means the resource was consumed
+            // Used for resource-level display (checkmarks) only — NOT for locking
             function _isComplete(p) {
                 if (!p) return false;
-                // Fully graded with any score = complete for display purposes
                 if (p.scoreStatus === 'fully graded') return true;
-                // Legacy: textScore 'Completed' also counts
                 if (p.textScore === 'Completed') return true;
                 return false;
             }
-            // Stricter: quiz must be fully graded WITH a passing score (90%+ = mastery)
+            // PowerPath 100: quiz is complete only when score reaches 100
             function _isQuizComplete(p) {
                 if (!p) return false;
-                return (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score >= 90);
+                return (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score >= 100);
             }
-            // Check if a quiz/assessment is mastered (90%+ score, finalized)
+            // PowerPath 100: mastered when score reaches 100
             function _isMastered(p) {
                 if (!p) return false;
-                return (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score >= 90);
+                return (p.scoreStatus === 'fully graded' && typeof p.score === 'number' && p.score >= 100);
             }
 
             // ── Build progress lookup ──────────────────────────────
@@ -731,14 +729,8 @@
                 }
             }
 
-            // Count total completed (API + localStorage)
+            // Count total completed (API data only — no localStorage)
             var totalCompleted = Object.keys(progressByTitle).length;
-            for (var k in localStorage) {
-                if (k.startsWith('completed_') && localStorage.getItem(k) === 'true') {
-                    var lName = k.replace('completed_', '');
-                    if (!progressByTitle[lName]) totalCompleted++;
-                }
-            }
 
             // ── Parse lesson plan ──────────────────────────────────
             var plan = contentData.lessonPlan;
@@ -784,12 +776,11 @@
                         var pLesson = pLessons[pl];
                         var pLTitle = (pLesson.title || '').trim();
                         var pLessonId = pLesson.id || pLesson.sourcedId || '';
-                        var pLocalKey = 'completed_' + (pLessonId || pLTitle);
                         var pLProg = progressByTitle[pLTitle] || (pLessonId ? progressById[pLessonId] : null);
-                        var pLDone = _isComplete(pLProg) || localStorage.getItem(pLocalKey) === 'true';
+                        var pLDone = _isComplete(pLProg);
                         // Also check componentResources by unique ID only (not title — titles repeat across units)
                         var pRes = pLesson.componentResources || [];
-                        var pHasQuizComplete = false;  // Track if a quiz/test resource is fully completed (not just started)
+                        var pHasQuizComplete = false;  // Track if a quiz/test resource has PowerPath score 100
                         if (pRes.length > 0) {
                             for (var _pri = 0; _pri < pRes.length; _pri++) {
                                 var _prr = pRes[_pri].resource || pRes[_pri] || {};
@@ -800,25 +791,18 @@
                                 if (_prProg && _isComplete(_prProg)) {
                                     if (!pLDone) pLDone = true;
                                 }
-                                // Frontier only advances on quizzes that are fully graded with a real score
+                                // Frontier only advances on quizzes with PowerPath score 100
                                 if (_prIsQuiz && _isQuizComplete(_prProg)) {
                                     pHasQuizComplete = true;
                                 }
                             }
                         }
-                        // Determine if the lesson title itself implies a quiz/test
-                        var _pIsAssessment = /assess|quiz|test|exam|mcq|frq|saq|dbq|leq|cumulative\s*review/i.test(pLTitle);
-                        // For the global frontier: only advance on TRUE lesson completion.
-                        // DO NOT use pLDone here — it's contaminated by video/article step
-                        // submissions that send score:100 to the same assessmentLineItemId.
-                        // Only trust: (1) quiz resource graded, or (2) completionKey in
-                        // localStorage (set only by saveLessonToLocalStorage on full completion).
-                        var pLocalComplete = localStorage.getItem(pLocalKey) === 'true';
-                        var pHasAny = pHasQuizComplete || pLocalComplete;
+                        // Frontier: only advance when PowerPath score reaches 100 on a quiz resource.
+                        // API data is the single source of truth — no localStorage.
+                        var pHasAny = pHasQuizComplete;
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
                         if (pLDone) { grandDoneAct += pCount; }
-                        else { for (var pr = 0; pr < pRes.length; pr++) { if (localStorage.getItem(pLocalKey + '_r' + pr) === 'true') { grandDoneAct++; } } }
                         globalLessonList.push({ unitIdx: pu, hasProgress: pHasAny });
                     }
                 }
@@ -867,14 +851,13 @@
                     for (var lc = 0; lc < modLessons.length; lc++) {
                         var lcTitle = (modLessons[lc].title || '').trim();
                         var lcId = modLessons[lc].id || modLessons[lc].sourcedId || '';
-                        var lcLocalKey = 'completed_' + (lcId || lcTitle);
                         var lcProg = progressByTitle[lcTitle] || (lcId ? progressById[lcId] : null);
-                        var lcFound = _isComplete(lcProg) || localStorage.getItem(lcLocalKey) === 'true';
+                        var lcFound = _isComplete(lcProg);
                         
                         // Check if this lesson is a quiz/assessment
                         var lcIsAssessment = /assess|quiz|test|exam|mcq|frq|saq|dbq|leq|cumulative\s*review/i.test(lcTitle);
                         
-                        // Also check componentResources
+                        // Also check componentResources (API data only)
                         var lcRes = modLessons[lc].componentResources || [];
                         var lcHasQuizResource = false;
                         var lcQuizMastered = false;
@@ -888,7 +871,7 @@
                             if (_lrIsQuiz) {
                                 lcHasQuizResource = true;
                                 unitHasQuizzes = true;
-                                // Check if this quiz is mastered (90%+ score)
+                                // Check if this quiz has PowerPath score 100
                                 var _lrProg = _lrId ? progressById[_lrId] : null;
                                 if (_isMastered(_lrProg)) {
                                     lcQuizMastered = true;
@@ -900,7 +883,7 @@
                             }
                         }
                         
-                        // If this lesson has a quiz, check if it's mastered
+                        // If this lesson has a quiz, check if it's mastered (PowerPath score 100)
                         if (lcIsAssessment || lcHasQuizResource) {
                             if (!lcQuizMastered && !_isMastered(lcProg)) {
                                 unitQuizzesMastered = false;
@@ -912,7 +895,7 @@
                     var unitPct = modLessons.length > 0 ? Math.round((unitDone / modLessons.length) * 100) : 0;
                     // Unit is only complete if:
                     // 1. All lessons are done (unitDone === modLessons.length) AND
-                    // 2. If unit has quizzes, ALL quizzes must be mastered (90%+)
+                    // 2. If unit has quizzes, ALL quizzes must have PowerPath score 100
                     var unitComplete = forceComplete || (
                         unitDone === modLessons.length && 
                         modLessons.length > 0 && 
@@ -975,9 +958,7 @@
                             
                             var isDone = _isComplete(prog);
                             var localKey = 'completed_' + (lId || lTitle);
-                            var isLocalDone = localStorage.getItem(localKey) === 'true';
-                            isDone = isDone || isLocalDone;
-                            // Global lesson-level locking
+                            // Locking uses API data only — no localStorage
                             var lessonLocked = isAdmin ? false : (lessonGlobalIdx > globalFrontier + 1);
                             var resources = lesson.componentResources || [];
 
@@ -1021,31 +1002,25 @@
                                 resDetails[rci]._isQuiz = isQuizRes;
                                 if (!isQuizRes) {
                                     nonQuizCount++;
-                                    var resKey = localKey + '_r' + rci;
-                                    resDetails[rci]._localKey = resKey;
-                                    // Check localStorage first
-                                    var resLocalDone = localStorage.getItem(resKey) === 'true';
-                                    // Also check API via progressById (resource id or assessmentLineItemSourcedId)
+                                    resDetails[rci]._localKey = localKey + '_r' + rci;
+                                    // Check API only via progressById (resource id or assessmentLineItemSourcedId)
                                     var resApiDone = false;
                                     var thisResId = resDetails[rci].resId || '';
                                     if (thisResId && _isComplete(progressById[thisResId])) { resApiDone = true; }
                                     // Check via assessmentLineItemSourcedId (shared by video/article in same lesson)
                                     var thisResAli = assessmentLineItemByResId[thisResId] || '';
                                     if (!resApiDone && thisResAli && _isComplete(progressById[thisResAli])) { resApiDone = true; }
-                                    resDetails[rci]._resDone = resLocalDone || resApiDone;
+                                    resDetails[rci]._resDone = resApiDone;
                                     if (resDetails[rci]._resDone) nonQuizDoneCount++;
                                 } else {
-                                    // Quiz/assessment resources — check actual completion
-                                    var qResKey = localKey + '_r' + rci;
-                                    resDetails[rci]._localKey = qResKey;
-                                    var qResLocalDone = localStorage.getItem(qResKey) === 'true';
+                                    // Quiz/assessment resources — check API completion only
+                                    resDetails[rci]._localKey = localKey + '_r' + rci;
                                     var qResApiDone = false;
                                     var qResId = resDetails[rci].resId || '';
-                                    if (qResId && localStorage.getItem('completed_' + qResId) === 'true') { qResLocalDone = true; }
                                     if (qResId && _isComplete(progressById[qResId])) { qResApiDone = true; }
                                     var qResAli = assessmentLineItemByResId[qResId] || '';
                                     if (!qResApiDone && qResAli && _isComplete(progressById[qResAli])) { qResApiDone = true; }
-                                    resDetails[rci]._resDone = qResLocalDone || qResApiDone;
+                                    resDetails[rci]._resDone = qResApiDone;
                                 }
                             }
 
