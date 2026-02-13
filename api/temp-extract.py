@@ -249,97 +249,158 @@ def _extract_html_text(raw_xml):
     return text
 
 
+def _find_raw_xml(item):
+    """Recursively find rawXml in a QTI item dict."""
+    if not isinstance(item, dict):
+        return ""
+    # Direct
+    for key in ("rawXml", "raw_xml", "xml"):
+        if isinstance(item.get(key), str) and item[key].strip():
+            return item[key]
+    # Nested in content
+    content = item.get("content")
+    if isinstance(content, dict):
+        for key in ("rawXml", "raw_xml", "xml"):
+            if isinstance(content.get(key), str) and content[key].strip():
+                return content[key]
+    elif isinstance(content, str) and "<" in content:
+        return content
+    return ""
+
+
+def _deep_text(obj):
+    """Recursively extract all text from a nested dict/list (for fallback)."""
+    if isinstance(obj, str):
+        return obj
+    if isinstance(obj, list):
+        return " ".join(_deep_text(i) for i in obj)
+    if isinstance(obj, dict):
+        parts = []
+        for k, v in obj.items():
+            if k.startswith("_"):
+                continue
+            parts.append(_deep_text(v))
+        return " ".join(p for p in parts if p.strip())
+    return ""
+
+
 def _parse_qti_item(item):
-    """Parse a QTI assessment-item into a simplified question dict."""
+    """Parse a QTI assessment-item into a simplified question dict.
+
+    Strategy:
+      1. Always extract from rawXml first (regex — most reliable)
+      2. Fall back to JSON structure parsing
+      3. Last resort: dump all text content from the item
+    """
     if not isinstance(item, dict):
         return None
 
     qid = item.get("identifier") or item.get("id") or ""
-    title = item.get("title") or ""
+    title = item.get("title") or item.get("name") or ""
     q_type = "mcq"
     prompt_text = ""
     choices = []
     correct_id = ""
 
-    # Try to extract from content.rawXml (PowerPath-style)
-    content = item.get("content", {})
-    raw_xml = ""
-    if isinstance(content, dict):
-        raw_xml = content.get("rawXml", "")
-    elif isinstance(content, str):
-        raw_xml = content
+    # ── 1. Extract from rawXml (most reliable) ──────────────────────
+    raw_xml = _find_raw_xml(item)
 
-    # Also check for qti-assessment-item wrapper
-    qai = item.get("qti-assessment-item", item)
-    if isinstance(qai, dict):
-        body = qai.get("qti-item-body", {})
-        if isinstance(body, dict):
-            # Choice interaction (MCQ)
-            ci = body.get("qti-choice-interaction", {})
-            if ci:
-                if isinstance(ci, list):
-                    ci = ci[0] if ci else {}
-                prompt = ci.get("qti-prompt", "")
-                if isinstance(prompt, dict):
-                    prompt = prompt.get("#text", "") or prompt.get("_text", "")
-                prompt_text = _extract_html_text(str(prompt)) if prompt else ""
-
-                simple_choices = ci.get("qti-simple-choice", [])
-                if not isinstance(simple_choices, list):
-                    simple_choices = [simple_choices]
-                for sc in simple_choices:
-                    if isinstance(sc, dict):
-                        cid = (sc.get("_attributes") or sc).get("identifier", "")
-                        clabel = sc.get("#text", "") or sc.get("_text", "") or _extract_html_text(str(sc))
-                        choices.append({"id": cid, "label": clabel})
-                    elif isinstance(sc, str):
-                        choices.append({"id": sc, "label": sc})
-
-            # Extended text (FRQ)
-            eti = body.get("qti-extended-text-interaction", {})
-            if eti:
-                q_type = "frq"
-                prompt = body.get("qti-prompt", "") or (eti.get("qti-prompt", "") if isinstance(eti, dict) else "")
-                if isinstance(prompt, dict):
-                    prompt = prompt.get("#text", "") or prompt.get("_text", "")
-                prompt_text = _extract_html_text(str(prompt)) if prompt else ""
-
-        # Correct answer
-        rd = qai.get("qti-response-declaration", qai.get("responseDeclaration", {}))
-        if isinstance(rd, dict):
-            cr = rd.get("qti-correct-response", rd.get("correctResponse", {}))
-            if isinstance(cr, dict):
-                val = cr.get("qti-value", cr.get("value", ""))
-                if isinstance(val, dict):
-                    val = val.get("#text", "") or val.get("_text", "")
-                if isinstance(val, list):
-                    val = val[0] if val else ""
-                correct_id = str(val)
-
-    # Fallback: extract from rawXml
-    if not prompt_text and raw_xml:
-        prompt_match = re.search(r"<qti-prompt>(.*?)</qti-prompt>", raw_xml, re.DOTALL)
-        if prompt_match:
-            prompt_text = _extract_html_text(prompt_match.group(1))
+    if raw_xml:
+        # Prompt: try qti-prompt first, then qti-item-body
+        pm = re.search(r"<qti-prompt[^>]*>(.*?)</qti-prompt>", raw_xml, re.DOTALL)
+        if pm:
+            prompt_text = _extract_html_text(pm.group(1))
         else:
-            prompt_text = _extract_html_text(raw_xml)[:500]
+            bm = re.search(r"<qti-item-body[^>]*>(.*?)</qti-item-body>", raw_xml, re.DOTALL)
+            if bm:
+                prompt_text = _extract_html_text(bm.group(1))[:1000]
 
-    if not correct_id and raw_xml:
-        cm = re.search(r"<qti-correct-response>\s*<qti-value>([^<]+)</qti-value>", raw_xml)
-        if cm:
-            correct_id = cm.group(1)
-
-    if not choices and raw_xml:
+        # Choices
         for m in re.finditer(
-            r'<qti-simple-choice\s+identifier="([^"]+)"[^>]*>(.*?)</qti-simple-choice>',
-            raw_xml,
-            re.DOTALL,
+            r'<qti-simple-choice[^>]*identifier="([^"]*)"[^>]*>(.*?)</qti-simple-choice>',
+            raw_xml, re.DOTALL,
         ):
             choices.append({"id": m.group(1), "label": _extract_html_text(m.group(2))})
+        # Also try without identifier attr (some QTI uses value= instead)
+        if not choices:
+            for m in re.finditer(
+                r"<qti-simple-choice[^>]*>(.*?)</qti-simple-choice>",
+                raw_xml, re.DOTALL,
+            ):
+                label = _extract_html_text(m.group(1))
+                if label:
+                    choices.append({"id": chr(65 + len(choices)), "label": label})
 
-    if raw_xml and "qti-extended-text-interaction" in raw_xml:
-        q_type = "frq"
+        # Correct answer
+        cm = re.search(r"<qti-correct-response>\s*<qti-value>([^<]+)</qti-value>", raw_xml)
+        if cm:
+            correct_id = cm.group(1).strip()
 
+        # FRQ detection
+        if "qti-extended-text-interaction" in raw_xml:
+            q_type = "frq"
+
+    # ── 2. JSON structure parsing (fallback) ────────────────────────
+    if not prompt_text or not choices:
+        # Walk the item looking for known QTI JSON structures
+        qai = item.get("qti-assessment-item", item)
+        if isinstance(qai, dict):
+            body = qai.get("qti-item-body") or {}
+            if isinstance(body, dict):
+                ci = body.get("qti-choice-interaction") or {}
+                if isinstance(ci, list):
+                    ci = ci[0] if ci else {}
+                if isinstance(ci, dict):
+                    if not prompt_text:
+                        p = ci.get("qti-prompt", "")
+                        if isinstance(p, dict):
+                            p = p.get("#text", "") or p.get("_text", "") or _deep_text(p)
+                        if p:
+                            prompt_text = _extract_html_text(str(p))
+                    if not choices:
+                        scs = ci.get("qti-simple-choice", [])
+                        if not isinstance(scs, list):
+                            scs = [scs]
+                        for sc in scs:
+                            if isinstance(sc, dict):
+                                cid = (sc.get("_attributes") or sc).get("identifier", "")
+                                clabel = sc.get("#text", "") or sc.get("_text", "") or _deep_text(sc)
+                                clabel = _extract_html_text(clabel)
+                                if cid or clabel:
+                                    choices.append({"id": cid or chr(65 + len(choices)), "label": clabel})
+
+                eti = body.get("qti-extended-text-interaction")
+                if eti:
+                    q_type = "frq"
+                    if not prompt_text:
+                        p = body.get("qti-prompt", "") or (eti.get("qti-prompt", "") if isinstance(eti, dict) else "")
+                        if isinstance(p, dict):
+                            p = _deep_text(p)
+                        if p:
+                            prompt_text = _extract_html_text(str(p))
+
+            if not correct_id:
+                rd = qai.get("qti-response-declaration") or qai.get("responseDeclaration") or {}
+                if isinstance(rd, list):
+                    rd = rd[0] if rd else {}
+                if isinstance(rd, dict):
+                    cr = rd.get("qti-correct-response") or rd.get("correctResponse") or {}
+                    if isinstance(cr, dict):
+                        val = cr.get("qti-value") or cr.get("value", "")
+                        if isinstance(val, dict):
+                            val = val.get("#text", "") or val.get("_text", "")
+                        if isinstance(val, list):
+                            val = val[0] if val else ""
+                        correct_id = str(val).strip()
+
+    # ── 3. Last resort: extract all text from the item ──────────────
+    if not prompt_text:
+        all_text = _deep_text(item)
+        all_text = _extract_html_text(all_text)
+        if len(all_text) > 20:
+            prompt_text = all_text[:1500]
+
+    # Skip completely empty items
     if not prompt_text and not choices and not title:
         return None
 
@@ -353,6 +414,9 @@ def _parse_qti_item(item):
         result["choices"] = choices
     if correct_id:
         result["correctAnswer"] = correct_id
+    # Include rawXml snippet for debugging/completeness
+    if raw_xml and not prompt_text:
+        result["rawContent"] = _extract_html_text(raw_xml)[:2000]
 
     # Attach stimulus if present
     stim = item.get("_sectionStimulus")

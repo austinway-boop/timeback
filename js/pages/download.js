@@ -428,10 +428,11 @@ function formatQuestionsTxt(questions) {
     if (!questions || !questions.length) return '';
     var lines = [];
     questions.forEach(function (q, i) {
-        lines.push('Q' + (i + 1) + '. ' + (q.title || ''));
+        lines.push('Q' + (i + 1) + (q.title ? '. ' + q.title : '.'));
         lines.push('Type: ' + (q.type === 'frq' ? 'Free Response' : 'Multiple Choice'));
-        if (q.stimulus) { lines.push(''); lines.push('Stimulus: ' + q.stimulus); }
+        if (q.stimulus) { lines.push(''); lines.push('Stimulus:'); lines.push(q.stimulus); }
         if (q.prompt) { lines.push(''); lines.push(q.prompt); }
+        if (q.rawContent && !q.prompt) { lines.push(''); lines.push(q.rawContent); }
         if (q.choices && q.choices.length) {
             lines.push('');
             q.choices.forEach(function (c) {
@@ -440,6 +441,7 @@ function formatQuestionsTxt(questions) {
             });
         }
         if (q.correctAnswer && (!q.choices || !q.choices.length)) {
+            lines.push('');
             lines.push('Answer: ' + q.correctAnswer);
         }
         lines.push('');
