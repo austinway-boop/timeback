@@ -877,7 +877,7 @@
         var payload = {
             studentSourcedId: syncState.userId,
             assessmentLineItemSourcedId: lineItemId,
-            score: score,
+            score: passed ? 100 : score,
             scoreStatus: 'fully graded',
             comment: (lessonData.title || 'Quiz') + ' — ' + score + '% accuracy',
             metadata: {
