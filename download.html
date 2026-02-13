@@ -213,36 +213,65 @@ function setStatus(html) {
     document.getElementById('status-text').innerHTML = html;
 }
 
-/* ---- 1. Load courses from enrollments (same source as dashboard) ------ */
+/* ---- 1. Load courses (enrollments for correct IDs + catalog for full list) */
 (function loadCourses() {
     var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
-    if (!userId) {
-        document.getElementById('courses-loading').innerHTML =
-            '<i class="fa-solid fa-exclamation-triangle" style="color:#E53E3E"></i> Not signed in. <a href="/login" style="color:var(--color-primary);">Sign in</a> first.';
-        return;
-    }
 
-    fetch('/api/enrollments?userId=' + encodeURIComponent(userId))
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            var raw = data.data || data.enrollments || data.courses || (Array.isArray(data) ? data : []);
+    // Fetch both sources in parallel: enrollments (correct PowerPath IDs)
+    // and course catalog (full list of all AP courses in the org).
+    var enrollPromise = userId
+        ? fetch('/api/enrollments?userId=' + encodeURIComponent(userId)).then(function (r) { return r.json(); }).catch(function () { return {}; })
+        : Promise.resolve({});
+    var catalogPromise = fetch('/api/courses').then(function (r) { return r.json(); }).catch(function () { return {}; });
 
-            // Extract AP courses from enrollment data with the correct
-            // course.sourcedId that PowerPath recognizes.
+    Promise.all([enrollPromise, catalogPromise])
+        .then(function (results) {
+            var enrollData = results[0];
+            var catalogData = results[1];
+
+            // 1. Build map from enrollment data (these have the correct PowerPath IDs)
+            var enrollRaw = enrollData.data || enrollData.enrollments || enrollData.courses || (Array.isArray(enrollData) ? enrollData : []);
+            var enrollMap = {}; // title (lowercase) → { sourcedId, title, courseCode }
+            for (var i = 0; i < enrollRaw.length; i++) {
+                var e = enrollRaw[i];
+                var ec = e.course || {};
+                var eTitle = (ec.title || '').trim();
+                if (!isAPCourse(eTitle)) continue;
+                var eKey = eTitle.toLowerCase();
+                if (!enrollMap[eKey]) {
+                    enrollMap[eKey] = {
+                        sourcedId: ec.sourcedId || ec.id || '',
+                        title: eTitle,
+                        courseCode: ec.courseCode || ec.sourcedId || '',
+                    };
+                }
+            }
+
+            // 2. Build full list from catalog, preferring enrollment IDs when available
+            var catalogCourses = catalogData.courses || [];
             var seen = {};
-            for (var i = 0; i < raw.length; i++) {
-                var e = raw[i];
-                var course = e.course || {};
-                var title = (course.title || '').trim();
-                if (!isAPCourse(title)) continue;
-                var key = title.toLowerCase();
-                if (seen[key]) continue;
-                seen[key] = true;
+            for (var j = 0; j < catalogCourses.length; j++) {
+                var cc = catalogCourses[j];
+                var cTitle = (cc.title || '').trim();
+                if (!isAPCourse(cTitle)) continue;
+                var cKey = cTitle.toLowerCase();
+                if (seen[cKey]) continue;
+                seen[cKey] = true;
+                // Prefer the enrollment ID (PowerPath-compatible), fall back to catalog ID
+                var enrolled = enrollMap[cKey];
                 apCourses.push({
-                    sourcedId: course.sourcedId || course.id || '',
-                    title: title,
-                    courseCode: course.courseCode || course.sourcedId || '',
+                    sourcedId: (enrolled && enrolled.sourcedId) || cc.sourcedId || '',
+                    title: cTitle,
+                    courseCode: cc.courseCode || cc.sourcedId || '',
                 });
+            }
+
+            // 3. Add any enrollment courses not in catalog (edge case)
+            for (var ek in enrollMap) {
+                if (!seen[ek]) {
+                    seen[ek] = true;
+                    apCourses.push(enrollMap[ek]);
+                }
             }
 
             document.getElementById('courses-loading').style.display = 'none';
