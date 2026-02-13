@@ -18,6 +18,7 @@ import re
 from http.server import BaseHTTPRequestHandler
 import requests
 from api._helpers import API_BASE, api_headers, send_json, get_query_params
+from _kv import kv_get
 
 
 def _extract_correct_answer(question):
@@ -78,10 +79,15 @@ class handler(BaseHTTPRequestHandler):
                     if resp.status_code == 200:
                         data = resp.json()
                         questions = data.get("questions", [])
+                        # Filter out questions hidden by admin
+                        hidden = kv_get(f"hidden_questions:{student}") or []
                         total_q = len(questions)
                         answered_q = 0
                         # Find the first unanswered question
                         for q in questions:
+                            if q.get("id") in hidden:
+                                answered_q += 1
+                                continue
                             answered = q.get("answered", False) or q.get("response") is not None
                             if answered:
                                 answered_q += 1

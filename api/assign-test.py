@@ -71,12 +71,29 @@ class handler(BaseHTTPRequestHandler):
             raw = self.rfile.read(int(self.headers.get("Content-Length", 0)) or 0)
             body = json.loads(raw) if raw else {}
             aid = (body.get("assignmentId") or body.get("sourcedId") or "").strip()
+            sid = (body.get("student") or body.get("studentId") or "").strip()
+            subject = (body.get("subject") or "").strip()
             if not aid:
                 send_json(self, {"success": False, "error": "assignmentId required"}, 400)
                 return
             headers = api_headers()
             r = requests.delete(f"{PP}/test-assignments/{aid}", headers=headers, timeout=10)
-            send_json(self, {"success": r.status_code in (200, 204), "status": r.status_code})
+            deleted = r.status_code in (200, 204)
+
+            # After removing the test, clean up the placement enrollment
+            # if no other tests remain for this subject
+            enrollment_removed = False
+            if deleted and sid and subject:
+                try:
+                    enrollment_removed = _cleanup_placement_enrollment(headers, sid, subject)
+                except Exception:
+                    pass
+
+            send_json(self, {
+                "success": deleted,
+                "status": r.status_code,
+                "enrollmentRemoved": enrollment_removed,
+            })
         except Exception as e:
             send_json(self, {"success": False, "error": str(e)}, 500)
 
@@ -167,6 +184,80 @@ def _ensure_enrollment(headers, student_id, subject):
         )
     except Exception:
         pass
+
+
+def _cleanup_placement_enrollment(headers, student_id, subject):
+    """Remove the placement-class enrollment if no other tests remain for this subject.
+
+    Returns True if an enrollment was removed, False otherwise.
+    """
+    key = subject.lower()
+    cls = PLACEMENT_CLASSES.get(key)
+    if not cls:
+        return False
+
+    # Check if student still has other test assignments for this subject
+    try:
+        resp = requests.get(
+            f"{PP}/test-assignments",
+            headers=headers,
+            params={"student": student_id},
+            timeout=8,
+        )
+        if resp.status_code == 200:
+            remaining = [
+                a for a in resp.json().get("testAssignments", [])
+                if (a.get("subject") or "").lower() == key
+            ]
+            if remaining:
+                return False  # Other tests still exist — keep enrollment
+    except Exception:
+        pass  # If we can't check, still try to clean up
+
+    # Find the placement enrollment to remove
+    target_class_id = cls["classId"]
+    try:
+        resp = requests.get(
+            f"{API_BASE}/edubridge/enrollments/user/{student_id}",
+            headers=headers,
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return False
+
+        data = resp.json()
+        enrollments = data.get("enrollments", data.get("data", []))
+
+        for e in enrollments:
+            course = e.get("course", {})
+            course_id = course.get("id", "") if isinstance(course, dict) else ""
+            enrollment_id = e.get("id", e.get("sourcedId", ""))
+
+            if not enrollment_id:
+                continue
+
+            # Match by placement class ID or by course ID pattern
+            if course_id == target_class_id:
+                # Try to delete this enrollment
+                dr = requests.delete(
+                    f"{OR}/rostering/v1p2/enrollments/{enrollment_id}",
+                    headers=headers,
+                    timeout=10,
+                )
+                if dr.status_code in (200, 204):
+                    return True
+                # Fallback: try EduBridge delete
+                dr = requests.delete(
+                    f"{API_BASE}/edubridge/enrollments/{enrollment_id}",
+                    headers=headers,
+                    timeout=10,
+                )
+                if dr.status_code in (200, 204):
+                    return True
+    except Exception:
+        pass
+
+    return False
 
 
 def _proxy(handler, headers, url, params):

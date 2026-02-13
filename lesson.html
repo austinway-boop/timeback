@@ -1018,8 +1018,10 @@
     }
 
     /* ── 4. PowerPath: finalize lesson via finalStudentAssessmentResponse API ── */
-    /* Returns a Promise that resolves with { xpEarned, multiplier, finalScore } from PowerPath */
-    function markLessonComplete(score) {
+    /* Returns a Promise that resolves with { xpEarned, multiplier, finalScore } from PowerPath.
+       The backend now always tries getAssessmentProgress even if finalize fails,
+       so we can extract XP from "partial" or "error" responses too. */
+    async function markLessonComplete(score) {
         // Priority: use lessonSourcedId (matches documented format like "USHI23-l10-r104084-bank-v1")
         var lessonId = lessonData.lessonSourcedId || '';
         
@@ -1035,7 +1037,7 @@
         
         if (!lessonId || !syncState.userId) {
             console.warn('[Sync] No lessonId or userId - skipping PowerPath finalize');
-            return Promise.resolve({ xpEarned: 0, multiplier: 1, finalScore: null });
+            return { xpEarned: 0, multiplier: 1, finalScore: null };
         }
         
         var payload = {
@@ -1048,25 +1050,35 @@
         
         console.log('[Sync] Finalizing lesson via PowerPath - lessonId:', lessonId, 'userId:', syncState.userId, 'score:', score);
         
-        return fetch('/api/finalize-lesson', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-            console.log('[Sync] PowerPath finalize response:', JSON.stringify(d));
+        try {
+            var resp = await fetch('/api/finalize-lesson', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            var d = await resp.json();
+            console.log('[Sync] PowerPath finalize response (status ' + resp.status + '):', JSON.stringify(d));
+            
+            // The backend now returns xpEarned even on "partial" status
+            // (when finalize failed but getAssessmentProgress succeeded)
             var ppXp = d.xpEarned || 0;
             var ppMultiplier = d.multiplier || 1;
             var ppScore = typeof d.powerpathScore === 'number' ? d.powerpathScore : null;
             var ppAccuracy = typeof d.powerpathAccuracy === 'number' ? d.powerpathAccuracy : null;
-            console.log('[Sync] PowerPath XP extracted — xpEarned:', ppXp, 'multiplier:', ppMultiplier, 'score:', ppScore, 'accuracy:', ppAccuracy);
+            
+            if (d.status === 'error' && ppXp === 0) {
+                console.error('[Sync] PowerPath finalize returned error with no XP:', d.message || 'unknown error');
+            } else if (d.status === 'partial') {
+                console.warn('[Sync] PowerPath finalize failed but XP retrieved from progress:', ppXp);
+            } else {
+                console.log('[Sync] PowerPath XP extracted — xpEarned:', ppXp, 'multiplier:', ppMultiplier, 'score:', ppScore, 'accuracy:', ppAccuracy);
+            }
+            
             return { xpEarned: ppXp, multiplier: ppMultiplier, finalScore: ppScore, accuracy: ppAccuracy };
-        })
-        .catch(function(e) {
-            console.error('[Sync] PowerPath finalize FAILED:', e.message);
+        } catch(e) {
+            console.error('[Sync] PowerPath finalize request FAILED:', e.message);
             return { xpEarned: 0, multiplier: 1, finalScore: null };
-        });
+        }
     }
 
     /* ── Combined: fire all sync methods on quiz completion ── */
@@ -1873,7 +1885,7 @@
     }
 
     /* ── Quiz results (inline) ─────────────────────────────── */
-    function showQuizResults() {
+    async function showQuizResults() {
         // Collapse wide mode for results view
         var lessonPage = document.querySelector('.lesson-page');
         if (lessonPage) lessonPage.classList.remove('wide-mode');
@@ -1890,6 +1902,21 @@
 
         console.log('[Quiz] Results — ppScore:', quizState.ppScore, 'accuracy:', pct + '%', 'passed:', passed, 'total:', quizState.total);
 
+        // ═══ Show a loading state while we finalize ═══
+        if (!quizArea) quizArea = document.getElementById('quiz-area');
+        if (quizArea && passed) {
+            quizArea.innerHTML = '<div class="result-card">' +
+                '<div class="result-emoji"><i class="fa-solid fa-spinner fa-spin" style="font-size:2rem;color:var(--color-primary);"></i></div>' +
+                '<div class="result-label">Saving progress...</div>' +
+            '</div>';
+        }
+
+        // Disable nav buttons until sync completes
+        var btnContinue = document.getElementById('btn-continue');
+        var btnBack = document.getElementById('btn-back');
+        if (btnContinue) { btnContinue.disabled = true; }
+        if (btnBack) { btnBack.disabled = true; }
+
         // ═══ SYNC FIRST — before any DOM writes that could fail ═══
         // Mark lesson complete locally and signal course page — ONLY when truly passed
         if (passed) {
@@ -1899,11 +1926,11 @@
         // Always signal course.html to refresh (even on fail — updates frontier)
         sessionStorage.setItem('al_progress_changed', 'true');
 
-        // Sync with TimeBack Platform — only finalizes on PowerPath if passed
-        syncQuizCompletion(pct, passed);
+        // Sync with TimeBack Platform — AWAIT so we get real XP from PowerPath
+        // before rendering and before the user can navigate away
+        await syncQuizCompletion(pct, passed);
 
-        // ═══ Now render the results UI ═══
-        // quizArea may be null if coming from AP exam (overlay was removed)
+        // ═══ Now render the results UI with authoritative XP ═══
         if (!quizArea) quizArea = document.getElementById('quiz-area');
         var resultColor = passed ? '#16A34A' : pct >= 80 ? '#D97706' : '#DC2626';
         var incorrect = quizState.total - quizState.correct;
@@ -1919,6 +1946,10 @@
         if (quizArea) {
             quizArea.innerHTML = resultHtml;
         }
+
+        // Re-enable nav buttons now that sync is done
+        if (btnContinue) { btnContinue.disabled = false; }
+        if (btnBack) { btnBack.disabled = false; }
 
         // Show nav with finish/retry
         showNavAfterQuiz(passed);
@@ -2962,7 +2993,8 @@
             } else if (data.verdict === 'valid') {
                 if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'valid', pointsAwarded: 0 });
             } else {
-                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'invalid', pointsAwarded: 0 });
+                // Invalid report — pass AI reasoning so student sees why the question was valid
+                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'invalid', pointsAwarded: 0, reasoning: data.reasoning || '' });
             }
         } catch(e) {}
     }

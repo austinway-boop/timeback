@@ -65,37 +65,51 @@ class handler(BaseHTTPRequestHandler):
                 "body": resp.text[:500]
             })
 
-            if resp.status_code in (200, 201):
-                finalize_data = resp.json()
-                
-                # Get XP from progress endpoint
-                xp_earned = 0
-                multiplier = 1
-                pp_score = None
-                pp_accuracy = None
+            finalize_ok = resp.status_code in (200, 201)
+            finalize_data = {}
+            if finalize_ok:
                 try:
-                    progress_resp = requests.get(
-                        f"{API_BASE}/powerpath/getAssessmentProgress",
-                        headers=headers,
-                        params={"student": student_id, "lesson": lesson_id},
-                        timeout=10
-                    )
-                    if progress_resp.status_code == 200:
-                        progress = progress_resp.json()
-                        xp_earned = progress.get("xp", 0)
-                        multiplier = progress.get("multiplier", 1)
-                        pp_score = progress.get("score")
-                        pp_accuracy = progress.get("accuracy")
-                        debug.append({
-                            "step": "getAssessmentProgress",
-                            "xp": xp_earned,
-                            "score": pp_score,
-                            "accuracy": pp_accuracy,
-                            "multiplier": multiplier
-                        })
-                except Exception as e:
-                    debug.append({"step": "getAssessmentProgress", "error": str(e)})
-                
+                    finalize_data = resp.json()
+                except Exception:
+                    finalize_data = {}
+
+            # Always try to get XP from progress endpoint, even if finalize
+            # returned an error — the lesson may have been previously finalized
+            # and the XP data is still available.
+            xp_earned = 0
+            multiplier = 1
+            pp_score = None
+            pp_accuracy = None
+            try:
+                progress_resp = requests.get(
+                    f"{API_BASE}/powerpath/getAssessmentProgress",
+                    headers=headers,
+                    params={"student": student_id, "lesson": lesson_id},
+                    timeout=10
+                )
+                if progress_resp.status_code == 200:
+                    progress = progress_resp.json()
+                    xp_earned = progress.get("xp", 0)
+                    multiplier = progress.get("multiplier", 1)
+                    pp_score = progress.get("score")
+                    pp_accuracy = progress.get("accuracy")
+                    debug.append({
+                        "step": "getAssessmentProgress",
+                        "xp": xp_earned,
+                        "score": pp_score,
+                        "accuracy": pp_accuracy,
+                        "multiplier": multiplier
+                    })
+                else:
+                    debug.append({
+                        "step": "getAssessmentProgress",
+                        "status": progress_resp.status_code,
+                        "body": progress_resp.text[:300]
+                    })
+            except Exception as e:
+                debug.append({"step": "getAssessmentProgress", "error": str(e)})
+
+            if finalize_ok:
                 send_json(self, {
                     "status": "success",
                     "finalized": finalize_data.get("finalized", True),
@@ -109,11 +123,16 @@ class handler(BaseHTTPRequestHandler):
                     "debug": debug
                 })
             else:
+                # Finalize failed, but we may still have XP from progress
                 send_json(self, {
-                    "status": "error",
-                    "message": f"Finalize failed ({resp.status_code})",
+                    "status": "partial" if xp_earned > 0 else "error",
+                    "message": f"Finalize failed ({resp.status_code}), but XP retrieved from progress" if xp_earned > 0 else f"Finalize failed ({resp.status_code})",
+                    "xpEarned": xp_earned,
+                    "multiplier": multiplier,
+                    "powerpathScore": pp_score,
+                    "powerpathAccuracy": pp_accuracy,
                     "debug": debug
-                }, resp.status_code if resp.status_code < 500 else 502)
+                }, 200 if xp_earned > 0 else (resp.status_code if resp.status_code < 500 else 502))
 
         except Exception as e:
             debug.append({"step": "finalStudentAssessmentResponse", "error": str(e)})

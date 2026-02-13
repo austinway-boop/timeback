@@ -74,6 +74,7 @@
             .notif-item-time { font-size:0.7rem; color:var(--color-text-muted); margin-top:4px; }
             .notif-empty { padding:30px 16px; text-align:center; color:var(--color-text-muted); font-size:0.85rem; }
             .notif-empty i { display:block; font-size:1.5rem; margin-bottom:8px; opacity:0.3; }
+            .notif-item-reasoning { font-size:0.75rem; color:var(--color-text-muted); line-height:1.45; margin-top:6px; padding:8px 10px; background:#F9FAFB; border-radius:6px; border-left:3px solid #D1D5DB; }
         `;
         document.head.appendChild(style);
 
@@ -125,6 +126,10 @@
                 html += '<div class="notif-item' + (n.read ? '' : ' unread') + '">';
                 html += '<div class="notif-item-q">' + (q || 'Reported question') + '</div>';
                 html += statusHtml(n);
+                if (n.verdict === 'invalid' && n.reasoning) {
+                    var reason = n.reasoning.length > 200 ? n.reasoning.substring(0, 200) + '...' : n.reasoning;
+                    html += '<div class="notif-item-reasoning">' + reason + '</div>';
+                }
                 html += '<div class="notif-item-time">' + timeAgo(n.timestamp) + '</div>';
                 html += '</div>';
             });
