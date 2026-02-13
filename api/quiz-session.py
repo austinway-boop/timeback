@@ -22,7 +22,7 @@ _import_error = None
 try:
     import requests
     from api._helpers import API_BASE, api_headers, send_json, get_query_params
-    from _kv import kv_get
+    from api._kv import kv_get
 except Exception as _e:
     _import_error = f"{type(_e).__name__}: {_e}\n{_tb.format_exc()}"
     # Provide stubs so the module still loads

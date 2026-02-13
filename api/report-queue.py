@@ -12,7 +12,7 @@ import json
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-from _kv import kv_get, kv_set, kv_list_get, kv_list_push, kv_list_remove
+from api._kv import kv_get, kv_set, kv_list_get, kv_list_push, kv_list_remove
 
 
 def _send_json(handler, data, status=200):

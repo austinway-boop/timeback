@@ -18,7 +18,7 @@ _import_error = None
 try:
     import requests
     from api._helpers import CLIENT_ID, CLIENT_SECRET, send_json, get_query_params, get_token
-    from _kv import kv_list_get
+    from api._kv import kv_list_get
 except Exception as _e:
     _import_error = f"{type(_e).__name__}: {_e}\n{_tb.format_exc()}"
     # Provide stubs so the module still loads
