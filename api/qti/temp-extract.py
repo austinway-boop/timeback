@@ -503,6 +503,7 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         params = get_query_params(self)
         course_id = params.get("courseId", "").strip()
+        user_id = params.get("userId", "").strip()
 
         if not course_id:
             send_json(self, {"error": "Need courseId"}, 400)
@@ -512,28 +513,55 @@ class handler(BaseHTTPRequestHandler):
             pp_headers = api_headers()
             qti_headers = _qti_headers()
 
-            # 1. Fetch lesson plan tree (no userId needed)
-            resp = requests.get(
-                f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
-                headers=pp_headers,
-                timeout=30,
-            )
-            if resp.status_code == 401:
-                pp_headers = api_headers()
-                resp = requests.get(
-                    f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
-                    headers=pp_headers,
-                    timeout=30,
-                )
-            if resp.status_code != 200:
+            tree = None
+
+            # 1a. Try student-specific lesson plan (most reliable, needs userId)
+            if user_id:
+                try:
+                    resp = requests.get(
+                        f"{API_BASE}/powerpath/lessonPlans/{course_id}/{user_id}",
+                        headers=pp_headers,
+                        timeout=30,
+                    )
+                    if resp.status_code == 401:
+                        pp_headers = api_headers()
+                        resp = requests.get(
+                            f"{API_BASE}/powerpath/lessonPlans/{course_id}/{user_id}",
+                            headers=pp_headers,
+                            timeout=30,
+                        )
+                    if resp.status_code == 200:
+                        tree = resp.json()
+                except Exception:
+                    pass
+
+            # 1b. Fallback: full lesson plan tree (no userId needed)
+            if not tree:
+                try:
+                    resp = requests.get(
+                        f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
+                        headers=pp_headers,
+                        timeout=30,
+                    )
+                    if resp.status_code == 401:
+                        pp_headers = api_headers()
+                        resp = requests.get(
+                            f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
+                            headers=pp_headers,
+                            timeout=30,
+                        )
+                    if resp.status_code == 200:
+                        tree = resp.json()
+                except Exception:
+                    pass
+
+            if not tree:
                 send_json(
                     self,
-                    {"error": f"Failed to fetch lesson plan tree ({resp.status_code})", "success": False},
-                    502,
+                    {"error": f"No lesson plan found for course {course_id}", "success": False},
+                    404,
                 )
                 return
-
-            tree = resp.json()
             inner = tree.get("lessonPlan", tree) if isinstance(tree, dict) else tree
             if isinstance(inner, dict) and inner.get("lessonPlan"):
                 inner = inner["lessonPlan"]

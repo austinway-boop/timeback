@@ -137,7 +137,10 @@ function extractContent() {
     document.getElementById('results').style.display = 'none';
     setStatus('<span class="spinner"></span> Fetching lesson plan tree, videos, articles &amp; questions...');
 
-    fetch('/api/qti/temp-extract?courseId=' + encodeURIComponent(selectedCourseId))
+    var uid = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+    var extractUrl = '/api/qti/temp-extract?courseId=' + encodeURIComponent(selectedCourseId);
+    if (uid) extractUrl += '&userId=' + encodeURIComponent(uid);
+    fetch(extractUrl)
         .then(function (r) { return r.json(); })
         .then(function (data) {
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Extract Content';
