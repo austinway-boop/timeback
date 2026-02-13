@@ -13,7 +13,6 @@ No student context needed — uses the tree endpoint and QTI catalog directly.
 """
 
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.server import BaseHTTPRequestHandler
 
 import requests
@@ -431,126 +430,103 @@ def _parse_qti_item(item):
 
 
 # ---------------------------------------------------------------------------
-# QTI question resolution (mirrors qti-item.py logic)
+# PowerPath question fetching (same endpoint the lesson page uses)
 # ---------------------------------------------------------------------------
-def _resolve_questions_from_test(test, headers):
-    """Walk QTI test parts/sections → item refs → fetch items in parallel."""
-    parts = test.get("qti-test-part", test.get("testParts", []))
-    if not isinstance(parts, list):
-        parts = [parts]
-
-    item_hrefs = []
-    for part in parts:
-        sections = part.get("qti-assessment-section", part.get("sections", []))
-        if not isinstance(sections, list):
-            sections = [sections]
-        for section in sections:
-            refs = section.get(
-                "qti-assessment-item-ref",
-                section.get("itemRefs", section.get("items", [])),
-            )
-            if not isinstance(refs, list):
-                refs = [refs]
-            for ref in refs:
-                href = ""
-                if isinstance(ref, str):
-                    href = ref
-                else:
-                    href = ref.get("href", "") or (ref.get("_attributes") or {}).get("href", "")
-                    if not href:
-                        ref_id = ref.get("identifier", ref.get("id", ""))
-                        if ref_id:
-                            href = f"{QTI_BASE}/api/assessment-items/{ref_id}"
-                if href:
-                    item_hrefs.append(href)
-
-    items = []
-    if not item_hrefs:
-        return items
-
-    def _get(url):
-        return url, _fetch(url, headers)
-
-    with ThreadPoolExecutor(max_workers=5) as pool:
-        futures = [pool.submit(_get, h) for h in item_hrefs]
-        ordered = {}
-        for f in as_completed(futures):
-            try:
-                url, (data, _st) = f.result()
-                if data:
-                    ordered[url] = data
-            except Exception:
-                pass
-
-    for href in item_hrefs:
-        item = ordered.get(href)
-        if item:
-            items.append(item)
-    return items
-
-
-def _fetch_questions_for_resource(resource, pp_headers, qti_headers):
-    """Given a lesson componentResource, try to fetch its QTI questions.
-
-    Returns a list of simplified question dicts.
+def _fetch_questions_powerpath(student_id, lesson_id, pp_headers):
+    """Fetch questions via getAssessmentProgress — the exact same call
+    the lesson page makes.  Returns the raw question list from PowerPath.
     """
-    res = resource.get("resource", resource) if isinstance(resource, dict) else resource
-    if not isinstance(res, dict):
-        return []
+    try:
+        resp = requests.get(
+            f"{API_BASE}/powerpath/getAssessmentProgress",
+            headers=pp_headers,
+            params={"student": student_id, "lesson": lesson_id},
+            timeout=15,
+        )
+        if resp.status_code == 401:
+            pp_headers = api_headers()
+            resp = requests.get(
+                f"{API_BASE}/powerpath/getAssessmentProgress",
+                headers=pp_headers,
+                params={"student": student_id, "lesson": lesson_id},
+                timeout=15,
+            )
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("questions", [])
+    except Exception:
+        pass
+    return []
 
-    meta = res.get("metadata") or {}
-    url = meta.get("url", "") or res.get("url", "")
-    res_id = res.get("id", "") or res.get("sourcedId", "")
 
-    questions_raw = []
+def _parse_powerpath_question(q):
+    """Parse a PowerPath question (from getAssessmentProgress) into a
+    simplified dict.  Uses rawXml which is the proven extraction path."""
+    if not isinstance(q, dict):
+        return None
 
-    # Strategy 1: Direct QTI URL from metadata
-    if url:
-        data, st = _fetch(url, qti_headers)
-        if data and isinstance(data, dict):
-            test = data.get("qti-assessment-test", data)
-            if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
-                questions_raw = _resolve_questions_from_test(test, qti_headers)
-            elif data.get("questions"):
-                questions_raw = data["questions"]
+    qid = q.get("id", "")
+    title = q.get("title", "")
+    raw_xml = ""
+    content = q.get("content")
+    if isinstance(content, dict):
+        raw_xml = content.get("rawXml", "")
+    elif isinstance(content, str):
+        raw_xml = content
 
-    # Strategy 2: Try QTI test by resource ID
-    if not questions_raw and res_id:
-        all_ids = [res_id] + _resolve_bank_to_qti(res_id)
-        for tid in all_ids:
-            for endpoint in ["assessment-tests", "assessment-items"]:
-                data, st = _fetch(f"{QTI_BASE}/api/{endpoint}/{tid}", qti_headers)
-                if data and isinstance(data, dict):
-                    test = data.get("qti-assessment-test", data)
-                    if isinstance(test, dict) and (test.get("qti-test-part") or test.get("testParts")):
-                        questions_raw = _resolve_questions_from_test(test, qti_headers)
-                        break
-                    if data.get("questions"):
-                        questions_raw = data["questions"]
-                        break
-            if questions_raw:
-                break
+    prompt_text = ""
+    choices = []
+    correct_id = ""
+    q_type = "mcq"
 
-    # Strategy 3: PowerPath item details
-    if not questions_raw and res_id:
-        for path in [
-            f"{API_BASE}/api/v1/old-powerpath/fetch-item-details/?item_id={res_id}",
-            f"{API_BASE}/powerpath/items/{res_id}",
-        ]:
-            data, st = _fetch(path, pp_headers)
-            if data and isinstance(data, dict):
-                qs = data.get("questions", data.get("items", []))
-                if qs:
-                    questions_raw = qs
-                    break
+    if raw_xml:
+        # Prompt
+        pm = re.search(r"<qti-prompt[^>]*>(.*?)</qti-prompt>", raw_xml, re.DOTALL)
+        if pm:
+            prompt_text = _extract_html_text(pm.group(1))
+        if not prompt_text:
+            bm = re.search(r"<qti-item-body[^>]*>(.*?)</qti-item-body>", raw_xml, re.DOTALL)
+            if bm:
+                # Strip out the choice interaction to get just the prompt
+                body_html = bm.group(1)
+                body_html = re.sub(r"<qti-choice-interaction.*?</qti-choice-interaction>", "", body_html, flags=re.DOTALL)
+                body_html = re.sub(r"<qti-extended-text-interaction[^>]*/>", "", body_html)
+                prompt_text = _extract_html_text(body_html).strip()
 
-    # Parse into simplified format
-    parsed = []
-    for q in questions_raw:
-        p = _parse_qti_item(q)
-        if p:
-            parsed.append(p)
-    return parsed
+        # Choices
+        for m in re.finditer(
+            r'<qti-simple-choice[^>]*identifier="([^"]*)"[^>]*>(.*?)</qti-simple-choice>',
+            raw_xml, re.DOTALL,
+        ):
+            choices.append({"id": m.group(1), "label": _extract_html_text(m.group(2))})
+
+        # Correct answer
+        cm = re.search(r"<qti-correct-response>\s*<qti-value>([^<]+)</qti-value>", raw_xml)
+        if cm:
+            correct_id = cm.group(1).strip()
+
+        # FRQ
+        if "qti-extended-text-interaction" in raw_xml:
+            q_type = "frq"
+
+    # If no rawXml, use title as fallback
+    if not prompt_text and not choices:
+        prompt_text = title or ""
+
+    if not prompt_text and not choices and not title:
+        return None
+
+    result = {
+        "id": qid,
+        "title": title,
+        "prompt": prompt_text,
+        "type": q_type,
+    }
+    if choices:
+        result["choices"] = choices
+    if correct_id:
+        result["correctAnswer"] = correct_id
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -679,7 +655,13 @@ class handler(BaseHTTPRequestHandler):
 
                         meta = res.get("metadata") or {}
                         rurl = meta.get("url", "") or res.get("url", "") or meta.get("href", "") or res.get("href", "")
-                        res_id = res.get("id", "") or res.get("sourcedId", "") or (res_wrapper.get("id", "") if isinstance(res_wrapper, dict) else "")
+                        res_id = res.get("id", "") or res.get("sourcedId", "") or ""
+                        # componentResId: same ID the lesson page uses for PowerPath
+                        component_res_id = (
+                            (res_wrapper.get("sourcedId", "") if isinstance(res_wrapper, dict) else "")
+                            or (res_wrapper.get("id", "") if isinstance(res_wrapper, dict) else "")
+                            or res_id
+                        )
                         res_title = res.get("title", "")
                         kind = _classify_resource(res)
 
@@ -700,8 +682,14 @@ class handler(BaseHTTPRequestHandler):
                             })
 
                         else:  # assessment
-                            qs = _fetch_questions_for_resource(res_wrapper, pp_headers, qti_headers)
-                            lesson_questions.extend(qs)
+                            # Use getAssessmentProgress — the exact same
+                            # endpoint the lesson page uses to load questions.
+                            if user_id and component_res_id:
+                                raw_qs = _fetch_questions_powerpath(user_id, component_res_id, pp_headers)
+                                for rq in raw_qs:
+                                    parsed = _parse_powerpath_question(rq)
+                                    if parsed:
+                                        lesson_questions.append(parsed)
 
                     total_questions += len(lesson_questions)
                     total_videos += len(lesson_videos)
