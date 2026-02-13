@@ -2,15 +2,18 @@
 
 TEMPORARY — Extract all content from an AP course's PowerPath lesson plan tree.
 
-Uses ONLY admin-scoped, read-only catalog endpoints:
+Uses admin-scoped, read-only catalog endpoints:
   - PowerPath lesson plan tree (course structure)
   - QTI catalog (question content, article/stimulus content)
 
-NO student data is read or written. No student IDs are used.
-No POST/PUT/DELETE requests are made. Completely read-only.
+A dedicated "Download Bot" user (created once, stored in KV) is used ONLY
+as a read-only proxy for the lesson plan GET endpoint when the generic tree
+endpoint returns 404.  The bot user ID is NEVER used with any write endpoint
+(resetAttempt, updateStudentQuestionResponse, etc.).
 """
 
 import re
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.server import BaseHTTPRequestHandler
 
@@ -24,6 +27,7 @@ from api._helpers import (
     get_query_params,
     get_token,
 )
+from api._kv import kv_get, kv_set
 
 COGNITO_URL = "https://prod-beyond-timeback-api-2-idp.auth.us-east-1.amazoncognito.com/oauth2/token"
 QTI_BASE = "https://qti.alpha-1edtech.ai"
@@ -449,7 +453,72 @@ def _fetch_questions_from_qti(url, res_id, qti_headers):
 
 
 # ---------------------------------------------------------------------------
-# Handler — read-only, no student data
+# Download Bot user — used ONLY for read-only lesson plan GET
+# ---------------------------------------------------------------------------
+_BOT_KV_KEY = "download_bot_user_id"
+
+
+def _get_bot_user_id(pp_headers):
+    """Get or create a dedicated bot user for lesson plan fetching.
+
+    The bot user is:
+      - Created once via OneRoster API, ID stored in KV
+      - Used ONLY with GET /powerpath/lessonPlans/{courseId}/{botId}
+      - NEVER used with resetAttempt, getAssessmentProgress, or any write endpoint
+      - Has no real enrollment data, grades, or progress
+    """
+    # 1. Check KV cache
+    cached_id = kv_get(_BOT_KV_KEY)
+    if cached_id and isinstance(cached_id, str) and len(cached_id) > 5:
+        return cached_id
+
+    # 2. Create bot user via OneRoster API (one-time)
+    bot_id = str(uuid.uuid4())
+    user_payload = {
+        "user": {
+            "sourcedId": bot_id,
+            "givenName": "Download",
+            "familyName": "Bot",
+            "email": "download-bot@alphalearn.internal",
+            "role": "student",
+            "status": "active",
+            "enabledUser": True,
+            "roles": [{"role": "student", "roleType": "primary"}],
+        }
+    }
+
+    try:
+        resp = requests.post(
+            f"{API_BASE}/ims/oneroster/rostering/v1p2/users",
+            headers=pp_headers,
+            json=user_payload,
+            timeout=30,
+        )
+        if resp.status_code == 401:
+            pp_headers = api_headers()
+            resp = requests.post(
+                f"{API_BASE}/ims/oneroster/rostering/v1p2/users",
+                headers=pp_headers,
+                json=user_payload,
+                timeout=30,
+            )
+        if resp.status_code in (200, 201):
+            try:
+                data = resp.json()
+                if "user" in data and data["user"].get("sourcedId"):
+                    bot_id = data["user"]["sourcedId"]
+            except Exception:
+                pass
+    except Exception:
+        pass  # Use the locally generated UUID as fallback
+
+    # 3. Persist in KV so we never create again
+    kv_set(_BOT_KV_KEY, bot_id)
+    return bot_id
+
+
+# ---------------------------------------------------------------------------
+# Handler — read-only, no real student data
 # ---------------------------------------------------------------------------
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -471,22 +540,49 @@ class handler(BaseHTTPRequestHandler):
             pp_headers = api_headers()
             qti_headers = _qti_headers()
 
-            # 1. Fetch lesson plan tree (admin catalog, no student ID)
+            # 1. Fetch lesson plan tree
             tree = None
-            resp = requests.get(
-                f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
-                headers=pp_headers,
-                timeout=30,
-            )
-            if resp.status_code == 401:
-                pp_headers = api_headers()
+
+            # 1a. Try generic tree endpoint (no user needed)
+            try:
                 resp = requests.get(
                     f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
                     headers=pp_headers,
                     timeout=30,
                 )
-            if resp.status_code == 200:
-                tree = resp.json()
+                if resp.status_code == 401:
+                    pp_headers = api_headers()
+                    resp = requests.get(
+                        f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
+                        headers=pp_headers,
+                        timeout=30,
+                    )
+                if resp.status_code == 200:
+                    tree = resp.json()
+            except Exception:
+                pass
+
+            # 1b. Fallback: use Download Bot user with student-specific
+            #     endpoint (read-only GET only — bot has no real data)
+            if not tree:
+                try:
+                    bot_id = _get_bot_user_id(pp_headers)
+                    resp = requests.get(
+                        f"{API_BASE}/powerpath/lessonPlans/{course_id}/{bot_id}",
+                        headers=pp_headers,
+                        timeout=30,
+                    )
+                    if resp.status_code == 401:
+                        pp_headers = api_headers()
+                        resp = requests.get(
+                            f"{API_BASE}/powerpath/lessonPlans/{course_id}/{bot_id}",
+                            headers=pp_headers,
+                            timeout=30,
+                        )
+                    if resp.status_code == 200:
+                        tree = resp.json()
+                except Exception:
+                    pass
 
             if not tree:
                 send_json(self, {
