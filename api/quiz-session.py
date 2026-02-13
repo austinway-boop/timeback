@@ -18,7 +18,7 @@ import re
 from http.server import BaseHTTPRequestHandler
 import requests
 from api._helpers import API_BASE, api_headers, send_json, get_query_params
-from api._kv import kv_get
+from _kv import kv_get
 
 
 def _extract_correct_answer(question):
@@ -89,7 +89,7 @@ class handler(BaseHTTPRequestHandler):
                         answered_q = 0
                         # Find the first unanswered question
                         for q in questions:
-                            qid = str(q.get("id", ""))
+                            qid = q.get("id", "")
                             if qid in hidden:
                                 answered_q += 1
                                 continue
@@ -109,35 +109,37 @@ class handler(BaseHTTPRequestHandler):
                                 q["answeredQuestions"] = answered_q
                                 send_json(self, q)
                                 return
-                        # Always try getNextQuestion - this is the working PowerPath endpoint
-                        # getAssessmentProgress doesn't return a questions array for powerpath-100
-                        nq_resp = requests.get(
-                            f"{PP}/getNextQuestion",
-                            headers=headers,
-                            params={"student": student, "lesson": lesson},
-                            timeout=15,
-                        )
-                        if nq_resp.status_code == 200:
-                            nq_data = nq_resp.json()
-                            # getNextQuestion returns {question: {...}, score: ...}
-                            question = nq_data.get("question")
-                            if question and question.get("id"):
-                                # Got a question via getNextQuestion - format it for frontend
-                                q_out = {
-                                    "id": question.get("id"),
-                                    "questionId": question.get("id"),
-                                    "title": question.get("title"),
-                                    "content": question.get("content"),
-                                    "difficulty": question.get("difficulty"),
-                                    "score": nq_data.get("score", 0),
-                                    "totalQuestions": total_q,
-                                    "answeredQuestions": answered_q,
-                                }
-                                cid = _extract_correct_answer(question)
-                                if cid:
-                                    q_out["correctId"] = cid
-                                send_json(self, q_out)
-                                return
+                        # For powerpath-100 lessons, getAssessmentProgress doesn't return questions array
+                        # Use getNextQuestion instead
+                        if total_q == 0:
+                            try:
+                                nq_resp = requests.get(
+                                    f"{PP}/getNextQuestion",
+                                    headers=headers,
+                                    params={"student": student, "lesson": lesson},
+                                    timeout=15,
+                                )
+                                if nq_resp.status_code == 200:
+                                    nq_data = nq_resp.json()
+                                    question = nq_data.get("question")
+                                    if question and question.get("id"):
+                                        q_out = {
+                                            "id": question.get("id"),
+                                            "questionId": question.get("id"),
+                                            "title": question.get("title"),
+                                            "content": question.get("content"),
+                                            "difficulty": question.get("difficulty"),
+                                            "score": nq_data.get("score", 0),
+                                            "totalQuestions": 0,
+                                            "answeredQuestions": 0,
+                                        }
+                                        cid = _extract_correct_answer(question)
+                                        if cid:
+                                            q_out["correctId"] = cid
+                                        send_json(self, q_out)
+                                        return
+                            except Exception:
+                                pass
 
                         # All questions answered — only mark complete if ALL were answered
                         send_json(self, {
@@ -297,8 +299,7 @@ class handler(BaseHTTPRequestHandler):
         self._return_progress(student_id, lesson_id, headers, debug, synthetic_id)
 
     def _do_reset(self, student_id, lesson_id, headers, debug):
-        """Call resetAttempt then createNewAttempt to initialize the question bank."""
-        # Step 1: resetAttempt
+        """Call resetAttempt to initialize/reset the question bank."""
         try:
             resp = requests.post(
                 f"{PP}/resetAttempt",
@@ -313,31 +314,14 @@ class handler(BaseHTTPRequestHandler):
             })
             if resp.status_code == 401:
                 headers = api_headers()
-                resp = requests.post(
+                requests.post(
                     f"{PP}/resetAttempt",
                     headers=headers,
                     json={"student": student_id, "lesson": lesson_id},
                     timeout=10,
                 )
-                debug.append({"step": "resetAttempt_retry", "status": resp.status_code})
         except Exception as e:
             debug.append({"step": "resetAttempt", "error": str(e)})
-
-        # Step 2: createNewAttempt (documented way to get a fresh question bank)
-        try:
-            resp = requests.post(
-                f"{PP}/createNewAttempt",
-                headers=headers,
-                json={"student": student_id, "lesson": lesson_id},
-                timeout=10,
-            )
-            debug.append({
-                "step": "createNewAttempt",
-                "status": resp.status_code,
-                "body": resp.text[:300],
-            })
-        except Exception as e:
-            debug.append({"step": "createNewAttempt", "error": str(e)})
 
     def _return_progress(self, student_id, lesson_id, headers, debug, synthetic_id):
         """Fetch progress after a reset and return it."""
