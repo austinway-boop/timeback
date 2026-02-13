@@ -213,22 +213,37 @@ function setStatus(html) {
     document.getElementById('status-text').innerHTML = html;
 }
 
-/* ---- 1. Load courses ------------------------------------------------- */
+/* ---- 1. Load courses from enrollments (same source as dashboard) ------ */
 (function loadCourses() {
-    fetch('/api/courses')
+    var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+    if (!userId) {
+        document.getElementById('courses-loading').innerHTML =
+            '<i class="fa-solid fa-exclamation-triangle" style="color:#E53E3E"></i> Not signed in. <a href="/login" style="color:var(--color-primary);">Sign in</a> first.';
+        return;
+    }
+
+    fetch('/api/enrollments?userId=' + encodeURIComponent(userId))
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            var courses = data.courses || [];
-            // Filter AP courses and deduplicate by title (OneRoster returns
-            // separate entries per section/term/teacher for the same course).
+            var raw = data.data || data.enrollments || data.courses || (Array.isArray(data) ? data : []);
+
+            // Extract AP courses from enrollment data with the correct
+            // course.sourcedId that PowerPath recognizes.
             var seen = {};
-            apCourses = courses.filter(function (c) {
-                if (!isAPCourse(c.title)) return false;
-                var key = (c.title || '').trim().toLowerCase();
-                if (seen[key]) return false;
+            for (var i = 0; i < raw.length; i++) {
+                var e = raw[i];
+                var course = e.course || {};
+                var title = (course.title || '').trim();
+                if (!isAPCourse(title)) continue;
+                var key = title.toLowerCase();
+                if (seen[key]) continue;
                 seen[key] = true;
-                return true;
-            });
+                apCourses.push({
+                    sourcedId: course.sourcedId || course.id || '',
+                    title: title,
+                    courseCode: course.courseCode || course.sourcedId || '',
+                });
+            }
 
             document.getElementById('courses-loading').style.display = 'none';
 
@@ -250,7 +265,7 @@ function setStatus(html) {
                 card.innerHTML =
                     '<div class="cc-icon"><i class="fa-solid ' + icons[i % icons.length] + '"></i></div>' +
                     '<div class="cc-title">' + escapeHtml(c.title) + '</div>' +
-                    '<div class="cc-meta">' + escapeHtml(c.courseCode || c.sourcedId) + '</div>';
+                    '<div class="cc-meta">' + escapeHtml(c.courseCode) + '</div>';
                 card.onclick = function () { selectCourse(c.sourcedId, card); };
                 grid.appendChild(card);
             });
