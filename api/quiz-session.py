@@ -78,28 +78,42 @@ class handler(BaseHTTPRequestHandler):
                     if resp.status_code == 200:
                         data = resp.json()
                         questions = data.get("questions", [])
+                        total_q = len(questions)
+                        answered_q = 0
                         # Find the first unanswered question
                         for q in questions:
                             answered = q.get("answered", False) or q.get("response") is not None
-                            if not answered:
+                            if answered:
+                                answered_q += 1
+                            elif not answered:
                                 # Inject correctId for testing green dot
                                 cid = _extract_correct_answer(q)
                                 if cid:
                                     q["correctId"] = cid
+                                q["totalQuestions"] = total_q
+                                q["answeredQuestions"] = answered_q
                                 send_json(self, q)
                                 return
-                        # All questions answered
+                        # All questions answered — only mark complete if ALL were answered
                         send_json(self, {
                             "complete": True,
+                            "totalQuestions": total_q,
+                            "answeredQuestions": answered_q,
                             "score": data.get("score"),
                             "finalized": data.get("finalized", False),
                         })
                         return
                     else:
-                        send_json(self, {"complete": True, "error": f"Progress fetch failed ({resp.status_code})"})
+                        send_json(self, {
+                            "error": f"Progress fetch failed ({resp.status_code})",
+                            "retry": True,
+                        })
                         return
                 except Exception as e:
-                    send_json(self, {"complete": True, "error": str(e)})
+                    send_json(self, {
+                        "error": str(e),
+                        "retry": True,
+                    })
                     return
             else:
                 # Legacy attemptId — try old endpoint as fallback

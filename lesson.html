@@ -878,13 +878,14 @@
             studentSourcedId: syncState.userId,
             assessmentLineItemSourcedId: lineItemId,
             score: passed ? 100 : score,
-            scoreStatus: 'fully graded',
-            comment: (lessonData.title || 'Quiz') + ' — ' + score + '% accuracy',
+            scoreStatus: passed ? 'fully graded' : 'submitted',
+            comment: (lessonData.title || 'Quiz') + ' — ' + score + '% accuracy' + (passed ? ' — Mastery' : ''),
             metadata: {
                 'timeback.xp': passed ? quizState.xpEarned : 0,
                 'timeback.correct': quizState.correct,
                 'timeback.total': quizState.total,
                 'timeback.passed': passed,
+                'timeback.ppScore': quizState.ppScore,
                 'timeback.lessonTitle': lessonData.title || '',
                 'timeback.courseTitle': lessonData.courseName || lessonData.courseTitle || '',
                 'timeback.enrollmentId': lessonData.enrollmentId || '',
@@ -1485,10 +1486,35 @@
         try {
             var resp = await fetch('/api/quiz-session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId));
             var data = await resp.json();
-            if (data.complete || data.finished || data.error === 'no_more_questions') {
-                showQuizResults();
+
+            // Handle errors separately — don't treat API failures as quiz completion
+            if (data.error && !data.complete) {
+                console.warn('[Quiz] Error loading next question:', data.error);
+                removeQuizLoader();
+                quizArea.innerHTML = '<div class="loading-msg"><i class="fa-solid fa-triangle-exclamation" style="font-size:1.5rem;display:block;margin-bottom:10px;color:#D97706;"></i>Error loading question<br><span style="font-size:0.82rem;color:#9ca3af;">' + esc(data.error) + '</span><br><button class="quiz-btn quiz-btn-primary" style="margin-top:14px;" onclick="loadNextQuestion()"><i class="fa-solid fa-rotate-right"></i> Retry</button></div>';
                 return;
             }
+
+            // Only treat as complete if the API explicitly says so AND all questions were answered
+            if (data.complete || data.finished) {
+                var allAnswered = data.totalQuestions > 0 && data.answeredQuestions >= data.totalQuestions;
+                if (allAnswered) {
+                    showQuizResults();
+                    return;
+                }
+                // API says complete but questions don't match — might be stale, show results anyway
+                // but only if there was meaningful progress
+                if (quizState.total > 0) {
+                    showQuizResults();
+                    return;
+                }
+                // No progress at all — don't call showQuizResults, show error instead
+                console.warn('[Quiz] API says complete but no questions answered locally');
+                removeQuizLoader();
+                quizArea.innerHTML = '<div class="loading-msg"><i class="fa-solid fa-circle-info" style="font-size:1.5rem;display:block;margin-bottom:10px;color:var(--color-primary);"></i>No questions available<br><button class="quiz-btn quiz-btn-secondary" style="margin-top:14px;" onclick="goBackToCourse()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button></div>';
+                return;
+            }
+
             quizState.currentQuestion = data;
             quizState.questionNum++;
             quizState.selectedChoice = null;
@@ -1857,11 +1883,15 @@
 
         quizState.finished = true;
         var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
-        var passed = pct >= 90;
+        // PowerPath mastery: quiz is only "passed" when ppScore reaches 100
+        // Accuracy alone (pct >= 90) is NOT enough — the PowerPath scoring must confirm mastery
+        var passed = quizState.ppScore >= 100 && pct >= 80;
         if (pct < 80) quizState.xpEarned = 0;
 
+        console.log('[Quiz] Results — ppScore:', quizState.ppScore, 'accuracy:', pct + '%', 'passed:', passed, 'total:', quizState.total);
+
         // ═══ SYNC FIRST — before any DOM writes that could fail ═══
-        // Mark lesson complete locally and signal course page
+        // Mark lesson complete locally and signal course page — ONLY when truly passed
         if (passed) {
             var lessonId = lessonData.title || '';
             if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
@@ -1869,8 +1899,7 @@
         // Always signal course.html to refresh (even on fail — updates frontier)
         sessionStorage.setItem('al_progress_changed', 'true');
 
-        // Sync with TimeBack Platform (includes markLessonComplete -> finalize-lesson
-        // which calls finalStudentAssessmentResponse — no separate finalize needed)
+        // Sync with TimeBack Platform — only finalizes on PowerPath if passed
         syncQuizCompletion(pct, passed);
 
         // ═══ Now render the results UI ═══
