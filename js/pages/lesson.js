@@ -33,6 +33,9 @@
 
     // ── Progress persistence (save/restore across sessions) ──
     function _getQuizProgressKey() {
+        // Use attemptId as key when available — it encodes student+lesson and is always correct
+        if (quizState.attemptId) return 'quiz_progress:' + quizState.attemptId;
+        // Fallback for before attemptId is set
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
         var lessonId = quizState.quizLessonId || (lessonData && lessonData.lessonSourcedId) || quizState.testId || '';
         if (!userId || !lessonId) return '';
@@ -764,9 +767,6 @@
         quizState.quizLessonId = resource.componentResId || resource.resId || (lessonData && lessonData.lessonSourcedId) || testId || '';
         apState.subject = _apSubjectKey(subject) || _apSubjectKey(quizState.title);
 
-        // ── Restore progress from previous session BEFORE any API calls ──
-        _restoreQuizProgress();
-
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
         // ── 1. PowerPath adaptive flow ──
@@ -783,7 +783,9 @@
                 if (startData.debug) console.log('[Quiz] start debug:', JSON.stringify(startData.debug));
                 if (startData.attemptId || startData.id) {
                     quizState.attemptId = startData.attemptId || startData.id;
-                    // Progress already restored above; use server hints as fallback
+                    // ── Restore progress NOW that attemptId is set (reliable key) ──
+                    _restoreQuizProgress();
+                    // Use server hints as fallback if restore found nothing
                     if (quizState.total === 0 && startData.hasExistingProgress) {
                         quizState.questionNum = startData.answeredCount || 0;
                         quizState.total = startData.answeredCount || 0;
