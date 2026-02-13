@@ -3,7 +3,6 @@
 Uses the documented PowerPath endpoints:
   POST /powerpath/resetAttempt                    — reset/create attempt
   GET  /powerpath/getAssessmentProgress           — get questions & progress
-  GET  /powerpath/getNextQuestion                 — get next unanswered question
   PUT  /powerpath/updateStudentQuestionResponse    — submit a response
   POST /powerpath/finalStudentAssessmentResponse   — finalize the attempt
 
@@ -12,33 +11,6 @@ Actions (frontend-facing):
   GET  ?action=next     — {attemptId}  (synthetic pp::student::lesson)
   POST ?action=respond  — {attemptId, questionId, response}
   POST ?action=finalize — {attemptId}
-
-=== CRITICAL NOTES FOR FUTURE EDITORS ===
-
-1. IMPORTS: "from _kv import kv_get" uses a BARE import (not "from api._kv").
-   Vercel's Python runtime adds BOTH the project root AND the api/ directory
-   to sys.path for flat files in api/. The bare import works for files in
-   api/ root. DO NOT change this to "from api._kv import" -- it may look
-   cleaner but can break depending on Vercel's runtime version. If you move
-   this file into a subdirectory (e.g., api/quiz/session.py), the bare
-   import WILL break and you'll need "from api._kv import" instead.
-
-2. POWERPATH-100 LESSONS: getAssessmentProgress returns an EMPTY questions
-   array for PowerPath-100 style lessons. This is NOT a bug -- these lessons
-   use a different question-serving model. The getNextQuestion endpoint must
-   be used as a fallback when questions[] is empty. See the block at ~line 112.
-
-3. getNextQuestion RESPONSE FORMAT: The response wraps the question inside
-   a "question" key: { "question": { "id": ..., "content": ... }, "score": ... }.
-   You must extract nq_data["question"], NOT use nq_data directly as the question.
-
-4. QUESTION IDs: Do NOT wrap q.get("id") in str(). The IDs from the PowerPath
-   API may be strings or ints and the hidden-questions comparison needs the
-   original type to match correctly.
-
-5. DO NOT reorganize this file into subdirectories. Vercel's file-based routing
-   maps api/quiz-session.py to /api/quiz-session. Moving it breaks the route
-   AND the import paths. The flat api/ structure is required for Vercel.
 """
 
 import json
@@ -46,7 +18,7 @@ import re
 from http.server import BaseHTTPRequestHandler
 import requests
 from api._helpers import API_BASE, api_headers, send_json, get_query_params
-from api._kv import kv_get
+from _kv import kv_get
 
 
 def _extract_correct_answer(question):
@@ -57,7 +29,7 @@ def _extract_correct_answer(question):
 
 PP = f"{API_BASE}/powerpath"
 
-# Synthetic attemptId prefix (forces Vercel rebuild) so we can distinguish ours from a real one
+# Synthetic attemptId prefix so we can distinguish ours from a real one
 _PREFIX = "pp::"
 
 
@@ -96,10 +68,6 @@ class handler(BaseHTTPRequestHandler):
 
             student, lesson = _decode_attempt(attempt_id)
             if student and lesson:
-                # Accept locally-answered IDs to skip (handles stale server state on reload)
-                skip_ids_raw = params.get("skipIds", "")
-                skip_ids = set(s for s in skip_ids_raw.split(",") if s) if skip_ids_raw else set()
-
                 # Use documented getAssessmentProgress endpoint
                 try:
                     resp = requests.get(
@@ -117,13 +85,7 @@ class handler(BaseHTTPRequestHandler):
                         answered_q = 0
                         # Find the first unanswered question
                         for q in questions:
-                            # DO NOT wrap in str() -- see docstring note #4
-                            qid = q.get("id", "")
-                            if qid in hidden:
-                                answered_q += 1
-                                continue
-                            # Skip if locally answered (handles server state lag after reload)
-                            if qid and str(qid) in skip_ids:
+                            if q.get("id") in hidden:
                                 answered_q += 1
                                 continue
                             answered = q.get("answered", False) or q.get("response") is not None
@@ -138,42 +100,6 @@ class handler(BaseHTTPRequestHandler):
                                 q["answeredQuestions"] = answered_q
                                 send_json(self, q)
                                 return
-                        # CRITICAL: PowerPath-100 lessons return EMPTY questions[] from
-                        # getAssessmentProgress. This is expected behavior, NOT a bug.
-                        # Must fall back to getNextQuestion. See docstring note #2 and #3.
-                        # DO NOT remove this fallback or treat total_q==0 as "quiz complete".
-                        if total_q == 0:
-                            try:
-                                nq_resp = requests.get(
-                                    f"{PP}/getNextQuestion",
-                                    headers=headers,
-                                    params={"student": student, "lesson": lesson},
-                                    timeout=15,
-                                )
-                                if nq_resp.status_code == 200:
-                                    nq_data = nq_resp.json()
-                                    # IMPORTANT: response is { "question": {...}, "score": N }
-                                    # The question object is NESTED -- see docstring note #3
-                                    question = nq_data.get("question")
-                                    if question and question.get("id"):
-                                        q_out = {
-                                            "id": question.get("id"),
-                                            "questionId": question.get("id"),
-                                            "title": question.get("title"),
-                                            "content": question.get("content"),
-                                            "difficulty": question.get("difficulty"),
-                                            "score": nq_data.get("score", 0),
-                                            "totalQuestions": 0,
-                                            "answeredQuestions": 0,
-                                        }
-                                        cid = _extract_correct_answer(question)
-                                        if cid:
-                                            q_out["correctId"] = cid
-                                        send_json(self, q_out)
-                                        return
-                            except Exception:
-                                pass
-
                         # All questions answered — only mark complete if ALL were answered
                         send_json(self, {
                             "complete": True,
@@ -289,38 +215,20 @@ class handler(BaseHTTPRequestHandler):
                     1 for q in questions
                     if q.get("answered", False) or q.get("response") is not None
                 )
-                
-                # For powerpath-100 lessons, seenQuestions contains IDs of answered questions
-                seen_questions = data.get("seenQuestions", [])
-                # Extract just the question IDs if they're objects
-                seen_ids = []
-                for sq in seen_questions:
-                    if isinstance(sq, dict):
-                        seen_ids.append(sq.get("id") or sq.get("questionId") or "")
-                    elif isinstance(sq, str):
-                        seen_ids.append(sq)
-                seen_ids = [s for s in seen_ids if s]  # filter empty
-                
                 debug.append({
                     "step": "checkProgress",
                     "total": total_q,
                     "answered": answered_q,
-                    "seenCount": len(seen_ids),
                 })
 
-                # For powerpath-100: use seenQuestions count if questions array is empty
-                effective_answered = answered_q if total_q > 0 else len(seen_ids)
-                effective_total = total_q if total_q > 0 else data.get("totalQuestions", 0)
-
-                if total_q > 0 or len(seen_ids) > 0 or effective_total > 0:
-                    # Questions exist or have been answered — resume, never reset
+                if total_q > 0:
+                    # Questions exist — resume, never reset
                     send_json(self, {
                         "attemptId": synthetic_id,
-                        "questionCount": effective_total,
-                        "answeredCount": effective_answered,
-                        "hasExistingProgress": effective_answered > 0,
-                        "score": data.get("score", 0),
-                        "seenQuestionIds": seen_ids,  # Frontend can use these as skipIds
+                        "questionCount": total_q,
+                        "answeredCount": answered_q,
+                        "hasExistingProgress": answered_q > 0,
+                        "score": data.get("score"),
                         "debug": debug,
                     })
                     return
