@@ -68,6 +68,10 @@ class handler(BaseHTTPRequestHandler):
 
             student, lesson = _decode_attempt(attempt_id)
             if student and lesson:
+                # Accept locally-answered IDs to skip (handles stale server state on reload)
+                skip_ids_raw = params.get("skipIds", "")
+                skip_ids = set(s for s in skip_ids_raw.split(",") if s) if skip_ids_raw else set()
+
                 # Use documented getAssessmentProgress endpoint
                 try:
                     resp = requests.get(
@@ -85,7 +89,12 @@ class handler(BaseHTTPRequestHandler):
                         answered_q = 0
                         # Find the first unanswered question
                         for q in questions:
-                            if q.get("id") in hidden:
+                            qid = q.get("id", "")
+                            if qid in hidden:
+                                answered_q += 1
+                                continue
+                            # Skip if locally answered (handles server state lag after reload)
+                            if qid and qid in skip_ids:
                                 answered_q += 1
                                 continue
                             answered = q.get("answered", False) or q.get("response") is not None

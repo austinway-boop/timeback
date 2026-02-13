@@ -283,6 +283,8 @@
         // Question reporting
         reportingEnabled: true, // default ON; API can disable
         pendingReports: [], // [{reportId, questionsRemaining}]
+        // Track answered question IDs locally (survives reload even if server state is stale)
+        answeredIds: [],
     };
 
     // ── Progress persistence (save/restore across sessions) ──
@@ -306,6 +308,7 @@
                 xpEarned: quizState.xpEarned,
                 questionNum: quizState.questionNum,
                 attemptId: quizState.attemptId,
+                answeredIds: quizState.answeredIds,
                 timestamp: Date.now(),
             }));
         } catch(e) {}
@@ -328,6 +331,7 @@
             quizState.streak = saved.streak || 0;
             quizState.xpEarned = saved.xpEarned || 0;
             quizState.questionNum = saved.questionNum || 0;
+            quizState.answeredIds = saved.answeredIds || [];
             return true;
         } catch(e) { return false; }
     }

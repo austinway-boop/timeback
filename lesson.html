@@ -724,6 +724,8 @@
         // Question reporting
         reportingEnabled: true, pendingReports: [],
         cachedPassage: '',
+        // Track answered question IDs locally (survives reload even if server state is stale)
+        answeredIds: [],
     };
     var quizArea = null; // reference to the quiz container element
 
@@ -747,6 +749,7 @@
                 xpEarned: quizState.xpEarned,
                 questionNum: quizState.questionNum,
                 attemptId: quizState.attemptId,
+                answeredIds: quizState.answeredIds,
                 timestamp: Date.now(),
             }));
         } catch(e) {}
@@ -769,6 +772,7 @@
             quizState.streak = saved.streak || 0;
             quizState.xpEarned = saved.xpEarned || 0;
             quizState.questionNum = saved.questionNum || 0;
+            quizState.answeredIds = saved.answeredIds || [];
             return true;
         } catch(e) { return false; }
     }
@@ -1278,6 +1282,7 @@
         quizState.staticIdx = 0;
         quizState.isReadingQuiz = false; quizState.accumulatedStimuli = [];
         quizState.totalQuestions = 0;
+        quizState.answeredIds = [];
     }
 
     /* ── QTI renderNode (for rich question content) ─────────── */
@@ -1510,7 +1515,8 @@
             quizArea.innerHTML = '<div class="loading-msg"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.2rem;display:block;margin-bottom:10px;"></i>Loading question...</div>';
         }
         try {
-            var resp = await fetch('/api/quiz-session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId));
+            var skipParam = quizState.answeredIds.length > 0 ? '&skipIds=' + encodeURIComponent(quizState.answeredIds.join(',')) : '';
+            var resp = await fetch('/api/quiz-session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId) + skipParam);
             var data = await resp.json();
 
             // Handle errors separately — don't treat API failures as quiz completion
@@ -1766,6 +1772,12 @@
         if (!quizState.selectedChoice || quizState.answered) return;
         quizState.answered = true;
         quizState.total++;
+
+        // Track this question as answered locally (survives reload)
+        var answeredQId = (quizState.currentQuestion && (quizState.currentQuestion.id || quizState.currentQuestion.questionId)) || '';
+        if (answeredQId && quizState.answeredIds.indexOf(answeredQId) === -1) {
+            quizState.answeredIds.push(answeredQId);
+        }
 
         var btn = document.getElementById('quiz-submit');
         btn.disabled = true;
