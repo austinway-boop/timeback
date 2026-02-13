@@ -108,6 +108,36 @@
         .dl-q-choice.correct { color: #2E7D32; font-weight: 600; }
         .dl-q-choice.correct .choice-id { color: #2E7D32; }
 
+        /* ---- Video card ---- */
+        .dl-video {
+            background: #EFF6FF; border-radius: 10px; padding: 12px 16px;
+            margin-bottom: 10px; display: flex; align-items: center; gap: 12px; font-size: 0.84rem;
+        }
+        .dl-video-icon { width: 36px; height: 36px; border-radius: 8px; background: #DBEAFE; color: #2563EB; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
+        .dl-video-info { flex: 1; min-width: 0; }
+        .dl-video-title { font-weight: 600; color: var(--color-text); margin-bottom: 2px; }
+        .dl-video-link { font-size: 0.78rem; color: #2563EB; word-break: break-all; }
+        .dl-video-link a { color: #2563EB; text-decoration: underline; }
+
+        /* ---- Article card ---- */
+        .dl-article {
+            background: #FFF7ED; border-radius: 10px; padding: 14px 16px;
+            margin-bottom: 10px; font-size: 0.84rem; line-height: 1.55;
+        }
+        .dl-article-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .dl-article-icon { width: 30px; height: 30px; border-radius: 7px; background: #FFEDD5; color: #C2410C; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; }
+        .dl-article-title { font-weight: 600; color: var(--color-text); }
+        .dl-article-url { font-size: 0.75rem; color: #C2410C; word-break: break-all; }
+        .dl-article-url a { color: #C2410C; text-decoration: underline; }
+        .dl-article-content { color: var(--color-text-secondary); font-size: 0.82rem; margin-top: 6px; max-height: 150px; overflow: hidden; position: relative; }
+        .dl-article-content.expanded { max-height: none; }
+        .dl-article-toggle { font-size: 0.78rem; color: var(--color-primary); cursor: pointer; margin-top: 4px; font-weight: 600; border: none; background: none; padding: 0; }
+
+        /* ---- Section label inside lesson ---- */
+        .dl-section-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--color-text-muted); margin: 14px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; gap: 6px; }
+        .dl-section-label:first-child { margin-top: 0; }
+        .dl-section-label i { font-size: 0.65rem; }
+
         /* ---- Empty state ---- */
         .dl-empty { text-align: center; padding: 60px 20px; color: var(--color-text-muted); }
         .dl-empty i { font-size: 2.5rem; margin-bottom: 16px; display: block; opacity: 0.3; }
@@ -131,8 +161,8 @@
 
         <!-- Header -->
         <div class="dl-header">
-            <h1><i class="fa-solid fa-download" style="color:var(--color-primary);margin-right:8px;font-size:1.3rem"></i> Download AP Questions</h1>
-            <p>Select an AP course to extract and download all questions organized by unit and lesson.</p>
+            <h1><i class="fa-solid fa-download" style="color:var(--color-primary);margin-right:8px;font-size:1.3rem"></i> Download AP Content</h1>
+            <p>Select an AP course to extract and download all videos, articles, and questions organized by unit and lesson.</p>
         </div>
 
         <!-- Course selector -->
@@ -144,8 +174,8 @@
 
         <!-- Actions -->
         <div class="dl-actions" id="actions-bar" style="display:none">
-            <button class="dl-btn dl-btn-primary" id="btn-extract" disabled onclick="extractQuestions()">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Extract Questions
+            <button class="dl-btn dl-btn-primary" id="btn-extract" disabled onclick="extractContent()">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Extract Content
             </button>
             <button class="dl-btn dl-btn-secondary" id="btn-download" disabled onclick="downloadJSON()">
                 <i class="fa-solid fa-file-arrow-down"></i> Download JSON
@@ -243,8 +273,8 @@ function selectCourse(courseId, card) {
     card.classList.add('selected');
 }
 
-/* ---- 3. Extract questions -------------------------------------------- */
-function extractQuestions() {
+/* ---- 3. Extract content ---------------------------------------------- */
+function extractContent() {
     if (!selectedCourseId) return;
 
     var btn = document.getElementById('btn-extract');
@@ -252,12 +282,12 @@ function extractQuestions() {
     btn.innerHTML = '<span class="spinner"></span> Extracting...';
     document.getElementById('btn-download').disabled = true;
     document.getElementById('results').style.display = 'none';
-    setStatus('<span class="spinner"></span> Fetching lesson plan tree and questions...');
+    setStatus('<span class="spinner"></span> Fetching lesson plan tree, videos, articles &amp; questions...');
 
     fetch('/api/_temp_extract?courseId=' + encodeURIComponent(selectedCourseId))
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Extract Questions';
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Extract Content';
             btn.disabled = false;
 
             if (!data.success) {
@@ -267,11 +297,15 @@ function extractQuestions() {
 
             extractedData = data;
             document.getElementById('btn-download').disabled = false;
-            setStatus('<i class="fa-solid fa-check-circle" style="color:#2E7D32"></i> Extracted ' + data.totalQuestions + ' questions from ' + data.unitCount + ' units');
+            var parts = [];
+            if (data.totalVideos) parts.push(data.totalVideos + ' video' + (data.totalVideos !== 1 ? 's' : ''));
+            if (data.totalArticles) parts.push(data.totalArticles + ' article' + (data.totalArticles !== 1 ? 's' : ''));
+            parts.push(data.totalQuestions + ' question' + (data.totalQuestions !== 1 ? 's' : ''));
+            setStatus('<i class="fa-solid fa-check-circle" style="color:#2E7D32"></i> Extracted ' + parts.join(', ') + ' from ' + data.unitCount + ' units');
             renderResults(data);
         })
         .catch(function (err) {
-            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Extract Questions';
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Extract Content';
             btn.disabled = false;
             setStatus('<i class="fa-solid fa-exclamation-triangle" style="color:#E53E3E"></i> ' + escapeHtml(err.message));
         });
@@ -287,9 +321,11 @@ function renderResults(data) {
     var summary = document.createElement('div');
     summary.className = 'dl-summary';
     summary.innerHTML =
-        '<div class="dl-stat"><div class="dl-stat-val">' + data.totalQuestions + '</div><div class="dl-stat-label">Total Questions</div></div>' +
         '<div class="dl-stat"><div class="dl-stat-val">' + data.unitCount + '</div><div class="dl-stat-label">Units</div></div>' +
-        '<div class="dl-stat"><div class="dl-stat-val">' + countLessons(data) + '</div><div class="dl-stat-label">Lessons</div></div>';
+        '<div class="dl-stat"><div class="dl-stat-val">' + countLessons(data) + '</div><div class="dl-stat-label">Lessons</div></div>' +
+        '<div class="dl-stat"><div class="dl-stat-val">' + (data.totalVideos || 0) + '</div><div class="dl-stat-label">Videos</div></div>' +
+        '<div class="dl-stat"><div class="dl-stat-val">' + (data.totalArticles || 0) + '</div><div class="dl-stat-label">Articles</div></div>' +
+        '<div class="dl-stat"><div class="dl-stat-val">' + data.totalQuestions + '</div><div class="dl-stat-label">Questions</div></div>';
     container.appendChild(summary);
 
     if (!data.units || data.units.length === 0) {
@@ -301,15 +337,23 @@ function renderResults(data) {
     data.units.forEach(function (unit, ui) {
         var unitEl = document.createElement('div');
         unitEl.className = 'dl-unit';
-        var unitQCount = 0;
-        (unit.lessons || []).forEach(function (l) { unitQCount += (l.questions || []).length; });
+        var unitQCount = 0, unitVCount = 0, unitACount = 0;
+        (unit.lessons || []).forEach(function (l) {
+            unitQCount += (l.questions || []).length;
+            unitVCount += (l.videos || []).length;
+            unitACount += (l.articles || []).length;
+        });
+        var badgeParts = [];
+        if (unitVCount) badgeParts.push(unitVCount + ' vid');
+        if (unitACount) badgeParts.push(unitACount + ' art');
+        badgeParts.push(unitQCount + ' Q');
 
         var unitHeader = document.createElement('div');
         unitHeader.className = 'dl-unit-header';
         unitHeader.innerHTML =
             '<i class="fa-solid fa-chevron-right chevron"></i>' +
             '<span class="unit-title">' + escapeHtml(unit.title || ('Unit ' + (ui + 1))) + '</span>' +
-            '<span class="unit-badge">' + unitQCount + ' question' + (unitQCount !== 1 ? 's' : '') + '</span>';
+            '<span class="unit-badge">' + badgeParts.join(' / ') + '</span>';
         unitHeader.onclick = function () { unitEl.classList.toggle('open'); };
         unitEl.appendChild(unitHeader);
 
@@ -320,25 +364,53 @@ function renderResults(data) {
             var lessonEl = document.createElement('div');
             lessonEl.className = 'dl-lesson';
             var qs = lesson.questions || [];
+            var vids = lesson.videos || [];
+            var arts = lesson.articles || [];
+            var totalItems = vids.length + arts.length + qs.length;
+
+            var lBadgeParts = [];
+            if (vids.length) lBadgeParts.push(vids.length + ' vid');
+            if (arts.length) lBadgeParts.push(arts.length + ' art');
+            lBadgeParts.push(qs.length + ' Q');
 
             var lessonHeader = document.createElement('div');
             lessonHeader.className = 'dl-lesson-header';
             lessonHeader.innerHTML =
                 '<i class="fa-solid fa-chevron-right chevron"></i>' +
                 '<span class="lesson-title">' + escapeHtml(lesson.title || ('Lesson ' + (li + 1))) + '</span>' +
-                '<span class="lesson-badge">' + qs.length + ' Q</span>';
+                '<span class="lesson-badge">' + lBadgeParts.join(' / ') + '</span>';
             lessonHeader.onclick = function (e) { e.stopPropagation(); lessonEl.classList.toggle('open'); };
             lessonEl.appendChild(lessonHeader);
 
             var lessonBody = document.createElement('div');
             lessonBody.className = 'dl-lesson-body';
 
-            if (qs.length === 0) {
-                lessonBody.innerHTML = '<div style="font-size:0.82rem;color:var(--color-text-muted);padding:8px 0;"><i class="fa-solid fa-info-circle"></i> No questions extracted for this lesson.</div>';
+            if (totalItems === 0) {
+                lessonBody.innerHTML = '<div style="font-size:0.82rem;color:var(--color-text-muted);padding:8px 0;"><i class="fa-solid fa-info-circle"></i> No content extracted for this lesson.</div>';
             } else {
-                qs.forEach(function (q, qi) {
-                    lessonBody.innerHTML += renderQuestion(q, qi);
-                });
+                // Videos
+                if (vids.length > 0) {
+                    lessonBody.innerHTML += '<div class="dl-section-label"><i class="fa-solid fa-play"></i> Videos</div>';
+                    vids.forEach(function (v) {
+                        lessonBody.innerHTML += renderVideo(v);
+                    });
+                }
+
+                // Articles
+                if (arts.length > 0) {
+                    lessonBody.innerHTML += '<div class="dl-section-label"><i class="fa-solid fa-file-lines"></i> Articles</div>';
+                    arts.forEach(function (a, ai) {
+                        lessonBody.innerHTML += renderArticle(a, ai);
+                    });
+                }
+
+                // Questions
+                if (qs.length > 0) {
+                    lessonBody.innerHTML += '<div class="dl-section-label"><i class="fa-solid fa-clipboard-question"></i> Questions</div>';
+                    qs.forEach(function (q, qi) {
+                        lessonBody.innerHTML += renderQuestion(q, qi);
+                    });
+                }
             }
 
             lessonEl.appendChild(lessonBody);
@@ -348,6 +420,43 @@ function renderResults(data) {
         unitEl.appendChild(unitBody);
         container.appendChild(unitEl);
     });
+}
+
+function renderVideo(v) {
+    var html = '<div class="dl-video">';
+    html += '<div class="dl-video-icon"><i class="fa-solid fa-play"></i></div>';
+    html += '<div class="dl-video-info">';
+    html += '<div class="dl-video-title">' + escapeHtml(v.title || 'Video') + '</div>';
+    if (v.url) {
+        html += '<div class="dl-video-link"><a href="' + escapeHtml(v.url) + '" target="_blank" rel="noopener">' + escapeHtml(v.url) + '</a></div>';
+    }
+    html += '</div></div>';
+    return html;
+}
+
+function renderArticle(a, idx) {
+    var artId = 'art-' + Math.random().toString(36).substr(2, 6);
+    var html = '<div class="dl-article">';
+    html += '<div class="dl-article-header">';
+    html += '<div class="dl-article-icon"><i class="fa-solid fa-file-lines"></i></div>';
+    html += '<div><div class="dl-article-title">' + escapeHtml(a.title || 'Article') + '</div>';
+    if (a.url) {
+        html += '<div class="dl-article-url"><a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener">' + escapeHtml(a.url) + '</a></div>';
+    }
+    html += '</div></div>';
+    if (a.content) {
+        html += '<div class="dl-article-content" id="' + artId + '">' + escapeHtml(a.content) + '</div>';
+        html += '<button class="dl-article-toggle" onclick="toggleArticle(\'' + artId + '\', this)">Show more</button>';
+    }
+    html += '</div>';
+    return html;
+}
+
+function toggleArticle(id, btn) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('expanded');
+    btn.textContent = el.classList.contains('expanded') ? 'Show less' : 'Show more';
 }
 
 function renderQuestion(q, idx) {
@@ -391,7 +500,7 @@ function downloadJSON() {
     if (!extractedData) return;
     var courseName = (extractedData.course && extractedData.course.title) || 'ap-course';
     var safeName = courseName.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_+/g, '_').toLowerCase();
-    var filename = '_temp_' + safeName + '_questions.json';
+    var filename = '_temp_' + safeName + '_content.json';
 
     var blob = new Blob([JSON.stringify(extractedData, null, 2)], { type: 'application/json' });
     var url = URL.createObjectURL(blob);
