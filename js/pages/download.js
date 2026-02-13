@@ -417,20 +417,142 @@ function countLessons(data) {
     return n;
 }
 
-/* ---- 5. Download JSON ------------------------------------------------ */
-function downloadJSON() {
-    if (!extractedData) return;
-    var courseName = (extractedData.course && extractedData.course.title) || 'ap-course';
-    var safeName = courseName.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_+/g, '_').toLowerCase();
-    var filename = '_temp_' + safeName + '_content.json';
+/* ---- 5. Download as organized ZIP folder ----------------------------- */
+function safeName(str) {
+    return (str || 'untitled').replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '_').substring(0, 80);
+}
 
-    var blob = new Blob([JSON.stringify(extractedData, null, 2)], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+function padNum(n) { return n < 10 ? '0' + n : '' + n; }
+
+function formatQuestionsTxt(questions) {
+    if (!questions || !questions.length) return '';
+    var lines = [];
+    questions.forEach(function (q, i) {
+        lines.push('Q' + (i + 1) + '. ' + (q.title || ''));
+        lines.push('Type: ' + (q.type === 'frq' ? 'Free Response' : 'Multiple Choice'));
+        if (q.stimulus) { lines.push(''); lines.push('Stimulus: ' + q.stimulus); }
+        if (q.prompt) { lines.push(''); lines.push(q.prompt); }
+        if (q.choices && q.choices.length) {
+            lines.push('');
+            q.choices.forEach(function (c) {
+                var mark = (q.correctAnswer && c.id === q.correctAnswer) ? ' [CORRECT]' : '';
+                lines.push('  ' + c.id + ') ' + c.label + mark);
+            });
+        }
+        if (q.correctAnswer && (!q.choices || !q.choices.length)) {
+            lines.push('Answer: ' + q.correctAnswer);
+        }
+        lines.push('');
+        lines.push('---');
+        lines.push('');
+    });
+    return lines.join('\n');
+}
+
+function formatVideosTxt(videos) {
+    if (!videos || !videos.length) return '';
+    var lines = [];
+    videos.forEach(function (v, i) {
+        lines.push('Video ' + (i + 1) + ': ' + (v.title || 'Untitled'));
+        if (v.url) lines.push('URL: ' + v.url);
+        lines.push('');
+    });
+    return lines.join('\n');
+}
+
+function formatArticlesTxt(articles) {
+    if (!articles || !articles.length) return '';
+    var lines = [];
+    articles.forEach(function (a, i) {
+        lines.push('Article ' + (i + 1) + ': ' + (a.title || 'Untitled'));
+        if (a.url) lines.push('URL: ' + a.url);
+        if (a.content) { lines.push(''); lines.push(a.content); }
+        lines.push('');
+        lines.push('---');
+        lines.push('');
+    });
+    return lines.join('\n');
+}
+
+function downloadZIP() {
+    if (!extractedData) return;
+
+    var btn = document.getElementById('btn-download');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Building ZIP...';
+
+    var courseName = safeName((extractedData.course && extractedData.course.title) || 'AP Course');
+    var zip = new JSZip();
+    var root = zip.folder(courseName);
+
+    // Course summary at root
+    var summaryLines = [
+        courseName,
+        '='.repeat(courseName.length),
+        '',
+        'Units: ' + (extractedData.unitCount || 0),
+        'Lessons: ' + countLessons(extractedData),
+        'Videos: ' + (extractedData.totalVideos || 0),
+        'Articles: ' + (extractedData.totalArticles || 0),
+        'Questions: ' + (extractedData.totalQuestions || 0),
+        '',
+    ];
+    (extractedData.units || []).forEach(function (unit, ui) {
+        summaryLines.push(padNum(ui + 1) + '. ' + (unit.title || 'Unit ' + (ui + 1)));
+        (unit.lessons || []).forEach(function (lesson, li) {
+            var counts = [];
+            if (lesson.videos && lesson.videos.length) counts.push(lesson.videos.length + ' vid');
+            if (lesson.articles && lesson.articles.length) counts.push(lesson.articles.length + ' art');
+            counts.push((lesson.questions || []).length + ' Q');
+            summaryLines.push('    ' + padNum(li + 1) + '. ' + (lesson.title || 'Lesson') + '  [' + counts.join(', ') + ']');
+        });
+        summaryLines.push('');
+    });
+    root.file('_SUMMARY.txt', summaryLines.join('\n'));
+
+    // Full raw data for programmatic use
+    root.file('_raw_data.json', JSON.stringify(extractedData, null, 2));
+
+    // Create unit and lesson folders
+    (extractedData.units || []).forEach(function (unit, ui) {
+        var unitName = padNum(ui + 1) + '_' + safeName(unit.title || 'Unit_' + (ui + 1));
+        var unitFolder = root.folder(unitName);
+
+        (unit.lessons || []).forEach(function (lesson, li) {
+            var lessonName = padNum(li + 1) + '_' + safeName(lesson.title || 'Lesson_' + (li + 1));
+            var lessonFolder = unitFolder.folder(lessonName);
+
+            // Videos
+            var vids = lesson.videos || [];
+            if (vids.length) {
+                lessonFolder.file('videos.txt', formatVideosTxt(vids));
+            }
+
+            // Articles
+            var arts = lesson.articles || [];
+            if (arts.length) {
+                lessonFolder.file('articles.txt', formatArticlesTxt(arts));
+            }
+
+            // Questions
+            var qs = lesson.questions || [];
+            if (qs.length) {
+                lessonFolder.file('questions.txt', formatQuestionsTxt(qs));
+                lessonFolder.file('questions.json', JSON.stringify(qs, null, 2));
+            }
+        });
+    });
+
+    zip.generateAsync({ type: 'blob' }).then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = courseName + '.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-file-arrow-down"></i> Download ZIP';
+    });
 }
