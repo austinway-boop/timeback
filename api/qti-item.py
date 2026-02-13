@@ -11,20 +11,10 @@ Endpoint priority (per API docs):
 """
 
 from http.server import BaseHTTPRequestHandler
-import traceback as _tb
 
-# #region agent log — diagnostic import wrapper
-_import_error = None
-try:
-    import requests
-    from api._helpers import CLIENT_ID, CLIENT_SECRET, send_json, get_query_params, get_token
-    from api._kv import kv_list_get
-except Exception as _e:
-    _import_error = f"{type(_e).__name__}: {_e}\n{_tb.format_exc()}"
-    # Provide stubs so the module still loads
-    CLIENT_ID = ""; CLIENT_SECRET = ""; send_json = None; get_query_params = None; get_token = None; kv_list_get = None
-    import requests
-# #endregion
+import requests
+from api._helpers import CLIENT_ID, CLIENT_SECRET, send_json, get_query_params, get_token
+from api._kv import kv_list_get
 
 COGNITO_URL = "https://prod-beyond-timeback-api-2-idp.auth.us-east-1.amazoncognito.com/oauth2/token"
 QTI_BASE = "https://qti.alpha-1edtech.ai"
@@ -232,23 +222,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-    # #region agent log — diagnostic error reporter
-    def _diag(self):
-        import json as _j
-        if _import_error:
-            self.send_response(500)
-            self.send_header("Content-Type","application/json")
-            self.send_header("Access-Control-Allow-Origin","*")
-            self.end_headers()
-            self.wfile.write(_j.dumps({"_diag":"import_error","error":_import_error}).encode())
-            return True
-        return False
-    # #endregion
-
     def do_GET(self):
-        # #region agent log
-        if self._diag(): return
-        # #endregion
         params = get_query_params(self)
         item_id = params.get("id", "").strip()
         item_type = params.get("type", "items").strip().lower()

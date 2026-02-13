@@ -163,9 +163,6 @@
         if (!lineItemId) lineItemId = lessonData.title || '';
 
         console.log('[Sync] Submitting AssessmentResult — userId:', syncState.userId, 'lineItemId:', lineItemId, 'ppALI:', lessonData.assessmentLineItemSourcedId || 'none', 'score:', score);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:submitAssessmentResult:entry',message:'submit-result payload',data:{lineItemId:lineItemId,lessonALI:lessonData.assessmentLineItemSourcedId||'(empty)',score:passed?100:score,scoreStatus:passed?'fully graded':'submitted',passed:passed,xpInMetadata:passed?quizState.xpEarned:0},timestamp:Date.now(),hypothesisId:'B,D'})}).catch(function(){});
-        // #endregion
 
         // Determine step type from current lesson steps
         var quizStepType = 'Quiz';
@@ -201,16 +198,10 @@
         .then(function(r) { return r.json(); })
         .then(function(d) {
             console.log('[Sync] AssessmentResult response:', JSON.stringify(d));
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:submitAssessmentResult:response',message:'submit-result API response',data:{status:d.status,resultId:d.resultId||'(none)',usedPowerPathALI:d.usedPowerPathALI,lineItemUsed:d.assessmentLineItemId||'(none)'},timestamp:Date.now(),hypothesisId:'B,C'})}).catch(function(){});
-            // #endregion
             if (d.attempts) { d.attempts.forEach(function(a) { console.log('[Sync] Attempt:', a.name, a.method, a.httpStatus, (a.body||'').substring(0,200)); }); }
         })
         .catch(function(e) {
             console.error('[Sync] AssessmentResult FAILED:', e.message);
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:submitAssessmentResult:error',message:'submit-result FAILED',data:{error:e.message},timestamp:Date.now(),hypothesisId:'C'})}).catch(function(){});
-            // #endregion
         });
     }
 
@@ -366,9 +357,6 @@
             });
             var d = await resp.json();
             console.log('[Sync] PowerPath finalize response (status ' + resp.status + '):', JSON.stringify(d));
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:markLessonComplete:response',message:'finalize-lesson API result',data:{httpStatus:resp.status,apiStatus:d.status,xpEarned:d.xpEarned,ppScore:d.powerpathScore,message:d.message||'',lessonId:lessonId},timestamp:Date.now(),hypothesisId:'A'})}).catch(function(){});
-            // #endregion
             
             // The backend now returns xpEarned even on "partial" status
             // (when finalize failed but getAssessmentProgress succeeded)
@@ -397,14 +385,8 @@
     async function syncQuizCompletion(pct, passed) {
         if (!syncState.userId) {
             console.error('[Sync] NO userId — cannot sync! Check localStorage alphalearn_userId');
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncQuizCompletion',message:'NO userId',data:{},timestamp:Date.now(),hypothesisId:'D'})}).catch(function(){});
-            // #endregion
             return;
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncQuizCompletion',message:'SYNC FIRING',data:{pct:pct,passed:passed,xp:quizState.xpEarned,userId:syncState.userId,testId:quizState.testId,lessonTitle:lessonData.title},timestamp:Date.now(),hypothesisId:'entry'})}).catch(function(){});
-        // #endregion
         console.log('[Sync] === Syncing quiz completion === pct:', pct, 'passed:', passed, 'localXp:', quizState.xpEarned);
 
         // ── STEP 1: Finalize on PowerPath FIRST to get authoritative XP ──
@@ -472,10 +454,6 @@
         var stepLabel = step.type || 'Content';
         var contentType = stepLabel.toLowerCase(); // 'video' or 'article'
         
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncStepCompletion',message:'Step sync data',data:{resourceId:resourceId,stepLabel:stepLabel,email:syncState.userEmail||'(empty)',courseId:lessonData.courseId||'(empty)',lessonALI:lessonData.assessmentLineItemSourcedId||'(empty)',resourceALI:(step.resource&&step.resource.assessmentLineItemSourcedId)||'(empty)',lessonSourcedId:lessonData.lessonSourcedId||'(empty)',userId:syncState.userId},timestamp:Date.now(),hypothesisId:'A,B,C,D'})}).catch(function(){});
-        // #endregion
-        
         console.log('[Sync] Syncing', stepLabel, 'completion — resourceId:', resourceId, 'userId:', syncState.userId);
         
         // Use the dedicated mark-content-complete endpoint for articles/videos
@@ -501,9 +479,6 @@
             .then(function(r) { return r.json(); })
             .then(function(d) { 
                 console.log('[Sync]', stepLabel, 'mark-content-complete response:', JSON.stringify(d));
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:markContentComplete:response',message:'mark-content-complete result',data:{success:d.success,results:d.results,resourceId:d.resourceId,contentType:d.contentType},timestamp:Date.now(),hypothesisId:'A,B'})}).catch(function(){});
-                // #endregion
                 if (d.success) {
                     console.log('[Sync]', stepLabel, 'successfully marked as complete via API');
                 }
@@ -546,9 +521,6 @@
         .then(function(r) { return r.json(); })
         .then(function(d) { 
             console.log('[Sync]', stepLabel, 'OneRoster result response:', JSON.stringify(d));
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:submitResult:response',message:'submit-result comparison',data:{status:d.status,lineItemUsed:d.assessmentLineItemId||'(none)',usedPowerPathALI:d.usedPowerPathALI},timestamp:Date.now(),hypothesisId:'A,C'})}).catch(function(){});
-            // #endregion
         })
         .catch(function(e) { console.error('[Sync]', stepLabel, 'OneRoster result FAILED:', e.message); });
         
@@ -807,10 +779,6 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ studentId: userId, testId: testId, lessonId: quizState.quizLessonId, subject: subject, grade: gradeLevel }),
                 });
-                // #region agent log
-                var _startRaw = await startResp.clone().text();
-                fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.js:805',message:'quiz-session start response',data:{status:startResp.status,body:_startRaw.substring(0,500)},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
-                // #endregion
                 var startData = await startResp.json();
                 if (startData.attemptId || startData.id) {
                     quizState.attemptId = startData.attemptId || startData.id;
@@ -869,6 +837,26 @@
                     }
                     showQuizResults();
                     return;
+                }
+                // Stale/corrupt attempt — auto-retry once with reset
+                if (!quizState._retried) {
+                    console.warn('[Quiz] 0 questions — retrying with reset');
+                    quizState._retried = true;
+                    var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+                    try {
+                        var retryResp = await fetch('/api/quiz-session?action=start', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ studentId: userId, testId: quizState.testId, lessonId: quizState.quizLessonId, retry: true }),
+                        });
+                        var retryData = await retryResp.json();
+                        if (retryData.attemptId || retryData.id) {
+                            quizState.attemptId = retryData.attemptId || retryData.id;
+                            quizState.ppScore = 0; quizState.correct = 0; quizState.total = 0;
+                            quizState.streak = 0; quizState.questionNum = 0; quizState.answeredIds = [];
+                            await loadNextQuestion();
+                            return;
+                        }
+                    } catch(e) { console.warn('[Quiz] Retry failed:', e.message); }
                 }
                 // Truly no questions in the bank
                 console.warn('[Quiz] No questions in bank — totalQuestions:', data.totalQuestions);
@@ -1336,10 +1324,6 @@
             if (quizState.title) apiUrl += '&title=' + encodeURIComponent(quizState.title);
 
             var resp = await fetch(apiUrl);
-            // #region agent log
-            var _qtiRaw = await resp.clone().text();
-            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.js:1338',message:'qti-item response',data:{status:resp.status,url:apiUrl,body:_qtiRaw.substring(0,500)},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
-            // #endregion
             var result = await resp.json();
             if (!result.success || !result.data) return false;
             var data = result.data;
@@ -2108,9 +2092,6 @@
             return;
         }
         console.log('[Sync] Syncing non-quiz lesson completion (video/article)');
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncNonQuizCompletion:entry',message:'Non-quiz completion started',data:{userId:syncState.userId,lessonALI:lessonData.assessmentLineItemSourcedId||'(empty)',lessonSourcedId:lessonData.lessonSourcedId||'(empty)',title:lessonData.title||'(empty)'},timestamp:Date.now(),hypothesisId:'E'})}).catch(function(){});
-        // #endregion
 
         // Set minimal quiz state so the existing sync functions work
         quizState.xpEarned = 0;  // Start at 0 — PowerPath will provide real XP
@@ -2129,9 +2110,6 @@
         } catch(e) {
             console.warn('[Sync] Non-quiz finalize failed:', e.message);
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncNonQuizCompletion:afterFinalize',message:'Non-quiz after finalize',data:{ppXp:ppXp,xpEarned:quizState.xpEarned,hasSubmitResult:false,note:'syncNonQuizCompletion does NOT call submitAssessmentResult'},timestamp:Date.now(),hypothesisId:'E'})}).catch(function(){});
-        // #endregion
 
         // 2. Report XP via activity record (only if XP > 0)
         if (quizState.xpEarned > 0) {
