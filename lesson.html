@@ -1618,7 +1618,8 @@
                 var cId = c.id || c.identifier || letters[i] || String(i);
                 var dotHtml = (correctId && cId === correctId) ? '<span class="answer-dot"></span>' : '';
                 var crossedCls = co[cId] ? ' crossed-out' : '';
-                questionHtml += '<div class="choice' + crossedCls + '" data-id="' + esc(cId) + '" onclick="selectAnswer(this,\'' + esc(cId) + '\')">' +
+                var correctCls = (correctId && cId === correctId) ? ' correct' : '';
+                questionHtml += '<div class="choice' + crossedCls + correctCls + '" data-id="' + esc(cId) + '" onclick="selectAnswer(this,\'' + esc(cId) + '\')">' +
                     '<div class="choice-letter">' + (letters[i] || i) + '</div>' +
                     '<div class="choice-text">' + (cText || 'Option ' + (letters[i]||i)) + '</div>' + dotHtml +
                     '<button class="crossout-btn" onclick="event.stopPropagation();crossOutChoice(this.parentElement,\'' + esc(cId) + '\')" title="Cross out"><i class="fa-solid fa-xmark"></i></button>' +
