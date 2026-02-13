@@ -45,8 +45,8 @@ import json
 import re
 from http.server import BaseHTTPRequestHandler
 import requests
-from _helpers import API_BASE, api_headers, send_json, get_query_params
-from _kv import kv_get
+from api._helpers import API_BASE, api_headers, send_json, get_query_params
+from api._kv import kv_get
 
 
 def _extract_correct_answer(question):
