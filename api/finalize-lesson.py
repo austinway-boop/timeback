@@ -70,6 +70,9 @@ class handler(BaseHTTPRequestHandler):
                 
                 # Get XP from progress endpoint
                 xp_earned = 0
+                multiplier = 1
+                pp_score = None
+                pp_accuracy = None
                 try:
                     progress_resp = requests.get(
                         f"{API_BASE}/powerpath/getAssessmentProgress",
@@ -80,12 +83,15 @@ class handler(BaseHTTPRequestHandler):
                     if progress_resp.status_code == 200:
                         progress = progress_resp.json()
                         xp_earned = progress.get("xp", 0)
+                        multiplier = progress.get("multiplier", 1)
+                        pp_score = progress.get("score")
+                        pp_accuracy = progress.get("accuracy")
                         debug.append({
                             "step": "getAssessmentProgress",
                             "xp": xp_earned,
-                            "score": progress.get("score"),
-                            "accuracy": progress.get("accuracy"),
-                            "multiplier": progress.get("multiplier")
+                            "score": pp_score,
+                            "accuracy": pp_accuracy,
+                            "multiplier": multiplier
                         })
                 except Exception as e:
                     debug.append({"step": "getAssessmentProgress", "error": str(e)})
@@ -96,6 +102,9 @@ class handler(BaseHTTPRequestHandler):
                     "lessonType": finalize_data.get("lessonType"),
                     "attempt": finalize_data.get("attempt"),
                     "xpEarned": xp_earned,
+                    "multiplier": multiplier,
+                    "powerpathScore": pp_score,
+                    "powerpathAccuracy": pp_accuracy,
                     "response": finalize_data,
                     "debug": debug
                 })

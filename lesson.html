@@ -1017,6 +1017,7 @@
     }
 
     /* ── 4. PowerPath: finalize lesson via finalStudentAssessmentResponse API ── */
+    /* Returns a Promise that resolves with { xpEarned, multiplier, finalScore } from PowerPath */
     function markLessonComplete(score) {
         // Priority: use lessonSourcedId (matches documented format like "USHI23-l10-r104084-bank-v1")
         var lessonId = lessonData.lessonSourcedId || '';
@@ -1033,7 +1034,7 @@
         
         if (!lessonId || !syncState.userId) {
             console.warn('[Sync] No lessonId or userId - skipping PowerPath finalize');
-            return;
+            return Promise.resolve({ xpEarned: 0, multiplier: 1, finalScore: null });
         }
         
         var payload = {
@@ -1046,18 +1047,30 @@
         
         console.log('[Sync] Finalizing lesson via PowerPath - lessonId:', lessonId, 'userId:', syncState.userId, 'score:', score);
         
-        fetch('/api/finalize-lesson', {
+        return fetch('/api/finalize-lesson', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         })
         .then(function(r) { return r.json(); })
-        .then(function(d) { console.log('[Sync] PowerPath finalize response:', JSON.stringify(d)); })
-        .catch(function(e) { console.error('[Sync] PowerPath finalize FAILED:', e.message); });
+        .then(function(d) {
+            console.log('[Sync] PowerPath finalize response:', JSON.stringify(d));
+            var ppXp = d.xpEarned || 0;
+            var ppMultiplier = d.multiplier || 1;
+            var ppScore = typeof d.powerpathScore === 'number' ? d.powerpathScore : null;
+            var ppAccuracy = typeof d.powerpathAccuracy === 'number' ? d.powerpathAccuracy : null;
+            console.log('[Sync] PowerPath XP extracted — xpEarned:', ppXp, 'multiplier:', ppMultiplier, 'score:', ppScore, 'accuracy:', ppAccuracy);
+            return { xpEarned: ppXp, multiplier: ppMultiplier, finalScore: ppScore, accuracy: ppAccuracy };
+        })
+        .catch(function(e) {
+            console.error('[Sync] PowerPath finalize FAILED:', e.message);
+            return { xpEarned: 0, multiplier: 1, finalScore: null };
+        });
     }
 
     /* ── Combined: fire all sync methods on quiz completion ── */
-    function syncQuizCompletion(pct, passed) {
+    /* Async: finalizes on PowerPath FIRST to get real XP, then reports through all channels */
+    async function syncQuizCompletion(pct, passed) {
         if (!syncState.userId) {
             console.error('[Sync] NO userId — cannot sync! Check localStorage alphalearn_userId');
             // #region agent log
@@ -1068,30 +1081,44 @@
         // #region agent log
         fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.html:syncQuizCompletion',message:'SYNC FIRING',data:{pct:pct,passed:passed,xp:quizState.xpEarned,userId:syncState.userId,testId:quizState.testId,lessonTitle:lessonData.title},timestamp:Date.now(),hypothesisId:'entry'})}).catch(function(){});
         // #endregion
-        console.log('[Sync] === Syncing quiz completion === pct:', pct, 'passed:', passed, 'xp:', quizState.xpEarned);
-        
-        // 1. OneRoster: Record assessment result
+        console.log('[Sync] === Syncing quiz completion === pct:', pct, 'passed:', passed, 'localXp:', quizState.xpEarned);
+
+        // ── STEP 1: Finalize on PowerPath FIRST to get authoritative XP ──
+        // PowerPath's getAssessmentProgress returns the real XP value after finalization.
+        // We must await this before reporting XP to other systems.
+        if (passed) {
+            try {
+                var ppResult = await markLessonComplete(pct);
+                if (ppResult && ppResult.xpEarned > 0) {
+                    console.log('[Sync] Using PowerPath XP:', ppResult.xpEarned, '(was local:', quizState.xpEarned, ')');
+                    quizState.xpEarned = ppResult.xpEarned;
+                } else {
+                    console.log('[Sync] PowerPath returned no XP, keeping local XP:', quizState.xpEarned);
+                }
+            } catch(e) {
+                console.error('[Sync] PowerPath finalize await failed:', e.message, '— using local XP:', quizState.xpEarned);
+            }
+            saveLessonToLocalStorage();
+        }
+
+        console.log('[Sync] Final XP to report:', quizState.xpEarned);
+
+        // ── STEP 2: Report XP through all channels (now using PowerPath XP) ──
+        // 2a. OneRoster: Record assessment result with real XP in metadata
         submitAssessmentResult(pct, passed);
         
-        // 2. Caliper: Send activity event for XP/metrics
+        // 2b. Caliper: Send activity event for XP/metrics
         sendCaliperActivity(passed);
         
-        // 3. SDK-style activity record (this is what updates XP on Timeback dashboards)
+        // 2c. SDK-style activity record (updates XP on Timeback dashboards)
         if (passed) {
             sendActivityRecord(passed);
         }
 
-        // 4. PowerPath: Mark lesson as complete (if passed), including score
-        // AND save to localStorage (only on pass — this is what advances the frontier)
-        if (passed) {
-            markLessonComplete(pct);
-            saveLessonToLocalStorage();
-        }
-
-        // 5. Always signal course page to refresh (even on fail)
+        // ── STEP 3: Signal course page to refresh ──
         sessionStorage.setItem('al_progress_changed', 'true');
 
-        // 6. Save XP locally so the course page can show it immediately
+        // ── STEP 4: Save XP locally so the course page can show it immediately ──
         var xp = passed ? quizState.xpEarned : 0;
         if (xp > 0) {
             var enrollId = lessonData.enrollmentId || '';
@@ -1100,6 +1127,13 @@
             // Also save per-lesson XP
             var lTitle = lessonData.title || '';
             if (lTitle) localStorage.setItem('xp_' + lTitle, String(xp));
+        }
+
+        // ── STEP 5: Update the results UI with real XP (if visible) ──
+        var xpBadge = document.querySelector('.xp-badge');
+        if (xpBadge && xp > 0) {
+            xpBadge.innerHTML = '<i class="fa-solid fa-bolt"></i> ' + xp + ' XP earned';
+            xpBadge.className = 'xp-badge';
         }
     }
 
@@ -2657,42 +2691,52 @@
         console.log('[Sync] Syncing non-quiz lesson completion (video/article)');
 
         // Set minimal quiz state so the existing sync functions work
-        quizState.xpEarned = 1;
+        quizState.xpEarned = 0;  // Start at 0 — PowerPath will provide real XP
         quizState.total = 1;
         quizState.correct = 1;
 
-        // Fire all sync calls in parallel and wait for all to complete (or fail)
-        var promises = [];
+        // 1. PowerPath: finalize lesson FIRST to get real XP
+        var ppXp = 0;
+        try {
+            var ppResult = await markLessonComplete(100);
+            if (ppResult && ppResult.xpEarned > 0) {
+                ppXp = ppResult.xpEarned;
+                quizState.xpEarned = ppXp;
+                console.log('[Sync] Non-quiz: PowerPath XP:', ppXp);
+            }
+        } catch(e) {
+            console.warn('[Sync] Non-quiz finalize failed:', e.message);
+        }
 
-        // 1. PowerPath: mark lesson as complete
-        promises.push(
-            fetch('/api/finalize-lesson', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentId: syncState.userId, lessonId: lessonData.lessonSourcedId || '' }),
-            }).catch(function(e) { console.warn('[Sync] Finalize failed:', e.message); })
-        );
-
-        // 2. Activity record: update XP
-        var email = localStorage.getItem('alphalearn_email') || '';
-        var courseCode = lessonData.courseSourcedId || '';
-        var activityId = lessonData.lessonSourcedId || lessonData.title || '';
-        promises.push(
-            fetch('/api/activity-record', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: syncState.userId, email: email,
-                    activityId: activityId, activityName: lessonData.title || 'Lesson',
-                    courseCode: courseCode, xpEarned: 1, totalQuestions: 1, correctQuestions: 1, pctComplete: 100,
-                }),
-            }).then(function(r) { return r.json(); }).then(function(d) {
+        // 2. Report XP via activity record (only if XP > 0)
+        if (quizState.xpEarned > 0) {
+            var email = localStorage.getItem('alphalearn_email') || '';
+            var courseCode = lessonData.courseSourcedId || '';
+            var activityId = lessonData.lessonSourcedId || lessonData.title || '';
+            try {
+                var resp = await fetch('/api/activity-record', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: syncState.userId, email: email,
+                        activityId: activityId, activityName: lessonData.title || 'Lesson',
+                        courseCode: courseCode, xpEarned: quizState.xpEarned,
+                        totalQuestions: 1, correctQuestions: 1, pctComplete: 100,
+                    }),
+                });
+                var d = await resp.json();
                 console.log('[Sync] Activity-record response:', JSON.stringify(d));
-            }).catch(function(e) { console.warn('[Sync] Activity-record failed:', e.message); })
-        );
+            } catch(e) {
+                console.warn('[Sync] Activity-record failed:', e.message);
+            }
+        }
 
-        // Wait for all to settle (don't block on failures)
-        try { await Promise.allSettled(promises); } catch(e) {}
+        // 3. Save XP locally
+        if (quizState.xpEarned > 0) {
+            var enrollId = lessonData.enrollmentId || '';
+            var existingXP = parseInt(localStorage.getItem('local_xp_' + enrollId) || '0', 10);
+            localStorage.setItem('local_xp_' + enrollId, String(existingXP + quizState.xpEarned));
+        }
     }
 
     /* ── Utilities ──────────────────────────────────────────── */
