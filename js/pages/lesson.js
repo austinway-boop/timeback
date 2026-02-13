@@ -813,6 +813,7 @@
                     // Progress already restored above; use server hints as fallback
                     if (quizState.total === 0 && startData.hasExistingProgress) {
                         quizState.questionNum = startData.answeredCount || 0;
+                        quizState.total = startData.answeredCount || 0;
                         if (startData.score != null) quizState.ppScore = Math.max(0, Math.min(100, startData.score));
                     }
                     await loadNextQuestion();
@@ -853,21 +854,20 @@
                 return;
             }
 
-            // Only treat as complete if the API explicitly says so AND all questions were answered
+            // Only treat as complete if the API explicitly says so
             if (data.complete || data.finished) {
-                var allAnswered = data.totalQuestions > 0 && data.answeredQuestions >= data.totalQuestions;
-                if (allAnswered) {
+                // If there are questions in the bank (answered or not), show results
+                if (data.totalQuestions > 0 || quizState.total > 0) {
+                    // Populate local stats from server if we don't have local progress
+                    if (quizState.total === 0 && data.answeredQuestions > 0) {
+                        quizState.total = data.answeredQuestions;
+                        quizState.questionNum = data.answeredQuestions;
+                    }
                     showQuizResults();
                     return;
                 }
-                // API says complete but questions don't match — might be stale, show results anyway
-                // but only if there was meaningful progress
-                if (quizState.total > 0) {
-                    showQuizResults();
-                    return;
-                }
-                // No progress at all — don't call showQuizResults, show error instead
-                console.warn('[Quiz] API says complete but no questions answered locally');
+                // Truly no questions in the bank
+                console.warn('[Quiz] No questions in bank — totalQuestions:', data.totalQuestions);
                 removeQuizLoader();
                 quizArea.innerHTML = '<div class="loading-msg"><i class="fa-solid fa-circle-info" style="font-size:1.5rem;display:block;margin-bottom:10px;color:var(--color-primary);"></i>No questions available<br><button class="quiz-btn quiz-btn-secondary" style="margin-top:14px;" onclick="goBackToCourse()"><i class="fa-solid fa-arrow-left"></i> Back to Course</button></div>';
                 return;
