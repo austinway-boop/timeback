@@ -8,6 +8,24 @@ Endpoint priority (per API docs):
   3. /api/v1/qti/stimuli/<id>/                     — shared stimulus content
   4. /powerpath/assessments/<id>                    — PowerPath metadata fallback
   5. Legacy /qti/v3/ and /api/ paths               — backward compat
+
+=== CRITICAL NOTES FOR FUTURE EDITORS ===
+
+1. DO NOT move this file into a subdirectory. Vercel maps api/qti-item.py
+   to /api/qti-item. Moving it to api/qti/item.py changes the route to
+   /api/qti/item, breaking all frontend fetch() calls AND potentially
+   breaking the import of api._kv (Vercel's sys.path setup differs for
+   files in subdirectories vs flat in api/).
+
+2. The _kv import uses "from api._kv" (not bare "from _kv") because this
+   file imports kv_list_get which is used for blocked-question filtering.
+   Both patterns work for flat files in api/, but be consistent with
+   whatever pattern the file already uses.
+
+3. The blocked-question filtering (_get_blocked_question_ids,
+   _filter_blocked_questions) removes questions that admins have globally
+   hidden or marked as permanently bad. This runs AFTER QTI content is
+   fetched and parsed. Do not remove this filtering.
 """
 
 from http.server import BaseHTTPRequestHandler
