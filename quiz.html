@@ -470,7 +470,8 @@
         area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading question...</div>';
 
         try {
-            var resp = await fetch('/api/quiz-session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId));
+            var skipParam = quizState.answeredIds.length > 0 ? '&skipIds=' + encodeURIComponent(quizState.answeredIds.join(',')) : '';
+            var resp = await fetch('/api/quiz-session?action=next&attemptId=' + encodeURIComponent(quizState.attemptId) + skipParam);
             var data = await resp.json();
 
             if (data.complete || data.finished || data.error === 'no_more_questions') {

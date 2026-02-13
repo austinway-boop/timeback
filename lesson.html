@@ -1323,7 +1323,8 @@
         initSync();
 
         renderStepper();
-        showStep(0);
+        var savedStep = _restoreSavedStep();
+        showStep(savedStep);
     }
 
     function renderStepper() {
@@ -1355,10 +1356,33 @@
         el.innerHTML = html;
     }
 
+    /* ── Step persistence helpers ─────────────────────────────── */
+    function _getStepKey() {
+        var id = (lessonData && (lessonData.lessonSourcedId || lessonData.completionKey)) || '';
+        return id ? 'lesson_step:' + id : '';
+    }
+    function _saveCurrentStep(idx) {
+        var key = _getStepKey();
+        if (key) localStorage.setItem(key, String(idx));
+    }
+    function _restoreSavedStep() {
+        var key = _getStepKey();
+        if (!key) return 0;
+        var saved = localStorage.getItem(key);
+        if (saved == null) return 0;
+        var idx = parseInt(saved, 10);
+        return (isNaN(idx) || idx < 0 || idx >= steps.length) ? 0 : idx;
+    }
+    function _clearSavedStep() {
+        var key = _getStepKey();
+        if (key) localStorage.removeItem(key);
+    }
+
     /* ── Show Step ──────────────────────────────────────────── */
     function showStep(idx) {
         if (idx < 0 || idx >= steps.length) return;
         currentStep = idx;
+        _saveCurrentStep(idx);
         renderStepper();
 
         var step = steps[idx];
@@ -2714,6 +2738,9 @@
     }
 
     function saveLessonToLocalStorage() {
+        // Clear saved step — lesson is complete, don't resume mid-lesson
+        _clearSavedStep();
+
         // Signal course.html to reload and pick up new completion data
         sessionStorage.setItem('al_progress_changed', 'true');
 
