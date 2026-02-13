@@ -2,18 +2,17 @@
 
 TEMPORARY — Extract all content from an AP course's PowerPath lesson plan tree.
 
-Uses admin-scoped, read-only catalog endpoints:
+Uses ONLY read-only GET requests:
   - PowerPath lesson plan tree (course structure)
   - QTI catalog (question content, article/stimulus content)
+  - OneRoster user lookup (to resolve service account email)
 
-A dedicated "Download Bot" user (created once, stored in KV) is used ONLY
-as a read-only proxy for the lesson plan GET endpoint when the generic tree
-endpoint returns 404.  The bot user ID is NEVER used with any write endpoint
-(resetAttempt, updateStudentQuestionResponse, etc.).
+A dedicated service account (pehal64861@aixind.com) is used ONLY for
+read-only lesson plan GET when the generic tree endpoint returns 404.
+The service account ID is NEVER used with any write endpoint.
 """
 
 import re
-import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.server import BaseHTTPRequestHandler
 
@@ -27,7 +26,6 @@ from api._helpers import (
     get_query_params,
     get_token,
 )
-from api._kv import kv_get, kv_set
 
 COGNITO_URL = "https://prod-beyond-timeback-api-2-idp.auth.us-east-1.amazoncognito.com/oauth2/token"
 QTI_BASE = "https://qti.alpha-1edtech.ai"
@@ -453,68 +451,53 @@ def _fetch_questions_from_qti(url, res_id, qti_headers):
 
 
 # ---------------------------------------------------------------------------
-# Download Bot user — used ONLY for read-only lesson plan GET
+# Service user lookup — read-only GET, no data modification
 # ---------------------------------------------------------------------------
-_BOT_KV_KEY = "download_bot_user_id"
+SERVICE_USER_EMAIL = "pehal64861@aixind.com"
+_cached_service_user_id = None
 
 
-def _get_bot_user_id(pp_headers):
-    """Get or create a dedicated bot user for lesson plan fetching.
+def _lookup_service_user(pp_headers):
+    """Look up the dedicated service account by email (read-only GET).
 
-    The bot user is:
-      - Created once via OneRoster API, ID stored in KV
-      - Used ONLY with GET /powerpath/lessonPlans/{courseId}/{botId}
-      - NEVER used with resetAttempt, getAssessmentProgress, or any write endpoint
-      - Has no real enrollment data, grades, or progress
+    Used ONLY with GET /powerpath/lessonPlans/{courseId}/{userId}.
+    NEVER used with resetAttempt, getAssessmentProgress, or any write endpoint.
     """
-    # 1. Check KV cache
-    cached_id = kv_get(_BOT_KV_KEY)
-    if cached_id and isinstance(cached_id, str) and len(cached_id) > 5:
-        return cached_id
-
-    # 2. Create bot user via OneRoster API (one-time)
-    bot_id = str(uuid.uuid4())
-    user_payload = {
-        "user": {
-            "sourcedId": bot_id,
-            "givenName": "Download",
-            "familyName": "Bot",
-            "email": "download-bot@alphalearn.internal",
-            "role": "student",
-            "status": "active",
-            "enabledUser": True,
-            "roles": [{"role": "student", "roleType": "primary"}],
-        }
-    }
+    global _cached_service_user_id
+    if _cached_service_user_id:
+        return _cached_service_user_id
 
     try:
-        resp = requests.post(
+        resp = requests.get(
             f"{API_BASE}/ims/oneroster/rostering/v1p2/users",
             headers=pp_headers,
-            json=user_payload,
-            timeout=30,
+            params={"filter": f"email='{SERVICE_USER_EMAIL}'", "limit": 1},
+            timeout=15,
         )
         if resp.status_code == 401:
             pp_headers = api_headers()
-            resp = requests.post(
+            resp = requests.get(
                 f"{API_BASE}/ims/oneroster/rostering/v1p2/users",
                 headers=pp_headers,
-                json=user_payload,
-                timeout=30,
+                params={"filter": f"email='{SERVICE_USER_EMAIL}'", "limit": 1},
+                timeout=15,
             )
-        if resp.status_code in (200, 201):
-            try:
-                data = resp.json()
-                if "user" in data and data["user"].get("sourcedId"):
-                    bot_id = data["user"]["sourcedId"]
-            except Exception:
-                pass
+        if resp.status_code == 200:
+            data = resp.json()
+            users = data.get("users", [])
+            if not users:
+                for key in data:
+                    if isinstance(data[key], list) and data[key]:
+                        users = data[key]
+                        break
+            if users:
+                uid = users[0].get("sourcedId", "")
+                if uid:
+                    _cached_service_user_id = uid
+                    return uid
     except Exception:
-        pass  # Use the locally generated UUID as fallback
-
-    # 3. Persist in KV so we never create again
-    kv_set(_BOT_KV_KEY, bot_id)
-    return bot_id
+        pass
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -562,27 +545,28 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
-            # 1b. Fallback: use Download Bot user with student-specific
-            #     endpoint (read-only GET only — bot has no real data)
+            # 1b. Fallback: use service account with student-specific
+            #     endpoint (read-only GET only)
             if not tree:
-                try:
-                    bot_id = _get_bot_user_id(pp_headers)
-                    resp = requests.get(
-                        f"{API_BASE}/powerpath/lessonPlans/{course_id}/{bot_id}",
-                        headers=pp_headers,
-                        timeout=30,
-                    )
-                    if resp.status_code == 401:
-                        pp_headers = api_headers()
+                svc_id = _lookup_service_user(pp_headers)
+                if svc_id:
+                    try:
                         resp = requests.get(
-                            f"{API_BASE}/powerpath/lessonPlans/{course_id}/{bot_id}",
+                            f"{API_BASE}/powerpath/lessonPlans/{course_id}/{svc_id}",
                             headers=pp_headers,
                             timeout=30,
                         )
-                    if resp.status_code == 200:
-                        tree = resp.json()
-                except Exception:
-                    pass
+                        if resp.status_code == 401:
+                            pp_headers = api_headers()
+                            resp = requests.get(
+                                f"{API_BASE}/powerpath/lessonPlans/{course_id}/{svc_id}",
+                                headers=pp_headers,
+                                timeout=30,
+                            )
+                        if resp.status_code == 200:
+                            tree = resp.json()
+                    except Exception:
+                        pass
 
             if not tree:
                 send_json(self, {
