@@ -807,6 +807,10 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ studentId: userId, testId: testId, lessonId: quizState.quizLessonId, subject: subject, grade: gradeLevel }),
                 });
+                // #region agent log
+                var _startRaw = await startResp.clone().text();
+                fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.js:805',message:'quiz-session start response',data:{status:startResp.status,body:_startRaw.substring(0,500)},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
+                // #endregion
                 var startData = await startResp.json();
                 if (startData.attemptId || startData.id) {
                     quizState.attemptId = startData.attemptId || startData.id;
@@ -1332,6 +1336,10 @@
             if (quizState.title) apiUrl += '&title=' + encodeURIComponent(quizState.title);
 
             var resp = await fetch(apiUrl);
+            // #region agent log
+            var _qtiRaw = await resp.clone().text();
+            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lesson.js:1338',message:'qti-item response',data:{status:resp.status,url:apiUrl,body:_qtiRaw.substring(0,500)},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
+            // #endregion
             var result = await resp.json();
             if (!result.success || !result.data) return false;
             var data = result.data;

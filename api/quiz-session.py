@@ -15,10 +15,20 @@ Actions (frontend-facing):
 
 import json
 import re
+import traceback as _tb
 from http.server import BaseHTTPRequestHandler
-import requests
-from api._helpers import API_BASE, api_headers, send_json, get_query_params
-from _kv import kv_get
+# #region agent log — diagnostic import wrapper
+_import_error = None
+try:
+    import requests
+    from api._helpers import API_BASE, api_headers, send_json, get_query_params
+    from _kv import kv_get
+except Exception as _e:
+    _import_error = f"{type(_e).__name__}: {_e}\n{_tb.format_exc()}"
+    # Provide stubs so the module still loads
+    API_BASE = ""; api_headers = lambda: {}; send_json = None; get_query_params = None; kv_get = None
+    import requests
+# #endregion
 
 
 def _extract_correct_answer(question):
@@ -54,8 +64,23 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
+    # #region agent log — diagnostic error reporter
+    def _diag(self):
+        if _import_error:
+            self.send_response(500)
+            self.send_header("Content-Type","application/json")
+            self.send_header("Access-Control-Allow-Origin","*")
+            self.end_headers()
+            self.wfile.write(json.dumps({"_diag":"import_error","error":_import_error}).encode())
+            return True
+        return False
+    # #endregion
+
     # ── GET actions ──────────────────────────────────────────
     def do_GET(self):
+        # #region agent log
+        if self._diag(): return
+        # #endregion
         params = get_query_params(self)
         action = params.get("action", "")
         headers = api_headers()
@@ -161,6 +186,9 @@ class handler(BaseHTTPRequestHandler):
 
     # ── POST actions ─────────────────────────────────────────
     def do_POST(self):
+        # #region agent log
+        if self._diag(): return
+        # #endregion
         try:
             cl = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(cl)) if cl else {}
