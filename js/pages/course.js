@@ -108,6 +108,9 @@
             || userEmail === 'twsevenyw@gmail.com' || userEmail === 'austin.way@alpha.school';
         var isAdmin = realIsAdmin;
 
+        // Staging bypass: unlock all lessons in staging mode
+        if (localStorage.getItem('alphalearn_staging')) isAdmin = true;
+
         // Debug override: force student view to test locks
         var debugMode = localStorage.getItem('al_debug_mode');
         if (debugMode === 'student' && realIsAdmin) isAdmin = false;
