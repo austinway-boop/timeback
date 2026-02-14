@@ -57,47 +57,123 @@
                 answeredIds: quizState.answeredIds,
                 timestamp: Date.now(),
             };
+            // Include static quiz state (answers, current index, flags)
+            if (quizState.staticQuestions) {
+                payload.staticIdx = quizState.staticIdx;
+                payload.answers = quizState.answers || null;
+                payload.marked = quizState.marked || null;
+            }
             localStorage.setItem(key, JSON.stringify(payload));
-            console.log('[QuizProgress] Saved —', key, '— answeredIds:', quizState.answeredIds.length, 'questionNum:', quizState.questionNum);
+            // Fire-and-forget save to server KV (survives cleared localStorage / device switch)
+            _saveProgressToServer(payload);
+            console.log('[QuizProgress] Saved —', key, '— answeredIds:', quizState.answeredIds.length, 'questionNum:', quizState.questionNum, 'staticIdx:', quizState.staticIdx);
         } catch(e) { console.warn('[QuizProgress] Save error:', e); }
     }
 
-    function _restoreQuizProgress() {
-        var key = _getQuizProgressKey();
-        if (!key) { console.warn('[QuizProgress] Cannot restore — key is empty'); return false; }
+    var _serverSaveTimer = null;
+    function _saveProgressToServer(payload) {
+        // Debounce: wait 1s so rapid answer clicks don't spam the server
+        if (_serverSaveTimer) clearTimeout(_serverSaveTimer);
+        _serverSaveTimer = setTimeout(function() {
+            var studentId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+            var quizId = quizState.quizLessonId || quizState.testId || '';
+            if (!studentId || !quizId) return;
+            fetch('/api/quiz-progress', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ studentId: studentId, quizId: quizId, progress: payload }),
+            }).catch(function(e) { console.warn('[QuizProgress] Server save error:', e.message); });
+        }, 1000);
+    }
+
+    function _saveProgressToServerNow() {
+        // Immediate save (for beforeunload) — uses sendBeacon for reliability
+        var studentId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+        var quizId = quizState.quizLessonId || quizState.testId || '';
+        if (!studentId || !quizId) return;
+        var payload = {
+            ppScore: quizState.ppScore, correct: quizState.correct, total: quizState.total,
+            streak: quizState.streak, xpEarned: quizState.xpEarned, questionNum: quizState.questionNum,
+            attemptId: quizState.attemptId, answeredIds: quizState.answeredIds, timestamp: Date.now(),
+        };
+        if (quizState.staticQuestions) {
+            payload.staticIdx = quizState.staticIdx;
+            payload.answers = quizState.answers || null;
+            payload.marked = quizState.marked || null;
+        }
+        var body = JSON.stringify({ studentId: studentId, quizId: quizId, progress: payload });
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon('/api/quiz-progress', new Blob([body], { type: 'application/json' }));
+        } else {
+            fetch('/api/quiz-progress', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true }).catch(function() {});
+        }
+    }
+
+    function _restoreQuizProgress(saved) {
+        // Can accept a pre-fetched saved object (from server), or read from localStorage
+        if (!saved) {
+            var key = _getQuizProgressKey();
+            if (!key) { console.warn('[QuizProgress] Cannot restore — key is empty'); return false; }
+            try {
+                var raw = localStorage.getItem(key);
+                if (!raw) { console.log('[QuizProgress] No saved data for', key); return false; }
+                saved = JSON.parse(raw);
+            } catch(e) { console.warn('[QuizProgress] Restore parse error:', e); return false; }
+        }
+        if (!saved || !saved.timestamp) return false;
+        // Expire after 30 days
+        if (Date.now() - saved.timestamp > 30 * 24 * 60 * 60 * 1000) {
+            return false;
+        }
+        quizState.ppScore = saved.ppScore || 0;
+        quizState.correct = saved.correct || 0;
+        quizState.total = saved.total || 0;
+        quizState.streak = saved.streak || 0;
+        quizState.xpEarned = saved.xpEarned || 0;
+        quizState.questionNum = saved.questionNum || 0;
+        quizState.answeredIds = saved.answeredIds || [];
+        // Restore static quiz state if present
+        if (saved.staticIdx != null) quizState.staticIdx = saved.staticIdx;
+        if (saved.answers) quizState.answers = saved.answers;
+        if (saved.marked) quizState.marked = saved.marked;
+        console.log('[QuizProgress] Restored — questionNum:', quizState.questionNum, 'total:', quizState.total, 'staticIdx:', quizState.staticIdx);
+        return true;
+    }
+
+    async function _fetchServerProgress() {
+        var studentId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+        var quizId = quizState.quizLessonId || quizState.testId || '';
+        if (!studentId || !quizId) return null;
         try {
-            var raw = localStorage.getItem(key);
-            if (!raw) { console.log('[QuizProgress] No saved data for', key); return false; }
-            var saved = JSON.parse(raw);
-            if (!saved || !saved.timestamp) return false;
-            // Expire after 7 days
-            if (Date.now() - saved.timestamp > 7 * 24 * 60 * 60 * 1000) {
-                localStorage.removeItem(key);
-                return false;
-            }
-            quizState.ppScore = saved.ppScore || 0;
-            quizState.correct = saved.correct || 0;
-            quizState.total = saved.total || 0;
-            quizState.streak = saved.streak || 0;
-            quizState.xpEarned = saved.xpEarned || 0;
-            quizState.questionNum = saved.questionNum || 0;
-            quizState.answeredIds = saved.answeredIds || [];
-            console.log('[QuizProgress] Restored —', key, '— answeredIds:', quizState.answeredIds, 'questionNum:', quizState.questionNum, 'total:', quizState.total);
-            return true;
-        } catch(e) { console.warn('[QuizProgress] Restore error:', e); return false; }
+            var resp = await fetch('/api/quiz-progress?studentId=' + encodeURIComponent(studentId) + '&quizId=' + encodeURIComponent(quizId));
+            var data = await resp.json();
+            if (data.found && data.progress) return data.progress;
+        } catch(e) { console.warn('[QuizProgress] Server fetch error:', e.message); }
+        return null;
     }
 
     function _clearQuizProgress() {
         var key = _getQuizProgressKey();
         if (key) localStorage.removeItem(key);
+        // Also clear from server KV
+        var studentId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+        var quizId = quizState.quizLessonId || quizState.testId || '';
+        if (studentId && quizId) {
+            fetch('/api/quiz-progress?studentId=' + encodeURIComponent(studentId) + '&quizId=' + encodeURIComponent(quizId), { method: 'DELETE' }).catch(function() {});
+        }
     }
 
     // Save progress automatically when leaving or hiding the page
     window.addEventListener('beforeunload', function() {
-        if (quizState.total > 0) _saveQuizProgress();
+        if (quizState.total > 0 || (quizState.answers && quizState.answers.some(function(a) { return a !== null; }))) {
+            _saveQuizProgress();
+            _saveProgressToServerNow();
+        }
     });
     document.addEventListener('visibilitychange', function() {
-        if (document.hidden && quizState.total > 0) _saveQuizProgress();
+        if (document.hidden && (quizState.total > 0 || (quizState.answers && quizState.answers.some(function(a) { return a !== null; })))) {
+            _saveQuizProgress();
+        }
     });
 
     // ── Question Reporting: init ──
@@ -1210,6 +1286,7 @@
                 quizState.answered = false;
                 if (quizState.staticQuestions) {
                     quizState.staticIdx++;
+                    _saveQuizProgress();
                     showStaticQuestion();
                 } else {
                     loadNextQuestion();
@@ -1485,6 +1562,25 @@
             if (isAPStyle) {
                 quizState.answers = new Array(quizState.staticQuestions.length).fill(null);
                 quizState.marked = new Array(quizState.staticQuestions.length).fill(false);
+            }
+
+            // ── Restore saved progress from server (survives reload / device switch) ──
+            var restored = false;
+            try {
+                var serverData = await _fetchServerProgress();
+                if (serverData) {
+                    restored = _restoreQuizProgress(serverData);
+                }
+            } catch(e) { console.warn('[QuizProgress] Server restore failed:', e.message); }
+            // Fall back to localStorage if server had nothing
+            if (!restored) {
+                restored = _restoreQuizProgress();
+            }
+            if (restored && quizState.staticIdx > 0) {
+                console.log('[QuizProgress] Resuming static quiz at question', quizState.staticIdx + 1, 'of', quizState.staticQuestions.length);
+            }
+
+            if (isAPStyle) {
                 startAPExam();
             } else {
                 // Normal inline quiz (PowerPath style, one at a time)
@@ -1654,7 +1750,7 @@
             var saved = quizState.answers[idx] || '';
             html += '<textarea id="ap-frq" rows="' + (q.expectedLines || 10) + '" placeholder="Type your response here..." ' +
                 'style="width:100%;padding:14px;border:1.5px solid #ddd;border-radius:8px;font-size:0.95rem;font-family:inherit;line-height:1.7;resize:vertical;outline:none;box-sizing:border-box;" ' +
-                'oninput="quizState.answers[quizState.staticIdx]=this.value">' + esc(saved) + '</textarea>';
+                'oninput="quizState.answers[quizState.staticIdx]=this.value;_saveQuizProgress()">' + esc(saved) + '</textarea>';
         }
 
         // Sticky note (draggable)
@@ -1727,6 +1823,8 @@
             // Update nav grid item to show answered
             var navItems = overlay.querySelectorAll('.ap-nav-item');
             if (navItems[idx]) navItems[idx].classList.add('answered');
+            // Persist answer to server
+            _saveQuizProgress();
         }
     }
 
@@ -1753,11 +1851,13 @@
         if (next < 0) return;
         if (next >= quizState.staticQuestions.length) { apShowReview(); return; }
         quizState.staticIdx = next;
+        _saveQuizProgress();
         renderAPQuestion();
     }
     function apGoTo(idx) {
         if (idx < 0 || idx >= quizState.staticQuestions.length) return;
         quizState.staticIdx = idx;
+        _saveQuizProgress();
         renderAPQuestion();
     }
     function toggleAPMark() { quizState.marked[quizState.staticIdx] = !quizState.marked[quizState.staticIdx]; renderAPQuestion(); }
