@@ -717,56 +717,85 @@
                 return;
             }
 
-            showQuestionAnalysisProgress('Found ' + tests.length + ' tests. Fetching questions...', 0);
+            showQuestionAnalysisProgress('Found ' + tests.length + ' tests. Fetching questions (auto-enrolling staging account if needed)...', 0);
 
-            // Phase 2: Fetch questions from each test (parallel, batched)
-            // Use correct endpoint based on lessonType:
-            //   powerpath-100 → /api/pp-get-questions-admin?lessonId={componentId}
-            //   quiz/other    → /api/qti-item?id={resourceId}&type=assessment
+            // Phase 2: Fetch questions from each test
+            // Use correct endpoint based on lessonType, pass courseId for auto-enrollment
+            var courseId = selectedCourse.sourcedId;
             var allQuestions = [];
             var fetched = 0;
+            var testSucceeded = 0;
+            var testFailed = 0;
+            var testErrors = [];
             var BATCH = 3;
 
             function fetchTestQuestions(t) {
                 var url;
                 if (t.lessonType === 'powerpath-100' && t.componentId) {
-                    url = '/api/pp-get-questions-admin?lessonId=' + encodeURIComponent(t.componentId);
+                    url = '/api/pp-get-questions-admin?lessonId=' + encodeURIComponent(t.componentId) + '&courseId=' + encodeURIComponent(courseId);
                 } else if (t.resourceId) {
                     url = '/api/qti-item?id=' + encodeURIComponent(t.resourceId) + '&type=assessment';
                 } else if (t.componentId) {
-                    // Fallback: try PowerPath with componentId
-                    url = '/api/pp-get-questions-admin?lessonId=' + encodeURIComponent(t.componentId);
+                    url = '/api/pp-get-questions-admin?lessonId=' + encodeURIComponent(t.componentId) + '&courseId=' + encodeURIComponent(courseId);
                 } else {
-                    // Last resort: try QTI with the dedup id
                     url = '/api/qti-item?id=' + encodeURIComponent(t.id) + '&type=assessment';
                 }
                 return fetch(url)
                     .then(function (r) { return r.json(); })
                     .then(function (d) {
-                        if (d.success && d.data && d.data.questions) {
-                            return d.data.questions;
+                        if (d.success && d.data && d.data.questions && d.data.questions.length > 0) {
+                            return { questions: d.data.questions, error: null };
                         }
-                        return [];
+                        return { questions: [], error: d.error || 'No questions returned' };
                     })
-                    .catch(function () { return []; });
+                    .catch(function (e) { return { questions: [], error: e.message || 'Network error' }; });
             }
 
             for (var i = 0; i < tests.length; i += BATCH) {
                 var batch = tests.slice(i, i + BATCH);
-                var promises = batch.map(fetchTestQuestions);
+                var promises = batch.map(function (t, batchIdx) {
+                    return fetchTestQuestions(t).then(function (result) {
+                        return { test: t, result: result };
+                    });
+                });
                 var results = await Promise.all(promises);
-                results.forEach(function (qs) {
-                    allQuestions = allQuestions.concat(qs);
+                results.forEach(function (r) {
+                    if (r.result.questions.length > 0) {
+                        allQuestions = allQuestions.concat(r.result.questions);
+                        testSucceeded++;
+                    } else {
+                        testFailed++;
+                        testErrors.push({ title: r.test.title, error: r.result.error, id: r.test.id });
+                    }
                 });
                 fetched += batch.length;
-                showQuestionAnalysisProgress('Fetching questions: ' + fetched + '/' + tests.length + ' tests (' + allQuestions.length + ' questions found)...', 0);
+                showQuestionAnalysisProgress(
+                    'Fetching questions: ' + fetched + '/' + tests.length + ' tests (' + allQuestions.length + ' questions from ' + testSucceeded + ' tests)...',
+                    0
+                );
             }
 
+            // Show results summary even if partial
             if (!allQuestions.length) {
-                showQuestionAnalysisError('Tests were found but no questions could be fetched. The QTI content may be unavailable.');
+                var errMsg = 'No questions could be fetched from any of the ' + tests.length + ' tests found.';
+                if (testErrors.length) {
+                    errMsg += '\n\nPer-test errors:';
+                    testErrors.forEach(function (e) {
+                        errMsg += '\n  - ' + e.title + ': ' + e.error;
+                    });
+                }
+                showQuestionAnalysisError(errMsg);
                 showQuestionAnalysisActions(false);
                 activeGenerating = false;
                 return;
+            }
+
+            // Show warning if some tests failed but we still have questions
+            if (testFailed > 0) {
+                showQuestionAnalysisProgress(
+                    'Fetched ' + allQuestions.length + ' questions from ' + testSucceeded + '/' + tests.length + ' tests. ' + testFailed + ' test(s) had errors. Proceeding with available questions...',
+                    0
+                );
             }
 
             showQuestionAnalysisProgress('Submitting ' + allQuestions.length + ' questions for AI analysis...', 0);

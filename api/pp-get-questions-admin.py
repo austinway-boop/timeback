@@ -1,10 +1,12 @@
-"""GET /api/pp-get-questions-admin?lessonId=... — Fetch full PowerPath questions for admin use.
+"""GET /api/pp-get-questions-admin?lessonId=...&courseId=... — Fetch full PowerPath questions for admin use.
 
 Uses the staging account internally so no user credentials are needed.
+Auto-enrolls the staging account in the course if PowerPath returns 404.
 Returns full question data including parsed prompt, choices, and correct answer
 extracted from the QTI XML content.
 """
 
+import json
 import re
 from http.server import BaseHTTPRequestHandler
 
@@ -13,6 +15,7 @@ from api._helpers import API_BASE, api_headers, send_json, get_query_params
 
 # Staging account sourcedId (pehal64861@aixind.com)
 STAGING_STUDENT_ID = "8ea2b8e1-1b04-4cab-b608-9ab524c059c2"
+EDUBRIDGE_ENROLL_URL = f"{API_BASE}/edubridge/enrollments/enroll"
 
 
 def _extract_from_qti_xml(raw_xml: str) -> dict:
@@ -89,6 +92,7 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         params = get_query_params(self)
         lesson_id = params.get("lessonId", "").strip()
+        course_id = params.get("courseId", "").strip()
 
         if not lesson_id:
             send_json(self, {"error": "Missing lessonId parameter"}, 400)
@@ -97,20 +101,23 @@ class handler(BaseHTTPRequestHandler):
         headers = api_headers()
 
         try:
-            # Fetch assessment progress from PowerPath using staging account
-            resp = requests.get(
-                f"{API_BASE}/powerpath/getAssessmentProgress",
-                headers=headers,
-                params={"student": STAGING_STUDENT_ID, "lesson": lesson_id},
-                timeout=20,
-            )
+            # Attempt 1: Fetch assessment progress from PowerPath
+            resp = _fetch_pp_questions(headers, lesson_id)
+
+            # If 404 and we have a courseId, try auto-enrolling and retrying
+            if resp.status_code == 404 and course_id:
+                enroll_ok = _enroll_staging_account(headers, course_id)
+                if enroll_ok:
+                    # Retry after enrollment
+                    headers = api_headers()  # refresh token
+                    resp = _fetch_pp_questions(headers, lesson_id)
 
             if resp.status_code != 200:
                 send_json(self, {
-                    "error": f"PowerPath API returned {resp.status_code}",
+                    "error": f"PowerPath API returned {resp.status_code} for lesson {lesson_id}",
                     "success": False,
                     "data": {"questions": [], "totalQuestions": 0},
-                }, 200)  # Return 200 so client doesn't error out
+                }, 200)
                 return
 
             progress = resp.json()
@@ -138,7 +145,7 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {
                 "success": True,
                 "data": {
-                    "title": f"PowerPath Lesson Questions",
+                    "title": "PowerPath Lesson Questions",
                     "questions": parsed_questions,
                     "totalQuestions": len(parsed_questions),
                 },
@@ -146,7 +153,31 @@ class handler(BaseHTTPRequestHandler):
 
         except Exception as e:
             send_json(self, {
-                "error": str(e),
+                "error": f"Exception: {str(e)} (lesson={lesson_id})",
                 "success": False,
                 "data": {"questions": [], "totalQuestions": 0},
             }, 200)
+
+
+def _fetch_pp_questions(headers: dict, lesson_id: str):
+    """Fetch assessment progress from PowerPath."""
+    return requests.get(
+        f"{API_BASE}/powerpath/getAssessmentProgress",
+        headers=headers,
+        params={"student": STAGING_STUDENT_ID, "lesson": lesson_id},
+        timeout=20,
+    )
+
+
+def _enroll_staging_account(headers: dict, course_id: str) -> bool:
+    """Auto-enroll the staging account in a course via EduBridge."""
+    try:
+        resp = requests.post(
+            f"{EDUBRIDGE_ENROLL_URL}/{STAGING_STUDENT_ID}/{course_id}",
+            headers=headers,
+            json={"role": "student"},
+            timeout=15,
+        )
+        return resp.status_code in (200, 201)
+    except Exception:
+        return False
