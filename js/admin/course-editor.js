@@ -695,10 +695,10 @@
         showQuestionAnalysisActions(false, true);
         document.getElementById('question-analysis-results').style.display = 'none';
 
-        showQuestionAnalysisProgress('Finding assessment tests for this course...', 0);
+        showQuestionAnalysisProgress('Setting up course access and finding tests (this may take a minute on first run)...', 0);
 
         try {
-            // Phase 1: Find tests
+            // Phase 1: Find tests (may enroll+sync on first call — can take 30-60s)
             var findResp = await fetch('/api/find-course-tests', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -706,6 +706,7 @@
                     courseId: selectedCourse.sourcedId,
                     courseCode: selectedCourse.courseCode || '',
                 }),
+                signal: AbortSignal.timeout ? AbortSignal.timeout(120000) : undefined, // 2 min timeout
             });
             var findData = await findResp.json();
             var tests = findData.tests || [];
@@ -730,16 +731,15 @@
             var BATCH = 3;
 
             function fetchTestQuestions(t) {
-                var url;
-                if (t.lessonType === 'powerpath-100' && t.componentId) {
-                    url = '/api/pp-get-questions-admin?lessonId=' + encodeURIComponent(t.componentId) + '&courseId=' + encodeURIComponent(courseId);
-                } else if (t.resourceId) {
-                    url = '/api/qti-item?id=' + encodeURIComponent(t.resourceId) + '&type=assessment';
-                } else if (t.componentId) {
-                    url = '/api/pp-get-questions-admin?lessonId=' + encodeURIComponent(t.componentId) + '&courseId=' + encodeURIComponent(courseId);
-                } else {
-                    url = '/api/qti-item?id=' + encodeURIComponent(t.id) + '&type=assessment';
-                }
+                // Build URL for pp-get-questions-admin which handles all approaches:
+                // - QTI URL (if available from tree)
+                // - PowerPath getAssessmentProgress (using resource ID as lessonId)
+                // - Bank ID → QTI test ID transformation
+                var params = [];
+                if (t.id) params.push('lessonId=' + encodeURIComponent(t.id));
+                if (t.url) params.push('url=' + encodeURIComponent(t.url));
+                if (courseId) params.push('courseId=' + encodeURIComponent(courseId));
+                var url = '/api/pp-get-questions-admin?' + params.join('&');
                 return fetch(url)
                     .then(function (r) { return r.json(); })
                     .then(function (d) {

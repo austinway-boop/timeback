@@ -1,11 +1,9 @@
-"""POST /api/find-course-tests — Find all QTI assessment tests for a course.
+"""POST /api/find-course-tests — Find all quiz/assessment resources for a course.
 
 Receives { courseId, courseCode }.
-Uses a 3-tier approach to discover test/quiz resource IDs:
-  1. OneRoster course components → component resources (most reliable)
-  2. QTI catalog search by course code
-  3. PowerPath lesson plan tree
-Returns { tests: [{ id, title, lessonType }, ...], count }.
+Uses the PowerPath lesson plan tree (with enroll+sync if needed) to discover
+all assessment resources. Falls back to OneRoster component resources.
+Returns { tests: [{ id, title, url, lessonType, lessonTitle }, ...], count }.
 """
 
 import json
@@ -19,20 +17,178 @@ from api._helpers import (
     api_headers, fetch_all_paginated, send_json, get_token,
 )
 
-COGNITO_URL = "https://prod-beyond-timeback-api-2-idp.auth.us-east-1.amazoncognito.com/oauth2/token"
-QTI_BASE = "https://qti.alpha-1edtech.ai"
+# Staging/service account (pehal64861@aixind.com)
+SERVICE_USER_ID = "8ea2b8e1-1b04-4cab-b608-9ab524c059c2"
 
-# lessonType values that indicate quiz/assessment content
+
+# ── PowerPath tree: enroll + sync + fetch ────────────────────────────
+
+def _get_powerpath_tree(course_id: str) -> tuple[dict | None, list]:
+    """Get the PowerPath lesson plan tree, enrolling + syncing if needed.
+    Returns (tree_data, debug_log)."""
+    debug = []
+    headers = api_headers()
+
+    # Step 1: Try generic tree endpoint
+    tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}", headers)
+    if tree:
+        debug.append("tree_generic: ok")
+        return tree, debug
+    debug.append("tree_generic: failed")
+
+    # Step 2: Try with service user ID
+    tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/{course_id}/{SERVICE_USER_ID}", headers)
+    if tree:
+        debug.append("tree_user: ok")
+        return tree, debug
+    debug.append("tree_user: failed")
+
+    # Step 3: Enroll service account + sync course + retry
+    _enroll_service_account(course_id, headers)
+    debug.append("enrolled")
+
+    _sync_course(course_id, headers)
+    debug.append("synced")
+
+    # Refresh headers after sync
+    headers = api_headers()
+    tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/{course_id}/{SERVICE_USER_ID}", headers)
+    if tree:
+        debug.append("tree_after_sync: ok")
+        return tree, debug
+    debug.append("tree_after_sync: failed")
+
+    return None, debug
+
+
+def _try_tree(url: str, headers: dict) -> dict | None:
+    """Try to fetch a tree from a URL. Returns parsed JSON or None."""
+    try:
+        resp = requests.get(url, headers=headers, timeout=30)
+        if resp.status_code == 401:
+            headers = api_headers()
+            resp = requests.get(url, headers=headers, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data:
+                return data
+    except Exception:
+        pass
+    return None
+
+
+def _enroll_service_account(course_id: str, headers: dict):
+    """Enroll the service account in a course via EduBridge."""
+    try:
+        requests.post(
+            f"{API_BASE}/edubridge/enrollments/enroll/{SERVICE_USER_ID}/{course_id}",
+            headers=headers,
+            json={"role": "student"},
+            timeout=15,
+        )
+    except Exception:
+        pass
+
+
+def _sync_course(course_id: str, headers: dict):
+    """Trigger PowerPath to provision lesson plans for the course."""
+    try:
+        resp = requests.post(
+            f"{API_BASE}/powerpath/lessonPlans/course/{course_id}/sync",
+            headers=headers,
+            json={},
+            timeout=60,
+        )
+        if resp.status_code == 401:
+            headers = api_headers()
+            requests.post(
+                f"{API_BASE}/powerpath/lessonPlans/course/{course_id}/sync",
+                headers=headers,
+                json={},
+                timeout=60,
+            )
+    except Exception:
+        pass
+
+
+# ── Extract assessments from tree ────────────────────────────────────
+
+def _extract_assessments_from_tree(tree: dict) -> list[dict]:
+    """Walk the PowerPath tree and extract all assessment resources."""
+    tests = []
+
+    # Navigate to the actual tree data
+    inner = tree.get("lessonPlan", tree) if isinstance(tree, dict) else tree
+    if isinstance(inner, dict) and inner.get("lessonPlan"):
+        inner = inner["lessonPlan"]
+
+    units = inner.get("subComponents", []) if isinstance(inner, dict) else []
+    if isinstance(inner, list):
+        units = inner
+
+    for unit in units:
+        if not isinstance(unit, dict):
+            continue
+        unit_title = unit.get("title", "")
+        lessons = unit.get("subComponents", [])
+
+        # Handle unit-level resources (e.g., unit tests)
+        unit_resources = unit.get("componentResources", [])
+        if not lessons and unit_resources:
+            for ur in unit_resources:
+                _extract_resource(ur, unit_title, unit_title, tests)
+
+        for lesson in lessons:
+            if not isinstance(lesson, dict):
+                continue
+            lesson_title = lesson.get("title", "")
+
+            for res_wrapper in lesson.get("componentResources", []):
+                _extract_resource(res_wrapper, lesson_title, unit_title, tests)
+
+    return tests
+
+
+def _extract_resource(res_wrapper: dict, lesson_title: str, unit_title: str, tests: list):
+    """Extract a single resource if it's an assessment type."""
+    res = res_wrapper.get("resource", res_wrapper) if isinstance(res_wrapper, dict) else res_wrapper
+    if not isinstance(res, dict):
+        return
+
+    meta = res.get("metadata") or {}
+    rurl = meta.get("url", "") or res.get("url", "") or meta.get("href", "") or res.get("href", "")
+    res_id = res.get("id", "") or res.get("sourcedId", "") or ""
+    res_title = res.get("title", "") or lesson_title
+    rtype = (meta.get("type", "") or res.get("type", "")).lower()
+
+    # Skip videos and articles/stimuli
+    if rtype == "video":
+        return
+    if rurl and "stimuli" in rurl.lower():
+        return
+
+    # This is an assessment resource
+    if res_id or rurl:
+        if not any(t["id"] == res_id for t in tests):
+            tests.append({
+                "id": res_id,
+                "title": res_title,
+                "url": rurl,
+                "unitTitle": unit_title,
+                "lessonTitle": lesson_title,
+                "lessonType": rtype or "assessment",
+            })
+
+
+# ── Fallback: OneRoster component resources ──────────────────────────
+
 QUIZ_LESSON_TYPES = {"quiz", "unit-test", "test-out", "placement", "powerpath-100"}
 
 
-# ── Tier 1: OneRoster Course Components → Component Resources ─────────
-
 def _try_oneroster_components(course_id: str) -> list[dict]:
-    """Fetch quiz resource IDs via OneRoster course components and component resources."""
+    """Fallback: fetch quiz resources via OneRoster component resources."""
     tests = []
     try:
-        # Step 1: Get all course components
         components = fetch_all_paginated(
             f"/ims/oneroster/rostering/v1p2/courses/components?filter=course.sourcedId%3D'{course_id}'",
             "courseComponents",
@@ -40,191 +196,50 @@ def _try_oneroster_components(course_id: str) -> list[dict]:
         if not components:
             return []
 
-        component_ids = []
+        component_ids = set()
         for comp in components:
             cid = comp.get("sourcedId") or comp.get("id") or ""
             if cid:
-                component_ids.append(cid)
+                component_ids.add(cid)
+            for cr in comp.get("componentResources", []):
+                _extract_oneroster_resource(cr, tests)
 
-            # Some component responses embed componentResources directly
-            embedded_resources = comp.get("componentResources") or []
-            for cr in embedded_resources:
-                _extract_test_from_resource(cr, tests)
-
-        if tests:
-            return tests
-
-        # Step 2: Fetch component resources for all components
-        # Try bulk fetch first (all component resources for the course)
-        all_comp_resources = fetch_all_paginated(
+        # Also try bulk fetch of component resources
+        all_cr = fetch_all_paginated(
             "/ims/oneroster/rostering/v1p2/courses/component-resources",
             "componentResources",
         )
-        if all_comp_resources:
-            # Filter to only those belonging to our course's components
-            comp_id_set = set(component_ids)
-            for cr in all_comp_resources:
-                cc = cr.get("courseComponent") or {}
-                cc_id = cc.get("sourcedId") or ""
-                if cc_id in comp_id_set:
-                    _extract_test_from_resource(cr, tests)
-
-        if tests:
-            return tests
-
-        # Step 3: Try fetching component resources per-component (slower but more targeted)
-        for cid in component_ids[:50]:  # Cap at 50 to avoid timeout
-            try:
-                comp_resources = fetch_all_paginated(
-                    f"/ims/oneroster/rostering/v1p2/courses/component-resources?filter=courseComponent.sourcedId%3D'{cid}'",
-                    "componentResources",
-                )
-                for cr in comp_resources:
-                    _extract_test_from_resource(cr, tests)
-            except Exception:
-                continue
+        for cr in all_cr:
+            cc = cr.get("courseComponent") or {}
+            if cc.get("sourcedId", "") in component_ids:
+                _extract_oneroster_resource(cr, tests)
 
     except Exception:
         pass
     return tests
 
 
-def _extract_test_from_resource(cr: dict, tests: list):
-    """Extract a test entry from a component resource if it's a quiz/assessment type."""
+def _extract_oneroster_resource(cr: dict, tests: list):
+    """Extract a test from an OneRoster component resource."""
     lesson_type = (cr.get("lessonType") or "").lower().strip()
     title = cr.get("title") or ""
-
-    # Get the component resource's own ID
     cr_id = cr.get("sourcedId") or cr.get("id") or ""
-
-    # Get the linked resource's ID (for QTI lookups)
     resource = cr.get("resource") or {}
     resource_id = resource.get("sourcedId") or resource.get("id") or ""
-
-    # Get the parent course component ID (for PowerPath lesson lookups)
-    course_comp = cr.get("courseComponent") or {}
-    component_id = course_comp.get("sourcedId") or ""
-
-    # Use cr_id as the dedup key
+    component = cr.get("courseComponent") or {}
+    component_id = component.get("sourcedId") or ""
     dedup_id = cr_id or resource_id
 
-    # Include if lessonType indicates a quiz, OR if a resource ID looks like a bank/assessment
-    is_quiz_type = lesson_type in QUIZ_LESSON_TYPES
-    any_id = resource_id or cr_id
-    is_bank_id = any_id and ("bank" in any_id.lower() or "test" in any_id.lower() or "qti" in any_id.lower())
-
-    if dedup_id and (is_quiz_type or is_bank_id):
+    is_quiz = lesson_type in QUIZ_LESSON_TYPES
+    if dedup_id and is_quiz:
         if not any(t["id"] == dedup_id for t in tests):
             tests.append({
                 "id": dedup_id,
-                "componentId": component_id,
                 "resourceId": resource_id,
+                "componentId": component_id,
                 "title": title or dedup_id,
-                "lessonType": lesson_type or "unknown",
+                "lessonType": lesson_type,
             })
-
-
-# ── Tier 2: QTI Catalog Search ───────────────────────────────────────
-
-def _get_qti_token():
-    """Get Cognito token with QTI admin scope."""
-    try:
-        resp = requests.post(
-            COGNITO_URL,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            data={
-                "grant_type": "client_credentials",
-                "client_id": CLIENT_ID,
-                "client_secret": CLIENT_SECRET,
-                "scope": "qti/v3/scope/admin",
-            },
-            timeout=10,
-        )
-        if resp.status_code == 200:
-            return resp.json()["access_token"]
-    except Exception:
-        pass
-    return get_token()
-
-
-def _try_qti_catalog(course_code: str) -> list[dict]:
-    """Search QTI catalog for assessment tests matching the course code."""
-    if not course_code:
-        return []
-    tests = []
-    try:
-        token = _get_qti_token()
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-
-        resp = requests.get(f"{QTI_BASE}/api/assessment-tests?limit=100", headers=headers, timeout=30)
-        if resp.status_code != 200:
-            return []
-
-        catalog = resp.json().get("items", [])
-
-        # Handle pagination
-        total_pages = resp.json().get("pages", 1)
-        for page in range(2, min(total_pages + 1, 11)):
-            resp2 = requests.get(f"{QTI_BASE}/api/assessment-tests?limit=100&page={page}", headers=headers, timeout=30)
-            if resp2.status_code == 200:
-                catalog.extend(resp2.json().get("items", []))
-
-        code_lower = course_code.lower()
-        alpha_prefix = re.match(r'^[a-zA-Z]+', course_code)
-        prefix = alpha_prefix.group(0).lower() if alpha_prefix else ""
-
-        for item in catalog:
-            tid = (item.get("identifier") or item.get("id") or "").lower()
-            title = (item.get("title") or item.get("name") or "").lower()
-            if code_lower in tid or code_lower in title:
-                tests.append(item)
-            elif prefix and len(prefix) >= 3 and (prefix in tid or prefix in title):
-                tests.append(item)
-
-    except Exception:
-        pass
-    return [{"id": t.get("identifier") or t.get("id") or "", "title": t.get("title") or t.get("name") or ""} for t in tests]
-
-
-# ── Tier 3: PowerPath Tree ───────────────────────────────────────────
-
-def _try_powerpath_tree(course_id: str) -> list[dict]:
-    """Try to get quiz resource IDs from PowerPath lesson plan tree."""
-    try:
-        headers = api_headers()
-        resp = requests.get(f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}", headers=headers, timeout=30)
-        if resp.status_code != 200:
-            return []
-        tree = resp.json()
-        resources = []
-
-        def walk(node):
-            if isinstance(node, dict):
-                res_type = (node.get("type") or node.get("nodeType") or "").lower()
-                res_id = node.get("sourcedId") or node.get("id") or ""
-                title = node.get("title") or node.get("name") or ""
-                if res_id and ("assessment" in res_type or "quiz" in res_type or "bank" in res_id.lower()):
-                    resources.append({"id": res_id, "title": title})
-                comp_res = node.get("componentResources") or []
-                for cr in comp_res:
-                    r = cr.get("resource", cr) if isinstance(cr, dict) else {}
-                    r_id = r.get("sourcedId") or r.get("id") or ""
-                    r_title = r.get("title") or ""
-                    if r_id and ("bank" in r_id.lower() or "assessment" in (r.get("type") or "").lower()):
-                        resources.append({"id": r_id, "title": r_title})
-                for key in ("children", "lessons", "items", "units"):
-                    children = node.get(key, [])
-                    if isinstance(children, list):
-                        for child in children:
-                            walk(child)
-            elif isinstance(node, list):
-                for item in node:
-                    walk(item)
-
-        walk(tree)
-        return resources
-    except Exception:
-        return []
 
 
 # ── Handler ──────────────────────────────────────────────────────────
@@ -255,35 +270,32 @@ class handler(BaseHTTPRequestHandler):
 
         all_tests = []
         sources = []
+        debug_log = []
 
-        # Tier 1: OneRoster course components → component resources (most reliable)
-        or_tests = _try_oneroster_components(course_id)
-        for t in or_tests:
-            if not any(x["id"] == t["id"] for x in all_tests):
-                all_tests.append(t)
-        if or_tests:
-            sources.append("oneroster_components")
+        # Tier 1: PowerPath lesson plan tree (enroll + sync if needed)
+        tree, tree_debug = _get_powerpath_tree(course_id)
+        debug_log.extend(tree_debug)
 
-        # Tier 2: QTI catalog search (if Tier 1 found nothing)
-        if not all_tests and course_code:
-            qti_tests = _try_qti_catalog(course_code)
-            for t in qti_tests:
-                if t["id"] and not any(x["id"] == t["id"] for x in all_tests):
-                    all_tests.append(t)
-            if qti_tests:
-                sources.append("qti_catalog")
-
-        # Tier 3: PowerPath tree (if still nothing)
-        if not all_tests:
-            pp_tests = _try_powerpath_tree(course_id)
+        if tree:
+            pp_tests = _extract_assessments_from_tree(tree)
             for t in pp_tests:
                 if not any(x["id"] == t["id"] for x in all_tests):
                     all_tests.append(t)
             if pp_tests:
                 sources.append("powerpath_tree")
 
+        # Tier 2: OneRoster component resources (fallback)
+        if not all_tests:
+            or_tests = _try_oneroster_components(course_id)
+            for t in or_tests:
+                if not any(x["id"] == t["id"] for x in all_tests):
+                    all_tests.append(t)
+            if or_tests:
+                sources.append("oneroster_components")
+
         send_json(self, {
             "tests": all_tests,
             "count": len(all_tests),
             "sources": sources,
+            "_debug": debug_log,
         })
