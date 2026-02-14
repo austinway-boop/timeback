@@ -204,7 +204,9 @@
                 '<span><i class="fa-solid fa-users"></i>Grades: ' + esc(grades) + '</span>' +
                 '<span><i class="fa-solid fa-circle ' + (course.status === 'active' ? '" style="color:#45B5AA;font-size:0.5rem;"' : '" style="color:#CBD5E0;font-size:0.5rem;"') + '></i> ' + esc(course.status) + '</span>' +
             '</div>';
-        loadSkillTreeState(course.sourcedId);
+        // Show landing page (not wizard)
+        document.getElementById('setup-wizard').style.display = 'none';
+        showCourseActions(course.sourcedId);
     }
 
     function closeCourseDetail() {
@@ -216,9 +218,107 @@
         history.pushState(null, '', '/admin/course-editor');
         document.getElementById('course-detail-view').style.display = 'none';
         document.getElementById('course-list-view').style.display = '';
+        document.getElementById('setup-wizard').style.display = 'none';
         document.getElementById('lesson-mapping-section').style.display = 'none';
         document.getElementById('question-analysis-section').style.display = 'none';
         checkExistingTrees().then(function () { filterAndRender(); });
+    }
+
+    /* ---- Course Actions (Landing Page) ------------------------------ */
+    async function showCourseActions(courseId) {
+        var el = document.getElementById('course-actions');
+        el.style.display = '';
+        el.innerHTML = '<div style="text-align:center; padding:40px; color:var(--color-text-muted);"><div class="ce-progress-spinner" style="display:inline-block; margin-bottom:12px;"></div><br>Checking setup status...</div>';
+
+        // Check status of all 3 steps in parallel
+        var statuses = { tree: 'pending', lessons: 'pending', questions: 'pending' };
+        try {
+            var results = await Promise.all([
+                fetch('/api/skill-tree-status?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+                fetch('/api/lesson-mapping-status?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+                fetch('/api/question-analysis-status?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+            ]);
+            if (results[0].status === 'done') statuses.tree = 'done';
+            else if (results[0].status === 'processing') statuses.tree = 'processing';
+            if (results[1].status === 'done') statuses.lessons = 'done';
+            else if (results[1].status === 'processing') statuses.lessons = 'processing';
+            if (results[2].status === 'done') statuses.questions = 'done';
+            else if (results[2].status === 'processing') statuses.questions = 'processing';
+        } catch (e) { /* ignore */ }
+
+        var allDone = statuses.tree === 'done' && statuses.lessons === 'done' && statuses.questions === 'done';
+        var anyDone = statuses.tree === 'done' || statuses.lessons === 'done' || statuses.questions === 'done';
+        var anyProcessing = statuses.tree === 'processing' || statuses.lessons === 'processing' || statuses.questions === 'processing';
+
+        function badge(status) {
+            if (status === 'done') return '<span class="ce-status-badge done"><i class="fa-solid fa-check-circle"></i> Complete</span>';
+            if (status === 'processing') return '<span class="ce-status-badge processing"><i class="fa-solid fa-spinner fa-spin"></i> In progress</span>';
+            return '<span class="ce-status-badge pending"><i class="fa-regular fa-circle"></i> Not started</span>';
+        }
+
+        var btnLabel, btnIcon;
+        if (allDone) {
+            btnLabel = 'View / Edit Setup';
+            btnIcon = 'fa-solid fa-gear';
+        } else if (anyDone || anyProcessing) {
+            btnLabel = 'Continue Setup';
+            btnIcon = 'fa-solid fa-arrow-right';
+        } else {
+            btnLabel = 'Setup Hole Filling / Mastery Detection';
+            btnIcon = 'fa-solid fa-wand-magic-sparkles';
+        }
+
+        el.innerHTML =
+            '<div class="ce-action-card">' +
+                '<div class="ce-action-card-icon"><i class="fa-solid fa-crosshairs"></i></div>' +
+                '<div class="ce-action-card-content">' +
+                    '<h3 class="ce-action-card-title">Hole Filling / Mastery Detection</h3>' +
+                    '<p class="ce-action-card-desc">' +
+                        'Set up AI-powered skill analysis for this course. This enables the system to identify exactly ' +
+                        'which skills a student has mastered and which they are missing, based on their quiz answers. ' +
+                        'The setup has 3 steps:' +
+                    '</p>' +
+                    '<div class="ce-setup-steps">' +
+                        '<div class="ce-setup-step">' +
+                            '<span class="ce-setup-step-num">1</span>' +
+                            '<div class="ce-setup-step-info">' +
+                                '<strong>Generate Skill Tree</strong>' +
+                                '<span>Map every micro-skill and prerequisite</span>' +
+                            '</div>' +
+                            badge(statuses.tree) +
+                        '</div>' +
+                        '<div class="ce-setup-step">' +
+                            '<span class="ce-setup-step-num">2</span>' +
+                            '<div class="ce-setup-step-info">' +
+                                '<strong>Map Lessons to Skills</strong>' +
+                                '<span>Link each lesson to its skills</span>' +
+                            '</div>' +
+                            badge(statuses.lessons) +
+                        '</div>' +
+                        '<div class="ce-setup-step">' +
+                            '<span class="ce-setup-step-num">3</span>' +
+                            '<div class="ce-setup-step-info">' +
+                                '<strong>Analyze Questions</strong>' +
+                                '<span>Map every question and answer to skills</span>' +
+                            '</div>' +
+                            badge(statuses.questions) +
+                        '</div>' +
+                    '</div>' +
+                    '<button class="ce-btn-generate ce-action-card-btn" id="btn-start-setup">' +
+                        '<i class="' + btnIcon + '"></i> ' + btnLabel +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+
+        document.getElementById('btn-start-setup').addEventListener('click', function () {
+            enterSetupWizard();
+        });
+    }
+
+    function enterSetupWizard() {
+        document.getElementById('course-actions').style.display = 'none';
+        document.getElementById('setup-wizard').style.display = '';
+        if (selectedCourse) loadSkillTreeState(selectedCourse.sourcedId);
     }
 
     async function loadSkillTreeState(courseId) {

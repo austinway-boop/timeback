@@ -257,9 +257,55 @@
 .ce-qa-label { font-weight: 500; color: var(--color-text-muted); }
 .ce-qa-reasoning { margin-top: 4px; font-style: italic; color: var(--color-text-muted); line-height: 1.4; }
 
+/* ---- Action Card (Landing Page) ---- */
+.ce-action-card {
+    display: flex; gap: 24px; padding: 28px;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius); margin-bottom: 20px;
+}
+.ce-action-card-icon {
+    width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; background: rgba(69,181,170,0.1); color: #45B5AA;
+}
+.ce-action-card-content { flex: 1; }
+.ce-action-card-title { font-size: 1.1rem; font-weight: 700; color: var(--color-text); margin: 0 0 6px; }
+.ce-action-card-desc { font-size: 0.85rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0 0 20px; max-width: 600px; }
+.ce-action-card-btn { margin-top: 16px; }
+
+/* ---- Setup Steps (inside action card) ---- */
+.ce-setup-steps { display: flex; flex-direction: column; gap: 0; margin-bottom: 4px; }
+.ce-setup-step {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--color-border);
+}
+.ce-setup-step:last-child { border-bottom: none; }
+.ce-setup-step-num {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.78rem; font-weight: 700;
+    background: var(--color-bg); color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+}
+.ce-setup-step-info { flex: 1; }
+.ce-setup-step-info strong { display: block; font-size: 0.88rem; font-weight: 600; color: var(--color-text); }
+.ce-setup-step-info span { font-size: 0.78rem; color: var(--color-text-muted); }
+
+/* ---- Status Badges ---- */
+.ce-status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 0.72rem; font-weight: 600; flex-shrink: 0;
+}
+.ce-status-badge.done { background: rgba(69,181,170,0.1); color: #2D8A80; }
+.ce-status-badge.processing { background: rgba(245,158,11,0.1); color: #B45309; }
+.ce-status-badge.pending { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
     .ce-course-grid { grid-template-columns: 1fr; }
     .ce-detail-meta { flex-direction: column; gap: 8px; }
     .ce-export-actions { flex-direction: column; }
+    .ce-action-card { flex-direction: column; gap: 16px; }
+    .ce-setup-step { flex-wrap: wrap; }
 }
