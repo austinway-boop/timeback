@@ -243,6 +243,20 @@
 }
 .ce-no-skills { font-size: 0.82rem; color: var(--color-text-muted); margin: 12px 0 0; }
 
+/* ---- Question Analysis Results ---- */
+.ce-qa-section { margin-bottom: 14px; }
+.ce-qa-section:last-child { margin-bottom: 0; }
+.ce-qa-section > strong { display: block; font-size: 0.82rem; margin-bottom: 6px; color: var(--color-text); }
+.ce-qa-skills { display: flex; flex-direction: column; gap: 4px; }
+.ce-qa-skill-item { font-size: 0.8rem; color: var(--color-text-secondary); line-height: 1.4; }
+.ce-qa-correct { padding: 10px 12px; background: rgba(69,181,170,0.04); border-radius: var(--radius-sm); border: 1px solid rgba(69,181,170,0.12); }
+.ce-qa-detail { font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 4px; }
+.ce-qa-wrong-item { padding: 8px 12px; margin-top: 6px; background: rgba(229,62,62,0.03); border-radius: var(--radius-sm); border: 1px solid rgba(229,62,62,0.08); }
+.ce-qa-wrong-id { font-size: 0.8rem; font-weight: 600; color: var(--color-text); margin-bottom: 4px; }
+.ce-qa-wrong-detail { font-size: 0.78rem; color: var(--color-text-secondary); }
+.ce-qa-label { font-weight: 500; color: var(--color-text-muted); }
+.ce-qa-reasoning { margin-top: 4px; font-style: italic; color: var(--color-text-muted); line-height: 1.4; }
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
     .ce-course-grid { grid-template-columns: 1fr; }

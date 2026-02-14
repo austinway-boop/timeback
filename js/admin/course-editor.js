@@ -212,10 +212,12 @@
         currentMermaidCode = '';
         stopPolling();
         stopLessonPolling();
+        stopQuestionPolling();
         history.pushState(null, '', '/admin/course-editor');
         document.getElementById('course-detail-view').style.display = 'none';
         document.getElementById('course-list-view').style.display = '';
         document.getElementById('lesson-mapping-section').style.display = 'none';
+        document.getElementById('question-analysis-section').style.display = 'none';
         checkExistingTrees().then(function () { filterAndRender(); });
     }
 
@@ -227,6 +229,7 @@
         progressEl.style.display = 'none';
         exportEl.style.display = 'none';
         document.getElementById('lesson-mapping-section').style.display = 'none';
+        document.getElementById('question-analysis-section').style.display = 'none';
 
         try {
             var resp = await fetch('/api/skill-tree-status?courseId=' + encodeURIComponent(courseId));
@@ -466,6 +469,7 @@
             if (data.status === 'done' && data.mapping) {
                 showLessonMappingActions(true);
                 showLessonMappingResults(data.mapping);
+                showQuestionAnalysisSection(courseId);
             } else if (data.status === 'processing') {
                 showLessonMappingActions(false, true);
                 showLessonMappingProgress('Claude is mapping lessons to skills...');
@@ -540,6 +544,7 @@
                         document.getElementById('lesson-mapping-progress').style.display = 'none';
                         showLessonMappingActions(true);
                         showLessonMappingResults(data.mapping);
+                        if (selectedCourse) showQuestionAnalysisSection(selectedCourse.sourcedId);
                     } else if (data.status === 'error') {
                         activeGenerating = false;
                         stopLessonPolling();
@@ -624,6 +629,304 @@
             btn.addEventListener('click', function () {
                 var item = this.closest('.ce-accordion-item');
                 item.classList.toggle('open');
+            });
+        });
+    }
+
+    /* ==================================================================
+       STEP 3: QUESTION ANALYSIS
+       ================================================================== */
+    var questionPollTimer = null;
+
+    function showQuestionAnalysisSection(courseId) {
+        var section = document.getElementById('question-analysis-section');
+        section.style.display = '';
+        var actionsEl = document.getElementById('question-analysis-actions');
+        var progressEl = document.getElementById('question-analysis-progress');
+        var resultsEl = document.getElementById('question-analysis-results');
+        progressEl.style.display = 'none';
+        resultsEl.style.display = 'none';
+        actionsEl.innerHTML = '<div class="ce-progress-spinner" style="display:inline-block;"></div> Checking question analysis...';
+        loadQuestionAnalysisState(courseId);
+    }
+
+    async function loadQuestionAnalysisState(courseId) {
+        try {
+            var resp = await fetch('/api/question-analysis-status?courseId=' + encodeURIComponent(courseId));
+            var data = await resp.json();
+            if (data.status === 'done' && data.analysis) {
+                showQuestionAnalysisActions(true);
+                showQuestionAnalysisResults(data);
+            } else if (data.status === 'processing') {
+                showQuestionAnalysisActions(false, true);
+                showQuestionAnalysisProgress('Claude is analyzing questions...', data.elapsed || 0);
+                startQuestionPolling(courseId);
+            } else {
+                showQuestionAnalysisActions(false);
+            }
+        } catch (e) {
+            showQuestionAnalysisActions(false);
+        }
+    }
+
+    function showQuestionAnalysisActions(hasAnalysis, isProcessing) {
+        var el = document.getElementById('question-analysis-actions');
+        if (isProcessing) {
+            el.innerHTML = '<button class="ce-btn-generate" disabled><i class="fa-solid fa-spinner fa-spin"></i> Analyzing questions...</button>';
+            return;
+        }
+        if (hasAnalysis) {
+            el.innerHTML = '<button class="ce-btn-secondary" id="btn-reanalyze"><i class="fa-solid fa-arrows-rotate"></i> Re-analyze Questions</button>';
+            document.getElementById('btn-reanalyze').addEventListener('click', function () {
+                if (confirm('This will re-fetch all questions and re-run the analysis. Continue?')) startQuestionAnalysis();
+            });
+        } else {
+            el.innerHTML =
+                '<button class="ce-btn-generate" id="btn-analyze-questions"><i class="fa-solid fa-wand-magic-sparkles"></i> Analyze Questions</button>' +
+                '<span style="font-size:0.82rem; color:var(--color-text-muted);">Fetches all questions from QTI, then uses Claude to map each to skills</span>';
+            document.getElementById('btn-analyze-questions').addEventListener('click', function () { startQuestionAnalysis(); });
+        }
+    }
+
+    /* ---- Phase 1 & 2: Find tests, fetch questions ------------------- */
+    async function startQuestionAnalysis() {
+        if (!selectedCourse) return;
+        activeGenerating = true;
+        showQuestionAnalysisActions(false, true);
+        document.getElementById('question-analysis-results').style.display = 'none';
+
+        showQuestionAnalysisProgress('Finding assessment tests for this course...', 0);
+
+        try {
+            // Phase 1: Find tests
+            var findResp = await fetch('/api/find-course-tests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    courseId: selectedCourse.sourcedId,
+                    courseCode: selectedCourse.courseCode || '',
+                }),
+            });
+            var findData = await findResp.json();
+            var tests = findData.tests || [];
+
+            if (!tests.length) {
+                showQuestionAnalysisError('No assessment tests found for this course (code: ' + esc(selectedCourse.courseCode || 'none') + '). The QTI catalog may not have content for this course.');
+                showQuestionAnalysisActions(false);
+                activeGenerating = false;
+                return;
+            }
+
+            showQuestionAnalysisProgress('Found ' + tests.length + ' tests. Fetching questions...', 0);
+
+            // Phase 2: Fetch questions from each test (parallel, batched)
+            var allQuestions = [];
+            var fetched = 0;
+            var BATCH = 3; // fetch 3 tests at a time
+
+            for (var i = 0; i < tests.length; i += BATCH) {
+                var batch = tests.slice(i, i + BATCH);
+                var promises = batch.map(function (t) {
+                    return fetch('/api/qti-item?id=' + encodeURIComponent(t.id) + '&type=assessment')
+                        .then(function (r) { return r.json(); })
+                        .then(function (d) {
+                            if (d.success && d.data && d.data.questions) {
+                                return d.data.questions;
+                            }
+                            return [];
+                        })
+                        .catch(function () { return []; });
+                });
+                var results = await Promise.all(promises);
+                results.forEach(function (qs) {
+                    allQuestions = allQuestions.concat(qs);
+                });
+                fetched += batch.length;
+                showQuestionAnalysisProgress('Fetching questions: ' + fetched + '/' + tests.length + ' tests (' + allQuestions.length + ' questions found)...', 0);
+            }
+
+            if (!allQuestions.length) {
+                showQuestionAnalysisError('Tests were found but no questions could be fetched. The QTI content may be unavailable.');
+                showQuestionAnalysisActions(false);
+                activeGenerating = false;
+                return;
+            }
+
+            showQuestionAnalysisProgress('Submitting ' + allQuestions.length + ' questions for AI analysis...', 0);
+
+            // Phase 3: Submit for analysis
+            var analyzeResp = await fetch('/api/analyze-questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    courseId: selectedCourse.sourcedId,
+                    questions: allQuestions,
+                }),
+            });
+            var analyzeData = await analyzeResp.json();
+
+            if (analyzeData.error) {
+                showQuestionAnalysisError(analyzeData.error);
+                showQuestionAnalysisActions(false);
+                activeGenerating = false;
+                return;
+            }
+
+            showQuestionAnalysisProgress('Claude is analyzing ' + (analyzeData.questionCount || allQuestions.length) + ' questions across ' + (analyzeData.chunkCount || 1) + ' batches...', 0);
+            startQuestionPolling(selectedCourse.sourcedId);
+
+        } catch (e) {
+            showQuestionAnalysisError('Failed: ' + e.message);
+            showQuestionAnalysisActions(false);
+            activeGenerating = false;
+        }
+    }
+
+    /* ---- Phase 4: Poll for results ---------------------------------- */
+    function startQuestionPolling(courseId) {
+        stopQuestionPolling();
+        var startTime = Date.now();
+        function poll() {
+            fetch('/api/question-analysis-status?courseId=' + encodeURIComponent(courseId))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'done' && data.analysis) {
+                        activeGenerating = false;
+                        stopQuestionPolling();
+                        document.getElementById('question-analysis-progress').style.display = 'none';
+                        showQuestionAnalysisActions(true);
+                        showQuestionAnalysisResults(data);
+                    } else if (data.status === 'error') {
+                        activeGenerating = false;
+                        stopQuestionPolling();
+                        document.getElementById('question-analysis-progress').style.display = 'none';
+                        showQuestionAnalysisError(data.error || 'Analysis failed.');
+                        showQuestionAnalysisActions(false);
+                    } else {
+                        var elapsed = Math.floor((Date.now() - startTime) / 1000);
+                        var chunkInfo = data.chunkCount ? ' (' + (data.succeeded || 0) + '/' + data.chunkCount + ' chunks done)' : '';
+                        showQuestionAnalysisProgress('Claude is analyzing questions...' + chunkInfo, elapsed);
+                        questionPollTimer = setTimeout(poll, POLL_INTERVAL);
+                    }
+                })
+                .catch(function () { questionPollTimer = setTimeout(poll, POLL_INTERVAL); });
+        }
+        questionPollTimer = setTimeout(poll, POLL_INTERVAL);
+    }
+
+    function stopQuestionPolling() { if (questionPollTimer) { clearTimeout(questionPollTimer); questionPollTimer = null; } }
+
+    function showQuestionAnalysisProgress(msg, elapsed) {
+        var el = document.getElementById('question-analysis-progress');
+        el.style.display = '';
+        var timeStr = elapsed > 0 ? ' <span style="opacity:0.6;">(' + formatTime(elapsed) + ')</span>' : '';
+        el.innerHTML =
+            '<div class="ce-progress-header"><div class="ce-progress-spinner"></div><div class="ce-progress-title">' + msg + timeStr + '</div></div>' +
+            '<div class="ce-warning"><i class="fa-solid fa-triangle-exclamation"></i> Please do not leave this page until analysis is complete.</div>';
+    }
+
+    function showQuestionAnalysisError(msg) {
+        var el = document.getElementById('question-analysis-progress');
+        el.style.display = '';
+        el.innerHTML = '<div class="ce-error"><i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>' + esc(msg) + '</div>';
+    }
+
+    /* ---- Question Analysis Results ---------------------------------- */
+    function showQuestionAnalysisResults(data) {
+        var el = document.getElementById('question-analysis-results');
+        el.style.display = '';
+        var analysis = data.analysis || {};
+        var qIds = Object.keys(analysis);
+
+        // Build node label lookup from mermaid code
+        var nodeLabels = {};
+        if (currentMermaidCode) {
+            var re = /(\w+)\["([^"]+)"\]/g, m;
+            while ((m = re.exec(currentMermaidCode)) !== null) {
+                nodeLabels[m[1]] = m[2];
+            }
+        }
+
+        // Load raw questions for display text
+        var rawQuestions = {};
+        var savedQs = data._rawQuestions || {};
+        // We'll try to get question text from the analysis keys or stored data
+
+        var html = '<div class="ce-mapping-count"><i class="fa-solid fa-circle-check" style="color:#45B5AA; margin-right:6px;"></i>' +
+            qIds.length + ' question' + (qIds.length !== 1 ? 's' : '') + ' analyzed' +
+            (data.model ? ' <span style="opacity:0.5;">(' + esc(data.model) + ')</span>' : '') + '</div>';
+
+        html += '<div class="ce-accordion">';
+        qIds.forEach(function (qid, idx) {
+            var q = analysis[qid];
+            var skills = q.relatedSkills || [];
+            var correct = q.correctAnswer || {};
+            var wrong = q.wrongAnswers || {};
+            var wrongKeys = Object.keys(wrong);
+
+            // Skill badges
+            var skillBadges = skills.slice(0, 5).map(function (sid) {
+                return '<span class="ce-skill-id">' + esc(sid) + '</span>';
+            }).join(' ');
+            if (skills.length > 5) skillBadges += ' <span class="ce-skill-id">+' + (skills.length - 5) + '</span>';
+
+            html += '<div class="ce-accordion-item">' +
+                '<button class="ce-accordion-header" data-idx="q' + idx + '">' +
+                    '<span class="ce-accordion-title"><i class="fa-solid fa-circle-question" style="margin-right:8px; opacity:0.4;"></i>Q: ' + esc(qid) + '</span>' +
+                    '<span class="ce-accordion-badge">' + skills.length + ' skill' + (skills.length !== 1 ? 's' : '') + '</span>' +
+                    '<i class="fa-solid fa-chevron-right ce-accordion-chevron"></i>' +
+                '</button>' +
+                '<div class="ce-accordion-body" id="qa-body-' + idx + '">';
+
+            // Related skills
+            html += '<div class="ce-qa-section"><strong>Related Skills:</strong><div class="ce-qa-skills">';
+            skills.forEach(function (sid) {
+                var label = nodeLabels[sid] || sid;
+                html += '<div class="ce-qa-skill-item"><span class="ce-skill-id">' + esc(sid) + '</span> ' + esc(label) + '</div>';
+            });
+            html += '</div></div>';
+
+            // Correct answer
+            if (correct.id) {
+                html += '<div class="ce-qa-section ce-qa-correct"><strong><i class="fa-solid fa-check-circle" style="color:#45B5AA; margin-right:4px;"></i>Correct Answer (' + esc(correct.id) + '):</strong>';
+                html += '<div class="ce-qa-detail">Demonstrates knowledge of: ';
+                (correct.indicatesKnowledge || []).forEach(function (sid) {
+                    html += '<span class="ce-skill-id">' + esc(sid) + '</span> ';
+                });
+                html += '</div></div>';
+            }
+
+            // Wrong answers
+            if (wrongKeys.length) {
+                html += '<div class="ce-qa-section"><strong><i class="fa-solid fa-times-circle" style="color:#E53E3E; margin-right:4px;"></i>Wrong Answer Analysis:</strong>';
+                wrongKeys.forEach(function (wid) {
+                    var w = wrong[wid];
+                    html += '<div class="ce-qa-wrong-item">';
+                    html += '<div class="ce-qa-wrong-id">Choice ' + esc(wid) + ':</div>';
+                    html += '<div class="ce-qa-wrong-detail">';
+                    if (w.indicatesMisunderstanding && w.indicatesMisunderstanding.length) {
+                        html += '<span class="ce-qa-label">Missing skills:</span> ';
+                        w.indicatesMisunderstanding.forEach(function (sid) {
+                            html += '<span class="ce-skill-id">' + esc(sid) + '</span> ';
+                        });
+                    }
+                    if (w.reasoning) {
+                        html += '<div class="ce-qa-reasoning">' + esc(w.reasoning) + '</div>';
+                    }
+                    html += '</div></div>';
+                });
+                html += '</div>';
+            }
+
+            html += '</div></div>';
+        });
+        html += '</div>';
+        el.innerHTML = html;
+
+        // Accordion toggle
+        el.querySelectorAll('.ce-accordion-header').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                this.closest('.ce-accordion-item').classList.toggle('open');
             });
         });
     }

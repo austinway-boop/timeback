@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preload" href="/css/style.css?v=3" as="style">
     <link rel="stylesheet" href="/css/style.css?v=3">
-    <link rel="stylesheet" href="/css/admin/course-editor.css?v=5">
+    <link rel="stylesheet" href="/css/admin/course-editor.css?v=6">
 </head>
 <body data-view="admin" data-active="course-editor">
 
@@ -69,6 +69,21 @@
                         <div class="ce-progress" id="lesson-mapping-progress" style="display:none;"></div>
                         <div id="lesson-mapping-results" style="display:none;"></div>
                     </div>
+
+                    <!-- Step 3: Question Analysis -->
+                    <div class="ce-section" id="question-analysis-section" style="display:none;">
+                        <div class="ce-section-label">Step 3</div>
+                        <h3 class="ce-section-title">Analyze Questions</h3>
+                        <p class="ce-section-desc">
+                            Pull every question and answer choice for this course, along with the content students see,
+                            and use AI to determine how each question relates to the skill tree. For each wrong answer,
+                            the analysis reveals what specific knowledge gaps or misunderstandings it indicates.
+                            This data powers personalized diagnostics.
+                        </p>
+                        <div id="question-analysis-actions"></div>
+                        <div class="ce-progress" id="question-analysis-progress" style="display:none;"></div>
+                        <div id="question-analysis-results" style="display:none;"></div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -78,6 +93,6 @@
     <script src="/js/layout.js?v=10"></script>
     <script src="/js/notifications.js?v=7"></script>
     <script src="/js/app.js?v=7"></script>
-    <script src="/js/admin/course-editor.js?v=5"></script>
+    <script src="/js/admin/course-editor.js?v=6"></script>
 </body>
 </html>
