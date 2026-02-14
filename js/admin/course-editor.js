@@ -110,6 +110,12 @@
             var data = await resp.json();
             allCourses = (data.courses || []).filter(function (c) {
                 return isAPCourse(c) && !isExternal(c);
+            }).sort(function (a, b) {
+                // Active courses first, tobedeleted last
+                var aActive = (a.status || '').toLowerCase() === 'active' ? 0 : 1;
+                var bActive = (b.status || '').toLowerCase() === 'active' ? 0 : 1;
+                if (aActive !== bActive) return aActive - bActive;
+                return (a.title || '').localeCompare(b.title || '');
             });
 
             // Check which courses already have skill trees
