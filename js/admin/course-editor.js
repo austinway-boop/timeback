@@ -711,12 +711,8 @@
             var findData = await findResp.json();
             var tests = findData.tests || [];
 
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'course-editor.js:find-tests-response',message:'find-course-tests response',data:{status:findResp.status,count:findData.count,sources:findData.sources,debug:findData._debug,testCount:tests.length,firstTest:tests[0]||null},timestamp:Date.now()})}).catch(function(){});
-            // #endregion
-
             if (!tests.length) {
-                showQuestionAnalysisError('No assessment tests found for this course (code: ' + esc(selectedCourse.courseCode || 'none') + '). Debug: ' + JSON.stringify(findData._debug || []).substring(0, 500));
+                showQuestionAnalysisError('No assessment tests found for this course (code: ' + esc(selectedCourse.courseCode || 'none') + '). The QTI catalog may not have content for this course.');
                 showQuestionAnalysisActions(false);
                 activeGenerating = false;
                 return;
