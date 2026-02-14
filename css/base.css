@@ -35,6 +35,12 @@
     --transition: 0.2s ease;
 
     --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+    /* Layout chrome (themeable) */
+    --sidebar-bg: var(--color-surface);
+    --topbar-bg: var(--color-surface);
+    --topbar-border: 1px solid var(--color-border);
+    --card-border: 1px solid var(--color-border);
 }
 
 /* --- Theme Overrides (staging only) ------------------------------------- */
@@ -42,6 +48,7 @@
 
 /* ===== STANDARD THEMES ================================================= */
 
+/* Ocean — rounded, deep blue sidebar gradient, watery shadows */
 [data-theme="ocean"] {
     --color-primary: #1D63A6;
     --color-primary-light: #DBEAFE;
@@ -52,8 +59,22 @@
     --color-text: #0F2942;
     --color-text-secondary: #3B6B9E;
     --color-text-muted: #7AADDB;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 8px rgba(29, 99, 166, 0.08);
+    --shadow-md: 0 6px 20px rgba(29, 99, 166, 0.12);
+    --shadow-lg: 0 12px 40px rgba(29, 99, 166, 0.18);
+    --sidebar-bg: linear-gradient(180deg, #1A4F8A 0%, #1D63A6 40%, #2878C0 100%);
+    --topbar-bg: #FFFFFF;
+    --topbar-border: 2px solid #DBEAFE;
+    --card-border: none;
 }
+[data-theme="ocean"] .sidebar .nav-item a,
+[data-theme="ocean"] .sidebar .nav-item-settings a { color: #B4D4F0; }
+[data-theme="ocean"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+[data-theme="ocean"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.18); color: #FFFFFF; }
 
+/* Lavender — pill shapes, soft purple tinted surfaces, dreamy shadows */
 [data-theme="lavender"] {
     --color-primary: #7C3AED;
     --color-primary-light: #EDE9FE;
@@ -64,8 +85,18 @@
     --color-text: #2E1065;
     --color-text-secondary: #6D5BA0;
     --color-text-muted: #A78BFA;
+    --radius: 20px;
+    --radius-sm: 12px;
+    --shadow: 0 2px 10px rgba(124, 58, 237, 0.06);
+    --shadow-md: 0 8px 24px rgba(124, 58, 237, 0.1);
+    --shadow-lg: 0 14px 40px rgba(124, 58, 237, 0.15);
+    --sidebar-bg: linear-gradient(180deg, #F3F0FF 0%, #EDE9FE 100%);
+    --topbar-bg: #FAF8FF;
+    --topbar-border: 1px solid #DDD6FE;
+    --card-border: 1px solid #E9E0FD;
 }
 
+/* Sunset — warm radius, fiery sidebar gradient, warm glow shadows */
 [data-theme="sunset"] {
     --color-primary: #DC4E11;
     --color-primary-light: #FFEDD5;
@@ -76,8 +107,22 @@
     --color-text: #431407;
     --color-text-secondary: #8B4513;
     --color-text-muted: #E8945A;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 2px 8px rgba(220, 78, 17, 0.07);
+    --shadow-md: 0 6px 20px rgba(220, 78, 17, 0.11);
+    --shadow-lg: 0 12px 36px rgba(220, 78, 17, 0.16);
+    --sidebar-bg: linear-gradient(180deg, #B93E0A 0%, #DC4E11 50%, #F07030 100%);
+    --topbar-bg: #FFFAF5;
+    --topbar-border: 2px solid #FFDDBB;
+    --card-border: none;
 }
+[data-theme="sunset"] .sidebar .nav-item a,
+[data-theme="sunset"] .sidebar .nav-item-settings a { color: #FFD0B0; }
+[data-theme="sunset"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.12); color: #FFFFFF; }
+[data-theme="sunset"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.2); color: #FFFFFF; }
 
+/* Rose — rounded, elegant pink-tinted everything, soft depth */
 [data-theme="rose"] {
     --color-primary: #DB2777;
     --color-primary-light: #FCE7F3;
@@ -88,8 +133,18 @@
     --color-text: #500724;
     --color-text-secondary: #9D174D;
     --color-text-muted: #F472B6;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 10px rgba(219, 39, 119, 0.06);
+    --shadow-md: 0 6px 20px rgba(219, 39, 119, 0.1);
+    --shadow-lg: 0 12px 36px rgba(219, 39, 119, 0.15);
+    --sidebar-bg: #FFF5FA;
+    --topbar-bg: #FFF5FA;
+    --topbar-border: 1px solid #FBCFE8;
+    --card-border: 1px solid #FBCFE8;
 }
 
+/* Forest — earthy radius, dark green sidebar, warm organic shadows */
 [data-theme="forest"] {
     --color-primary: #0D7C3E;
     --color-primary-light: #D1FAE5;
@@ -100,8 +155,22 @@
     --color-text: #052E16;
     --color-text-secondary: #276749;
     --color-text-muted: #6EE7A0;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 2px 8px rgba(13, 124, 62, 0.06);
+    --shadow-md: 0 5px 16px rgba(13, 124, 62, 0.1);
+    --shadow-lg: 0 10px 32px rgba(13, 124, 62, 0.14);
+    --sidebar-bg: linear-gradient(180deg, #064E24 0%, #0D6E36 50%, #0D7C3E 100%);
+    --topbar-bg: #F5FFF8;
+    --topbar-border: 2px solid #BBF7D0;
+    --card-border: none;
 }
+[data-theme="forest"] .sidebar .nav-item a,
+[data-theme="forest"] .sidebar .nav-item-settings a { color: #A0E8BC; }
+[data-theme="forest"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+[data-theme="forest"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.18); color: #FFFFFF; }
 
+/* Slate — sharp corners, flat shadows, ultra-minimal */
 [data-theme="slate"] {
     --color-primary: #64748B;
     --color-primary-light: #F1F5F9;
@@ -112,8 +181,18 @@
     --color-text: #0F172A;
     --color-text-secondary: #64748B;
     --color-text-muted: #94A3B8;
+    --radius: 4px;
+    --radius-sm: 2px;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --sidebar-bg: #FFFFFF;
+    --topbar-bg: #FFFFFF;
+    --topbar-border: 1px solid #E2E8F0;
+    --card-border: 1px solid #E2E8F0;
 }
 
+/* Midnight — no radius, glow borders, deep dark gradient sidebar */
 [data-theme="midnight"] {
     --color-primary: #818CF8;
     --color-primary-light: #1E1B4B;
@@ -124,8 +203,18 @@
     --color-text: #E8ECF4;
     --color-text-secondary: #8B99B0;
     --color-text-muted: #4B5A72;
+    --radius: 8px;
+    --radius-sm: 4px;
+    --shadow: none;
+    --shadow-md: 0 0 20px rgba(129, 140, 248, 0.06);
+    --shadow-lg: 0 0 40px rgba(129, 140, 248, 0.1);
+    --sidebar-bg: linear-gradient(180deg, #080D18 0%, #0E1525 50%, #131B2D 100%);
+    --topbar-bg: #0E1525;
+    --topbar-border: 1px solid #1E2A40;
+    --card-border: 1px solid #253040;
 }
 
+/* Berry — generous radius, magenta tint, playful shadows */
 [data-theme="berry"] {
     --color-primary: #C026D3;
     --color-primary-light: #FAE8FF;
@@ -136,8 +225,22 @@
     --color-text: #3B0544;
     --color-text-secondary: #7E22CE;
     --color-text-muted: #D67EE8;
+    --radius: 18px;
+    --radius-sm: 10px;
+    --shadow: 0 3px 12px rgba(192, 38, 211, 0.07);
+    --shadow-md: 0 8px 24px rgba(192, 38, 211, 0.12);
+    --shadow-lg: 0 16px 48px rgba(192, 38, 211, 0.18);
+    --sidebar-bg: linear-gradient(180deg, #7E22CE 0%, #9333EA 50%, #A855F7 100%);
+    --topbar-bg: #FEF9FF;
+    --topbar-border: 2px solid #F0ABFC;
+    --card-border: none;
 }
+[data-theme="berry"] .sidebar .nav-item a,
+[data-theme="berry"] .sidebar .nav-item-settings a { color: #E0B8F0; }
+[data-theme="berry"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+[data-theme="berry"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.2); color: #FFFFFF; }
 
+/* Amber — warm radius, golden sidebar, honey-glow shadows */
 [data-theme="amber"] {
     --color-primary: #C47E0B;
     --color-primary-light: #FEF3C7;
@@ -148,10 +251,24 @@
     --color-text: #451A03;
     --color-text-secondary: #854D0E;
     --color-text-muted: #F3C34A;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 2px 8px rgba(196, 126, 11, 0.08);
+    --shadow-md: 0 6px 20px rgba(196, 126, 11, 0.12);
+    --shadow-lg: 0 12px 36px rgba(196, 126, 11, 0.18);
+    --sidebar-bg: linear-gradient(180deg, #92400E 0%, #B45309 50%, #C47E0B 100%);
+    --topbar-bg: #FFFDF5;
+    --topbar-border: 2px solid #FDE68A;
+    --card-border: none;
 }
+[data-theme="amber"] .sidebar .nav-item a,
+[data-theme="amber"] .sidebar .nav-item-settings a { color: #FDE68A; }
+[data-theme="amber"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+[data-theme="amber"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.2); color: #FFFFFF; }
 
 /* ===== SEASONAL THEMES ================================================= */
 
+/* Spring — soft pill shapes, cherry blossom pink, airy shadows */
 [data-theme="spring"] {
     --color-primary: #E4729B;
     --color-primary-light: #FFF0F5;
@@ -162,8 +279,18 @@
     --color-text: #4A1A2E;
     --color-text-secondary: #9D4C6E;
     --color-text-muted: #F0A3C4;
+    --radius: 20px;
+    --radius-sm: 12px;
+    --shadow: 0 2px 10px rgba(228, 114, 155, 0.06);
+    --shadow-md: 0 6px 20px rgba(228, 114, 155, 0.1);
+    --shadow-lg: 0 12px 36px rgba(228, 114, 155, 0.14);
+    --sidebar-bg: linear-gradient(180deg, #FFF0F5 0%, #FEE2EE 100%);
+    --topbar-bg: #FFFBFD;
+    --topbar-border: 1px solid #FBCFE8;
+    --card-border: 1px solid #FBD5E8;
 }
 
+/* Summer — rounded, bright cyan, sunny & bold, big shadows */
 [data-theme="summer"] {
     --color-primary: #0891B2;
     --color-primary-light: #CFFAFE;
@@ -174,8 +301,22 @@
     --color-text: #134E5A;
     --color-text-secondary: #0E7490;
     --color-text-muted: #4DD6E8;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 2px 8px rgba(8, 145, 178, 0.08);
+    --shadow-md: 0 8px 24px rgba(8, 145, 178, 0.12);
+    --shadow-lg: 0 16px 48px rgba(8, 145, 178, 0.18);
+    --sidebar-bg: linear-gradient(180deg, #0E7490 0%, #0891B2 50%, #22D3EE 100%);
+    --topbar-bg: #F8FEFF;
+    --topbar-border: 2px solid #A5F3FC;
+    --card-border: none;
 }
+[data-theme="summer"] .sidebar .nav-item a,
+[data-theme="summer"] .sidebar .nav-item-settings a { color: #A5F3FC; }
+[data-theme="summer"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.12); color: #FFFFFF; }
+[data-theme="summer"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.2); color: #FFFFFF; }
 
+/* Autumn — warm & slightly sharp, brown/orange sidebar, rich depth */
 [data-theme="autumn"] {
     --color-primary: #B45309;
     --color-primary-light: #FEF3C7;
@@ -186,8 +327,22 @@
     --color-text: #3D1E03;
     --color-text-secondary: #8B5E34;
     --color-text-muted: #D4A574;
+    --radius: 8px;
+    --radius-sm: 4px;
+    --shadow: 0 2px 6px rgba(180, 83, 9, 0.08);
+    --shadow-md: 0 6px 18px rgba(180, 83, 9, 0.12);
+    --shadow-lg: 0 12px 36px rgba(180, 83, 9, 0.16);
+    --sidebar-bg: linear-gradient(180deg, #6B3410 0%, #8B4513 50%, #A0522D 100%);
+    --topbar-bg: #FDF9F3;
+    --topbar-border: 2px solid #DEB887;
+    --card-border: none;
 }
+[data-theme="autumn"] .sidebar .nav-item a,
+[data-theme="autumn"] .sidebar .nav-item-settings a { color: #E8C9A0; }
+[data-theme="autumn"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+[data-theme="autumn"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.18); color: #FFFFFF; }
 
+/* Winter — medium radius, frosty icy tint, glass-like surfaces */
 [data-theme="winter"] {
     --color-primary: #6B8FC7;
     --color-primary-light: #E8F0FE;
@@ -198,10 +353,20 @@
     --color-text: #1C2D44;
     --color-text-secondary: #5A7694;
     --color-text-muted: #98B4D2;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 4px rgba(107, 143, 199, 0.06);
+    --shadow-md: 0 4px 16px rgba(107, 143, 199, 0.1);
+    --shadow-lg: 0 8px 32px rgba(107, 143, 199, 0.14);
+    --sidebar-bg: linear-gradient(180deg, #E8F0FE 0%, #D8E6F8 50%, #C8D8F0 100%);
+    --topbar-bg: #F8FAFF;
+    --topbar-border: 1px solid #C8D8F0;
+    --card-border: 1px solid #D0DEF0;
 }
 
 /* ===== HOLIDAY THEMES ================================================== */
 
+/* Valentine's — very rounded, romantic deep reds + blush, heart accents */
 [data-theme="valentines"] {
     --color-primary: #E63462;
     --color-primary-light: #FFE0E9;
@@ -212,8 +377,22 @@
     --color-text: #4A0E20;
     --color-text-secondary: #A4294D;
     --color-text-muted: #FF7EA0;
+    --radius: 22px;
+    --radius-sm: 14px;
+    --shadow: 0 3px 12px rgba(230, 52, 98, 0.08);
+    --shadow-md: 0 8px 24px rgba(230, 52, 98, 0.13);
+    --shadow-lg: 0 16px 48px rgba(230, 52, 98, 0.18);
+    --sidebar-bg: linear-gradient(180deg, #C41E4A 0%, #E63462 50%, #F05A80 100%);
+    --topbar-bg: #FFF8F9;
+    --topbar-border: 2px solid #FFB3C6;
+    --card-border: none;
 }
+[data-theme="valentines"] .sidebar .nav-item a,
+[data-theme="valentines"] .sidebar .nav-item-settings a { color: #FFB3C6; }
+[data-theme="valentines"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.12); color: #FFFFFF; }
+[data-theme="valentines"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.2); color: #FFFFFF; }
 
+/* St. Patrick's — medium rounded, rich green sidebar with gold accents */
 [data-theme="stpatricks"] {
     --color-primary: #228B22;
     --color-primary-light: #D4EDDA;
@@ -224,8 +403,22 @@
     --color-text: #0B3B0B;
     --color-text-secondary: #2D6E2D;
     --color-text-muted: #6EC77E;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 2px 8px rgba(34, 139, 34, 0.08);
+    --shadow-md: 0 6px 18px rgba(34, 139, 34, 0.12);
+    --shadow-lg: 0 10px 30px rgba(34, 139, 34, 0.16);
+    --sidebar-bg: linear-gradient(180deg, #145A14 0%, #1B7A1B 50%, #228B22 100%);
+    --topbar-bg: #F7FCF7;
+    --topbar-border: 2px solid #8FD49F;
+    --card-border: 1px solid #A8E0B4;
 }
+[data-theme="stpatricks"] .sidebar .nav-item a,
+[data-theme="stpatricks"] .sidebar .nav-item-settings a { color: #A0DDA8; }
+[data-theme="stpatricks"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+[data-theme="stpatricks"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.18); color: #FFFFFF; }
 
+/* July 4th — sharp/crisp, patriotic navy sidebar with red top accent */
 [data-theme="july4th"] {
     --color-primary: #2553A0;
     --color-primary-light: #DBEAFE;
@@ -236,8 +429,22 @@
     --color-text: #111D33;
     --color-text-secondary: #3B5B8C;
     --color-text-muted: #7E97BC;
+    --radius: 6px;
+    --radius-sm: 3px;
+    --shadow: 0 1px 4px rgba(37, 83, 160, 0.06);
+    --shadow-md: 0 4px 14px rgba(37, 83, 160, 0.1);
+    --shadow-lg: 0 8px 28px rgba(37, 83, 160, 0.14);
+    --sidebar-bg: linear-gradient(180deg, #0D1F45 0%, #162D5C 50%, #1B3D78 100%);
+    --topbar-bg: #FAFBFF;
+    --topbar-border: 3px solid #B22234;
+    --card-border: 1px solid #BCC8E0;
 }
+[data-theme="july4th"] .sidebar .nav-item a,
+[data-theme="july4th"] .sidebar .nav-item-settings a { color: #A0B8DA; }
+[data-theme="july4th"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.08); color: #FFFFFF; }
+[data-theme="july4th"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.15); color: #FFFFFF; }
 
+/* Halloween — sharp corners, orange glow, deep purple dark theme */
 [data-theme="halloween"] {
     --color-primary: #E86C1A;
     --color-primary-light: #2A1B3D;
@@ -248,8 +455,18 @@
     --color-text: #F0E6F6;
     --color-text-secondary: #B49AC4;
     --color-text-muted: #6B5080;
+    --radius: 4px;
+    --radius-sm: 2px;
+    --shadow: 0 0 12px rgba(232, 108, 26, 0.1);
+    --shadow-md: 0 0 24px rgba(232, 108, 26, 0.15);
+    --shadow-lg: 0 0 48px rgba(232, 108, 26, 0.2);
+    --sidebar-bg: linear-gradient(180deg, #120A1A 0%, #1A1025 50%, #221430 100%);
+    --topbar-bg: #1A1025;
+    --topbar-border: 1px solid #3D2852;
+    --card-border: 1px solid #3D2852;
 }
 
+/* Christmas — generous radius, holly red + green sidebar, warm & festive */
 [data-theme="christmas"] {
     --color-primary: #C41E3A;
     --color-primary-light: #FFEEF0;
@@ -260,8 +477,22 @@
     --color-text: #3D0A14;
     --color-text-secondary: #8B3040;
     --color-text-muted: #E08090;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 10px rgba(196, 30, 58, 0.06);
+    --shadow-md: 0 6px 20px rgba(196, 30, 58, 0.1);
+    --shadow-lg: 0 12px 36px rgba(196, 30, 58, 0.15);
+    --sidebar-bg: linear-gradient(180deg, #1B5E20 0%, #2E7D32 40%, #388E3C 100%);
+    --topbar-bg: #FFFAFA;
+    --topbar-border: 3px solid #C41E3A;
+    --card-border: none;
 }
+[data-theme="christmas"] .sidebar .nav-item a,
+[data-theme="christmas"] .sidebar .nav-item-settings a { color: #A5D6A7; }
+[data-theme="christmas"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+[data-theme="christmas"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.18); color: #FFFFFF; }
 
+/* New Year's — sharp, gold glow borders, luxe dark theme */
 [data-theme="newyears"] {
     --color-primary: #D4A843;
     --color-primary-light: #1C1833;
@@ -272,6 +503,87 @@
     --color-text: #F2ECD8;
     --color-text-secondary: #A8A0C0;
     --color-text-muted: #5C5478;
+    --radius: 6px;
+    --radius-sm: 3px;
+    --shadow: 0 0 10px rgba(212, 168, 67, 0.06);
+    --shadow-md: 0 0 24px rgba(212, 168, 67, 0.1);
+    --shadow-lg: 0 0 48px rgba(212, 168, 67, 0.15);
+    --sidebar-bg: linear-gradient(180deg, #0A0818 0%, #120E22 50%, #18142A 100%);
+    --topbar-bg: #120E22;
+    --topbar-border: 1px solid #3A3058;
+    --card-border: 1px solid #2E2848;
+}
+
+/* ===== HOLIDAY DECORATIVE OVERLAYS ===================================== */
+
+/* Valentine's — subtle floating hearts */
+[data-theme="valentines"] .main-content::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.03;
+    background-image:
+        radial-gradient(circle 4px at 10% 20%, #E63462 50%, transparent 50%),
+        radial-gradient(circle 3px at 30% 60%, #E63462 50%, transparent 50%),
+        radial-gradient(circle 5px at 55% 15%, #E63462 50%, transparent 50%),
+        radial-gradient(circle 3px at 75% 45%, #E63462 50%, transparent 50%),
+        radial-gradient(circle 4px at 90% 70%, #E63462 50%, transparent 50%),
+        radial-gradient(circle 3px at 20% 85%, #E63462 50%, transparent 50%),
+        radial-gradient(circle 4px at 65% 80%, #E63462 50%, transparent 50%);
+}
+
+/* Halloween — eerie glow at top */
+[data-theme="halloween"] .main-content::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 300px;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.15;
+    background: radial-gradient(ellipse 80% 200px at 50% 0%, #E86C1A 0%, transparent 70%);
+}
+
+/* Christmas — subtle snowfall dots */
+[data-theme="christmas"] .main-content::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.06;
+    background-image:
+        radial-gradient(circle 2px at 8% 12%, #FFFFFF 50%, transparent 50%),
+        radial-gradient(circle 3px at 22% 35%, #FFFFFF 50%, transparent 50%),
+        radial-gradient(circle 2px at 38% 8%, #FFFFFF 50%, transparent 50%),
+        radial-gradient(circle 3px at 52% 55%, #FFFFFF 50%, transparent 50%),
+        radial-gradient(circle 2px at 68% 22%, #FFFFFF 50%, transparent 50%),
+        radial-gradient(circle 3px at 82% 48%, #FFFFFF 50%, transparent 50%),
+        radial-gradient(circle 2px at 92% 72%, #FFFFFF 50%, transparent 50%),
+        radial-gradient(circle 3px at 15% 68%, #FFFFFF 50%, transparent 50%),
+        radial-gradient(circle 2px at 45% 82%, #FFFFFF 50%, transparent 50%),
+        radial-gradient(circle 3px at 75% 90%, #FFFFFF 50%, transparent 50%);
+}
+
+/* New Year's — gold sparkle accents */
+[data-theme="newyears"] .main-content::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.04;
+    background-image:
+        radial-gradient(circle 2px at 12% 18%, #D4A843 50%, transparent 50%),
+        radial-gradient(circle 3px at 28% 42%, #F0C75E 50%, transparent 50%),
+        radial-gradient(circle 2px at 45% 10%, #D4A843 50%, transparent 50%),
+        radial-gradient(circle 3px at 62% 58%, #F0C75E 50%, transparent 50%),
+        radial-gradient(circle 2px at 78% 28%, #D4A843 50%, transparent 50%),
+        radial-gradient(circle 3px at 88% 68%, #F0C75E 50%, transparent 50%),
+        radial-gradient(circle 2px at 18% 78%, #D4A843 50%, transparent 50%),
+        radial-gradient(circle 3px at 55% 88%, #F0C75E 50%, transparent 50%);
 }
 
 /* --- Reset --------------------------------------------------------------- */

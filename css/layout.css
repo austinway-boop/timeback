@@ -10,8 +10,8 @@
     position: fixed;
     top: 0; left: 0; right: 0;
     height: var(--topbar-height);
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
+    background: var(--topbar-bg);
+    border-bottom: var(--topbar-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -80,7 +80,7 @@
    =========================================================================== */
 .sidebar {
     width: var(--sidebar-width);
-    background: var(--color-surface);
+    background: var(--sidebar-bg);
     border-right: 1px solid var(--color-border);
     position: fixed;
     top: var(--topbar-height);

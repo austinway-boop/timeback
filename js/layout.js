@@ -144,38 +144,38 @@
             title: 'Standard',
             icon: 'fa-palette',
             themes: [
-                { id: 'default',  label: 'Default',   desc: 'Clean teal — the classic look',      primary: '#45B5AA', bg: '#F4F6F9',  surface: '#FFFFFF', text: '#2D3748' },
-                { id: 'ocean',    label: 'Ocean',      desc: 'Deep blue, calm and focused',        primary: '#1D63A6', bg: '#EBF2FA',  surface: '#F5F9FF', text: '#0F2942' },
-                { id: 'lavender', label: 'Lavender',   desc: 'Soft purple, creative energy',       primary: '#7C3AED', bg: '#F3F0FF',  surface: '#FAF8FF', text: '#2E1065' },
-                { id: 'sunset',   label: 'Sunset',     desc: 'Warm coral, energetic and bold',     primary: '#DC4E11', bg: '#FFF5EB',  surface: '#FFFAF5', text: '#431407' },
-                { id: 'rose',     label: 'Rose',       desc: 'Elegant pink, refined and modern',   primary: '#DB2777', bg: '#FDF2F8',  surface: '#FFF5FA', text: '#500724' },
-                { id: 'forest',   label: 'Forest',     desc: 'Deep green, earthy and grounded',    primary: '#0D7C3E', bg: '#ECFDF2',  surface: '#F5FFF8', text: '#052E16' },
-                { id: 'slate',    label: 'Slate',      desc: 'Neutral gray, minimal and clean',    primary: '#64748B', bg: '#F1F5F9',  surface: '#FFFFFF', text: '#0F172A' },
-                { id: 'midnight', label: 'Midnight',   desc: 'Dark mode — easy on the eyes',       primary: '#818CF8', bg: '#0B1120',  surface: '#151D2E', text: '#E8ECF4' },
-                { id: 'berry',    label: 'Berry',      desc: 'Bold magenta, playful and vibrant',  primary: '#C026D3', bg: '#FBF0FF',  surface: '#FEF9FF', text: '#3B0544' },
-                { id: 'amber',    label: 'Amber',      desc: 'Golden honey, cozy and inviting',    primary: '#C47E0B', bg: '#FFFBEB',  surface: '#FFFDF5', text: '#451A03' },
+                { id: 'default',  label: 'Default',   desc: 'Clean teal — the classic look',      primary: '#45B5AA', bg: '#F4F6F9',  surface: '#FFFFFF', text: '#2D3748', radius: '12px', sidebarBg: '#FFFFFF' },
+                { id: 'ocean',    label: 'Ocean',      desc: 'Deep blue gradient sidebar, watery depth', primary: '#1D63A6', bg: '#EBF2FA', surface: '#F5F9FF', text: '#0F2942', radius: '16px', sidebarBg: '#1A4F8A' },
+                { id: 'lavender', label: 'Lavender',   desc: 'Pill shapes, dreamy purple haze',    primary: '#7C3AED', bg: '#F3F0FF',  surface: '#FAF8FF', text: '#2E1065', radius: '20px', sidebarBg: '#F3F0FF' },
+                { id: 'sunset',   label: 'Sunset',     desc: 'Fiery sidebar, warm glow everywhere', primary: '#DC4E11', bg: '#FFF5EB', surface: '#FFFAF5', text: '#431407', radius: '14px', sidebarBg: '#B93E0A' },
+                { id: 'rose',     label: 'Rose',       desc: 'Elegant blush-tinted everything',    primary: '#DB2777', bg: '#FDF2F8',  surface: '#FFF5FA', text: '#500724', radius: '16px', sidebarBg: '#FFF5FA' },
+                { id: 'forest',   label: 'Forest',     desc: 'Dark green sidebar, earthy and warm', primary: '#0D7C3E', bg: '#ECFDF2', surface: '#F5FFF8', text: '#052E16', radius: '10px', sidebarBg: '#064E24' },
+                { id: 'slate',    label: 'Slate',      desc: 'Sharp corners, flat & ultra-minimal', primary: '#64748B', bg: '#F1F5F9', surface: '#FFFFFF', text: '#0F172A', radius: '4px',  sidebarBg: '#FFFFFF' },
+                { id: 'midnight', label: 'Midnight',   desc: 'Full dark mode with glow borders',   primary: '#818CF8', bg: '#0B1120',  surface: '#151D2E', text: '#E8ECF4', radius: '8px',  sidebarBg: '#080D18' },
+                { id: 'berry',    label: 'Berry',      desc: 'Purple gradient sidebar, playful shapes', primary: '#C026D3', bg: '#FBF0FF', surface: '#FEF9FF', text: '#3B0544', radius: '18px', sidebarBg: '#7E22CE' },
+                { id: 'amber',    label: 'Amber',      desc: 'Golden sidebar, honey-glow shadows', primary: '#C47E0B', bg: '#FFFBEB',  surface: '#FFFDF5', text: '#451A03', radius: '12px', sidebarBg: '#92400E' },
             ]
         },
         {
             title: 'Seasonal',
             icon: 'fa-sun',
             themes: [
-                { id: 'spring',   label: 'Spring',    desc: 'Cherry blossoms and fresh starts',    primary: '#E4729B', bg: '#FFF7FA',  surface: '#FFFBFD', text: '#4A1A2E' },
-                { id: 'summer',   label: 'Summer',    desc: 'Bright skies and ocean breeze',       primary: '#0891B2', bg: '#EFFCFF',  surface: '#F8FEFF', text: '#134E5A' },
-                { id: 'autumn',   label: 'Autumn',    desc: 'Warm maple and golden leaves',        primary: '#B45309', bg: '#FBF5EC',  surface: '#FDF9F3', text: '#3D1E03' },
-                { id: 'winter',   label: 'Winter',    desc: 'Frosty blue and silver mornings',     primary: '#6B8FC7', bg: '#F0F4FA',  surface: '#F8FAFF', text: '#1C2D44' },
+                { id: 'spring',   label: 'Spring',    desc: 'Soft pills, cherry blossom pink wash', primary: '#E4729B', bg: '#FFF7FA', surface: '#FFFBFD', text: '#4A1A2E', radius: '20px', sidebarBg: '#FFF0F5' },
+                { id: 'summer',   label: 'Summer',    desc: 'Cyan gradient sidebar, bold & sunny', primary: '#0891B2', bg: '#EFFCFF',  surface: '#F8FEFF', text: '#134E5A', radius: '14px', sidebarBg: '#0E7490' },
+                { id: 'autumn',   label: 'Autumn',    desc: 'Brown sidebar, warm maple everywhere', primary: '#B45309', bg: '#FBF5EC', surface: '#FDF9F3', text: '#3D1E03', radius: '8px',  sidebarBg: '#6B3410' },
+                { id: 'winter',   label: 'Winter',    desc: 'Frosty icy surfaces, glass-like feel', primary: '#6B8FC7', bg: '#F0F4FA', surface: '#F8FAFF', text: '#1C2D44', radius: '12px', sidebarBg: '#E8F0FE' },
             ]
         },
         {
             title: 'Holidays',
             icon: 'fa-gift',
             themes: [
-                { id: 'valentines',  label: "Valentine's",   desc: 'Romance, hearts, and roses',        primary: '#E63462', bg: '#FFF0F3',  surface: '#FFF8F9', text: '#4A0E20' },
-                { id: 'stpatricks',  label: "St. Patrick's", desc: 'Shamrocks and lucky gold',           primary: '#228B22', bg: '#F0F9F0',  surface: '#F7FCF7', text: '#0B3B0B' },
-                { id: 'july4th',     label: 'July 4th',      desc: 'Stars, stripes, and liberty',       primary: '#2553A0', bg: '#F2F5FB',  surface: '#FAFBFF', text: '#111D33' },
-                { id: 'halloween',   label: 'Halloween',     desc: 'Spooky orange on purple night',     primary: '#E86C1A', bg: '#1A1025',  surface: '#231530', text: '#F0E6F6' },
-                { id: 'christmas',   label: 'Christmas',     desc: 'Holly red and snowy white',          primary: '#C41E3A', bg: '#FDF5F5',  surface: '#FFFAFA', text: '#3D0A14' },
-                { id: 'newyears',    label: "New Year's",    desc: 'Midnight glamour and champagne gold', primary: '#D4A843', bg: '#0E0B1A', surface: '#18142A', text: '#F2ECD8' },
+                { id: 'valentines',  label: "Valentine's",   desc: 'Romantic red sidebar, hearts overlay', primary: '#E63462', bg: '#FFF0F3', surface: '#FFF8F9', text: '#4A0E20', radius: '22px', sidebarBg: '#C41E4A' },
+                { id: 'stpatricks',  label: "St. Patrick's", desc: 'Shamrock green sidebar, gold accents', primary: '#228B22', bg: '#F0F9F0', surface: '#F7FCF7', text: '#0B3B0B', radius: '12px', sidebarBg: '#145A14' },
+                { id: 'july4th',     label: 'July 4th',      desc: 'Navy sidebar, red top stripe',        primary: '#2553A0', bg: '#F2F5FB', surface: '#FAFBFF', text: '#111D33', radius: '6px',  sidebarBg: '#0D1F45' },
+                { id: 'halloween',   label: 'Halloween',     desc: 'Sharp & spooky, orange glow on dark', primary: '#E86C1A', bg: '#1A1025', surface: '#231530', text: '#F0E6F6', radius: '4px',  sidebarBg: '#120A1A' },
+                { id: 'christmas',   label: 'Christmas',     desc: 'Green sidebar, red accents, snowfall', primary: '#C41E3A', bg: '#FDF5F5', surface: '#FFFAFA', text: '#3D0A14', radius: '16px', sidebarBg: '#1B5E20' },
+                { id: 'newyears',    label: "New Year's",    desc: 'Luxe dark with gold sparkle accents', primary: '#D4A843', bg: '#0E0B1A', surface: '#18142A', text: '#F2ECD8', radius: '6px',  sidebarBg: '#0A0818' },
             ]
         }
     ];
@@ -184,19 +184,25 @@
     const THEMES = THEME_SECTIONS.flatMap(s => s.themes);
 
     function buildThemeCard(t, isActive) {
+        // Determine if sidebar is dark (text should be light in preview)
+        const isDarkSidebar = isColorDark(t.sidebarBg);
+        const sidebarLineColor = isDarkSidebar ? 'rgba(255,255,255,0.25)' : (t.primary + '30');
+        const sidebarLineColorLight = isDarkSidebar ? 'rgba(255,255,255,0.15)' : (t.primary + '20');
+        const mockRadius = t.radius || '12px';
+
         return `
             <button class="theme-card${isActive ? ' active' : ''}" data-theme="${t.id}">
                 <div class="theme-card-preview" style="background:${t.bg}; border-color:${t.primary}20;">
-                    <div class="theme-card-mockup">
-                        <div class="theme-mock-sidebar" style="background:${t.surface}; border-color:${t.primary}20;">
-                            <div class="theme-mock-dot" style="background:${t.primary};"></div>
-                            <div class="theme-mock-line" style="background:${t.primary}30;"></div>
-                            <div class="theme-mock-line short" style="background:${t.primary}20;"></div>
+                    <div class="theme-card-mockup" style="border-radius:${mockRadius};">
+                        <div class="theme-mock-sidebar" style="background:${t.sidebarBg}; border-color:${isDarkSidebar ? 'rgba(255,255,255,0.08)' : t.primary + '20'}; border-radius:${mockRadius} 0 0 ${mockRadius};">
+                            <div class="theme-mock-dot" style="background:${isDarkSidebar ? '#FFFFFF' : t.primary}; opacity:${isDarkSidebar ? '0.7' : '1'};"></div>
+                            <div class="theme-mock-line" style="background:${sidebarLineColor};"></div>
+                            <div class="theme-mock-line short" style="background:${sidebarLineColorLight};"></div>
                         </div>
-                        <div class="theme-mock-content">
+                        <div class="theme-mock-content" style="border-radius:0 ${mockRadius} ${mockRadius} 0;">
                             <div class="theme-mock-heading" style="background:${t.text}; opacity:0.7;"></div>
-                            <div class="theme-mock-bar" style="background:${t.primary};"></div>
-                            <div class="theme-mock-bar half" style="background:${t.primary}40;"></div>
+                            <div class="theme-mock-bar" style="background:${t.primary}; border-radius:calc(${mockRadius} / 4);"></div>
+                            <div class="theme-mock-bar half" style="background:${t.primary}40; border-radius:calc(${mockRadius} / 4);"></div>
                         </div>
                     </div>
                 </div>
@@ -209,6 +215,16 @@
                 </div>
                 ${isActive ? '<div class="theme-card-check"><i class="fa-solid fa-circle-check"></i></div>' : ''}
             </button>`;
+    }
+
+    // Rough check if a hex color is dark
+    function isColorDark(hex) {
+        if (!hex || hex.charAt(0) !== '#') return false;
+        const c = hex.substring(1);
+        const r = parseInt(c.substring(0, 2), 16);
+        const g = parseInt(c.substring(2, 4), 16);
+        const b = parseInt(c.substring(4, 6), 16);
+        return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
     }
 
     function openThemeModal() {
