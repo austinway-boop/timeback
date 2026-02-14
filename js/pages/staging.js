@@ -164,6 +164,7 @@
             localStorage.setItem('alphalearn_email',     user.email || '');
             localStorage.setItem('alphalearn_role',      user.role  || 'student');
             localStorage.setItem('alphalearn_sourcedId', user.sourcedId || '');
+            localStorage.setItem('alphalearn_userId', user.sourcedId || '');
 
             // Set staging flag
             localStorage.setItem('alphalearn_staging', 'true');
