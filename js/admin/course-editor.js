@@ -303,10 +303,22 @@
         }
     }
 
+    /* ---- Page Leave Guard ------------------------------------------- */
+    var isGenerating = false;
+
+    function onBeforeUnload(e) {
+        if (isGenerating) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    }
+    window.addEventListener('beforeunload', onBeforeUnload);
+
     /* ---- Generation Flow -------------------------------------------- */
     async function startGeneration() {
         if (!selectedCourse) return;
 
+        isGenerating = true;
         showTreeActions(false, true);
         showProgress('Submitting to Claude...', 'Preparing the prompt with course and lesson data.');
         document.getElementById('chart-container').style.display = 'none';
@@ -347,6 +359,7 @@
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data.status === 'done' && data.mermaid) {
+                        isGenerating = false;
                         stopPolling();
                         showProgress(null); // hide
                         showTreeActions(true);
@@ -357,6 +370,7 @@
                             selectedCourse._generating = false;
                         }
                     } else if (data.status === 'error') {
+                        isGenerating = false;
                         stopPolling();
                         showProgress(null);
                         showError(data.error || 'Generation failed. Please try again.');
@@ -410,6 +424,8 @@
                 '<div class="ce-progress-title">' + esc(title) + '</div>' +
             '</div>' +
             '<div class="ce-progress-elapsed"><i class="fa-regular fa-clock" style="margin-right:6px;"></i>Elapsed: <strong>' + timeStr + '</strong></div>' +
+
+            '<div class="ce-warning"><i class="fa-solid fa-triangle-exclamation"></i> Please do not leave or close this page until generation is complete. The process cannot resume if interrupted.</div>' +
 
             '<div class="ce-progress-steps">' +
                 '<div class="ce-step ' + (elapsed >= 0 ? 'done' : '') + '">' +
