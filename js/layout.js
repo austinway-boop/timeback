@@ -177,7 +177,7 @@
                 { id: 'christmas',   label: 'Christmas',     desc: 'Green sidebar, red accents, snowfall', primary: '#C41E3A', bg: '#FDF5F5', surface: '#FFFAFA', text: '#3D0A14', radius: '16px', sidebarBg: '#1B5E20' },
                 { id: 'newyears',    label: "New Year's",    desc: 'Luxe dark with gold sparkle accents', primary: '#D4A843', bg: '#0E0B1A', surface: '#18142A', text: '#F2ECD8', radius: '6px',  sidebarBg: '#0A0818' },
             ]
-        }
+        },
         {
             title: 'Special',
             icon: 'fa-star',
