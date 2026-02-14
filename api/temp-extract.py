@@ -451,53 +451,38 @@ def _fetch_questions_from_qti(url, res_id, qti_headers):
 
 
 # ---------------------------------------------------------------------------
-# Service user lookup — read-only GET, no data modification
+# Service account — dedicated download user (pehal64861@aixind.com)
+# Hardcoded sourcedId to avoid an extra API call every time.
+# This user is NEVER used with resetAttempt, getAssessmentProgress,
+# updateStudentQuestionResponse, or any student-mutating endpoint.
+# It is used ONLY for:
+#   - GET /powerpath/lessonPlans/{courseId}/{svcId}  (read-only)
+#   - POST /edubridge/enrollments/enroll/{svcId}/{courseId}  (one-time per course)
 # ---------------------------------------------------------------------------
-SERVICE_USER_EMAIL = "pehal64861@aixind.com"
-_cached_service_user_id = None
+SERVICE_USER_ID = "8ea2b8e1-1b04-4cab-b608-9ab524c059c2"
 
 
-def _lookup_service_user(pp_headers):
-    """Look up the dedicated service account by email (read-only GET).
-
-    Used ONLY with GET /powerpath/lessonPlans/{courseId}/{userId}.
-    NEVER used with resetAttempt, getAssessmentProgress, or any write endpoint.
-    """
-    global _cached_service_user_id
-    if _cached_service_user_id:
-        return _cached_service_user_id
-
+def _ensure_enrolled(course_id, pp_headers):
+    """Enroll the service account in a course if not already enrolled.
+    This is a one-time write per course to the service account only.
+    Never touches any real student data."""
     try:
-        resp = requests.get(
-            f"{API_BASE}/ims/oneroster/rostering/v1p2/users",
+        resp = requests.post(
+            f"{API_BASE}/edubridge/enrollments/enroll/{SERVICE_USER_ID}/{course_id}",
             headers=pp_headers,
-            params={"filter": f"email='{SERVICE_USER_EMAIL}'", "limit": 1},
+            json={"role": "student"},
             timeout=15,
         )
         if resp.status_code == 401:
             pp_headers = api_headers()
-            resp = requests.get(
-                f"{API_BASE}/ims/oneroster/rostering/v1p2/users",
+            requests.post(
+                f"{API_BASE}/edubridge/enrollments/enroll/{SERVICE_USER_ID}/{course_id}",
                 headers=pp_headers,
-                params={"filter": f"email='{SERVICE_USER_EMAIL}'", "limit": 1},
+                json={"role": "student"},
                 timeout=15,
             )
-        if resp.status_code == 200:
-            data = resp.json()
-            users = data.get("users", [])
-            if not users:
-                for key in data:
-                    if isinstance(data[key], list) and data[key]:
-                        users = data[key]
-                        break
-            if users:
-                uid = users[0].get("sourcedId", "")
-                if uid:
-                    _cached_service_user_id = uid
-                    return uid
     except Exception:
         pass
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -552,29 +537,43 @@ class handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-            # 2. Fallback: try service account with student-specific endpoint
-            #    (read-only GET only)
+            # 2. Fallback: use service account (enroll if needed, then GET)
             if not tree:
-                svc_id = _lookup_service_user(pp_headers)
-                if svc_id:
-                    for cid in ids_to_try:
-                        if tree:
-                            break
-                        try:
+                for cid in ids_to_try:
+                    if tree:
+                        break
+                    # Try GET first (maybe already enrolled)
+                    try:
+                        resp = requests.get(
+                            f"{API_BASE}/powerpath/lessonPlans/{cid}/{SERVICE_USER_ID}",
+                            headers=pp_headers,
+                            timeout=30,
+                        )
+                        if resp.status_code == 401:
+                            pp_headers = api_headers()
                             resp = requests.get(
-                                f"{API_BASE}/powerpath/lessonPlans/{cid}/{svc_id}",
+                                f"{API_BASE}/powerpath/lessonPlans/{cid}/{SERVICE_USER_ID}",
                                 headers=pp_headers,
                                 timeout=30,
                             )
-                            if resp.status_code == 401:
-                                pp_headers = api_headers()
-                                resp = requests.get(
-                                    f"{API_BASE}/powerpath/lessonPlans/{cid}/{svc_id}",
-                                    headers=pp_headers,
-                                    timeout=30,
-                                )
+                        if resp.status_code == 200:
+                            tree = resp.json()
+                            break
+                    except Exception:
+                        pass
+
+                    # Not enrolled yet — enroll and retry
+                    if not tree:
+                        _ensure_enrolled(cid, pp_headers)
+                        try:
+                            resp = requests.get(
+                                f"{API_BASE}/powerpath/lessonPlans/{cid}/{SERVICE_USER_ID}",
+                                headers=pp_headers,
+                                timeout=30,
+                            )
                             if resp.status_code == 200:
                                 tree = resp.json()
+                                break
                         except Exception:
                             pass
 
