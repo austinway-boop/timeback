@@ -260,7 +260,7 @@
                 renderMermaidChart(data.mermaid);
             } else if (data.status === 'processing') {
                 showTreeActions(false, true);
-                showProgress('Claude is generating the skill tree...', 'This may take 5-10 minutes. You can leave this page and come back later.');
+                showProgress('Claude is generating the skill tree...', '');
                 startPolling(courseId);
             } else {
                 showTreeActions(false);
@@ -329,7 +329,7 @@
                 return;
             }
 
-            showProgress('Claude is generating the skill tree...', 'This may take 5-10 minutes. You can leave this page and come back later.');
+            showProgress('Claude is generating the skill tree...', '');
             startPolling(selectedCourse.sourcedId);
         } catch (e) {
             showError('Failed to start generation: ' + e.message);
@@ -362,15 +362,8 @@
                         showError(data.error || 'Generation failed. Please try again.');
                         showTreeActions(false);
                     } else {
-                        // Still processing
-                        var elapsed = Math.floor((Date.now() - startTime) / 1000);
-                        var mins = Math.floor(elapsed / 60);
-                        var secs = elapsed % 60;
-                        var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
-                        showProgress(
-                            'Claude is generating the skill tree...',
-                            'Elapsed: ' + timeStr + '. This may take 5-10 minutes.'
-                        );
+                        // Still processing — just keep the progress UI alive
+                        showProgress('Claude is generating the skill tree...', '');
                         pollTimer = setTimeout(poll, POLL_INTERVAL);
                     }
                 })
@@ -391,20 +384,115 @@
     }
 
     /* ---- Progress UI ------------------------------------------------ */
+    var progressStartTime = null;
+    var progressTickTimer = null;
+
     function showProgress(title, detail) {
         var el = document.getElementById('generation-progress');
         if (!title) {
             el.style.display = 'none';
+            stopProgressTick();
             return;
         }
         el.style.display = '';
+
+        // Start the clock on first call
+        if (!progressStartTime) progressStartTime = Date.now();
+
+        var elapsed = Math.floor((Date.now() - progressStartTime) / 1000);
+        var mins = Math.floor(elapsed / 60);
+        var secs = elapsed % 60;
+        var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+
         el.innerHTML =
             '<div class="ce-progress-header">' +
                 '<div class="ce-progress-spinner"></div>' +
                 '<div class="ce-progress-title">' + esc(title) + '</div>' +
             '</div>' +
-            '<div class="ce-progress-detail">' + esc(detail || '') + '</div>' +
-            '<div class="ce-progress-bar-track"><div class="ce-progress-bar-fill" style="width:60%;"></div></div>';
+            '<div class="ce-progress-elapsed"><i class="fa-regular fa-clock" style="margin-right:6px;"></i>Elapsed: <strong>' + timeStr + '</strong></div>' +
+
+            '<div class="ce-progress-steps">' +
+                '<div class="ce-step ' + (elapsed >= 0 ? 'done' : '') + '">' +
+                    '<i class="fa-solid fa-check-circle"></i>' +
+                    '<div><strong>Prompt submitted</strong><span>Course data and lesson names sent to Claude</span></div>' +
+                '</div>' +
+                '<div class="ce-step ' + (elapsed >= 5 ? 'active' : '') + '">' +
+                    '<i class="fa-solid ' + (elapsed >= 5 ? 'fa-spinner fa-spin' : 'fa-circle') + '"></i>' +
+                    '<div><strong>Deep analysis in progress</strong><span>Claude is reviewing pedagogical research and mapping prerequisite relationships between micro-skills</span></div>' +
+                '</div>' +
+                '<div class="ce-step">' +
+                    '<i class="fa-solid fa-circle"></i>' +
+                    '<div><strong>Building mermaid chart</strong><span>Structuring hundreds of skills into a visual dependency graph</span></div>' +
+                '</div>' +
+            '</div>' +
+
+            '<div class="ce-progress-info">' +
+                '<div class="ce-info-card">' +
+                    '<div class="ce-info-icon"><i class="fa-solid fa-lightbulb"></i></div>' +
+                    '<div>' +
+                        '<strong>What is a skill tree?</strong>' +
+                        '<p>A skill tree maps every micro-skill in a course and shows how they depend on each other. ' +
+                        'For example, a student needs to "Identify the three branches of government" before they can ' +
+                        '"Compare the powers of Congress vs. the Executive branch."</p>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="ce-info-card">' +
+                    '<div class="ce-info-icon"><i class="fa-solid fa-graduation-cap"></i></div>' +
+                    '<div>' +
+                        '<strong>Why is this useful?</strong>' +
+                        '<p>Skill trees enable personalized learning paths. Instead of making every student go through ' +
+                        'the same linear sequence, the system can identify exactly which prerequisite skills a student ' +
+                        'is missing and target those gaps directly. This is backed by research on mastery-based learning ' +
+                        'and knowledge space theory.</p>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="ce-info-card">' +
+                    '<div class="ce-info-icon"><i class="fa-solid fa-brain"></i></div>' +
+                    '<div>' +
+                        '<strong>How does it work?</strong>' +
+                        '<p>Claude Opus 4.6 with extended thinking analyzes your course structure against peer-reviewed ' +
+                        'AP curriculum standards. It identifies hundreds of fact-based, content-specific skills ' +
+                        '(not vague things like "understands the material") and maps which skills are prerequisites for others. ' +
+                        'This typically takes 5-10 minutes due to the depth of analysis required.</p>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+
+        // Start the tick timer to update elapsed every second
+        startProgressTick();
+    }
+
+    function startProgressTick() {
+        if (progressTickTimer) return;
+        progressTickTimer = setInterval(function () {
+            var el = document.getElementById('generation-progress');
+            if (!el || el.style.display === 'none') { stopProgressTick(); return; }
+            var elapsedEl = el.querySelector('.ce-progress-elapsed strong');
+            if (elapsedEl && progressStartTime) {
+                var elapsed = Math.floor((Date.now() - progressStartTime) / 1000);
+                var mins = Math.floor(elapsed / 60);
+                var secs = elapsed % 60;
+                elapsedEl.textContent = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+
+                // Update step states based on time
+                var steps = el.querySelectorAll('.ce-step');
+                if (steps[1] && elapsed >= 5) {
+                    steps[1].classList.add('active');
+                    var icon1 = steps[1].querySelector('i');
+                    if (icon1 && !icon1.classList.contains('fa-spinner')) {
+                        icon1.className = 'fa-solid fa-spinner fa-spin';
+                    }
+                }
+            }
+        }, 1000);
+    }
+
+    function stopProgressTick() {
+        if (progressTickTimer) {
+            clearInterval(progressTickTimer);
+            progressTickTimer = null;
+        }
+        progressStartTime = null;
     }
 
     function showError(msg) {
