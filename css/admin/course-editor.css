@@ -301,6 +301,31 @@
 .ce-status-badge.processing { background: rgba(245,158,11,0.1); color: #B45309; }
 .ce-status-badge.pending { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
 
+/* ---- Toggle Card ---- */
+.ce-toggle-card {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px; background: var(--color-surface);
+    border: 1px solid var(--color-border); border-radius: var(--radius); margin-top: 16px;
+}
+.ce-toggle-card-left { display: flex; align-items: center; gap: 14px; flex: 1; }
+.ce-toggle-card-icon { font-size: 1.2rem; color: var(--color-primary); }
+.ce-toggle-card-left strong { display: block; font-size: 0.9rem; color: var(--color-text); }
+.ce-toggle-card-left p { font-size: 0.8rem; color: var(--color-text-secondary); margin: 2px 0 0; line-height: 1.4; }
+
+/* Switch toggle */
+.ce-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+.ce-switch input { opacity: 0; width: 0; height: 0; }
+.ce-switch-slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: var(--color-border); border-radius: 24px; transition: 0.3s;
+}
+.ce-switch-slider::before {
+    content: ''; position: absolute; height: 18px; width: 18px;
+    left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s;
+}
+.ce-switch input:checked + .ce-switch-slider { background: var(--color-primary); }
+.ce-switch input:checked + .ce-switch-slider::before { transform: translateX(20px); }
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
     .ce-course-grid { grid-template-columns: 1fr; }

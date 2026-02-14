@@ -250,6 +250,14 @@
         var anyDone = statuses.tree === 'done' || statuses.lessons === 'done' || statuses.questions === 'done';
         var anyProcessing = statuses.tree === 'processing' || statuses.lessons === 'processing' || statuses.questions === 'processing';
 
+        // Check skill mapping toggle status
+        var skillMappingEnabled = false;
+        try {
+            var toggleResp = await fetch('/api/skill-mapping-toggle?courseId=' + encodeURIComponent(courseId));
+            var toggleData = await toggleResp.json();
+            skillMappingEnabled = toggleData.enabled === true;
+        } catch (e) { /* ignore */ }
+
         function badge(status) {
             if (status === 'done') return '<span class="ce-status-badge done"><i class="fa-solid fa-check-circle"></i> Complete</span>';
             if (status === 'processing') return '<span class="ce-status-badge processing"><i class="fa-solid fa-spinner fa-spin"></i> In progress</span>';
@@ -313,6 +321,36 @@
         document.getElementById('btn-start-setup').addEventListener('click', function () {
             enterSetupWizard();
         });
+
+        // Skill mapping toggle (only when all 3 steps are done)
+        if (allDone) {
+            var toggleHtml =
+                '<div class="ce-toggle-card">' +
+                    '<div class="ce-toggle-card-left">' +
+                        '<div class="ce-toggle-card-icon"><i class="fa-solid fa-toggle-' + (skillMappingEnabled ? 'on' : 'off') + '"></i></div>' +
+                        '<div>' +
+                            '<strong>Skill Mapping</strong>' +
+                            '<p>When enabled, the Thinking Tree page can compute and display per-student skill mastery scores for this course.</p>' +
+                        '</div>' +
+                    '</div>' +
+                    '<label class="ce-switch">' +
+                        '<input type="checkbox" id="skill-mapping-toggle" ' + (skillMappingEnabled ? 'checked' : '') + '>' +
+                        '<span class="ce-switch-slider"></span>' +
+                    '</label>' +
+                '</div>';
+            el.insertAdjacentHTML('beforeend', toggleHtml);
+
+            document.getElementById('skill-mapping-toggle').addEventListener('change', function () {
+                var enabled = this.checked;
+                var icon = this.closest('.ce-toggle-card').querySelector('.ce-toggle-card-icon i');
+                icon.className = 'fa-solid fa-toggle-' + (enabled ? 'on' : 'off');
+                fetch('/api/skill-mapping-toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ courseId: courseId, enabled: enabled }),
+                }).catch(function () {});
+            });
+        }
     }
 
     function enterSetupWizard() {
