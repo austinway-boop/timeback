@@ -781,7 +781,7 @@
                 });
                 var startData = await startResp.json();
                 if (startData.debug) console.log('[Quiz] start debug:', JSON.stringify(startData.debug));
-                if (startData.attemptId || startData.id) {
+                if ((startData.attemptId || startData.id) && (startData.questionCount > 0)) {
                     quizState.attemptId = startData.attemptId || startData.id;
                     // ── Restore progress NOW that attemptId is set (reliable key) ──
                     _restoreQuizProgress();
@@ -801,6 +801,8 @@
                     }
                     await loadNextQuestion();
                     return;
+                } else if (startData.questionCount === 0) {
+                    console.warn('[Quiz] PowerPath returned 0 questions, falling through to QTI fetch');
                 }
             } catch(e) { console.warn('PowerPath start failed:', e.message); }
         }
