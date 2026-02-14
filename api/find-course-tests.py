@@ -272,12 +272,36 @@ class handler(BaseHTTPRequestHandler):
         sources = []
         debug_log = []
 
+        # #region agent log
+        import time as _time
+        _t0 = _time.time()
+        # #endregion
+
         # Tier 1: PowerPath lesson plan tree (enroll + sync if needed)
         tree, tree_debug = _get_powerpath_tree(course_id)
         debug_log.extend(tree_debug)
 
+        # #region agent log
+        _t1 = _time.time()
+        debug_log.append(f"tree_fetch_time={_t1-_t0:.1f}s tree_is_none={tree is None} tree_type={type(tree).__name__}")
+        if tree and isinstance(tree, dict):
+            debug_log.append(f"tree_keys={list(tree.keys())[:10]}")
+            inner = tree.get("lessonPlan", tree)
+            if isinstance(inner, dict) and inner.get("lessonPlan"):
+                inner = inner["lessonPlan"]
+            if isinstance(inner, dict):
+                debug_log.append(f"inner_keys={list(inner.keys())[:10]} subComponents_count={len(inner.get('subComponents', []))}")
+            elif isinstance(inner, list):
+                debug_log.append(f"inner_is_list len={len(inner)}")
+        # #endregion
+
         if tree:
             pp_tests = _extract_assessments_from_tree(tree)
+            # #region agent log
+            debug_log.append(f"pp_tests_count={len(pp_tests)}")
+            if pp_tests:
+                debug_log.append(f"first_test={pp_tests[0]}")
+            # #endregion
             for t in pp_tests:
                 if not any(x["id"] == t["id"] for x in all_tests):
                     all_tests.append(t)
@@ -287,6 +311,9 @@ class handler(BaseHTTPRequestHandler):
         # Tier 2: OneRoster component resources (fallback)
         if not all_tests:
             or_tests = _try_oneroster_components(course_id)
+            # #region agent log
+            debug_log.append(f"oneroster_fallback_count={len(or_tests)}")
+            # #endregion
             for t in or_tests:
                 if not any(x["id"] == t["id"] for x in all_tests):
                     all_tests.append(t)
