@@ -3,93 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlphaLearn - Lesson</title>
+    <title>AlphaLearn - Notifications</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preload" href="/css/style.css?v=9" as="style">
     <link rel="stylesheet" href="/css/style.css?v=9">
-    <link rel="stylesheet" href="/css/pages/lesson.css?v=7">
+    <link rel="stylesheet" href="/css/admin/notifications.css?v=7">
 </head>
-<body data-view="student" data-active="home">
-    <div class="layout">
-        <nav class="sidebar" id="sidebar"></nav>
-        <main class="main-content">
-            <div class="lesson-page">
-                <!-- Back Link -->
-                <a class="back-link" id="back-to-course" onclick="goBackToCourse()">
-                    <i class="fa-solid fa-arrow-left"></i> Back to Course
-                </a>
+<body data-view="admin" data-active="notifications">
 
-                <!-- Lesson Title -->
-                <div class="lesson-title-bar" id="lesson-title-bar">
-                    <h1 id="lesson-title-text"></h1>
-                </div>
+<div class="layout">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title"><i class="fa-solid fa-bell" style="margin-right:10px; opacity:0.7;"></i>Notifications</h1>
+            <p class="page-subtitle">Review and manage student question reports</p>
+        </div>
 
-                <!-- Stepper -->
-                <div class="stepper" id="stepper"></div>
+        <!-- Stats Bar -->
+        <div class="stats-bar" id="stats-bar">
+            <div class="stat-chip"><span class="stat-num">--</span> Total Reports</div>
+        </div>
 
-                <!-- Content Area -->
-                <div class="lesson-content" id="lesson-content">
-                    <div class="lesson-placeholder">
-                        <div class="ph-icon"><i class="fa-solid fa-spinner fa-spin"></i></div>
-                        <p>Loading lesson...</p>
-                        <span class="sub">Preparing your content</span>
-                    </div>
-                </div>
+        <!-- Filter Tabs -->
+        <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all" onclick="setFilter('all')">All <span class="tab-count" id="count-all">0</span></button>
+            <button class="filter-tab" data-filter="ai_flagged" onclick="setFilter('ai_flagged')">AI Flagged <span class="tab-count" id="count-flagged">0</span></button>
+            <button class="filter-tab" data-filter="pending" onclick="setFilter('pending')">Pending <span class="tab-count" id="count-pending">0</span></button>
+            <button class="filter-tab" data-filter="valid" onclick="setFilter('valid')">Valid <span class="tab-count" id="count-valid">0</span></button>
+            <button class="filter-tab" data-filter="invalid" onclick="setFilter('invalid')">Invalid <span class="tab-count" id="count-invalid">0</span></button>
+            <button class="filter-tab" data-filter="human_reviewed" onclick="setFilter('human_reviewed')">Reviewed <span class="tab-count" id="count-reviewed">0</span></button>
+        </div>
 
-                <!-- Bottom Nav -->
-                <div class="lesson-nav" id="lesson-nav">
-                    <button class="nav-btn back" id="btn-back" onclick="goBack()">
-                        <i class="fa-solid fa-arrow-left"></i> Back
-                    </button>
-                    <button class="nav-btn continue" id="btn-continue" onclick="goNext()">
-                        Continue <i class="fa-solid fa-arrow-right"></i>
-                    </button>
-                </div>
-            </div>
-        </main>
-    </div>
+        <!-- Report List -->
+        <div class="report-list" id="report-list">
+            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i>Loading reports...</div>
+        </div>
 
-    <!-- Report Question Modal -->
-    <div class="report-overlay" id="report-modal">
-        <div class="report-box">
-            <h3><i class="fa-solid fa-flag"></i> Report Question</h3>
-            <p class="report-subtitle">Let us know what's wrong and our AI will review it.</p>
-            <div class="report-reasons">
-                <div class="report-reason" onclick="selectReportReason(this,'not_in_source')">
-                    <input type="radio" name="report-reason" value="not_in_source">
-                    <label>Question asks for information not in source materials (video/article)</label>
+        <!-- Confirmation Modal -->
+        <div class="confirm-overlay" id="confirm-modal">
+            <div class="confirm-box">
+                <h3 id="confirm-title">Confirm Action</h3>
+                <p id="confirm-text">Are you sure?</p>
+                <div class="confirm-actions">
+                    <button class="confirm-cancel" onclick="closeConfirm()">Cancel</button>
+                    <button class="confirm-primary" id="confirm-btn" onclick="executeConfirm()">Confirm</button>
                 </div>
-                <div class="report-reason" onclick="selectReportReason(this,'factual_error')">
-                    <input type="radio" name="report-reason" value="factual_error">
-                    <label>Question contains factual errors</label>
-                </div>
-                <div class="report-reason" onclick="selectReportReason(this,'poorly_written')">
-                    <input type="radio" name="report-reason" value="poorly_written">
-                    <label>Question is poorly written or unclear</label>
-                </div>
-                <div class="report-reason" onclick="selectReportReason(this,'other')">
-                    <input type="radio" name="report-reason" value="other">
-                    <label>Other</label>
-                </div>
-            </div>
-            <div class="report-context-input">
-                <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--color-text-secondary);margin-bottom:6px;">Additional context <span style="font-weight:400;color:var(--color-text-muted);">(optional)</span></label>
-                <textarea id="report-other-text" placeholder="Describe the issue in more detail..."></textarea>
-            </div>
-            <div class="report-actions">
-                <button class="report-cancel-btn" onclick="closeReportModal()">Cancel</button>
-                <button class="report-submit-btn" id="report-submit-btn" onclick="submitQuizReport()" disabled>Submit Report</button>
             </div>
         </div>
-    </div>
-    <div class="report-toast" id="report-toast"></div>
 
-    <script src="/js/layout.js?v=19"></script>
-    <script src="/js/notifications.js?v=7"></script>
-    <script src="/js/app.js?v=7"></script>
+        <div class="toast" id="toast"></div>
+    </main>
+</div>
 
-        <script src="/js/pages/lesson.js?v=7"></script>
+<script src="/js/auth-guard.js?v=3"></script>
+<script src="/js/layout.js?v=19"></script>
+<script src="/js/notifications.js?v=7"></script>
+<script src="/js/app.js?v=7"></script>
+<script src="/js/admin/notifications.js?v=7"></script>
 </body>
 </html>
