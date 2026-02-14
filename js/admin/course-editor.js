@@ -537,6 +537,7 @@
             // Initialize mermaid
             mermaid.initialize({
                 startOnLoad: false,
+                maxTextSize: 500000,
                 theme: 'default',
                 flowchart: {
                     useMaxWidth: false,
