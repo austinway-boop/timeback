@@ -31,6 +31,45 @@
     };
     var quizArea = null; // reference to the quiz container element
 
+    // ── Stage-based PowerPath scoring ──
+    function _getQuestionDifficulty(q) {
+        if (!q) return 'medium';
+        var d = q.difficulty || (q.metadata && q.metadata.difficulty) || '';
+        if (d) {
+            d = String(d).toLowerCase();
+            if (d === 'easy' || d === 'low') return 'easy';
+            if (d === 'hard' || d === 'high') return 'hard';
+            return 'medium';
+        }
+        var bloom = q.bloomsTaxonomyLevel || (q.metadata && q.metadata.bloomsTaxonomyLevel) || 0;
+        if (bloom) {
+            bloom = parseInt(bloom, 10);
+            if (bloom <= 2) return 'easy';
+            if (bloom >= 5) return 'hard';
+            return 'medium';
+        }
+        return 'medium';
+    }
+
+    function _ppScoreChange(ppScore, difficulty, isCorrect) {
+        var table;
+        if (ppScore <= 50) {
+            // Stage 1: Exploration (0-50%) — testing effect, safe to fail
+            table = { easy: [3, -1], medium: [6, -1], hard: [9, -1] };
+        } else if (ppScore <= 80) {
+            // Stage 2: Building (51-80%) — productive struggle
+            table = { easy: [2, -3], medium: [5, -2], hard: [8, -1] };
+        } else if (ppScore <= 95) {
+            // Stage 3: Proficiency (81-95%) — desirable difficulties
+            table = { easy: [1, -3], medium: [3, -2], hard: [5, -2] };
+        } else {
+            // Stage 4: Mastery Gate (96-100%) — statistical confidence
+            table = { easy: [1, -4], medium: [1, -3], hard: [3, -2] };
+        }
+        var row = table[difficulty] || table.medium;
+        return isCorrect ? row[0] : row[1];
+    }
+
     // ── Progress persistence (save/restore across sessions) ──
     function _getQuizProgressKey() {
         // Use attemptId as key when available — it encodes student+lesson and is always correct
@@ -1260,17 +1299,15 @@
 
         // Score
         var pointsChange = 0;
+        var difficulty = _getQuestionDifficulty(quizState.currentQuestion);
         if (isCorrect) {
             quizState.correct++;
-            quizState.streak++;
-            var mult = quizState.streak <= 3 ? 1 : Math.min(3.5, 1 + (quizState.streak - 3) * 0.75);
-            pointsChange = Math.round(5 * mult);
+            pointsChange = _ppScoreChange(quizState.ppScore, difficulty, true);
             quizState.ppScore = Math.min(100, quizState.ppScore + pointsChange);
             // Only add local XP if the API didn't already provide it (avoid double-counting)
             if (!apiProvidedXp) quizState.xpEarned += 1;
         } else {
-            quizState.streak = 0;
-            pointsChange = -4;
+            pointsChange = _ppScoreChange(quizState.ppScore, difficulty, false);
             quizState.ppScore = Math.max(0, quizState.ppScore + pointsChange);
         }
 
@@ -1286,8 +1323,8 @@
         var fb = document.getElementById('feedback');
         if (fb) {
             fb.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-            var streakText = isCorrect && quizState.streak > 3 ? ' <span style="font-size:0.82rem;">🔥 ' + quizState.streak + ' streak</span>' : '';
-            fb.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong>' + streakText : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong>') +
+            var diffLabel = difficulty === 'easy' ? 'Easy' : difficulty === 'hard' ? 'Hard' : 'Medium';
+            fb.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>') +
                 (feedback ? '<p style="margin-top:6px;">' + feedback + '</p>' : '');
         }
 
