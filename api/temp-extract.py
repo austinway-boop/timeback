@@ -458,11 +458,12 @@ def _fetch_questions_from_qti(url, res_id, qti_headers):
 # It is used ONLY for:
 #   - GET /powerpath/lessonPlans/{courseId}/{svcId}  (read-only)
 #   - POST /edubridge/enrollments/enroll/{svcId}/{courseId}  (one-time per course)
+#   - POST /powerpath/lessonPlans/course/{courseId}/sync  (provisions lesson plan)
 # ---------------------------------------------------------------------------
 SERVICE_USER_ID = "8ea2b8e1-1b04-4cab-b608-9ab524c059c2"
 
 
-def _ensure_enrolled(course_id, pp_headers):
+def _ensure_enrolled(course_id, pp_headers, debug):
     """Enroll the service account in a course if not already enrolled.
     This is a one-time write per course to the service account only.
     Never touches any real student data."""
@@ -475,14 +476,38 @@ def _ensure_enrolled(course_id, pp_headers):
         )
         if resp.status_code == 401:
             pp_headers = api_headers()
-            requests.post(
+            resp = requests.post(
                 f"{API_BASE}/edubridge/enrollments/enroll/{SERVICE_USER_ID}/{course_id}",
                 headers=pp_headers,
                 json={"role": "student"},
                 timeout=15,
             )
-    except Exception:
-        pass
+        debug.append({"step": "enroll", "courseId": course_id, "status": resp.status_code})
+    except Exception as e:
+        debug.append({"step": "enroll", "courseId": course_id, "error": str(e)})
+
+
+def _sync_course(course_id, pp_headers, debug):
+    """Trigger PowerPath to provision lesson plans for all enrolled users.
+    Same endpoint as sync-lesson-plan.py. Only affects service account."""
+    try:
+        resp = requests.post(
+            f"{API_BASE}/powerpath/lessonPlans/course/{course_id}/sync",
+            headers=pp_headers,
+            json={},
+            timeout=60,
+        )
+        if resp.status_code == 401:
+            pp_headers = api_headers()
+            resp = requests.post(
+                f"{API_BASE}/powerpath/lessonPlans/course/{course_id}/sync",
+                headers=pp_headers,
+                json={},
+                timeout=60,
+            )
+        debug.append({"step": "sync", "courseId": course_id, "status": resp.status_code})
+    except Exception as e:
+        debug.append({"step": "sync", "courseId": course_id, "error": str(e)})
 
 
 # ---------------------------------------------------------------------------
@@ -513,6 +538,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             pp_headers = api_headers()
             qti_headers = _qti_headers()
+            debug = []
 
             # 1. Try every ID with the tree endpoint first (no user needed)
             tree = None
@@ -532,17 +558,17 @@ class handler(BaseHTTPRequestHandler):
                             headers=pp_headers,
                             timeout=30,
                         )
+                    debug.append({"step": "tree", "courseId": cid, "status": resp.status_code})
                     if resp.status_code == 200:
                         tree = resp.json()
-                except Exception:
-                    pass
+                except Exception as e:
+                    debug.append({"step": "tree", "courseId": cid, "error": str(e)})
 
-            # 2. Fallback: use service account (enroll if needed, then GET)
+            # 2. Fallback: try service account GET (maybe already provisioned)
             if not tree:
                 for cid in ids_to_try:
                     if tree:
                         break
-                    # Try GET first (maybe already enrolled)
                     try:
                         resp = requests.get(
                             f"{API_BASE}/powerpath/lessonPlans/{cid}/{SERVICE_USER_ID}",
@@ -556,31 +582,48 @@ class handler(BaseHTTPRequestHandler):
                                 headers=pp_headers,
                                 timeout=30,
                             )
+                        debug.append({"step": "svc_get", "courseId": cid, "status": resp.status_code})
                         if resp.status_code == 200:
                             tree = resp.json()
                             break
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        debug.append({"step": "svc_get", "courseId": cid, "error": str(e)})
 
-                    # Not enrolled yet — enroll and retry
-                    if not tree:
-                        _ensure_enrolled(cid, pp_headers)
-                        try:
+            # 3. Not provisioned — enroll + sync + retry
+            if not tree:
+                for cid in ids_to_try:
+                    if tree:
+                        break
+                    _ensure_enrolled(cid, pp_headers, debug)
+                    _sync_course(cid, pp_headers, debug)
+                    # Retry GET after sync
+                    try:
+                        resp = requests.get(
+                            f"{API_BASE}/powerpath/lessonPlans/{cid}/{SERVICE_USER_ID}",
+                            headers=pp_headers,
+                            timeout=30,
+                        )
+                        if resp.status_code == 401:
+                            pp_headers = api_headers()
                             resp = requests.get(
                                 f"{API_BASE}/powerpath/lessonPlans/{cid}/{SERVICE_USER_ID}",
                                 headers=pp_headers,
                                 timeout=30,
                             )
-                            if resp.status_code == 200:
-                                tree = resp.json()
-                                break
-                        except Exception:
-                            pass
+                        debug.append({"step": "svc_retry", "courseId": cid, "status": resp.status_code})
+                        if resp.status_code == 200:
+                            tree = resp.json()
+                            break
+                    except Exception as e:
+                        debug.append({"step": "svc_retry", "courseId": cid, "error": str(e)})
 
             if not tree:
                 send_json(self, {
                     "error": f"No lesson plan found for course {course_id}",
                     "success": False,
+                    "_debug": debug,
+                    "_ids_tried": ids_to_try,
+                    "_service_user": SERVICE_USER_ID,
                 }, 404)
                 return
 
