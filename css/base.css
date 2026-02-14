@@ -586,6 +586,248 @@
         radial-gradient(circle 3px at 55% 88%, #F0C75E 50%, transparent 50%);
 }
 
+/* ===== SPECIAL THEMES ================================================== */
+
+/* Neon — cyberpunk, sharp, neon green glow on jet black */
+[data-theme="neon"] {
+    --color-primary: #39FF14;
+    --color-primary-light: #0D1A0B;
+    --color-primary-dark: #7FFF50;
+    --color-bg: #050A05;
+    --color-surface: #0C140C;
+    --color-border: #1A2E1A;
+    --color-text: #D0F0C8;
+    --color-text-secondary: #80C870;
+    --color-text-muted: #3A6030;
+    --radius: 2px;
+    --radius-sm: 1px;
+    --shadow: 0 0 8px rgba(57, 255, 20, 0.08);
+    --shadow-md: 0 0 20px rgba(57, 255, 20, 0.12);
+    --shadow-lg: 0 0 40px rgba(57, 255, 20, 0.18);
+    --sidebar-bg: linear-gradient(180deg, #030803 0%, #081008 50%, #0C180C 100%);
+    --topbar-bg: #081008;
+    --topbar-border: 1px solid #1A2E1A;
+    --card-border: 1px solid #1A2E1A;
+}
+
+/* Bubblegum — candy bright, super-pill shapes, playful */
+[data-theme="bubblegum"] {
+    --color-primary: #FF6BB5;
+    --color-primary-light: #FFF0F7;
+    --color-primary-dark: #E8408F;
+    --color-bg: #FFF5FA;
+    --color-surface: #FFFFFF;
+    --color-border: #FFB8DA;
+    --color-text: #5C1040;
+    --color-text-secondary: #C0508A;
+    --color-text-muted: #FFB0D0;
+    --radius: 24px;
+    --radius-sm: 16px;
+    --shadow: 0 4px 14px rgba(255, 107, 181, 0.1);
+    --shadow-md: 0 8px 28px rgba(255, 107, 181, 0.15);
+    --shadow-lg: 0 16px 48px rgba(255, 107, 181, 0.2);
+    --sidebar-bg: linear-gradient(180deg, #E8408F 0%, #FF6BB5 50%, #FF90C8 100%);
+    --topbar-bg: #FFFFFF;
+    --topbar-border: 3px solid #FFB8DA;
+    --card-border: none;
+}
+[data-theme="bubblegum"] .sidebar .nav-item a,
+[data-theme="bubblegum"] .sidebar .nav-item-settings a { color: #FFD8EC; }
+[data-theme="bubblegum"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.15); color: #FFFFFF; }
+[data-theme="bubblegum"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.25); color: #FFFFFF; }
+
+/* Coffee — espresso brown sidebar, warm cream surfaces, cozy */
+[data-theme="coffee"] {
+    --color-primary: #8B5E3C;
+    --color-primary-light: #F5EDE4;
+    --color-primary-dark: #6B4226;
+    --color-bg: #FAF5EF;
+    --color-surface: #FDF8F3;
+    --color-border: #DCC8B0;
+    --color-text: #3B2614;
+    --color-text-secondary: #7A5D42;
+    --color-text-muted: #C4A882;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 2px 8px rgba(139, 94, 60, 0.07);
+    --shadow-md: 0 6px 18px rgba(139, 94, 60, 0.11);
+    --shadow-lg: 0 12px 36px rgba(139, 94, 60, 0.16);
+    --sidebar-bg: linear-gradient(180deg, #3B2614 0%, #5C3D22 50%, #6B4226 100%);
+    --topbar-bg: #FDF8F3;
+    --topbar-border: 2px solid #DCC8B0;
+    --card-border: none;
+}
+[data-theme="coffee"] .sidebar .nav-item a,
+[data-theme="coffee"] .sidebar .nav-item-settings a { color: #D4B896; }
+[data-theme="coffee"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+[data-theme="coffee"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.18); color: #FFFFFF; }
+
+/* Arctic — ice blue + pure white, barely-there shadows, hyper-clean */
+[data-theme="arctic"] {
+    --color-primary: #88C0D0;
+    --color-primary-light: #EFF8FA;
+    --color-primary-dark: #5E99AD;
+    --color-bg: #F8FCFD;
+    --color-surface: #FFFFFF;
+    --color-border: #D8EDF2;
+    --color-text: #2E3440;
+    --color-text-secondary: #5A6978;
+    --color-text-muted: #A0BCC8;
+    --radius: 6px;
+    --radius-sm: 4px;
+    --shadow: 0 1px 2px rgba(136, 192, 208, 0.04);
+    --shadow-md: 0 2px 6px rgba(136, 192, 208, 0.06);
+    --shadow-lg: 0 4px 12px rgba(136, 192, 208, 0.08);
+    --sidebar-bg: #FFFFFF;
+    --topbar-bg: #FFFFFF;
+    --topbar-border: 1px solid #E8F2F5;
+    --card-border: 1px solid #E0EEF2;
+}
+
+/* Sakura — Japanese cherry blossom + warm stone, muted elegance */
+[data-theme="sakura"] {
+    --color-primary: #C97B8B;
+    --color-primary-light: #FDF0F2;
+    --color-primary-dark: #A05A6A;
+    --color-bg: #FBF6F4;
+    --color-surface: #FEF9F8;
+    --color-border: #E8D0D4;
+    --color-text: #3E2830;
+    --color-text-secondary: #7A5560;
+    --color-text-muted: #C8A0A8;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 2px 8px rgba(201, 123, 139, 0.06);
+    --shadow-md: 0 6px 18px rgba(201, 123, 139, 0.1);
+    --shadow-lg: 0 12px 36px rgba(201, 123, 139, 0.14);
+    --sidebar-bg: linear-gradient(180deg, #5C464C 0%, #6E555C 50%, #7A6068 100%);
+    --topbar-bg: #FEF9F8;
+    --topbar-border: 1px solid #E8D0D4;
+    --card-border: 1px solid #EAD4D8;
+}
+[data-theme="sakura"] .sidebar .nav-item a,
+[data-theme="sakura"] .sidebar .nav-item-settings a { color: #D8B8C0; }
+[data-theme="sakura"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+[data-theme="sakura"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.18); color: #FFFFFF; }
+
+/* Retro — 80s teal + warm orange, high contrast, fun */
+[data-theme="retro"] {
+    --color-primary: #E87040;
+    --color-primary-light: #FFF0E8;
+    --color-primary-dark: #C85A30;
+    --color-bg: #FFF8F2;
+    --color-surface: #FFFCF8;
+    --color-border: #F0C8A8;
+    --color-text: #2A2018;
+    --color-text-secondary: #8A6548;
+    --color-text-muted: #D0A880;
+    --radius: 8px;
+    --radius-sm: 4px;
+    --shadow: 0 2px 8px rgba(232, 112, 64, 0.08);
+    --shadow-md: 0 6px 18px rgba(232, 112, 64, 0.12);
+    --shadow-lg: 0 12px 36px rgba(232, 112, 64, 0.18);
+    --sidebar-bg: linear-gradient(180deg, #1A6B60 0%, #208078 50%, #28988E 100%);
+    --topbar-bg: #FFFCF8;
+    --topbar-border: 3px solid #E87040;
+    --card-border: none;
+}
+[data-theme="retro"] .sidebar .nav-item a,
+[data-theme="retro"] .sidebar .nav-item-settings a { color: #90D8CE; }
+[data-theme="retro"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+[data-theme="retro"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.2); color: #FFFFFF; }
+
+/* Mocha — dark chocolate + caramel gold, rich dark theme */
+[data-theme="mocha"] {
+    --color-primary: #D4A05A;
+    --color-primary-light: #2A2018;
+    --color-primary-dark: #E8C080;
+    --color-bg: #161010;
+    --color-surface: #1E1614;
+    --color-border: #342820;
+    --color-text: #F0E4D4;
+    --color-text-secondary: #B8A088;
+    --color-text-muted: #6A5848;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 0 10px rgba(212, 160, 90, 0.05);
+    --shadow-md: 0 0 22px rgba(212, 160, 90, 0.08);
+    --shadow-lg: 0 0 44px rgba(212, 160, 90, 0.12);
+    --sidebar-bg: linear-gradient(180deg, #120C08 0%, #1A1210 50%, #221A16 100%);
+    --topbar-bg: #1A1210;
+    --topbar-border: 1px solid #342820;
+    --card-border: 1px solid #342820;
+}
+
+/* Coral Reef — turquoise + coral, tropical and vivid */
+[data-theme="reef"] {
+    --color-primary: #FF6B6B;
+    --color-primary-light: #FFF0F0;
+    --color-primary-dark: #E04E4E;
+    --color-bg: #F0FFFE;
+    --color-surface: #F8FFFF;
+    --color-border: #A0E8E0;
+    --color-text: #1A3838;
+    --color-text-secondary: #3D7A78;
+    --color-text-muted: #70C0B8;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 10px rgba(255, 107, 107, 0.06);
+    --shadow-md: 0 8px 24px rgba(255, 107, 107, 0.1);
+    --shadow-lg: 0 16px 40px rgba(255, 107, 107, 0.15);
+    --sidebar-bg: linear-gradient(180deg, #0E7B72 0%, #14A098 50%, #18B8AE 100%);
+    --topbar-bg: #F8FFFF;
+    --topbar-border: 2px solid #A0E8E0;
+    --card-border: none;
+}
+[data-theme="reef"] .sidebar .nav-item a,
+[data-theme="reef"] .sidebar .nav-item-settings a { color: #A0F0E8; }
+[data-theme="reef"] .sidebar .nav-item a:hover { background: rgba(255,255,255,0.12); color: #FFFFFF; }
+[data-theme="reef"] .sidebar .nav-item.active a { background: rgba(255,255,255,0.2); color: #FFFFFF; }
+
+/* Storm — charcoal + electric blue, dramatic, heavy shadows */
+[data-theme="storm"] {
+    --color-primary: #4A9EF5;
+    --color-primary-light: #141820;
+    --color-primary-dark: #78B8FF;
+    --color-bg: #10141A;
+    --color-surface: #181E28;
+    --color-border: #283040;
+    --color-text: #E0E8F0;
+    --color-text-secondary: #8898B0;
+    --color-text-muted: #4A5A70;
+    --radius: 6px;
+    --radius-sm: 3px;
+    --shadow: 0 4px 16px rgba(74, 158, 245, 0.06);
+    --shadow-md: 0 8px 32px rgba(74, 158, 245, 0.1);
+    --shadow-lg: 0 16px 60px rgba(74, 158, 245, 0.16);
+    --sidebar-bg: linear-gradient(180deg, #0C1018 0%, #141A24 50%, #1A222E 100%);
+    --topbar-bg: #141A24;
+    --topbar-border: 1px solid #283040;
+    --card-border: 1px solid #283040;
+}
+
+/* Matcha — sage/matcha green, zen calm, ultra-muted */
+[data-theme="matcha"] {
+    --color-primary: #8BA88A;
+    --color-primary-light: #F0F4EF;
+    --color-primary-dark: #6B886A;
+    --color-bg: #F6F8F4;
+    --color-surface: #FBFCF9;
+    --color-border: #D0DCC8;
+    --color-text: #2A3228;
+    --color-text-secondary: #5A6858;
+    --color-text-muted: #A0B098;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 8px rgba(139, 168, 138, 0.06);
+    --shadow-md: 0 6px 18px rgba(139, 168, 138, 0.1);
+    --shadow-lg: 0 10px 30px rgba(139, 168, 138, 0.14);
+    --sidebar-bg: linear-gradient(180deg, #F0F4EF 0%, #E4EAE0 100%);
+    --topbar-bg: #FBFCF9;
+    --topbar-border: 1px solid #D0DCC8;
+    --card-border: 1px solid #D8E4D0;
+}
+
 /* --- Reset --------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 14px; }

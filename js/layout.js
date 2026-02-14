@@ -178,6 +178,22 @@
                 { id: 'newyears',    label: "New Year's",    desc: 'Luxe dark with gold sparkle accents', primary: '#D4A843', bg: '#0E0B1A', surface: '#18142A', text: '#F2ECD8', radius: '6px',  sidebarBg: '#0A0818' },
             ]
         }
+        {
+            title: 'Special',
+            icon: 'fa-star',
+            themes: [
+                { id: 'neon',      label: 'Neon',       desc: 'Cyberpunk green glow on jet black',   primary: '#39FF14', bg: '#050A05',  surface: '#0C140C', text: '#D0F0C8', radius: '2px',  sidebarBg: '#030803' },
+                { id: 'bubblegum', label: 'Bubblegum',  desc: 'Candy pink, pillowy & playful',       primary: '#FF6BB5', bg: '#FFF5FA',  surface: '#FFFFFF', text: '#5C1040', radius: '24px', sidebarBg: '#E8408F' },
+                { id: 'coffee',    label: 'Coffee',     desc: 'Espresso sidebar, warm cream surfaces', primary: '#8B5E3C', bg: '#FAF5EF', surface: '#FDF8F3', text: '#3B2614', radius: '10px', sidebarBg: '#3B2614' },
+                { id: 'arctic',    label: 'Arctic',     desc: 'Pure ice, barely-there shadows',      primary: '#88C0D0', bg: '#F8FCFD',  surface: '#FFFFFF', text: '#2E3440', radius: '6px',  sidebarBg: '#FFFFFF' },
+                { id: 'sakura',    label: 'Sakura',     desc: 'Cherry blossom + warm stone elegance', primary: '#C97B8B', bg: '#FBF6F4', surface: '#FEF9F8', text: '#3E2830', radius: '14px', sidebarBg: '#5C464C' },
+                { id: 'retro',     label: 'Retro',      desc: 'Teal sidebar + warm orange, 80s vibes', primary: '#E87040', bg: '#FFF8F2', surface: '#FFFCF8', text: '#2A2018', radius: '8px', sidebarBg: '#1A6B60' },
+                { id: 'mocha',     label: 'Mocha',      desc: 'Dark chocolate + caramel gold, rich',  primary: '#D4A05A', bg: '#161010',  surface: '#1E1614', text: '#F0E4D4', radius: '12px', sidebarBg: '#120C08' },
+                { id: 'reef',      label: 'Coral Reef', desc: 'Turquoise sidebar, coral accents',    primary: '#FF6B6B', bg: '#F0FFFE',  surface: '#F8FFFF', text: '#1A3838', radius: '16px', sidebarBg: '#0E7B72' },
+                { id: 'storm',     label: 'Storm',      desc: 'Charcoal + electric blue, dramatic',  primary: '#4A9EF5', bg: '#10141A',  surface: '#181E28', text: '#E0E8F0', radius: '6px',  sidebarBg: '#0C1018' },
+                { id: 'matcha',    label: 'Matcha',     desc: 'Sage green, zen calm, ultra-muted',   primary: '#8BA88A', bg: '#F6F8F4',  surface: '#FBFCF9', text: '#2A3228', radius: '16px', sidebarBg: '#F0F4EF' },
+            ]
+        }
     ];
 
     // Flat list for lookups
@@ -227,9 +243,16 @@
         return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
     }
 
+    function getThemeById(id) {
+        return THEMES.find(t => t.id === id) || THEMES[0];
+    }
+
     function openThemeModal() {
         if (document.getElementById('theme-modal')) return;
-        const current = localStorage.getItem('al_staging_theme') || 'default';
+        const currentId = localStorage.getItem('al_staging_theme') || 'default';
+        const currentTheme = getThemeById(currentId);
+        const totalCount = THEMES.length;
+
         const overlay = document.createElement('div');
         overlay.id = 'theme-modal';
         overlay.className = 'theme-modal-overlay';
@@ -240,7 +263,7 @@
                     <i class="fa-solid ${section.icon}"></i> ${section.title}
                 </h3>
                 <div class="theme-modal-grid">
-                    ${section.themes.map(t => buildThemeCard(t, t.id === current)).join('')}
+                    ${section.themes.map(t => buildThemeCard(t, t.id === currentId)).join('')}
                 </div>
             </div>`).join('');
 
@@ -249,11 +272,15 @@
                 <div class="theme-modal-header">
                     <div>
                         <h2 class="theme-modal-title">Settings</h2>
-                        <p class="theme-modal-subtitle">Choose a theme for your AlphaLearn experience</p>
+                        <p class="theme-modal-subtitle">Choose from ${totalCount} themes for your AlphaLearn experience</p>
                     </div>
                     <button class="theme-modal-close" id="theme-modal-close">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
+                </div>
+                <div class="theme-modal-active" id="theme-modal-active-banner">
+                    <span class="theme-modal-active-dot" style="background:${currentTheme.primary};"></span>
+                    Currently using: <span class="theme-modal-active-name">${currentTheme.label}</span>
                 </div>
                 <div class="theme-modal-body">
                     ${sectionsHTML}
@@ -261,17 +288,24 @@
             </div>`;
         document.body.appendChild(overlay);
 
+        // Track the committed theme for hover-preview revert
+        let committedThemeId = currentId;
+
         // Close handlers
         overlay.addEventListener('click', function (e) {
-            if (e.target === overlay) closeThemeModal();
+            if (e.target === overlay) closeThemeModal(committedThemeId);
         });
-        document.getElementById('theme-modal-close').addEventListener('click', closeThemeModal);
+        document.getElementById('theme-modal-close').addEventListener('click', function () {
+            closeThemeModal(committedThemeId);
+        });
 
         // Theme card click handlers
         overlay.querySelectorAll('.theme-card').forEach(card => {
+            // Click to commit
             card.addEventListener('click', function () {
                 const themeId = this.dataset.theme;
-                // Apply theme
+                committedThemeId = themeId;
+                // Apply and save
                 if (themeId === 'default') {
                     localStorage.removeItem('al_staging_theme');
                     document.documentElement.removeAttribute('data-theme');
@@ -279,7 +313,7 @@
                     localStorage.setItem('al_staging_theme', themeId);
                     document.documentElement.setAttribute('data-theme', themeId);
                 }
-                // Update active states
+                // Update active states on cards
                 overlay.querySelectorAll('.theme-card').forEach(c => {
                     c.classList.remove('active');
                     const check = c.querySelector('.theme-card-check');
@@ -287,6 +321,32 @@
                 });
                 this.classList.add('active');
                 this.insertAdjacentHTML('beforeend', '<div class="theme-card-check"><i class="fa-solid fa-circle-check"></i></div>');
+                // Update the active banner
+                const t = getThemeById(themeId);
+                const banner = document.getElementById('theme-modal-active-banner');
+                if (banner) {
+                    banner.querySelector('.theme-modal-active-dot').style.background = t.primary;
+                    banner.querySelector('.theme-modal-active-name').textContent = t.label;
+                }
+            });
+
+            // Hover to live-preview
+            card.addEventListener('mouseenter', function () {
+                const themeId = this.dataset.theme;
+                if (themeId === 'default') {
+                    document.documentElement.removeAttribute('data-theme');
+                } else {
+                    document.documentElement.setAttribute('data-theme', themeId);
+                }
+            });
+
+            // Mouse leave to revert to committed theme
+            card.addEventListener('mouseleave', function () {
+                if (committedThemeId === 'default') {
+                    document.documentElement.removeAttribute('data-theme');
+                } else {
+                    document.documentElement.setAttribute('data-theme', committedThemeId);
+                }
             });
         });
 
@@ -294,9 +354,15 @@
         requestAnimationFrame(() => overlay.classList.add('open'));
     }
 
-    function closeThemeModal() {
+    function closeThemeModal(committedId) {
         const overlay = document.getElementById('theme-modal');
         if (!overlay) return;
+        // Ensure the committed theme is applied on close (in case hover left it different)
+        if (committedId && committedId !== 'default') {
+            document.documentElement.setAttribute('data-theme', committedId);
+        } else if (committedId === 'default') {
+            document.documentElement.removeAttribute('data-theme');
+        }
         overlay.classList.remove('open');
         setTimeout(() => overlay.remove(), 200);
     }

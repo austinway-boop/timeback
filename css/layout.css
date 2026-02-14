@@ -197,15 +197,19 @@
 .theme-modal {
     background: var(--color-surface);
     border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    width: 90%;
-    max-width: 720px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    width: 92%;
+    max-width: 900px;
     max-height: 85vh;
     display: flex;
     flex-direction: column;
     transform: translateY(20px) scale(0.97);
     opacity: 0;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.theme-modal-overlay.open .theme-modal {
+    transform: translateY(0) scale(1);
+    opacity: 1;
 }
 
 .theme-modal-body {
@@ -214,51 +218,87 @@
     flex: 1;
 }
 
+/* Styled scrollbar */
+.theme-modal-body::-webkit-scrollbar { width: 6px; }
+.theme-modal-body::-webkit-scrollbar-track { background: transparent; }
+.theme-modal-body::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
+}
+.theme-modal-body::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
 .theme-modal-section {
-    margin-bottom: 24px;
+    margin-bottom: 28px;
 }
 .theme-modal-section:last-child {
     margin-bottom: 0;
 }
 
+/* Section headers with line */
 .theme-modal-section-title {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.7px;
     color: var(--color-text-muted);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 .theme-modal-section-title i {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
-.theme-modal-overlay.open .theme-modal {
-    transform: translateY(0) scale(1);
-    opacity: 1;
+.theme-modal-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
 }
 
 .theme-modal-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    padding: 24px 28px 0;
-    margin-bottom: 20px;
+    padding: 28px 28px 0;
+    margin-bottom: 8px;
 }
 
 .theme-modal-title {
-    font-size: 1.4rem;
-    font-weight: 700;
+    font-size: 1.5rem;
+    font-weight: 800;
     color: var(--color-text);
     margin: 0;
 }
 
 .theme-modal-subtitle {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: var(--color-text-secondary);
     margin: 4px 0 0;
+}
+
+/* Active theme banner */
+.theme-modal-active {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    margin: 0 28px 20px;
+    background: var(--color-bg);
+    border-radius: 10px;
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+.theme-modal-active-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    flex-shrink: 0;
+}
+.theme-modal-active-name {
+    font-weight: 700;
+    color: var(--color-text);
 }
 
 .theme-modal-close {
@@ -284,7 +324,7 @@
 /* ---- Theme card grid --------------------------------------------------- */
 .theme-modal-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
 }
 
@@ -303,25 +343,25 @@
 }
 .theme-card:hover {
     border-color: var(--color-text-muted);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    transform: translateY(-3px) scale(1.02);
 }
 .theme-card.active {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px var(--color-primary-light);
+    box-shadow: 0 0 0 3px var(--color-primary-light), 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 /* ---- Mini preview mockup ----------------------------------------------- */
 .theme-card-preview {
-    padding: 14px 14px 10px;
+    padding: 12px 12px 8px;
     border-bottom: 1px solid var(--color-border);
     border-radius: 10px 10px 0 0;
 }
 
 .theme-card-mockup {
     display: flex;
-    gap: 8px;
-    height: 64px;
+    gap: 6px;
+    height: 56px;
     border-radius: 6px;
     overflow: hidden;
 }
@@ -329,22 +369,22 @@
 .theme-mock-sidebar {
     width: 28%;
     border-right: 1px solid;
-    padding: 8px 6px;
+    padding: 7px 5px;
     border-radius: 6px 0 0 6px;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 4px;
 }
 
 .theme-mock-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     margin-bottom: 2px;
 }
 
 .theme-mock-line {
-    height: 4px;
+    height: 3px;
     border-radius: 2px;
     width: 80%;
 }
@@ -354,20 +394,20 @@
 
 .theme-mock-content {
     flex: 1;
-    padding: 8px;
+    padding: 7px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
 }
 
 .theme-mock-heading {
-    height: 6px;
+    height: 5px;
     width: 60%;
     border-radius: 3px;
 }
 
 .theme-mock-bar {
-    height: 5px;
+    height: 4px;
     width: 100%;
     border-radius: 3px;
 }
@@ -377,21 +417,21 @@
 
 /* ---- Card info + check ------------------------------------------------- */
 .theme-card-info {
-    padding: 10px 14px 12px;
+    padding: 8px 12px 10px;
 }
 
 .theme-card-name {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.92rem;
+    gap: 7px;
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--color-text);
 }
 
 .theme-card-dot {
-    width: 10px;
-    height: 10px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     flex-shrink: 0;
 }
@@ -399,30 +439,32 @@
 .theme-card-desc {
     display: block;
     margin-top: 2px;
-    padding-left: 18px;
-    font-size: 0.78rem;
+    padding-left: 16px;
+    font-size: 0.72rem;
     color: var(--color-text-secondary);
     line-height: 1.3;
 }
 
 .theme-card-check {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 8px;
+    right: 8px;
     color: var(--color-primary);
-    font-size: 1.15rem;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+    font-size: 1.1rem;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.15));
 }
 
-/* ---- Responsive: single column on narrow screens ----------------------- */
-@media (max-width: 560px) {
-    .theme-modal-grid {
-        grid-template-columns: 1fr;
-    }
-    .theme-modal {
-        width: 95%;
-        max-height: 90vh;
-    }
+/* ---- Responsive breakpoints ------------------------------------------- */
+@media (max-width: 700px) {
+    .theme-modal-grid { grid-template-columns: repeat(2, 1fr); }
+    .theme-modal { max-width: 600px; }
+}
+@media (max-width: 500px) {
+    .theme-modal-grid { grid-template-columns: 1fr; }
+    .theme-modal { width: 95%; max-height: 90vh; }
+    .theme-modal-body { padding: 0 16px 16px; }
+    .theme-modal-header { padding: 20px 16px 0; }
+    .theme-modal-active { margin: 0 16px 16px; }
 }
 
 /* ===========================================================================
