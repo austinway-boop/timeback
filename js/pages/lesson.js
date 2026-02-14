@@ -133,7 +133,12 @@
         quizState.questionNum = saved.questionNum || 0;
         quizState.answeredIds = saved.answeredIds || [];
         // Restore static quiz state if present
-        if (saved.staticIdx != null) quizState.staticIdx = saved.staticIdx;
+        if (saved.staticIdx != null) {
+            quizState.staticIdx = saved.staticIdx;
+        } else if (saved.total > 0) {
+            // Legacy data saved without staticIdx — derive position from total answered
+            quizState.staticIdx = saved.total;
+        }
         if (saved.answers) quizState.answers = saved.answers;
         if (saved.marked) quizState.marked = saved.marked;
         console.log('[QuizProgress] Restored — questionNum:', quizState.questionNum, 'total:', quizState.total, 'staticIdx:', quizState.staticIdx);
