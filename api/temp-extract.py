@@ -514,59 +514,69 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         params = get_query_params(self)
         course_id = params.get("courseId", "").strip()
+        catalog_id = params.get("catalogId", "").strip()
 
         if not course_id:
             send_json(self, {"error": "Need courseId"}, 400)
             return
 
+        # Collect all IDs to try (enrollment ID + catalog ID, deduplicated)
+        ids_to_try = [course_id]
+        if catalog_id and catalog_id != course_id:
+            ids_to_try.append(catalog_id)
+
         try:
             pp_headers = api_headers()
             qti_headers = _qti_headers()
 
-            # 1. Fetch lesson plan tree
+            # 1. Try every ID with the tree endpoint first (no user needed)
             tree = None
-
-            # 1a. Try generic tree endpoint (no user needed)
-            try:
-                resp = requests.get(
-                    f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
-                    headers=pp_headers,
-                    timeout=30,
-                )
-                if resp.status_code == 401:
-                    pp_headers = api_headers()
+            for cid in ids_to_try:
+                if tree:
+                    break
+                try:
                     resp = requests.get(
-                        f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
+                        f"{API_BASE}/powerpath/lessonPlans/tree/{cid}",
                         headers=pp_headers,
                         timeout=30,
                     )
-                if resp.status_code == 200:
-                    tree = resp.json()
-            except Exception:
-                pass
-
-            # 1b. Fallback: use service account with student-specific
-            #     endpoint (read-only GET only)
-            if not tree:
-                svc_id = _lookup_service_user(pp_headers)
-                if svc_id:
-                    try:
+                    if resp.status_code == 401:
+                        pp_headers = api_headers()
                         resp = requests.get(
-                            f"{API_BASE}/powerpath/lessonPlans/{course_id}/{svc_id}",
+                            f"{API_BASE}/powerpath/lessonPlans/tree/{cid}",
                             headers=pp_headers,
                             timeout=30,
                         )
-                        if resp.status_code == 401:
-                            pp_headers = api_headers()
+                    if resp.status_code == 200:
+                        tree = resp.json()
+                except Exception:
+                    pass
+
+            # 2. Fallback: try service account with student-specific endpoint
+            #    (read-only GET only)
+            if not tree:
+                svc_id = _lookup_service_user(pp_headers)
+                if svc_id:
+                    for cid in ids_to_try:
+                        if tree:
+                            break
+                        try:
                             resp = requests.get(
-                                f"{API_BASE}/powerpath/lessonPlans/{course_id}/{svc_id}",
+                                f"{API_BASE}/powerpath/lessonPlans/{cid}/{svc_id}",
                                 headers=pp_headers,
                                 timeout=30,
                             )
-                        if resp.status_code == 200:
-                            tree = resp.json()
-                    except Exception:
-                        pass
+                            if resp.status_code == 401:
+                                pp_headers = api_headers()
+                                resp = requests.get(
+                                    f"{API_BASE}/powerpath/lessonPlans/{cid}/{svc_id}",
+                                    headers=pp_headers,
+                                    timeout=30,
+                                )
+                            if resp.status_code == 200:
+                                tree = resp.json()
+                        except Exception:
+                            pass
 
             if not tree:
                 send_json(self, {

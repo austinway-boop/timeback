@@ -4,6 +4,7 @@
 
 var apCourses = [];
 var selectedCourseId = null;
+var selectedCatalogId = null;
 var extractedData = null;
 
 /* ---- Helpers --------------------------------------------------------- */
@@ -57,10 +58,12 @@ function setStatus(html) {
                 var cKey = cTitle.toLowerCase();
                 if (seen[cKey]) continue;
                 seen[cKey] = true;
-                // Prefer the enrollment ID (PowerPath-compatible), fall back to catalog ID
+                // Store BOTH IDs: enrollment ID (for student-specific endpoint)
+                // and catalog ID (for tree endpoint) — backend tries both
                 var enrolled = enrollMap[cKey];
                 apCourses.push({
                     sourcedId: (enrolled && enrolled.sourcedId) || cc.sourcedId || '',
+                    catalogId: cc.sourcedId || '',
                     title: cTitle,
                     courseCode: cc.courseCode || cc.sourcedId || '',
                 });
@@ -95,7 +98,7 @@ function setStatus(html) {
                     '<div class="cc-icon"><i class="fa-solid ' + icons[i % icons.length] + '"></i></div>' +
                     '<div class="cc-title">' + escapeHtml(c.title) + '</div>' +
                     '<div class="cc-meta">' + escapeHtml(c.courseCode) + '</div>';
-                card.onclick = function () { selectCourse(c.sourcedId, card); };
+                card.onclick = function () { selectCourse(c.sourcedId, c.catalogId, card); };
                 grid.appendChild(card);
             });
         })
@@ -112,8 +115,9 @@ function escapeHtml(str) {
 }
 
 /* ---- 2. Select course ------------------------------------------------ */
-function selectCourse(courseId, card) {
+function selectCourse(courseId, catalogId, card) {
     selectedCourseId = courseId;
+    selectedCatalogId = catalogId || '';
     extractedData = null;
     document.getElementById('btn-extract').disabled = false;
     document.getElementById('btn-download').disabled = true;
@@ -201,7 +205,11 @@ function extractContent() {
     startProgress();
 
     // No student ID sent — download uses admin catalog endpoints only
-    fetch('/api/temp-extract?courseId=' + encodeURIComponent(selectedCourseId))
+    var extractUrl = '/api/temp-extract?courseId=' + encodeURIComponent(selectedCourseId);
+    if (selectedCatalogId && selectedCatalogId !== selectedCourseId) {
+        extractUrl += '&catalogId=' + encodeURIComponent(selectedCatalogId);
+    }
+    fetch(extractUrl)
         .then(function (r) { return r.json(); })
         .then(function (data) {
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Extract Content';
