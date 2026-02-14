@@ -848,10 +848,14 @@
         quizState.quizLessonId = resource.componentResId || resource.resId || (lessonData && lessonData.lessonSourcedId) || testId || '';
         apState.subject = _apSubjectKey(subject) || _apSubjectKey(quizState.title);
 
+        // Detect AP exam UI early — before PowerPath, because AP UI needs all questions at once
+        var titleLower = (quizState.title || '').toLowerCase();
+        var isAPStyle = /cumulative\s*review|mcq|frq|saq|dbq|leq|end.of.view|end.of.unit|unit\s*\d+\s*(mcq|frq|saq)?\s*test|final.test|exam|assessment|aps[\s:\-]/i.test(titleLower);
+
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
 
-        // ── 1. PowerPath adaptive flow ──
-        if (userId && (testId || qtiUrl)) {
+        // ── 1. PowerPath adaptive flow (skip for AP-style — needs all questions at once) ──
+        if (!isAPStyle && userId && (testId || qtiUrl)) {
             try {
                 // Use the quiz resource's componentResId as the PowerPath lesson ID
                 // PowerPath needs format like "USHI23-l48-r104178-v1", not "USHI23-l48-v1"
@@ -1586,7 +1590,7 @@
             // AP exam UI for cumulative reviews, end-of-unit assessments, and MCQ tests
             // Excludes standalone "review" (e.g. Heimler's Review) which are just videos
             var titleLower = (quizState.title || '').toLowerCase();
-            var isAPStyle = /cumulative\s*review|mcq|end.of.unit|unit\s*\d+\s*(mcq|frq|saq)?\s*test|final.test|exam|assessment|aps[\s:\-]/i.test(titleLower);
+            var isAPStyle = /cumulative\s*review|mcq|frq|saq|dbq|leq|end.of.view|end.of.unit|unit\s*\d+\s*(mcq|frq|saq)?\s*test|final.test|exam|assessment|aps[\s:\-]/i.test(titleLower);
 
             if (isAPStyle) {
                 quizState.answers = new Array(quizState.staticQuestions.length).fill(null);
