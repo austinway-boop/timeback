@@ -1230,6 +1230,30 @@
             }
         }
 
+        // Silent skill tracking: log answer to KV (non-blocking, fire-and-forget)
+        try {
+            var _qid = '';
+            if (quizState.attemptId && quizState.currentQuestion) {
+                _qid = quizState.currentQuestion.id || quizState.currentQuestion.questionId || '';
+            } else if (quizState.staticQuestions && quizState.staticQuestions[quizState.staticIdx]) {
+                var _sq = quizState.staticQuestions[quizState.staticIdx];
+                _qid = _sq.identifier || _sq.id || _sq.questionId || '';
+            }
+            if (_qid && typeof syncState !== 'undefined' && syncState.userId) {
+                fetch('/api/log-answer', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        studentId: syncState.userId,
+                        courseId: (lessonData && lessonData.courseSourcedId) || '',
+                        questionId: _qid,
+                        choiceId: quizState.selectedChoice || '',
+                        correct: isCorrect,
+                    })
+                }).catch(function(){});
+            }
+        } catch(e) {}
+
         // Score
         var pointsChange = 0;
         if (isCorrect) {

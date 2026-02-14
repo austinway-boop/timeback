@@ -20,7 +20,7 @@ from http.server import BaseHTTPRequestHandler
 import requests
 
 from api._helpers import API_BASE, api_headers, send_json, get_query_params
-from api._kv import kv_get
+from api._kv import kv_get, kv_set
 
 # Scoring constants
 CORRECT_POINTS = 15
@@ -109,16 +109,45 @@ def _resolve_pp100_course_id(course_id: str) -> str:
 
 def _fetch_student_answers(student_id: str, course_id: str) -> dict:
     """Fetch all of a student's question-level answers for a course.
-    Finds the PP100 course, gets the student's lesson plan, extracts
-    component resource sourcedIds, and fetches assessment progress.
+    Primary source: KV (logged by /api/log-answer from lesson viewer).
+    Secondary source: PowerPath getAssessmentProgress.
     Returns {questionId: {'correct': bool, 'answered': bool}}."""
+    answers = {}
+
+    # Primary source: KV answer log (from lesson viewer)
+    # Try both the admin course ID and the PP100 course ID
+    pp100_id = _resolve_pp100_course_id(course_id)
+    kv_keys_to_try = [
+        f"student_answers:{student_id}:{course_id}",
+        f"student_answers:{student_id}:{pp100_id}",
+    ]
+    if course_id == pp100_id:
+        kv_keys_to_try = [kv_keys_to_try[0]]
+
+    for kv_key in kv_keys_to_try:
+        kv_answers = kv_get(kv_key)
+        if isinstance(kv_answers, list):
+            for entry in kv_answers:
+                if isinstance(entry, dict):
+                    qid = entry.get("questionId", "")
+                    if qid:
+                        answers[qid] = {
+                            "correct": bool(entry.get("correct", False)),
+                            "answered": True,
+                        }
+
+    # Secondary source: PowerPath assessment progress (for adaptive quizzes)
+    if not answers:
+        answers = _fetch_powerpath_answers(student_id, course_id, pp100_id)
+
+    return answers
+
+
+def _fetch_powerpath_answers(student_id: str, course_id: str, pp100_id: str) -> dict:
+    """Fallback: fetch answers from PowerPath getAssessmentProgress."""
     answers = {}
     headers = api_headers()
 
-    # Resolve the PP100 course ID
-    pp100_id = _resolve_pp100_course_id(course_id)
-
-    # Try to get the student's lesson plan
     tree = None
     ids_to_try = [pp100_id]
     if course_id != pp100_id:
@@ -144,11 +173,8 @@ def _fetch_student_answers(student_id: str, course_id: str) -> dict:
     if not tree:
         return answers
 
-    # Extract component resource sourcedIds (the lesson IDs for PowerPath)
     cr_ids = _extract_assessment_cr_ids(tree)
-
-    # Fetch assessment progress for each CR
-    for cr_id in cr_ids[:100]:  # Cap to avoid timeout
+    for cr_id in cr_ids[:100]:
         try:
             resp = requests.get(
                 f"{API_BASE}/powerpath/getAssessmentProgress",
@@ -161,7 +187,6 @@ def _fetch_student_answers(student_id: str, course_id: str) -> dict:
                 for q in progress.get("questions", []):
                     qid = q.get("id", "")
                     answered = q.get("answered", False)
-                    # PowerPath uses 'correct' field (True/False/None)
                     correct = q.get("correct")
                     if qid and (answered or correct is not None):
                         answers[qid] = {
@@ -327,7 +352,7 @@ class handler(BaseHTTPRequestHandler):
         weak = sum(1 for s in skills.values() if s["mastery"] == "weak")
         not_learned = sum(1 for s in skills.values() if s["mastery"] == "not_learned")
 
-        send_json(self, {
+        result = {
             "skills": skills,
             "summary": {
                 "total": total_skills,
@@ -338,4 +363,16 @@ class handler(BaseHTTPRequestHandler):
                 "answeredQuestions": len(answers),
             },
             "courseTitle": saved_tree.get("courseTitle", ""),
-        })
+        }
+
+        # Save computed scores to KV for persistence
+        try:
+            kv_set(f"skill_scores:{student_id}:{course_id}", {
+                "skills": skills,
+                "summary": result["summary"],
+                "computedAt": time.time(),
+            })
+        except Exception:
+            pass
+
+        send_json(self, result)
