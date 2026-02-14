@@ -135,54 +135,85 @@
         });
     });
 
-    /* ---- Theme Settings Bar (staging only) ------------------------------ */
-    /* Exposed as a global so staging.js can call it after async auto-login */
-    window._renderStagingThemeBar = function () {
-        const sb = document.getElementById('sidebar');
-        if (!sb || sb.querySelector('.sidebar-settings')) return; // already rendered or no sidebar
+    /* ---- Theme Settings (staging only) ---------------------------------- */
+    /* Adds a "Settings" nav item + a full-screen modal with theme cards.    */
+    /* Exposed as a global so staging.js can call after async auto-login.    */
 
-        const themes = [
-            { id: 'default',  label: 'Default',  color: '#45B5AA' },
-            { id: 'ocean',    label: 'Ocean',     color: '#2B6CB0' },
-            { id: 'lavender', label: 'Lavender',  color: '#7C3AED' },
-            { id: 'sunset',   label: 'Sunset',    color: '#EA580C' },
-            { id: 'rose',     label: 'Rose',      color: '#E11D48' },
-            { id: 'forest',   label: 'Forest',    color: '#16A34A' },
-            { id: 'slate',    label: 'Slate',     color: '#64748B' },
-            { id: 'midnight', label: 'Midnight',  color: '#6366F1' },
-            { id: 'berry',    label: 'Berry',     color: '#C026D3' },
-            { id: 'amber',    label: 'Amber',     color: '#D97706' },
-        ];
-        const currentTheme = localStorage.getItem('al_staging_theme') || 'default';
+    const THEMES = [
+        { id: 'default',  label: 'Default',   desc: 'Clean teal — the classic look',          primary: '#45B5AA', bg: '#F4F6F9',  surface: '#FFFFFF', text: '#2D3748' },
+        { id: 'ocean',    label: 'Ocean',      desc: 'Deep blue, calm and focused',            primary: '#2B6CB0', bg: '#EFF6FF',  surface: '#FFFFFF', text: '#1E3A5F' },
+        { id: 'lavender', label: 'Lavender',   desc: 'Soft purple, creative vibes',            primary: '#7C3AED', bg: '#F5F3FF',  surface: '#FFFFFF', text: '#3B1F6E' },
+        { id: 'sunset',   label: 'Sunset',     desc: 'Warm orange, energetic and bold',        primary: '#EA580C', bg: '#FFFBF5',  surface: '#FFFFFF', text: '#5C2D0E' },
+        { id: 'rose',     label: 'Rose',       desc: 'Elegant pink, refined and modern',       primary: '#E11D48', bg: '#FFF5F6',  surface: '#FFFFFF', text: '#4C0519' },
+        { id: 'forest',   label: 'Forest',     desc: 'Natural green, earthy and grounded',     primary: '#16A34A', bg: '#F0FDF4',  surface: '#FFFFFF', text: '#14432A' },
+        { id: 'slate',    label: 'Slate',      desc: 'Neutral gray, minimal and clean',        primary: '#64748B', bg: '#F8FAFC',  surface: '#FFFFFF', text: '#1E293B' },
+        { id: 'midnight', label: 'Midnight',   desc: 'Dark mode — easy on the eyes',           primary: '#6366F1', bg: '#0F172A',  surface: '#1E293B', text: '#F1F5F9' },
+        { id: 'berry',    label: 'Berry',      desc: 'Bold magenta, playful and vibrant',      primary: '#C026D3', bg: '#FDF4FF',  surface: '#FFFFFF', text: '#4A044E' },
+        { id: 'amber',    label: 'Amber',      desc: 'Golden warmth, cozy and inviting',       primary: '#D97706', bg: '#FFFDF5',  surface: '#FFFFFF', text: '#5C3D0E' },
+    ];
 
-        const settingsHTML = `
-            <div class="sidebar-settings">
-                <div class="sidebar-settings-header">
-                    <i class="fa-solid fa-palette"></i> Theme
+    function buildThemeCard(t, isActive) {
+        return `
+            <button class="theme-card${isActive ? ' active' : ''}" data-theme="${t.id}">
+                <div class="theme-card-preview" style="background:${t.bg}; border-color:${t.primary}20;">
+                    <div class="theme-card-mockup">
+                        <div class="theme-mock-sidebar" style="background:${t.surface}; border-color:${t.primary}20;">
+                            <div class="theme-mock-dot" style="background:${t.primary};"></div>
+                            <div class="theme-mock-line" style="background:${t.primary}30;"></div>
+                            <div class="theme-mock-line short" style="background:${t.primary}20;"></div>
+                        </div>
+                        <div class="theme-mock-content">
+                            <div class="theme-mock-heading" style="background:${t.text}; opacity:0.7;"></div>
+                            <div class="theme-mock-bar" style="background:${t.primary};"></div>
+                            <div class="theme-mock-bar half" style="background:${t.primary}40;"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="theme-swatches">
-                    ${themes.map(t =>
-                        `<button class="theme-swatch${t.id === currentTheme ? ' active' : ''}"
-                                 data-theme="${t.id}"
-                                 style="background:${t.color};"
-                                 title="${t.label}"></button>`
-                    ).join('')}
+                <div class="theme-card-info">
+                    <span class="theme-card-name">
+                        <span class="theme-card-dot" style="background:${t.primary};"></span>
+                        ${t.label}
+                    </span>
+                    <span class="theme-card-desc">${t.desc}</span>
+                </div>
+                ${isActive ? '<div class="theme-card-check"><i class="fa-solid fa-circle-check"></i></div>' : ''}
+            </button>`;
+    }
+
+    function openThemeModal() {
+        if (document.getElementById('theme-modal')) return;
+        const current = localStorage.getItem('al_staging_theme') || 'default';
+        const overlay = document.createElement('div');
+        overlay.id = 'theme-modal';
+        overlay.className = 'theme-modal-overlay';
+        overlay.innerHTML = `
+            <div class="theme-modal">
+                <div class="theme-modal-header">
+                    <div>
+                        <h2 class="theme-modal-title">Settings</h2>
+                        <p class="theme-modal-subtitle">Choose a theme for your AlphaLearn experience</p>
+                    </div>
+                    <button class="theme-modal-close" id="theme-modal-close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="theme-modal-grid">
+                    ${THEMES.map(t => buildThemeCard(t, t.id === current)).join('')}
                 </div>
             </div>`;
-        sb.insertAdjacentHTML('beforeend', settingsHTML);
+        document.body.appendChild(overlay);
 
-        // Make sidebar flex so the settings bar anchors to the bottom
-        sb.style.display = 'flex';
-        sb.style.flexDirection = 'column';
-        const navList = sb.querySelector('.nav-list');
-        if (navList) navList.style.flex = '1';
+        // Close handlers
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeThemeModal();
+        });
+        document.getElementById('theme-modal-close').addEventListener('click', closeThemeModal);
 
-        // Click handlers
-        sb.querySelectorAll('.theme-swatch').forEach(btn => {
-            btn.addEventListener('click', function () {
+        // Theme card click handlers
+        overlay.querySelectorAll('.theme-card').forEach(card => {
+            card.addEventListener('click', function () {
                 const themeId = this.dataset.theme;
-                sb.querySelectorAll('.theme-swatch').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
+                // Apply theme
                 if (themeId === 'default') {
                     localStorage.removeItem('al_staging_theme');
                     document.documentElement.removeAttribute('data-theme');
@@ -190,7 +221,48 @@
                     localStorage.setItem('al_staging_theme', themeId);
                     document.documentElement.setAttribute('data-theme', themeId);
                 }
+                // Update active states
+                overlay.querySelectorAll('.theme-card').forEach(c => {
+                    c.classList.remove('active');
+                    const check = c.querySelector('.theme-card-check');
+                    if (check) check.remove();
+                });
+                this.classList.add('active');
+                this.insertAdjacentHTML('beforeend', '<div class="theme-card-check"><i class="fa-solid fa-circle-check"></i></div>');
             });
+        });
+
+        // Animate in
+        requestAnimationFrame(() => overlay.classList.add('open'));
+    }
+
+    function closeThemeModal() {
+        const overlay = document.getElementById('theme-modal');
+        if (!overlay) return;
+        overlay.classList.remove('open');
+        setTimeout(() => overlay.remove(), 200);
+    }
+
+    window._renderStagingThemeBar = function () {
+        const sb = document.getElementById('sidebar');
+        if (!sb) return;
+        const navList = sb.querySelector('.nav-list');
+        if (!navList || navList.querySelector('.nav-item-settings')) return; // already rendered
+
+        // Add Settings nav item at the bottom of the nav list
+        const settingsItem = document.createElement('li');
+        settingsItem.className = 'nav-item nav-item-settings';
+        settingsItem.innerHTML = `
+            <a href="#" id="staging-settings-btn">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>`;
+        navList.appendChild(settingsItem);
+
+        // Open modal on click
+        settingsItem.querySelector('a').addEventListener('click', function (e) {
+            e.preventDefault();
+            openThemeModal();
         });
     };
 
