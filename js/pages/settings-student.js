@@ -16,7 +16,7 @@
     const subtitle = document.getElementById('theme-count-subtitle');
     if (subtitle) subtitle.textContent = `Choose from ${THEMES.length} themes for your AlphaLearn experience`;
 
-    const currentId = localStorage.getItem('al_staging_theme') || 'default';
+    const currentId = localStorage.getItem('al_theme') || 'default';
 
     /* ---- Helpers -------------------------------------------------------- */
     function getThemeById(id) {
@@ -86,10 +86,10 @@
             committedThemeId = themeId;
 
             if (themeId === 'default') {
-                localStorage.removeItem('al_staging_theme');
+                localStorage.removeItem('al_theme');
                 document.documentElement.removeAttribute('data-theme');
             } else {
-                localStorage.setItem('al_staging_theme', themeId);
+                localStorage.setItem('al_theme', themeId);
                 document.documentElement.setAttribute('data-theme', themeId);
             }
 

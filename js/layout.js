@@ -4,10 +4,10 @@
    =========================================================================== */
 
 (function () {
-    /* ---- Apply saved staging theme immediately --------------------------- */
-    const _stagingTheme = localStorage.getItem('al_staging_theme');
-    if (_stagingTheme && localStorage.getItem('alphalearn_staging')) {
-        document.documentElement.setAttribute('data-theme', _stagingTheme);
+    /* ---- Apply saved theme immediately ---------------------------------- */
+    const _savedTheme = localStorage.getItem('al_theme');
+    if (_savedTheme) {
+        document.documentElement.setAttribute('data-theme', _savedTheme);
     }
 
     const view   = document.body.dataset.view   || 'student';
@@ -71,8 +71,9 @@
     if (!sidebar) return;
 
     const studentNav = [
-        { id: 'home',     icon: 'fa-house',    label: 'Home',   href: '/dashboard' },
-        { id: 'goals',    icon: 'fa-bullseye',  label: 'Goals',  href: '/goals' },
+        { id: 'home',     icon: 'fa-house',    label: 'Home',     href: '/dashboard' },
+        { id: 'goals',    icon: 'fa-bullseye',  label: 'Goals',   href: '/goals' },
+        { id: 'settings', icon: 'fa-gear',      label: 'Settings', href: '/settings' },
     ];
 
     const adminNav = [
@@ -203,25 +204,6 @@
     window._THEME_SECTIONS = THEME_SECTIONS;
     window._THEMES = THEMES;
 
-    window._renderStagingThemeBar = function () {
-        const sb = document.getElementById('sidebar');
-        if (!sb) return;
-        const navList = sb.querySelector('.nav-list');
-        if (!navList || navList.querySelector('.nav-item-settings')) return; // already rendered
-
-        // Add Settings nav item linking to the settings page
-        const settingsItem = document.createElement('li');
-        settingsItem.className = 'nav-item nav-item-settings' + (active === 'settings' ? ' active' : '');
-        settingsItem.innerHTML = `
-            <a href="/settings">
-                <i class="fa-solid fa-gear"></i>
-                <span>Settings</span>
-            </a>`;
-        navList.appendChild(settingsItem);
-    };
-
-    // Render immediately if staging flag is already set
-    if (localStorage.getItem('alphalearn_staging')) {
-        window._renderStagingThemeBar();
-    }
+    // Keep as no-op for backwards compat with staging.js
+    window._renderStagingThemeBar = function () {};
 })();
