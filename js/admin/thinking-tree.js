@@ -2,7 +2,6 @@
    Thinking Tree – Student Skill Mastery Visualization
    ==================================================================== */
 var selectedStudent = null;
-var isStaging = false;
 
 function esc(s) {
     if (s == null) return '';
@@ -13,7 +12,6 @@ function esc(s) {
 var searchInput, searchTimer;
 
 document.addEventListener('DOMContentLoaded', function() {
-    isStaging = !!localStorage.getItem('alphalearn_staging');
     searchInput = document.getElementById('student-search');
     searchInput.addEventListener('input', function() {
         clearTimeout(searchTimer);
@@ -127,19 +125,6 @@ function clearStudent() {
 /* ── Load Tree Content ─────────────────────────────────────── */
 async function loadTreeContent() {
     var el = document.getElementById('tree-content');
-
-    // Staging gate
-    if (!isStaging) {
-        el.innerHTML =
-            '<div class="tt-notice">' +
-                '<i class="fa-solid fa-flask"></i>' +
-                '<div>' +
-                    '<strong>Staging Mode Required</strong>' +
-                    '<p>Skill mastery tracking is currently only available in staging mode. Go to the <a href="/staging">Staging Hub</a> to enable it.</p>' +
-                '</div>' +
-            '</div>';
-        return;
-    }
 
     el.innerHTML = '<div class="tt-loading"><div class="tt-spinner"></div> Loading skill-mapped courses...</div>';
 
