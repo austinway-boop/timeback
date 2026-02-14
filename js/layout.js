@@ -139,18 +139,49 @@
     /* Adds a "Settings" nav item + a full-screen modal with theme cards.    */
     /* Exposed as a global so staging.js can call after async auto-login.    */
 
-    const THEMES = [
-        { id: 'default',  label: 'Default',   desc: 'Clean teal — the classic look',          primary: '#45B5AA', bg: '#F4F6F9',  surface: '#FFFFFF', text: '#2D3748' },
-        { id: 'ocean',    label: 'Ocean',      desc: 'Deep blue, calm and focused',            primary: '#2B6CB0', bg: '#EFF6FF',  surface: '#FFFFFF', text: '#1E3A5F' },
-        { id: 'lavender', label: 'Lavender',   desc: 'Soft purple, creative vibes',            primary: '#7C3AED', bg: '#F5F3FF',  surface: '#FFFFFF', text: '#3B1F6E' },
-        { id: 'sunset',   label: 'Sunset',     desc: 'Warm orange, energetic and bold',        primary: '#EA580C', bg: '#FFFBF5',  surface: '#FFFFFF', text: '#5C2D0E' },
-        { id: 'rose',     label: 'Rose',       desc: 'Elegant pink, refined and modern',       primary: '#E11D48', bg: '#FFF5F6',  surface: '#FFFFFF', text: '#4C0519' },
-        { id: 'forest',   label: 'Forest',     desc: 'Natural green, earthy and grounded',     primary: '#16A34A', bg: '#F0FDF4',  surface: '#FFFFFF', text: '#14432A' },
-        { id: 'slate',    label: 'Slate',      desc: 'Neutral gray, minimal and clean',        primary: '#64748B', bg: '#F8FAFC',  surface: '#FFFFFF', text: '#1E293B' },
-        { id: 'midnight', label: 'Midnight',   desc: 'Dark mode — easy on the eyes',           primary: '#6366F1', bg: '#0F172A',  surface: '#1E293B', text: '#F1F5F9' },
-        { id: 'berry',    label: 'Berry',      desc: 'Bold magenta, playful and vibrant',      primary: '#C026D3', bg: '#FDF4FF',  surface: '#FFFFFF', text: '#4A044E' },
-        { id: 'amber',    label: 'Amber',      desc: 'Golden warmth, cozy and inviting',       primary: '#D97706', bg: '#FFFDF5',  surface: '#FFFFFF', text: '#5C3D0E' },
+    const THEME_SECTIONS = [
+        {
+            title: 'Standard',
+            icon: 'fa-palette',
+            themes: [
+                { id: 'default',  label: 'Default',   desc: 'Clean teal — the classic look',      primary: '#45B5AA', bg: '#F4F6F9',  surface: '#FFFFFF', text: '#2D3748' },
+                { id: 'ocean',    label: 'Ocean',      desc: 'Deep blue, calm and focused',        primary: '#1D63A6', bg: '#EBF2FA',  surface: '#F5F9FF', text: '#0F2942' },
+                { id: 'lavender', label: 'Lavender',   desc: 'Soft purple, creative energy',       primary: '#7C3AED', bg: '#F3F0FF',  surface: '#FAF8FF', text: '#2E1065' },
+                { id: 'sunset',   label: 'Sunset',     desc: 'Warm coral, energetic and bold',     primary: '#DC4E11', bg: '#FFF5EB',  surface: '#FFFAF5', text: '#431407' },
+                { id: 'rose',     label: 'Rose',       desc: 'Elegant pink, refined and modern',   primary: '#DB2777', bg: '#FDF2F8',  surface: '#FFF5FA', text: '#500724' },
+                { id: 'forest',   label: 'Forest',     desc: 'Deep green, earthy and grounded',    primary: '#0D7C3E', bg: '#ECFDF2',  surface: '#F5FFF8', text: '#052E16' },
+                { id: 'slate',    label: 'Slate',      desc: 'Neutral gray, minimal and clean',    primary: '#64748B', bg: '#F1F5F9',  surface: '#FFFFFF', text: '#0F172A' },
+                { id: 'midnight', label: 'Midnight',   desc: 'Dark mode — easy on the eyes',       primary: '#818CF8', bg: '#0B1120',  surface: '#151D2E', text: '#E8ECF4' },
+                { id: 'berry',    label: 'Berry',      desc: 'Bold magenta, playful and vibrant',  primary: '#C026D3', bg: '#FBF0FF',  surface: '#FEF9FF', text: '#3B0544' },
+                { id: 'amber',    label: 'Amber',      desc: 'Golden honey, cozy and inviting',    primary: '#C47E0B', bg: '#FFFBEB',  surface: '#FFFDF5', text: '#451A03' },
+            ]
+        },
+        {
+            title: 'Seasonal',
+            icon: 'fa-sun',
+            themes: [
+                { id: 'spring',   label: 'Spring',    desc: 'Cherry blossoms and fresh starts',    primary: '#E4729B', bg: '#FFF7FA',  surface: '#FFFBFD', text: '#4A1A2E' },
+                { id: 'summer',   label: 'Summer',    desc: 'Bright skies and ocean breeze',       primary: '#0891B2', bg: '#EFFCFF',  surface: '#F8FEFF', text: '#134E5A' },
+                { id: 'autumn',   label: 'Autumn',    desc: 'Warm maple and golden leaves',        primary: '#B45309', bg: '#FBF5EC',  surface: '#FDF9F3', text: '#3D1E03' },
+                { id: 'winter',   label: 'Winter',    desc: 'Frosty blue and silver mornings',     primary: '#6B8FC7', bg: '#F0F4FA',  surface: '#F8FAFF', text: '#1C2D44' },
+            ]
+        },
+        {
+            title: 'Holidays',
+            icon: 'fa-gift',
+            themes: [
+                { id: 'valentines',  label: "Valentine's",   desc: 'Romance, hearts, and roses',        primary: '#E63462', bg: '#FFF0F3',  surface: '#FFF8F9', text: '#4A0E20' },
+                { id: 'stpatricks',  label: "St. Patrick's", desc: 'Shamrocks and lucky gold',           primary: '#228B22', bg: '#F0F9F0',  surface: '#F7FCF7', text: '#0B3B0B' },
+                { id: 'july4th',     label: 'July 4th',      desc: 'Stars, stripes, and liberty',       primary: '#2553A0', bg: '#F2F5FB',  surface: '#FAFBFF', text: '#111D33' },
+                { id: 'halloween',   label: 'Halloween',     desc: 'Spooky orange on purple night',     primary: '#E86C1A', bg: '#1A1025',  surface: '#231530', text: '#F0E6F6' },
+                { id: 'christmas',   label: 'Christmas',     desc: 'Holly red and snowy white',          primary: '#C41E3A', bg: '#FDF5F5',  surface: '#FFFAFA', text: '#3D0A14' },
+                { id: 'newyears',    label: "New Year's",    desc: 'Midnight glamour and champagne gold', primary: '#D4A843', bg: '#0E0B1A', surface: '#18142A', text: '#F2ECD8' },
+            ]
+        }
     ];
+
+    // Flat list for lookups
+    const THEMES = THEME_SECTIONS.flatMap(s => s.themes);
 
     function buildThemeCard(t, isActive) {
         return `
@@ -186,6 +217,17 @@
         const overlay = document.createElement('div');
         overlay.id = 'theme-modal';
         overlay.className = 'theme-modal-overlay';
+
+        const sectionsHTML = THEME_SECTIONS.map(section => `
+            <div class="theme-modal-section">
+                <h3 class="theme-modal-section-title">
+                    <i class="fa-solid ${section.icon}"></i> ${section.title}
+                </h3>
+                <div class="theme-modal-grid">
+                    ${section.themes.map(t => buildThemeCard(t, t.id === current)).join('')}
+                </div>
+            </div>`).join('');
+
         overlay.innerHTML = `
             <div class="theme-modal">
                 <div class="theme-modal-header">
@@ -197,8 +239,8 @@
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div class="theme-modal-grid">
-                    ${THEMES.map(t => buildThemeCard(t, t.id === current)).join('')}
+                <div class="theme-modal-body">
+                    ${sectionsHTML}
                 </div>
             </div>`;
         document.body.appendChild(overlay);

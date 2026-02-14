@@ -40,112 +40,238 @@
 /* --- Theme Overrides (staging only) ------------------------------------- */
 /* Default theme uses :root values above — no override needed */
 
+/* ===== STANDARD THEMES ================================================= */
+
 [data-theme="ocean"] {
-    --color-primary: #2B6CB0;
-    --color-primary-light: #E3F0FF;
-    --color-primary-dark: #1E4E8C;
-    --color-bg: #EFF6FF;
-    --color-surface: #FFFFFF;
-    --color-border: #BFDBFE;
-    --color-text: #1E3A5F;
-    --color-text-secondary: #4A6FA5;
-    --color-text-muted: #7EB0D5;
+    --color-primary: #1D63A6;
+    --color-primary-light: #DBEAFE;
+    --color-primary-dark: #14477A;
+    --color-bg: #EBF2FA;
+    --color-surface: #F5F9FF;
+    --color-border: #A8CBE8;
+    --color-text: #0F2942;
+    --color-text-secondary: #3B6B9E;
+    --color-text-muted: #7AADDB;
 }
 
 [data-theme="lavender"] {
     --color-primary: #7C3AED;
     --color-primary-light: #EDE9FE;
     --color-primary-dark: #5B21B6;
-    --color-bg: #F5F3FF;
-    --color-surface: #FFFFFF;
-    --color-border: #DDD6FE;
-    --color-text: #3B1F6E;
+    --color-bg: #F3F0FF;
+    --color-surface: #FAF8FF;
+    --color-border: #C4B5FD;
+    --color-text: #2E1065;
     --color-text-secondary: #6D5BA0;
     --color-text-muted: #A78BFA;
 }
 
 [data-theme="sunset"] {
-    --color-primary: #EA580C;
-    --color-primary-light: #FFF7ED;
-    --color-primary-dark: #C2410C;
-    --color-bg: #FFFBF5;
-    --color-surface: #FFFFFF;
-    --color-border: #FED7AA;
-    --color-text: #5C2D0E;
-    --color-text-secondary: #9A5B2F;
-    --color-text-muted: #FDBA74;
+    --color-primary: #DC4E11;
+    --color-primary-light: #FFEDD5;
+    --color-primary-dark: #B93E0A;
+    --color-bg: #FFF5EB;
+    --color-surface: #FFFAF5;
+    --color-border: #FBCDA8;
+    --color-text: #431407;
+    --color-text-secondary: #8B4513;
+    --color-text-muted: #E8945A;
 }
 
 [data-theme="rose"] {
-    --color-primary: #E11D48;
-    --color-primary-light: #FFF1F2;
-    --color-primary-dark: #BE123C;
-    --color-bg: #FFF5F6;
-    --color-surface: #FFFFFF;
-    --color-border: #FECDD3;
-    --color-text: #4C0519;
-    --color-text-secondary: #9F1239;
-    --color-text-muted: #FDA4AF;
+    --color-primary: #DB2777;
+    --color-primary-light: #FCE7F3;
+    --color-primary-dark: #9D174D;
+    --color-bg: #FDF2F8;
+    --color-surface: #FFF5FA;
+    --color-border: #F9A8D4;
+    --color-text: #500724;
+    --color-text-secondary: #9D174D;
+    --color-text-muted: #F472B6;
 }
 
 [data-theme="forest"] {
-    --color-primary: #16A34A;
-    --color-primary-light: #DCFCE7;
-    --color-primary-dark: #15803D;
-    --color-bg: #F0FDF4;
-    --color-surface: #FFFFFF;
-    --color-border: #BBF7D0;
-    --color-text: #14432A;
-    --color-text-secondary: #3D7A53;
-    --color-text-muted: #86EFAC;
+    --color-primary: #0D7C3E;
+    --color-primary-light: #D1FAE5;
+    --color-primary-dark: #065F2C;
+    --color-bg: #ECFDF2;
+    --color-surface: #F5FFF8;
+    --color-border: #86EFAC;
+    --color-text: #052E16;
+    --color-text-secondary: #276749;
+    --color-text-muted: #6EE7A0;
 }
 
 [data-theme="slate"] {
     --color-primary: #64748B;
     --color-primary-light: #F1F5F9;
     --color-primary-dark: #475569;
-    --color-bg: #F8FAFC;
+    --color-bg: #F1F5F9;
     --color-surface: #FFFFFF;
     --color-border: #CBD5E1;
-    --color-text: #1E293B;
+    --color-text: #0F172A;
     --color-text-secondary: #64748B;
     --color-text-muted: #94A3B8;
 }
 
 [data-theme="midnight"] {
-    --color-primary: #6366F1;
+    --color-primary: #818CF8;
     --color-primary-light: #1E1B4B;
-    --color-primary-dark: #818CF8;
-    --color-bg: #0F172A;
-    --color-surface: #1E293B;
-    --color-border: #334155;
-    --color-text: #F1F5F9;
-    --color-text-secondary: #94A3B8;
-    --color-text-muted: #64748B;
+    --color-primary-dark: #A5B4FC;
+    --color-bg: #0B1120;
+    --color-surface: #151D2E;
+    --color-border: #283448;
+    --color-text: #E8ECF4;
+    --color-text-secondary: #8B99B0;
+    --color-text-muted: #4B5A72;
 }
 
 [data-theme="berry"] {
     --color-primary: #C026D3;
     --color-primary-light: #FAE8FF;
     --color-primary-dark: #A21CAF;
-    --color-bg: #FDF4FF;
-    --color-surface: #FFFFFF;
-    --color-border: #F0ABFC;
-    --color-text: #4A044E;
-    --color-text-secondary: #86198F;
-    --color-text-muted: #E879F9;
+    --color-bg: #FBF0FF;
+    --color-surface: #FEF9FF;
+    --color-border: #E8A8F5;
+    --color-text: #3B0544;
+    --color-text-secondary: #7E22CE;
+    --color-text-muted: #D67EE8;
 }
 
 [data-theme="amber"] {
-    --color-primary: #D97706;
-    --color-primary-light: #FFFBEB;
-    --color-primary-dark: #B45309;
-    --color-bg: #FFFDF5;
-    --color-surface: #FFFFFF;
-    --color-border: #FDE68A;
-    --color-text: #5C3D0E;
-    --color-text-secondary: #92600A;
-    --color-text-muted: #FCD34D;
+    --color-primary: #C47E0B;
+    --color-primary-light: #FEF3C7;
+    --color-primary-dark: #92400E;
+    --color-bg: #FFFBEB;
+    --color-surface: #FFFDF5;
+    --color-border: #FCD34D;
+    --color-text: #451A03;
+    --color-text-secondary: #854D0E;
+    --color-text-muted: #F3C34A;
+}
+
+/* ===== SEASONAL THEMES ================================================= */
+
+[data-theme="spring"] {
+    --color-primary: #E4729B;
+    --color-primary-light: #FFF0F5;
+    --color-primary-dark: #C74B78;
+    --color-bg: #FFF7FA;
+    --color-surface: #FFFBFD;
+    --color-border: #FBCFE8;
+    --color-text: #4A1A2E;
+    --color-text-secondary: #9D4C6E;
+    --color-text-muted: #F0A3C4;
+}
+
+[data-theme="summer"] {
+    --color-primary: #0891B2;
+    --color-primary-light: #CFFAFE;
+    --color-primary-dark: #0E7490;
+    --color-bg: #EFFCFF;
+    --color-surface: #F8FEFF;
+    --color-border: #67E8F9;
+    --color-text: #134E5A;
+    --color-text-secondary: #0E7490;
+    --color-text-muted: #4DD6E8;
+}
+
+[data-theme="autumn"] {
+    --color-primary: #B45309;
+    --color-primary-light: #FEF3C7;
+    --color-primary-dark: #8B3E06;
+    --color-bg: #FBF5EC;
+    --color-surface: #FDF9F3;
+    --color-border: #DEB887;
+    --color-text: #3D1E03;
+    --color-text-secondary: #8B5E34;
+    --color-text-muted: #D4A574;
+}
+
+[data-theme="winter"] {
+    --color-primary: #6B8FC7;
+    --color-primary-light: #E8F0FE;
+    --color-primary-dark: #4A6FA1;
+    --color-bg: #F0F4FA;
+    --color-surface: #F8FAFF;
+    --color-border: #B4CBE4;
+    --color-text: #1C2D44;
+    --color-text-secondary: #5A7694;
+    --color-text-muted: #98B4D2;
+}
+
+/* ===== HOLIDAY THEMES ================================================== */
+
+[data-theme="valentines"] {
+    --color-primary: #E63462;
+    --color-primary-light: #FFE0E9;
+    --color-primary-dark: #C41E4A;
+    --color-bg: #FFF0F3;
+    --color-surface: #FFF8F9;
+    --color-border: #FFB3C6;
+    --color-text: #4A0E20;
+    --color-text-secondary: #A4294D;
+    --color-text-muted: #FF7EA0;
+}
+
+[data-theme="stpatricks"] {
+    --color-primary: #228B22;
+    --color-primary-light: #D4EDDA;
+    --color-primary-dark: #186A18;
+    --color-bg: #F0F9F0;
+    --color-surface: #F7FCF7;
+    --color-border: #8FD49F;
+    --color-text: #0B3B0B;
+    --color-text-secondary: #2D6E2D;
+    --color-text-muted: #6EC77E;
+}
+
+[data-theme="july4th"] {
+    --color-primary: #2553A0;
+    --color-primary-light: #DBEAFE;
+    --color-primary-dark: #1B3D78;
+    --color-bg: #F2F5FB;
+    --color-surface: #FAFBFF;
+    --color-border: #A5B9DB;
+    --color-text: #111D33;
+    --color-text-secondary: #3B5B8C;
+    --color-text-muted: #7E97BC;
+}
+
+[data-theme="halloween"] {
+    --color-primary: #E86C1A;
+    --color-primary-light: #2A1B3D;
+    --color-primary-dark: #F0A050;
+    --color-bg: #1A1025;
+    --color-surface: #231530;
+    --color-border: #3D2852;
+    --color-text: #F0E6F6;
+    --color-text-secondary: #B49AC4;
+    --color-text-muted: #6B5080;
+}
+
+[data-theme="christmas"] {
+    --color-primary: #C41E3A;
+    --color-primary-light: #FFEEF0;
+    --color-primary-dark: #9B1830;
+    --color-bg: #FDF5F5;
+    --color-surface: #FFFAFA;
+    --color-border: #F0B3BD;
+    --color-text: #3D0A14;
+    --color-text-secondary: #8B3040;
+    --color-text-muted: #E08090;
+}
+
+[data-theme="newyears"] {
+    --color-primary: #D4A843;
+    --color-primary-light: #1C1833;
+    --color-primary-dark: #F0C75E;
+    --color-bg: #0E0B1A;
+    --color-surface: #18142A;
+    --color-border: #2E2848;
+    --color-text: #F2ECD8;
+    --color-text-secondary: #A8A0C0;
+    --color-text-muted: #5C5478;
 }
 
 /* --- Reset --------------------------------------------------------------- */
