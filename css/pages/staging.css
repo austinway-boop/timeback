@@ -1,0 +1,239 @@
+/* ===========================================================================
+   AlphaLearn – Staging Hub Styles
+   =========================================================================== */
+
+/* ---- Staging Hub Page --------------------------------------------------- */
+.staging-hub {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* ---- Status Indicator --------------------------------------------------- */
+.staging-status {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    margin-bottom: 28px;
+}
+
+.staging-status-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+.staging-status-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.staging-status-label {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--color-text);
+}
+
+.staging-status-email {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    font-family: monospace;
+}
+
+/* Status states */
+.staging-status--success .staging-status-icon {
+    background: #ECFDF5;
+    color: #059669;
+}
+
+.staging-status--success {
+    border-color: #A7F3D0;
+}
+
+.staging-status--error .staging-status-icon {
+    background: #FEF2F2;
+    color: #DC2626;
+}
+
+.staging-status--error {
+    border-color: #FECACA;
+}
+
+/* ---- Header ------------------------------------------------------------- */
+.staging-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 36px;
+    gap: 20px;
+}
+
+.staging-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--color-text);
+    margin-bottom: 4px;
+}
+
+.staging-subtitle {
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+}
+
+.staging-exit-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #FEF2F2;
+    color: #DC2626;
+    border: 1px solid #FECACA;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.staging-exit-btn:hover {
+    background: #FEE2E2;
+    border-color: #F87171;
+}
+
+/* ---- Section ------------------------------------------------------------ */
+.staging-section {
+    margin-bottom: 36px;
+}
+
+.staging-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.staging-section-title i {
+    font-size: 0.95rem;
+    color: var(--color-text-secondary);
+}
+
+/* ---- Feature Card Grid -------------------------------------------------- */
+.staging-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+/* ---- Feature Card ------------------------------------------------------- */
+.staging-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition);
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+}
+
+.staging-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.staging-card-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.staging-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.staging-card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 4px;
+}
+
+.staging-card-desc {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+    line-height: 1.45;
+}
+
+.staging-card-note {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-top: 8px;
+    font-style: italic;
+}
+
+.staging-card-note i {
+    font-size: 0.7rem;
+}
+
+.staging-card-arrow {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    padding-top: 2px;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all var(--transition);
+}
+
+.staging-card:hover .staging-card-arrow {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* ---- Responsive --------------------------------------------------------- */
+@media (max-width: 768px) {
+    .staging-header {
+        flex-direction: column;
+    }
+
+    .staging-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .staging-banner {
+        font-size: 0.75rem;
+        padding: 0 12px;
+    }
+}

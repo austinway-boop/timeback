@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - Staging</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preload" href="/css/style.css" as="style">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/pages/staging.css?v=1">
+</head>
+<body data-view="staging" data-active="staging">
+
+    <!-- Layout -->
+    <div class="layout">
+        <nav class="sidebar" id="sidebar"></nav>
+        <main class="main-content">
+            <div class="staging-hub">
+
+                <!-- Login Status -->
+                <div class="staging-status" id="staging-status">
+                    <div class="staging-status-icon">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    </div>
+                    <div class="staging-status-text">
+                        <span class="staging-status-label">Connecting to staging account...</span>
+                        <span class="staging-status-email">pehal64861@aixind.com</span>
+                    </div>
+                </div>
+
+                <!-- Header -->
+                <div class="staging-header">
+                    <div>
+                        <h1 class="staging-title">Staging Hub</h1>
+                        <p class="staging-subtitle">Test every feature safely without affecting real student data.</p>
+                    </div>
+                    <button class="staging-exit-btn" id="exit-staging-btn" onclick="window._exitStaging()">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        Exit Staging
+                    </button>
+                </div>
+
+                <!-- Student Features -->
+                <section class="staging-section">
+                    <h2 class="staging-section-title">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                        Student Features
+                    </h2>
+                    <div class="staging-grid" id="student-features"></div>
+                </section>
+
+                <!-- Admin Features -->
+                <section class="staging-section">
+                    <h2 class="staging-section-title">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        Admin Features
+                    </h2>
+                    <div class="staging-grid" id="admin-features"></div>
+                </section>
+
+                <!-- Utilities -->
+                <section class="staging-section">
+                    <h2 class="staging-section-title">
+                        <i class="fa-solid fa-wrench"></i>
+                        Utilities
+                    </h2>
+                    <div class="staging-grid" id="utility-features"></div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/layout.js?v=7"></script>
+    <script src="/js/notifications.js?v=7"></script>
+    <script src="/js/app.js?v=7"></script>
+    <script src="/js/pages/staging.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,380 @@
+/* ===========================================================================
+   AlphaLearn – Course Editor
+   =========================================================================== */
+
+/* ---- Page Container ---- */
+.admin-course-editor {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* ---- Course Grid ---- */
+.ce-course-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.ce-course-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all var(--transition);
+    position: relative;
+}
+.ce-course-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 4px 16px rgba(69, 181, 170, 0.12);
+    transform: translateY(-2px);
+}
+
+.ce-card-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+}
+.ce-card-icon.teal    { background: rgba(69,181,170,0.12); color: #45B5AA; }
+.ce-card-icon.purple  { background: rgba(139,92,246,0.12); color: #8B5CF6; }
+.ce-card-icon.pink    { background: rgba(236,72,153,0.12); color: #EC4899; }
+.ce-card-icon.orange  { background: rgba(245,158,11,0.12); color: #F59E0B; }
+.ce-card-icon.blue    { background: rgba(59,130,246,0.12); color: #3B82F6; }
+
+.ce-card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+.ce-card-code {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+}
+
+.ce-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+}
+.ce-card-meta i { margin-right: 3px; opacity: 0.7; }
+
+.ce-card-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+.ce-card-badge.has-tree {
+    background: rgba(69,181,170,0.12);
+    color: #45B5AA;
+}
+.ce-card-badge.generating {
+    background: rgba(245,158,11,0.12);
+    color: #F59E0B;
+}
+
+/* ---- Skeleton Cards ---- */
+.ce-skeleton-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 20px;
+}
+
+/* ---- Back Button ---- */
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+    margin-bottom: 20px;
+}
+.back-btn:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+    border-color: var(--color-text-secondary);
+}
+
+/* ---- Detail Header ---- */
+.ce-detail-header {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+.ce-detail-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 4px;
+}
+
+.ce-detail-code {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-bottom: 12px;
+}
+
+.ce-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+}
+.ce-detail-meta i { margin-right: 4px; opacity: 0.7; }
+
+/* ---- Skill Tree Section ---- */
+.ce-skill-tree-section {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 24px;
+}
+
+.ce-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.ce-btn-generate {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+.ce-btn-generate:hover { background: var(--color-primary-dark); }
+.ce-btn-generate:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ce-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+.ce-btn-secondary:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+/* ---- Generation Progress ---- */
+.ce-progress {
+    margin-top: 20px;
+    padding: 20px;
+    background: var(--color-bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+}
+
+.ce-progress-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.ce-progress-spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: ce-spin 0.8s linear infinite;
+}
+
+@keyframes ce-spin {
+    to { transform: rotate(360deg); }
+}
+
+.ce-progress-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.ce-progress-detail {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+}
+
+.ce-progress-bar-track {
+    width: 100%;
+    height: 6px;
+    background: var(--color-border);
+    border-radius: 3px;
+    margin-top: 12px;
+    overflow: hidden;
+}
+
+.ce-progress-bar-fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    animation: ce-progress-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ce-progress-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* ---- Chart Container ---- */
+.ce-chart-container {
+    margin-top: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: #fff;
+}
+
+.ce-chart-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.ce-toolbar-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.82rem;
+    transition: all var(--transition);
+}
+.ce-toolbar-btn:hover {
+    background: var(--color-border);
+    color: var(--color-text);
+}
+
+.ce-chart-viewport {
+    width: 100%;
+    height: 600px;
+    overflow: auto;
+    position: relative;
+    cursor: grab;
+}
+.ce-chart-viewport:active { cursor: grabbing; }
+
+.ce-chart-inner {
+    min-width: 100%;
+    min-height: 100%;
+    transform-origin: 0 0;
+    padding: 20px;
+}
+
+.ce-chart-inner svg {
+    max-width: none !important;
+}
+
+/* ---- Empty / Error States ---- */
+.ce-empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--color-text-muted);
+}
+.ce-empty-state i {
+    font-size: 2.5rem;
+    opacity: 0.3;
+    margin-bottom: 12px;
+    display: block;
+}
+.ce-empty-state p {
+    font-size: 0.9rem;
+    margin-top: 8px;
+}
+
+.ce-error {
+    padding: 16px;
+    background: rgba(229,62,62,0.06);
+    border: 1px solid rgba(229,62,62,0.15);
+    border-radius: var(--radius-sm);
+    color: #E53E3E;
+    font-size: 0.85rem;
+    margin-top: 12px;
+}
+
+/* ---- Success Toast ---- */
+.ce-success-msg {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: rgba(69,181,170,0.08);
+    border: 1px solid rgba(69,181,170,0.2);
+    border-radius: var(--radius-sm);
+    color: #2D8A80;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-top: 12px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+    .ce-course-grid {
+        grid-template-columns: 1fr;
+    }
+    .ce-chart-viewport {
+        height: 400px;
+    }
+    .ce-detail-meta {
+        flex-direction: column;
+        gap: 8px;
+    }
+}

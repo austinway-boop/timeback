@@ -51,6 +51,15 @@
         </div>`;
     document.body.prepend(topbar);
 
+    /* ---- Staging Banner (shown on every page when staging flag is set) ---- */
+    if (localStorage.getItem('alphalearn_staging')) {
+        document.body.classList.add('has-staging-banner');
+        const banner = document.createElement('div');
+        banner.className = 'staging-banner';
+        banner.innerHTML = '<i class="fa-solid fa-flask"></i> STAGING MODE &mdash; Test account: pehal64861@aixind.com &nbsp;|&nbsp; <a href="/staging">Back to Hub</a>';
+        topbar.insertAdjacentElement('afterend', banner);
+    }
+
     /* ---- Sidebar --------------------------------------------------------- */
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
@@ -65,11 +74,16 @@
         { id: 'students',      icon: 'fa-users',           label: 'Students',      href: '/admin/students' },
         { id: 'courses',       icon: 'fa-book',            label: 'Courses',       href: '/admin/courses' },
         { id: 'assign-tests',  icon: 'fa-clipboard-check', label: 'Assign Tests',  href: '/admin/assign-tests' },
-        { id: 'thinking-tree', icon: 'fa-brain',           label: 'Thinking Tree', href: '/admin/thinking-tree' },
+        { id: 'thinking-tree',  icon: 'fa-brain',           label: 'Thinking Tree', href: '/admin/thinking-tree' },
+        { id: 'course-editor', icon: 'fa-pen-ruler',       label: 'Course Editor', href: '/admin/course-editor' },
         { id: 'settings',      icon: 'fa-gear',            label: 'Settings',      href: '/admin/settings' },
     ];
 
-    const items = view === 'student' ? studentNav : adminNav;
+    const stagingNav = [
+        { id: 'staging', icon: 'fa-flask', label: 'Staging Hub', href: '/staging' },
+    ];
+
+    const items = view === 'staging' ? stagingNav : (view === 'student' ? studentNav : adminNav);
 
     function renderNavItem(item) {
         // Collapsible parent with children

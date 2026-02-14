@@ -186,3 +186,44 @@
     padding: 32px 40px;
     min-height: calc(100vh - var(--topbar-height));
 }
+
+/* ===========================================================================
+   Staging Banner (shown on all pages when staging mode is active)
+   =========================================================================== */
+.staging-banner {
+    position: fixed;
+    top: var(--topbar-height);
+    left: 0;
+    right: 0;
+    height: 36px;
+    background: #F59E0B;
+    color: #7C2D12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    z-index: 99;
+}
+
+.staging-banner a {
+    color: #7C2D12;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-weight: 700;
+}
+
+.staging-banner a:hover {
+    color: #451A03;
+}
+
+/* Offset layout when staging banner is present */
+body.has-staging-banner .layout {
+    padding-top: calc(var(--topbar-height) + 36px);
+}
+
+body.has-staging-banner .sidebar {
+    top: calc(var(--topbar-height) + 36px);
+}

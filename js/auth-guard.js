@@ -9,6 +9,9 @@
     // Development bypass: append ?bypass=admin to skip the guard
     if (window.location.search.includes('bypass=admin')) return;
 
+    // Staging mode bypass: allow staging account to access admin pages
+    if (localStorage.getItem('alphalearn_staging')) return;
+
     var role = (localStorage.getItem('alphalearn_role') || '').toLowerCase();
     var name = localStorage.getItem('alphalearn_name');
     var email = (localStorage.getItem('alphalearn_email') || '').toLowerCase();

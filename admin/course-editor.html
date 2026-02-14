@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - Course Editor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preload" href="/css/style.css" as="style">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/admin/course-editor.css?v=1">
+</head>
+<body data-view="admin" data-active="course-editor">
+
+    <div class="layout">
+        <nav class="sidebar" id="sidebar"></nav>
+        <main class="main-content">
+            <div class="admin-course-editor">
+                <div class="page-header">
+                    <h1 class="page-title"><i class="fa-solid fa-pen-ruler" style="margin-right:10px; opacity:0.7;"></i>Course Editor</h1>
+                    <p class="page-subtitle">Generate AI-powered skill trees for AP courses</p>
+                </div>
+
+                <!-- Course List View -->
+                <div id="course-list-view">
+                    <div class="controls-bar">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                            <input type="text" id="course-search" class="search-input" placeholder="Search AP courses...">
+                        </div>
+                    </div>
+                    <div class="results-info"><span id="courses-count">Loading courses...</span></div>
+                    <div class="ce-course-grid" id="courses-grid"></div>
+                </div>
+
+                <!-- Course Detail / Editor View -->
+                <div id="course-detail-view" style="display:none;">
+                    <button class="back-btn" id="back-btn">
+                        <i class="fa-solid fa-arrow-left"></i> Back to courses
+                    </button>
+
+                    <div class="ce-detail-header" id="detail-header"></div>
+
+                    <div class="ce-skill-tree-section">
+                        <div class="ce-actions" id="skill-tree-actions"></div>
+                        <div class="ce-progress" id="generation-progress" style="display:none;"></div>
+                        <div class="ce-chart-container" id="chart-container" style="display:none;">
+                            <div class="ce-chart-toolbar">
+                                <button class="ce-toolbar-btn" id="zoom-in-btn" title="Zoom in"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                                <button class="ce-toolbar-btn" id="zoom-out-btn" title="Zoom out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                                <button class="ce-toolbar-btn" id="zoom-reset-btn" title="Reset zoom"><i class="fa-solid fa-expand"></i></button>
+                            </div>
+                            <div class="ce-chart-viewport" id="chart-viewport">
+                                <div class="ce-chart-inner" id="chart-inner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/auth-guard.js?v=3"></script>
+    <script src="/js/layout.js?v=7"></script>
+    <script src="/js/notifications.js?v=7"></script>
+    <script src="/js/app.js?v=7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script src="/js/admin/course-editor.js?v=1"></script>
+</body>
+</html>
