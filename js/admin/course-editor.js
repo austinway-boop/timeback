@@ -31,6 +31,7 @@
     var pollTimer = null;
     var lessonPollTimer = null;
     var currentMermaidCode = ''; // stored for export
+    var explanationPollTimer = null;
 
     /* ---- Helpers ----------------------------------------------------- */
     function esc(str) {
@@ -250,12 +251,21 @@
         var anyDone = statuses.tree === 'done' || statuses.lessons === 'done' || statuses.questions === 'done';
         var anyProcessing = statuses.tree === 'processing' || statuses.lessons === 'processing' || statuses.questions === 'processing';
 
-        // Check skill mapping toggle status
+        // Check skill mapping toggle status + explanation status in parallel
         var skillMappingEnabled = false;
+        var explStatus = 'none';
+        var explQuestionCount = 0;
+        var explEnabled = false;
         try {
-            var toggleResp = await fetch('/api/skill-mapping-toggle?courseId=' + encodeURIComponent(courseId));
-            var toggleData = await toggleResp.json();
-            skillMappingEnabled = toggleData.enabled === true;
+            var extraResults = await Promise.all([
+                fetch('/api/skill-mapping-toggle?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+                fetch('/api/explanation-status?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+                fetch('/api/explanation-toggle?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+            ]);
+            skillMappingEnabled = extraResults[0].enabled === true;
+            if (extraResults[1].status === 'done') { explStatus = 'done'; explQuestionCount = extraResults[1].questionCount || 0; }
+            else if (extraResults[1].status === 'processing') explStatus = 'processing';
+            explEnabled = extraResults[2].enabled === true;
         } catch (e) { /* ignore */ }
 
         function badge(status) {
@@ -307,6 +317,42 @@
                 '</div>';
         }
 
+        // Explanation card status
+        var explSummaryClass, explSummaryText, explBtnLabel, explBtnIcon;
+        if (explStatus === 'done') {
+            explSummaryClass = 'all-done';
+            explSummaryText = '<i class="fa-solid fa-check-circle"></i> ' + explQuestionCount + ' questions';
+            explBtnLabel = 'Regenerate Explanations';
+            explBtnIcon = 'fa-solid fa-arrows-rotate';
+        } else if (explStatus === 'processing') {
+            explSummaryClass = 'in-progress';
+            explSummaryText = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+            explBtnLabel = 'Generating...';
+            explBtnIcon = 'fa-solid fa-spinner fa-spin';
+        } else {
+            explSummaryClass = 'not-started';
+            explSummaryText = 'Not started';
+            explBtnLabel = 'Generate Explanations';
+            explBtnIcon = 'fa-solid fa-wand-magic-sparkles';
+        }
+
+        // Explanation toggle HTML (only when done)
+        var explToggleHtml = '';
+        if (explStatus === 'done') {
+            explToggleHtml =
+                '<div class="ce-inline-toggle">' +
+                    '<div class="ce-inline-toggle-left">' +
+                        '<i class="fa-solid fa-toggle-' + (explEnabled ? 'on' : 'off') + '"></i>' +
+                        '<strong>Answer Explanations</strong>' +
+                        '<span>Show AI explanations for wrong answers</span>' +
+                    '</div>' +
+                    '<label class="ce-switch">' +
+                        '<input type="checkbox" id="explanation-toggle" ' + (explEnabled ? 'checked' : '') + '>' +
+                        '<span class="ce-switch-slider"></span>' +
+                    '</label>' +
+                '</div>';
+        }
+
         el.innerHTML =
             '<div class="ce-action-card' + (allDone ? ' collapsed' : '') + '">' +
                 '<div class="ce-action-card-header" id="action-card-header">' +
@@ -350,10 +396,36 @@
                         '<i class="' + btnIcon + '"></i> ' + btnLabel +
                     '</button>' +
                 '</div>' +
+            '</div>' +
+
+            /* ---- Answer Explanations Action Card ---- */
+            '<div class="ce-action-card' + (explStatus === 'done' ? ' collapsed' : '') + '" style="margin-top:16px;">' +
+                '<div class="ce-action-card-header" id="expl-card-header">' +
+                    '<div class="ce-action-card-icon"><i class="fa-solid fa-comment-dots"></i></div>' +
+                    '<div class="ce-action-card-header-text">' +
+                        '<div class="ce-action-card-title">Answer Explanations</div>' +
+                        '<div class="ce-action-card-subtitle">AI-generated feedback for wrong answers</div>' +
+                    '</div>' +
+                    '<span class="ce-action-card-summary ' + explSummaryClass + '">' + explSummaryText + '</span>' +
+                    '<i class="fa-solid fa-chevron-down ce-action-card-chevron"></i>' +
+                '</div>' +
+                '<div class="ce-action-card-body">' +
+                    '<p style="font-size:0.88rem; color:var(--color-text-muted); margin:0 0 16px 0;">Pull every question for this course and use AI to generate research-backed explanations for each wrong answer. When enabled, students see a short, specific explanation whenever they answer incorrectly.</p>' +
+                    explToggleHtml +
+                    '<div id="expl-progress" style="display:none;"></div>' +
+                    '<div id="expl-results" style="display:none;"></div>' +
+                    '<button class="ce-btn-generate ce-action-card-btn" id="btn-generate-explanations"' + (explStatus === 'processing' ? ' disabled' : '') + '>' +
+                        '<i class="' + explBtnIcon + '"></i> ' + explBtnLabel +
+                    '</button>' +
+                '</div>' +
             '</div>';
 
         // Collapse / expand handler
         document.getElementById('action-card-header').addEventListener('click', function () {
+            this.closest('.ce-action-card').classList.toggle('collapsed');
+        });
+
+        document.getElementById('expl-card-header').addEventListener('click', function () {
             this.closest('.ce-action-card').classList.toggle('collapsed');
         });
 
@@ -374,6 +446,43 @@
                     body: JSON.stringify({ courseId: courseId, enabled: enabled }),
                 }).catch(function () {});
             });
+        }
+
+        // Explanation toggle handler
+        var explToggleEl = document.getElementById('explanation-toggle');
+        if (explToggleEl) {
+            explToggleEl.addEventListener('change', function () {
+                var enabled = this.checked;
+                var icon = this.closest('.ce-inline-toggle').querySelector('.ce-inline-toggle-left i');
+                icon.className = 'fa-solid fa-toggle-' + (enabled ? 'on' : 'off');
+                fetch('/api/explanation-toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ courseId: courseId, enabled: enabled }),
+                }).catch(function () {});
+            });
+        }
+
+        // Generate explanations button
+        document.getElementById('btn-generate-explanations').addEventListener('click', function () {
+            if (explStatus === 'done') {
+                if (!confirm('This will regenerate all answer explanations. Continue?')) return;
+            }
+            startExplanationGeneration(courseId);
+        });
+
+        // If already processing, start polling
+        if (explStatus === 'processing') {
+            startExplanationPolling(courseId);
+        }
+
+        // If done, show preview
+        if (explStatus === 'done') {
+            fetch('/api/explanation-status?courseId=' + encodeURIComponent(courseId))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'done' && data.explanations) showExplanationResults(data);
+                }).catch(function () {});
         }
     }
 
@@ -1129,6 +1238,224 @@
             html += '</div></div>';
         });
         html += '</div>';
+        el.innerHTML = html;
+
+        // Accordion toggle
+        el.querySelectorAll('.ce-accordion-header').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                this.closest('.ce-accordion-item').classList.toggle('open');
+            });
+        });
+    }
+
+    /* ---- Answer Explanation Generation -------------------------------- */
+    async function startExplanationGeneration(courseId) {
+        if (!selectedCourse) return;
+        activeGenerating = true;
+        var btn = document.getElementById('btn-generate-explanations');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Setting up...'; }
+
+        showExplProgress('Setting up course access and finding tests...', 0);
+
+        try {
+            // Phase 1: Find tests
+            var findResp = await fetch('/api/find-course-tests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    courseId: selectedCourse.sourcedId,
+                    courseCode: selectedCourse.courseCode || '',
+                }),
+                signal: AbortSignal.timeout ? AbortSignal.timeout(120000) : undefined,
+            });
+            var findData = await findResp.json();
+            var tests = findData.tests || [];
+
+            if (!tests.length) {
+                showExplError('No assessment tests found for this course.');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Explanations'; }
+                activeGenerating = false;
+                return;
+            }
+
+            showExplProgress('Found ' + tests.length + ' tests. Fetching questions...', 0);
+
+            // Phase 2: Fetch questions from each test
+            var allQuestions = [];
+            var fetched = 0;
+            var testSucceeded = 0;
+            var BATCH = 3;
+
+            function fetchTestQuestions(t) {
+                var params = [];
+                if (t.id) params.push('lessonId=' + encodeURIComponent(t.id));
+                if (t.url) params.push('url=' + encodeURIComponent(t.url));
+                if (courseId) params.push('courseId=' + encodeURIComponent(courseId));
+                var url = '/api/pp-get-questions-admin?' + params.join('&');
+                return fetch(url)
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        if (d.success && d.data && d.data.questions && d.data.questions.length > 0) {
+                            return { questions: d.data.questions, error: null };
+                        }
+                        return { questions: [], error: d.error || 'No questions returned' };
+                    })
+                    .catch(function (e) { return { questions: [], error: e.message || 'Network error' }; });
+            }
+
+            for (var i = 0; i < tests.length; i += BATCH) {
+                var batch = tests.slice(i, i + BATCH);
+                var promises = batch.map(function (t) {
+                    return fetchTestQuestions(t).then(function (result) {
+                        return { test: t, result: result };
+                    });
+                });
+                var results = await Promise.all(promises);
+                results.forEach(function (r) {
+                    if (r.result.questions.length > 0) {
+                        allQuestions = allQuestions.concat(r.result.questions);
+                        testSucceeded++;
+                    }
+                });
+                fetched += batch.length;
+                showExplProgress('Fetching questions: ' + fetched + '/' + tests.length + ' tests (' + allQuestions.length + ' questions)...', 0);
+            }
+
+            if (!allQuestions.length) {
+                showExplError('No questions could be fetched from any of the ' + tests.length + ' tests.');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Explanations'; }
+                activeGenerating = false;
+                return;
+            }
+
+            showExplProgress('Submitting ' + allQuestions.length + ' questions for AI explanation generation...', 0);
+
+            // Phase 3: Submit for explanation generation
+            var genResp = await fetch('/api/generate-explanations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    courseId: selectedCourse.sourcedId,
+                    questions: allQuestions,
+                }),
+            });
+            var genData = await genResp.json();
+
+            if (genData.error) {
+                showExplError(genData.error);
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Explanations'; }
+                activeGenerating = false;
+                return;
+            }
+
+            showExplProgress('Claude is generating explanations for ' + (genData.questionCount || allQuestions.length) + ' questions across ' + (genData.chunkCount || 1) + ' batches...', 0);
+            startExplanationPolling(selectedCourse.sourcedId);
+
+        } catch (e) {
+            showExplError('Failed: ' + e.message);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Explanations'; }
+            activeGenerating = false;
+        }
+    }
+
+    function startExplanationPolling(courseId) {
+        stopExplanationPolling();
+        var startTime = Date.now();
+        function poll() {
+            fetch('/api/explanation-status?courseId=' + encodeURIComponent(courseId))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'done' && data.explanations) {
+                        activeGenerating = false;
+                        stopExplanationPolling();
+                        document.getElementById('expl-progress').style.display = 'none';
+                        var btn = document.getElementById('btn-generate-explanations');
+                        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Regenerate Explanations'; }
+                        showExplanationResults(data);
+                    } else if (data.status === 'error') {
+                        activeGenerating = false;
+                        stopExplanationPolling();
+                        document.getElementById('expl-progress').style.display = 'none';
+                        showExplError(data.error || 'Generation failed.');
+                        var btn = document.getElementById('btn-generate-explanations');
+                        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Explanations'; }
+                    } else {
+                        var elapsed = Math.floor((Date.now() - startTime) / 1000);
+                        var chunkInfo = data.chunkCount ? ' (' + (data.succeeded || 0) + '/' + data.chunkCount + ' chunks done)' : '';
+                        showExplProgress('Claude is generating explanations...' + chunkInfo, elapsed);
+                        explanationPollTimer = setTimeout(poll, POLL_INTERVAL);
+                    }
+                })
+                .catch(function () { explanationPollTimer = setTimeout(poll, POLL_INTERVAL); });
+        }
+        explanationPollTimer = setTimeout(poll, POLL_INTERVAL);
+    }
+
+    function stopExplanationPolling() { if (explanationPollTimer) { clearTimeout(explanationPollTimer); explanationPollTimer = null; } }
+
+    function showExplProgress(msg, elapsed) {
+        var el = document.getElementById('expl-progress');
+        if (!el) return;
+        el.style.display = '';
+        var timeStr = elapsed > 0 ? ' <span style="opacity:0.6;">(' + formatTime(elapsed) + ')</span>' : '';
+        el.innerHTML =
+            '<div class="ce-progress-header"><div class="ce-progress-spinner"></div><div class="ce-progress-title">' + msg + timeStr + '</div></div>' +
+            '<div class="ce-warning"><i class="fa-solid fa-triangle-exclamation"></i> Please do not leave this page until generation is complete.</div>';
+    }
+
+    function showExplError(msg) {
+        var el = document.getElementById('expl-progress');
+        if (!el) return;
+        el.style.display = '';
+        el.innerHTML = '<div class="ce-error"><i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>' + esc(msg) + '</div>';
+    }
+
+    function showExplanationResults(data) {
+        var el = document.getElementById('expl-results');
+        if (!el) return;
+        el.style.display = '';
+        var explanations = data.explanations || {};
+        var qIds = Object.keys(explanations);
+
+        var genDate = data.generatedAt ? new Date(data.generatedAt * 1000).toLocaleString() : '';
+
+        var html = '<div class="ce-mapping-count" style="margin-top:12px;"><i class="fa-solid fa-circle-check" style="color:#45B5AA; margin-right:6px;"></i>' +
+            qIds.length + ' question' + (qIds.length !== 1 ? 's' : '') + ' with explanations' +
+            (data.model ? ' <span style="opacity:0.5;">(' + esc(data.model) + ')</span>' : '') +
+            (genDate ? ' <span style="opacity:0.5;">&middot; ' + esc(genDate) + '</span>' : '') +
+            '</div>';
+
+        // Show first 10 questions as a preview
+        var previewIds = qIds.slice(0, 10);
+        if (previewIds.length) {
+            html += '<div class="ce-accordion" style="margin-top:8px;">';
+            previewIds.forEach(function (qid, idx) {
+                var choices = explanations[qid] || {};
+                var choiceIds = Object.keys(choices);
+
+                html += '<div class="ce-accordion-item">' +
+                    '<button class="ce-accordion-header" data-idx="expl' + idx + '">' +
+                        '<span class="ce-accordion-title"><i class="fa-solid fa-circle-question" style="margin-right:8px; opacity:0.4;"></i>' + esc(qid) + '</span>' +
+                        '<span class="ce-accordion-badge">' + choiceIds.length + ' explanation' + (choiceIds.length !== 1 ? 's' : '') + '</span>' +
+                        '<i class="fa-solid fa-chevron-right ce-accordion-chevron"></i>' +
+                    '</button>' +
+                    '<div class="ce-accordion-body" id="expl-body-' + idx + '">';
+
+                choiceIds.forEach(function (cid) {
+                    html += '<div style="margin-bottom:10px;">' +
+                        '<div style="font-weight:600; font-size:0.82rem; color:var(--color-text-muted); margin-bottom:2px;">Choice ' + esc(cid) + ':</div>' +
+                        '<div style="font-size:0.88rem; line-height:1.5; color:var(--color-text);">' + esc(choices[cid]) + '</div>' +
+                    '</div>';
+                });
+
+                html += '</div></div>';
+            });
+            html += '</div>';
+            if (qIds.length > 10) {
+                html += '<div style="font-size:0.82rem; color:var(--color-text-muted); margin-top:8px;">Showing 10 of ' + qIds.length + ' questions. All explanations are saved and will be shown to students when enabled.</div>';
+            }
+        }
+
         el.innerHTML = html;
 
         // Accordion toggle

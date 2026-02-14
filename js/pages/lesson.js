@@ -30,6 +30,7 @@
         answeredIds: [],
     };
     var quizArea = null; // reference to the quiz container element
+    var _aiExplanations = null; // AI-generated wrong-answer explanations (prefetched)
 
     // ── Stage-based PowerPath scoring ──
     function _getQuestionDifficulty(q) {
@@ -717,6 +718,14 @@
         if (!raw) { showError('No lesson data found. Please go back and select a lesson.'); return; }
         try { lessonData = JSON.parse(raw); } catch(e) { showError('Invalid lesson data.'); return; }
 
+        // Prefetch AI explanations if enabled for this course
+        if (lessonData.courseSourcedId) {
+            fetch('/api/get-explanations?courseId=' + encodeURIComponent(lessonData.courseSourcedId))
+                .then(function(r) { return r.json(); })
+                .then(function(d) { if (d.enabled) _aiExplanations = d.explanations || null; })
+                .catch(function() {});
+        }
+
         document.title = 'AlphaLearn - ' + (lessonData.title || 'Lesson');
 
         // Set title
@@ -1270,6 +1279,20 @@
                     isCorrect = quizState.selectedChoice === sq.correctId;
                     feedback = (sq.feedbackMap || {})[quizState.selectedChoice] || '';
                 }
+            }
+        }
+
+        // Override with AI explanation if available for this wrong choice
+        if (!isCorrect && _aiExplanations) {
+            var _aiQid = '';
+            if (quizState.attemptId && quizState.currentQuestion) {
+                _aiQid = quizState.currentQuestion.id || quizState.currentQuestion.questionId || '';
+            } else if (quizState.staticQuestions && quizState.staticQuestions[quizState.staticIdx]) {
+                var _aiSq = quizState.staticQuestions[quizState.staticIdx];
+                _aiQid = _aiSq.identifier || _aiSq.id || _aiSq.questionId || '';
+            }
+            if (_aiQid && _aiExplanations[_aiQid] && _aiExplanations[_aiQid][quizState.selectedChoice]) {
+                feedback = _aiExplanations[_aiQid][quizState.selectedChoice];
             }
         }
 

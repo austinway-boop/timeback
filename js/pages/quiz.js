@@ -59,6 +59,7 @@
         // Track answered question IDs locally (survives reload even if server state is stale)
         answeredIds: [],
     };
+    var _aiExplanations = null; // AI-generated wrong-answer explanations (prefetched)
 
     // ── Stage-based PowerPath scoring ──
     function _getQuestionDifficulty(q) {
@@ -206,6 +207,18 @@
         quizState.testId = testId;
 
         var userId = localStorage.getItem('alphalearn_userId') || localStorage.getItem('alphalearn_sourcedId') || '';
+
+        // Prefetch AI explanations if enabled for this course
+        try {
+            var _ld = JSON.parse(sessionStorage.getItem('al_lesson_data') || '{}');
+            var _cid = _ld.courseSourcedId || '';
+            if (_cid) {
+                fetch('/api/get-explanations?courseId=' + encodeURIComponent(_cid))
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) { if (d.enabled) _aiExplanations = d.explanations || null; })
+                    .catch(function() {});
+            }
+        } catch(e) {}
 
         // ── Detect retry flag ──
         var isRetry = params.get('retry') === 'true';
@@ -535,6 +548,14 @@
                 feedback = (data.responseResult && data.responseResult.feedback) || data.feedback || data.explanation || '';
                 if (data.xpEarned || data.xp) quizState.xpEarned += (data.xpEarned || data.xp);
             } catch(e) {}
+        }
+
+        // Override with AI explanation if available for this wrong choice
+        if (!isCorrect && _aiExplanations) {
+            var _aiQid = quizState.currentQuestion ? (quizState.currentQuestion.id || quizState.currentQuestion.questionId || '') : '';
+            if (_aiQid && _aiExplanations[_aiQid] && _aiExplanations[_aiQid][quizState.selectedChoice]) {
+                feedback = _aiExplanations[_aiQid][quizState.selectedChoice];
+            }
         }
 
         var pointsChange = 0;
