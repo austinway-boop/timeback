@@ -517,6 +517,58 @@
         el.innerHTML = '<div class="ce-error"><i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>' + esc(msg) + '</div>';
     }
 
+    /* ---- Mermaid Sanitization --------------------------------------- */
+    function sanitizeMermaid(raw) {
+        // Remove markdown fences
+        var code = raw
+            .replace(/^```mermaid\s*/i, '')
+            .replace(/^```\s*/m, '')
+            .replace(/\s*```$/m, '')
+            .trim();
+
+        // Process line by line
+        var lines = code.split('\n');
+        var cleaned = [];
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+
+            // Fix labels inside ["..."] — sanitize problematic characters
+            line = line.replace(/\["([^"]*?)"\]/g, function (match, label) {
+                var safe = label
+                    .replace(/"/g, "'")          // nested double quotes → single
+                    .replace(/[#;{}]/g, ' ')     // remove chars that break mermaid
+                    .replace(/\s+/g, ' ')         // collapse whitespace
+                    .trim();
+                return '["' + safe + '"]';
+            });
+
+            // Fix subgraph labels with same treatment
+            line = line.replace(/subgraph\s+(\w+)\["([^"]*?)"\]/g, function (match, id, label) {
+                var safe = label
+                    .replace(/"/g, "'")
+                    .replace(/[#;{}]/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                return 'subgraph ' + id + '["' + safe + '"]';
+            });
+
+            // Remove lines that are just whitespace
+            if (line.trim() === '') { cleaned.push(''); continue; }
+
+            // Skip lines with clearly broken syntax (unmatched quotes inside labels)
+            var quoteCount = (line.match(/"/g) || []).length;
+            if (quoteCount % 2 !== 0) {
+                // Try to fix by removing the last unmatched quote
+                var lastIdx = line.lastIndexOf('"');
+                line = line.substring(0, lastIdx) + line.substring(lastIdx + 1);
+            }
+
+            cleaned.push(line);
+        }
+
+        return cleaned.join('\n');
+    }
+
     /* ---- Mermaid Rendering ------------------------------------------ */
     async function renderMermaidChart(mermaidCode) {
         var container = document.getElementById('chart-container');
@@ -524,12 +576,7 @@
         container.style.display = '';
         chartZoom = 1;
 
-        // Clean up the mermaid code (remove markdown fences if present)
-        var code = mermaidCode
-            .replace(/^```mermaid\s*/i, '')
-            .replace(/^```\s*/m, '')
-            .replace(/\s*```$/m, '')
-            .trim();
+        var code = sanitizeMermaid(mermaidCode);
 
         inner.innerHTML = '<div style="text-align:center; padding:40px; color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>Rendering chart...</div>';
 
@@ -554,15 +601,63 @@
             // Apply initial zoom reset
             applyZoom(1);
         } catch (e) {
-            inner.innerHTML =
-                '<div class="ce-error" style="margin:20px;">' +
-                    '<i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>' +
-                    'Failed to render the mermaid chart. The generated code may have syntax issues.<br><br>' +
-                    '<details style="margin-top:8px;"><summary style="cursor:pointer;">Show raw mermaid code</summary>' +
-                    '<pre style="margin-top:8px; font-size:0.75rem; max-height:300px; overflow:auto; white-space:pre-wrap; background:var(--color-bg); padding:12px; border-radius:6px;">' +
-                    esc(code) + '</pre></details>' +
-                '</div>';
+            // First render failed — try stripping problematic lines and retrying
+            console.warn('Mermaid render failed, attempting recovery:', e.message);
+            try {
+                var fallbackCode = stripBrokenLines(code, e.message);
+                var id2 = 'skill-tree-fallback-' + Date.now();
+                var result2 = await mermaid.render(id2, fallbackCode);
+                inner.innerHTML =
+                    '<div class="ce-success-msg" style="margin:12px 20px 0;"><i class="fa-solid fa-triangle-exclamation"></i> Some nodes were removed due to syntax issues. The chart may be incomplete.</div>' +
+                    result2.svg;
+                applyZoom(1);
+            } catch (e2) {
+                // Total failure — show raw code with download option
+                inner.innerHTML =
+                    '<div class="ce-error" style="margin:20px;">' +
+                        '<i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>' +
+                        'Failed to render the mermaid chart. The generated code has syntax issues that could not be auto-fixed.<br><br>' +
+                        '<div style="display:flex; gap:8px; margin-top:12px;">' +
+                            '<button class="ce-btn-secondary" onclick="window._copyMermaidCode()"><i class="fa-solid fa-copy" style="margin-right:4px;"></i> Copy raw code</button>' +
+                            '<a href="https://mermaid.live" target="_blank" class="ce-btn-secondary" style="text-decoration:none;"><i class="fa-solid fa-external-link-alt" style="margin-right:4px;"></i> Open Mermaid Live Editor</a>' +
+                        '</div>' +
+                        '<details style="margin-top:12px;"><summary style="cursor:pointer;">Show raw mermaid code</summary>' +
+                        '<pre id="raw-mermaid-code" style="margin-top:8px; font-size:0.75rem; max-height:400px; overflow:auto; white-space:pre-wrap; background:var(--color-bg); padding:12px; border-radius:6px;">' +
+                        esc(code) + '</pre></details>' +
+                    '</div>';
+                window._copyMermaidCode = function () {
+                    navigator.clipboard.writeText(code).then(function () {
+                        alert('Mermaid code copied to clipboard! Paste it into mermaid.live to view.');
+                    });
+                };
+            }
         }
+    }
+
+    function stripBrokenLines(code, errorMsg) {
+        // Try to extract the problematic line from the error message
+        var lines = code.split('\n');
+        var cleaned = [];
+
+        // Parse error for line number if available
+        var lineMatch = errorMsg.match(/line\s+(\d+)/i);
+        var errorLine = lineMatch ? parseInt(lineMatch[1], 10) : -1;
+
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+
+            // Skip the specific error line if identified
+            if (errorLine > 0 && i === errorLine - 1) continue;
+
+            // Skip lines with common syntax problems
+            if (line.match(/^[A-Z0-9_]+\[/) && !line.match(/\["[^"]*"\]/)) {
+                continue; // Node definition without proper quoting
+            }
+
+            cleaned.push(lines[i]);
+        }
+
+        return cleaned.join('\n');
     }
 
     /* ---- Pan & Zoom ------------------------------------------------- */
