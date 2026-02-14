@@ -4,6 +4,12 @@
    =========================================================================== */
 
 (function () {
+    /* ---- Apply saved staging theme immediately --------------------------- */
+    const _stagingTheme = localStorage.getItem('al_staging_theme');
+    if (_stagingTheme && localStorage.getItem('alphalearn_staging')) {
+        document.documentElement.setAttribute('data-theme', _stagingTheme);
+    }
+
     const view   = document.body.dataset.view   || 'student';
     const active = document.body.dataset.active  || 'home';
 
@@ -128,4 +134,68 @@
             parentLi.classList.toggle('open');
         });
     });
+
+    /* ---- Theme Settings Bar (staging only) ------------------------------ */
+    /* Exposed as a global so staging.js can call it after async auto-login */
+    window._renderStagingThemeBar = function () {
+        const sb = document.getElementById('sidebar');
+        if (!sb || sb.querySelector('.sidebar-settings')) return; // already rendered or no sidebar
+
+        const themes = [
+            { id: 'default',  label: 'Default',  color: '#45B5AA' },
+            { id: 'ocean',    label: 'Ocean',     color: '#2B6CB0' },
+            { id: 'lavender', label: 'Lavender',  color: '#7C3AED' },
+            { id: 'sunset',   label: 'Sunset',    color: '#EA580C' },
+            { id: 'rose',     label: 'Rose',      color: '#E11D48' },
+            { id: 'forest',   label: 'Forest',    color: '#16A34A' },
+            { id: 'slate',    label: 'Slate',     color: '#64748B' },
+            { id: 'midnight', label: 'Midnight',  color: '#6366F1' },
+            { id: 'berry',    label: 'Berry',     color: '#C026D3' },
+            { id: 'amber',    label: 'Amber',     color: '#D97706' },
+        ];
+        const currentTheme = localStorage.getItem('al_staging_theme') || 'default';
+
+        const settingsHTML = `
+            <div class="sidebar-settings">
+                <div class="sidebar-settings-header">
+                    <i class="fa-solid fa-palette"></i> Theme
+                </div>
+                <div class="theme-swatches">
+                    ${themes.map(t =>
+                        `<button class="theme-swatch${t.id === currentTheme ? ' active' : ''}"
+                                 data-theme="${t.id}"
+                                 style="background:${t.color};"
+                                 title="${t.label}"></button>`
+                    ).join('')}
+                </div>
+            </div>`;
+        sb.insertAdjacentHTML('beforeend', settingsHTML);
+
+        // Make sidebar flex so the settings bar anchors to the bottom
+        sb.style.display = 'flex';
+        sb.style.flexDirection = 'column';
+        const navList = sb.querySelector('.nav-list');
+        if (navList) navList.style.flex = '1';
+
+        // Click handlers
+        sb.querySelectorAll('.theme-swatch').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const themeId = this.dataset.theme;
+                sb.querySelectorAll('.theme-swatch').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                if (themeId === 'default') {
+                    localStorage.removeItem('al_staging_theme');
+                    document.documentElement.removeAttribute('data-theme');
+                } else {
+                    localStorage.setItem('al_staging_theme', themeId);
+                    document.documentElement.setAttribute('data-theme', themeId);
+                }
+            });
+        });
+    };
+
+    // Render immediately if staging flag is already set
+    if (localStorage.getItem('alphalearn_staging')) {
+        window._renderStagingThemeBar();
+    }
 })();

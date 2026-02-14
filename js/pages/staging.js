@@ -168,6 +168,11 @@
             // Set staging flag
             localStorage.setItem('alphalearn_staging', 'true');
 
+            // Render theme settings bar now that staging flag is set
+            if (typeof window._renderStagingThemeBar === 'function') {
+                window._renderStagingThemeBar();
+            }
+
             setStatus('fa-circle-check', 'Logged in as ' + displayName, 'success');
         } catch (err) {
             console.error('[Staging] Auto-login error:', err);
