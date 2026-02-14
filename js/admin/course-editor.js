@@ -276,16 +276,49 @@
             btnIcon = 'fa-solid fa-wand-magic-sparkles';
         }
 
+        // Summary badge for header
+        var doneCount = (statuses.tree === 'done' ? 1 : 0) + (statuses.lessons === 'done' ? 1 : 0) + (statuses.questions === 'done' ? 1 : 0);
+        var summaryClass, summaryText;
+        if (allDone) {
+            summaryClass = 'all-done';
+            summaryText = '<i class="fa-solid fa-check-circle"></i> 3/3 complete';
+        } else if (anyDone || anyProcessing) {
+            summaryClass = 'in-progress';
+            summaryText = doneCount + '/3 complete';
+        } else {
+            summaryClass = 'not-started';
+            summaryText = 'Not started';
+        }
+
+        // Skill mapping toggle HTML (inline, only when all done)
+        var toggleHtml = '';
+        if (allDone) {
+            toggleHtml =
+                '<div class="ce-inline-toggle">' +
+                    '<div class="ce-inline-toggle-left">' +
+                        '<i class="fa-solid fa-toggle-' + (skillMappingEnabled ? 'on' : 'off') + '"></i>' +
+                        '<strong>Skill Mapping</strong>' +
+                        '<span>Per-student mastery scores</span>' +
+                    '</div>' +
+                    '<label class="ce-switch">' +
+                        '<input type="checkbox" id="skill-mapping-toggle" ' + (skillMappingEnabled ? 'checked' : '') + '>' +
+                        '<span class="ce-switch-slider"></span>' +
+                    '</label>' +
+                '</div>';
+        }
+
         el.innerHTML =
-            '<div class="ce-action-card">' +
-                '<div class="ce-action-card-icon"><i class="fa-solid fa-crosshairs"></i></div>' +
-                '<div class="ce-action-card-content">' +
-                    '<h3 class="ce-action-card-title">Hole Filling / Mastery Detection</h3>' +
-                    '<p class="ce-action-card-desc">' +
-                        'Set up AI-powered skill analysis for this course. This enables the system to identify exactly ' +
-                        'which skills a student has mastered and which they are missing, based on their quiz answers. ' +
-                        'The setup has 3 steps:' +
-                    '</p>' +
+            '<div class="ce-action-card' + (allDone ? ' collapsed' : '') + '">' +
+                '<div class="ce-action-card-header" id="action-card-header">' +
+                    '<div class="ce-action-card-icon"><i class="fa-solid fa-crosshairs"></i></div>' +
+                    '<div class="ce-action-card-header-text">' +
+                        '<div class="ce-action-card-title">Hole Filling / Mastery Detection</div>' +
+                        '<div class="ce-action-card-subtitle">AI-powered skill analysis for this course</div>' +
+                    '</div>' +
+                    '<span class="ce-action-card-summary ' + summaryClass + '">' + summaryText + '</span>' +
+                    '<i class="fa-solid fa-chevron-down ce-action-card-chevron"></i>' +
+                '</div>' +
+                '<div class="ce-action-card-body">' +
                     '<div class="ce-setup-steps">' +
                         '<div class="ce-setup-step">' +
                             '<span class="ce-setup-step-num">1</span>' +
@@ -312,37 +345,28 @@
                             badge(statuses.questions) +
                         '</div>' +
                     '</div>' +
+                    toggleHtml +
                     '<button class="ce-btn-generate ce-action-card-btn" id="btn-start-setup">' +
                         '<i class="' + btnIcon + '"></i> ' + btnLabel +
                     '</button>' +
                 '</div>' +
             '</div>';
 
+        // Collapse / expand handler
+        document.getElementById('action-card-header').addEventListener('click', function () {
+            this.closest('.ce-action-card').classList.toggle('collapsed');
+        });
+
         document.getElementById('btn-start-setup').addEventListener('click', function () {
             enterSetupWizard();
         });
 
-        // Skill mapping toggle (only when all 3 steps are done)
-        if (allDone) {
-            var toggleHtml =
-                '<div class="ce-toggle-card">' +
-                    '<div class="ce-toggle-card-left">' +
-                        '<div class="ce-toggle-card-icon"><i class="fa-solid fa-toggle-' + (skillMappingEnabled ? 'on' : 'off') + '"></i></div>' +
-                        '<div>' +
-                            '<strong>Skill Mapping</strong>' +
-                            '<p>When enabled, the Thinking Tree page can compute and display per-student skill mastery scores for this course.</p>' +
-                        '</div>' +
-                    '</div>' +
-                    '<label class="ce-switch">' +
-                        '<input type="checkbox" id="skill-mapping-toggle" ' + (skillMappingEnabled ? 'checked' : '') + '>' +
-                        '<span class="ce-switch-slider"></span>' +
-                    '</label>' +
-                '</div>';
-            el.insertAdjacentHTML('beforeend', toggleHtml);
-
-            document.getElementById('skill-mapping-toggle').addEventListener('change', function () {
+        // Skill mapping toggle handler
+        var toggleEl = document.getElementById('skill-mapping-toggle');
+        if (toggleEl) {
+            toggleEl.addEventListener('change', function () {
                 var enabled = this.checked;
-                var icon = this.closest('.ce-toggle-card').querySelector('.ce-toggle-card-icon i');
+                var icon = this.closest('.ce-inline-toggle').querySelector('.ce-inline-toggle-left i');
                 icon.className = 'fa-solid fa-toggle-' + (enabled ? 'on' : 'off');
                 fetch('/api/skill-mapping-toggle', {
                     method: 'POST',

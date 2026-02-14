@@ -259,49 +259,92 @@
 
 /* ---- Action Card (Landing Page) ---- */
 .ce-action-card {
-    display: flex; gap: 24px; padding: 28px;
     background: var(--color-surface); border: 1px solid var(--color-border);
-    border-radius: var(--radius); margin-bottom: 20px;
+    border-radius: var(--radius); margin-bottom: 20px; overflow: hidden;
 }
+
+/* Clickable header row */
+.ce-action-card-header {
+    display: flex; align-items: center; gap: 14px; padding: 18px 20px;
+    cursor: pointer; user-select: none; transition: background 0.15s;
+}
+.ce-action-card-header:hover { background: var(--color-bg); }
 .ce-action-card-icon {
-    width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
+    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.4rem; background: rgba(69,181,170,0.1); color: #45B5AA;
+    font-size: 1.1rem; background: rgba(69,181,170,0.1); color: #45B5AA;
 }
-.ce-action-card-content { flex: 1; }
-.ce-action-card-title { font-size: 1.1rem; font-weight: 700; color: var(--color-text); margin: 0 0 6px; }
-.ce-action-card-desc { font-size: 0.85rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0 0 20px; max-width: 600px; }
-.ce-action-card-btn { margin-top: 16px; }
+.ce-action-card-title { font-size: 1rem; font-weight: 700; color: var(--color-text); margin: 0; }
+.ce-action-card-subtitle { font-size: 0.78rem; color: var(--color-text-muted); margin: 2px 0 0; }
+.ce-action-card-header-text { flex: 1; }
+.ce-action-card-summary {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 0.7rem; font-weight: 600; flex-shrink: 0;
+}
+.ce-action-card-summary.all-done { background: rgba(69,181,170,0.1); color: #2D8A80; }
+.ce-action-card-summary.in-progress { background: rgba(245,158,11,0.1); color: #B45309; }
+.ce-action-card-summary.not-started { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+.ce-action-card-chevron {
+    font-size: 0.75rem; color: var(--color-text-muted); flex-shrink: 0;
+    transition: transform 0.25s ease;
+}
+.ce-action-card.collapsed .ce-action-card-chevron { transform: rotate(-90deg); }
+
+/* Collapsible body */
+.ce-action-card-body {
+    padding: 0 20px 20px; border-top: 1px solid var(--color-border);
+    max-height: 600px; overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.25s ease;
+    opacity: 1;
+}
+.ce-action-card.collapsed .ce-action-card-body {
+    max-height: 0; padding-top: 0; padding-bottom: 0;
+    border-top-color: transparent; opacity: 0;
+}
+.ce-action-card-desc { font-size: 0.82rem; color: var(--color-text-secondary); line-height: 1.5; margin: 16px 0 14px; max-width: 600px; }
+.ce-action-card-btn { margin-top: 14px; }
 
 /* ---- Setup Steps (inside action card) ---- */
 .ce-setup-steps { display: flex; flex-direction: column; gap: 0; margin-bottom: 4px; }
 .ce-setup-step {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 0; border-bottom: 1px solid var(--color-border);
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--color-border);
 }
 .ce-setup-step:last-child { border-bottom: none; }
 .ce-setup-step-num {
-    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.78rem; font-weight: 700;
+    font-size: 0.72rem; font-weight: 700;
     background: var(--color-bg); color: var(--color-text-muted);
     border: 1px solid var(--color-border);
 }
 .ce-setup-step-info { flex: 1; }
-.ce-setup-step-info strong { display: block; font-size: 0.88rem; font-weight: 600; color: var(--color-text); }
-.ce-setup-step-info span { font-size: 0.78rem; color: var(--color-text-muted); }
+.ce-setup-step-info strong { display: block; font-size: 0.85rem; font-weight: 600; color: var(--color-text); }
+.ce-setup-step-info span { font-size: 0.76rem; color: var(--color-text-muted); }
 
 /* ---- Status Badges ---- */
 .ce-status-badge {
     display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 12px; border-radius: 20px;
-    font-size: 0.72rem; font-weight: 600; flex-shrink: 0;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 0.7rem; font-weight: 600; flex-shrink: 0;
 }
 .ce-status-badge.done { background: rgba(69,181,170,0.1); color: #2D8A80; }
 .ce-status-badge.processing { background: rgba(245,158,11,0.1); color: #B45309; }
 .ce-status-badge.pending { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
 
-/* ---- Toggle Card ---- */
+/* ---- Inline Toggle (inside action card body) ---- */
+.ce-inline-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; margin-top: 14px;
+    background: var(--color-bg); border-radius: var(--radius-sm);
+}
+.ce-inline-toggle-left { display: flex; align-items: center; gap: 10px; flex: 1; }
+.ce-inline-toggle-left i { font-size: 1rem; color: var(--color-primary); }
+.ce-inline-toggle-left strong { font-size: 0.82rem; color: var(--color-text); }
+.ce-inline-toggle-left span { font-size: 0.76rem; color: var(--color-text-secondary); margin-left: 6px; }
+
+/* Legacy toggle card (keep for backward compat) */
 .ce-toggle-card {
     display: flex; align-items: center; justify-content: space-between;
     padding: 18px 20px; background: var(--color-surface);
