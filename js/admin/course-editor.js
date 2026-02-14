@@ -720,23 +720,40 @@
             showQuestionAnalysisProgress('Found ' + tests.length + ' tests. Fetching questions...', 0);
 
             // Phase 2: Fetch questions from each test (parallel, batched)
+            // Use correct endpoint based on lessonType:
+            //   powerpath-100 → /api/pp-get-questions-admin?lessonId={componentId}
+            //   quiz/other    → /api/qti-item?id={resourceId}&type=assessment
             var allQuestions = [];
             var fetched = 0;
-            var BATCH = 3; // fetch 3 tests at a time
+            var BATCH = 3;
+
+            function fetchTestQuestions(t) {
+                var url;
+                if (t.lessonType === 'powerpath-100' && t.componentId) {
+                    url = '/api/pp-get-questions-admin?lessonId=' + encodeURIComponent(t.componentId);
+                } else if (t.resourceId) {
+                    url = '/api/qti-item?id=' + encodeURIComponent(t.resourceId) + '&type=assessment';
+                } else if (t.componentId) {
+                    // Fallback: try PowerPath with componentId
+                    url = '/api/pp-get-questions-admin?lessonId=' + encodeURIComponent(t.componentId);
+                } else {
+                    // Last resort: try QTI with the dedup id
+                    url = '/api/qti-item?id=' + encodeURIComponent(t.id) + '&type=assessment';
+                }
+                return fetch(url)
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        if (d.success && d.data && d.data.questions) {
+                            return d.data.questions;
+                        }
+                        return [];
+                    })
+                    .catch(function () { return []; });
+            }
 
             for (var i = 0; i < tests.length; i += BATCH) {
                 var batch = tests.slice(i, i + BATCH);
-                var promises = batch.map(function (t) {
-                    return fetch('/api/qti-item?id=' + encodeURIComponent(t.id) + '&type=assessment')
-                        .then(function (r) { return r.json(); })
-                        .then(function (d) {
-                            if (d.success && d.data && d.data.questions) {
-                                return d.data.questions;
-                            }
-                            return [];
-                        })
-                        .catch(function () { return []; });
-                });
+                var promises = batch.map(fetchTestQuestions);
                 var results = await Promise.all(promises);
                 results.forEach(function (qs) {
                     allQuestions = allQuestions.concat(qs);

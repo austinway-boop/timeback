@@ -93,18 +93,33 @@ def _extract_test_from_resource(cr: dict, tests: list):
     """Extract a test entry from a component resource if it's a quiz/assessment type."""
     lesson_type = (cr.get("lessonType") or "").lower().strip()
     title = cr.get("title") or ""
+
+    # Get the component resource's own ID
+    cr_id = cr.get("sourcedId") or cr.get("id") or ""
+
+    # Get the linked resource's ID (for QTI lookups)
     resource = cr.get("resource") or {}
-    res_id = resource.get("sourcedId") or resource.get("id") or cr.get("sourcedId") or ""
+    resource_id = resource.get("sourcedId") or resource.get("id") or ""
 
-    # Include if lessonType indicates a quiz, OR if the resource ID looks like a bank/assessment
+    # Get the parent course component ID (for PowerPath lesson lookups)
+    course_comp = cr.get("courseComponent") or {}
+    component_id = course_comp.get("sourcedId") or ""
+
+    # Use cr_id as the dedup key
+    dedup_id = cr_id or resource_id
+
+    # Include if lessonType indicates a quiz, OR if a resource ID looks like a bank/assessment
     is_quiz_type = lesson_type in QUIZ_LESSON_TYPES
-    is_bank_id = res_id and ("bank" in res_id.lower() or "test" in res_id.lower() or "qti" in res_id.lower())
+    any_id = resource_id or cr_id
+    is_bank_id = any_id and ("bank" in any_id.lower() or "test" in any_id.lower() or "qti" in any_id.lower())
 
-    if res_id and (is_quiz_type or is_bank_id):
-        if not any(t["id"] == res_id for t in tests):
+    if dedup_id and (is_quiz_type or is_bank_id):
+        if not any(t["id"] == dedup_id for t in tests):
             tests.append({
-                "id": res_id,
-                "title": title or res_id,
+                "id": dedup_id,
+                "componentId": component_id,
+                "resourceId": resource_id,
+                "title": title or dedup_id,
                 "lessonType": lesson_type or "unknown",
             })
 
