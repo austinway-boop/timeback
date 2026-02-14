@@ -3,65 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlphaLearn - Quiz</title>
+    <title>AlphaLearn - Assign Tests</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preload" href="/css/style.css?v=9" as="style">
     <link rel="stylesheet" href="/css/style.css?v=9">
-    <link rel="stylesheet" href="/css/pages/quiz.css?v=7">
+    <link rel="stylesheet" href="/css/admin/assign-tests.css?v=7">
 </head>
-<body data-view="student" data-active="home">
-    <div class="layout">
-        <nav class="sidebar" id="sidebar"></nav>
-        <main class="main-content">
-            <div class="quiz-wrap">
-                <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back to course</a>
-                <div id="quiz-area">
-                    <div class="loading-msg"><div class="loading-spinner"></div>Starting quiz...</div>
-                </div>
-            </div>
-        </main>
-    </div>
+<body data-view="admin" data-active="assign-tests">
 
-    <!-- Report Question Modal -->
-    <div class="report-overlay" id="report-modal">
-        <div class="report-box">
-            <h3><i class="fa-solid fa-flag"></i> Report Question</h3>
-            <p class="report-subtitle">Let us know what's wrong and our AI will review it.</p>
-            <div class="report-reasons">
-                <div class="report-reason" onclick="selectReportReason(this,'not_in_source')">
-                    <input type="radio" name="report-reason" value="not_in_source">
-                    <label>Question asks for information not in source materials (video/article)</label>
+<div class="layout">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="main-content">
+
+        <!-- Hero Banner -->
+        <div class="hero-banner">
+            <img src="https://images.unsplash.com/photo-1513258496099-48168024aec0?w=1200&h=300&fit=crop" alt="">
+            <div class="hero-overlay">
+                <div>
+                    <h1><i class="fa-solid fa-clipboard-check" style="margin-right:10px;"></i>Assign Tests</h1>
+                    <p>Search for a student and assign mastery tests by subject and grade level.</p>
                 </div>
-                <div class="report-reason" onclick="selectReportReason(this,'factual_error')">
-                    <input type="radio" name="report-reason" value="factual_error">
-                    <label>Question contains factual errors</label>
-                </div>
-                <div class="report-reason" onclick="selectReportReason(this,'poorly_written')">
-                    <input type="radio" name="report-reason" value="poorly_written">
-                    <label>Question is poorly written or unclear</label>
-                </div>
-                <div class="report-reason" onclick="selectReportReason(this,'other')">
-                    <input type="radio" name="report-reason" value="other">
-                    <label>Other</label>
-                </div>
-            </div>
-            <div class="report-context-input">
-                <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--color-text-secondary);margin-bottom:6px;">Additional context <span style="font-weight:400;color:var(--color-text-muted);">(optional)</span></label>
-                <textarea id="report-other-text" placeholder="Describe the issue in more detail..."></textarea>
-            </div>
-            <div class="report-actions">
-                <button class="report-cancel-btn" onclick="closeReportModal()">Cancel</button>
-                <button class="report-submit-btn" id="report-submit-btn" onclick="submitReport()" disabled>Submit Report</button>
             </div>
         </div>
-    </div>
-    <div class="report-toast" id="report-toast"></div>
 
-    <script src="/js/layout.js?v=19"></script>
-    <script src="/js/notifications.js?v=7"></script>
-    <script src="/js/app.js?v=7"></script>
-        <script src="/js/pages/quiz.js?v=7"></script>
+        <!-- Student Search -->
+        <div class="search-wrap">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="student-search" placeholder="Search for a student by name or email...">
+            <div class="search-dropdown" id="search-dropdown"></div>
+        </div>
+
+        <!-- Two-Column Panels (hidden until a student is selected) -->
+        <div id="panels" style="display:none;">
+            <div id="assign-feedback"></div>
+            <div class="two-col">
+                <!-- Available Tests -->
+                <div class="panel-card">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa-solid fa-clipboard-list"></i>Available Tests</h2>
+                        <select class="filter-select" id="subject-filter" onchange="renderTests()">
+                            <option value="all">All Subjects</option>
+                        </select>
+                    </div>
+                    <div class="panel-body" id="tests-list">
+                        <div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><p>Select a student to see available tests.</p></div>
+                    </div>
+                </div>
+
+                <!-- Pending / Existing Assignments -->
+                <div class="panel-card">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa-solid fa-clock"></i>Student's Tests</h2>
+                    </div>
+                    <div class="panel-body" id="pending-tests">
+                        <div class="empty-state"><i class="fa-solid fa-check-circle"></i><p>No test assignments yet.</p></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="/js/auth-guard.js?v=3"></script>
+<script src="/js/layout.js?v=19"></script>
+<script src="/js/notifications.js?v=7"></script>
+<script src="/js/app.js?v=7"></script>
+<script src="/js/admin/assign-tests.js?v=7"></script>
 </body>
 </html>
