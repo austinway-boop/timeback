@@ -23,41 +23,90 @@ SERVICE_USER_ID = "8ea2b8e1-1b04-4cab-b608-9ab524c059c2"
 
 # ── PowerPath tree: enroll + sync + fetch ────────────────────────────
 
+def _find_pp100_course_ids(course_id: str) -> list[str]:
+    """Find PP100 course IDs that correspond to the given course.
+    Searches for courses with 'PP100' in the title matching the same subject."""
+    try:
+        # Get the original course's title to match against
+        from api._helpers import fetch_one
+        course_data, status = fetch_one(f"/ims/oneroster/rostering/v1p2/courses/{course_id}")
+        if not course_data:
+            return []
+        course_obj = course_data.get("course", course_data)
+        original_title = (course_obj.get("title") or "").lower()
+
+        # Extract key subject words from the title
+        keywords = []
+        for word in original_title.replace("-", " ").split():
+            if len(word) >= 3 and word not in ("the", "and", "for", "with"):
+                keywords.append(word)
+
+        # Fetch all courses and find PP100 versions
+        all_courses = fetch_all_paginated(
+            "/ims/oneroster/rostering/v1p2/courses", "courses"
+        )
+        pp100_ids = []
+        for c in all_courses:
+            cid = c.get("sourcedId", "")
+            title = (c.get("title") or "").lower()
+            if cid == course_id:
+                continue
+            if "pp100" not in title and "pp100" not in cid.lower():
+                continue
+            # Check if this PP100 course matches the subject
+            match_count = sum(1 for kw in keywords if kw in title)
+            if match_count >= 2:  # At least 2 keyword matches
+                pp100_ids.append(cid)
+
+        return pp100_ids
+    except Exception:
+        return []
+
+
 def _get_powerpath_tree(course_id: str) -> tuple[dict | None, list]:
     """Get the PowerPath lesson plan tree, enrolling + syncing if needed.
+    Also searches for PP100 course versions if the original ID fails.
     Returns (tree_data, debug_log)."""
     debug = []
     headers = api_headers()
 
-    # Step 1: Try generic tree endpoint
-    tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}", headers)
-    if tree:
-        debug.append("tree_generic: ok")
-        return tree, debug
-    debug.append("tree_generic: failed")
+    # Build list of IDs to try: original + PP100 versions
+    ids_to_try = [course_id]
+    pp100_ids = _find_pp100_course_ids(course_id)
+    for pid in pp100_ids:
+        if pid not in ids_to_try:
+            ids_to_try.append(pid)
+    debug.append(f"ids_to_try={ids_to_try}")
 
-    # Step 2: Try with service user ID
-    tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/{course_id}/{SERVICE_USER_ID}", headers)
-    if tree:
-        debug.append("tree_user: ok")
-        return tree, debug
-    debug.append("tree_user: failed")
+    # Step 1: Try generic tree endpoint for each ID
+    for cid in ids_to_try:
+        tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/tree/{cid}", headers)
+        if tree:
+            debug.append(f"tree_generic: ok ({cid})")
+            return tree, debug
+    debug.append("tree_generic: all failed")
 
-    # Step 3: Enroll service account + sync course + retry
-    _enroll_service_account(course_id, headers)
-    debug.append("enrolled")
+    # Step 2: Try with service user ID for each
+    for cid in ids_to_try:
+        tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/{cid}/{SERVICE_USER_ID}", headers)
+        if tree:
+            debug.append(f"tree_user: ok ({cid})")
+            return tree, debug
+    debug.append("tree_user: all failed")
 
-    _sync_course(course_id, headers)
-    debug.append("synced")
+    # Step 3: Enroll + sync for each ID, then retry
+    for cid in ids_to_try:
+        _enroll_service_account(cid, headers)
+        _sync_course(cid, headers)
+        debug.append(f"enrolled+synced: {cid}")
 
-    # Refresh headers after sync
-    headers = api_headers()
-    tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/{course_id}/{SERVICE_USER_ID}", headers)
-    if tree:
-        debug.append("tree_after_sync: ok")
-        return tree, debug
-    debug.append("tree_after_sync: failed")
+        headers = api_headers()  # refresh token
+        tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/{cid}/{SERVICE_USER_ID}", headers)
+        if tree:
+            debug.append(f"tree_after_sync: ok ({cid})")
+            return tree, debug
 
+    debug.append("tree_after_sync: all failed")
     return None, debug
 
 
@@ -272,36 +321,13 @@ class handler(BaseHTTPRequestHandler):
         sources = []
         debug_log = []
 
-        # #region agent log
-        import time as _time
-        _t0 = _time.time()
-        # #endregion
-
         # Tier 1: PowerPath lesson plan tree (enroll + sync if needed)
         tree, tree_debug = _get_powerpath_tree(course_id)
         debug_log.extend(tree_debug)
 
-        # #region agent log
-        _t1 = _time.time()
-        debug_log.append(f"tree_fetch_time={_t1-_t0:.1f}s tree_is_none={tree is None} tree_type={type(tree).__name__}")
-        if tree and isinstance(tree, dict):
-            debug_log.append(f"tree_keys={list(tree.keys())[:10]}")
-            inner = tree.get("lessonPlan", tree)
-            if isinstance(inner, dict) and inner.get("lessonPlan"):
-                inner = inner["lessonPlan"]
-            if isinstance(inner, dict):
-                debug_log.append(f"inner_keys={list(inner.keys())[:10]} subComponents_count={len(inner.get('subComponents', []))}")
-            elif isinstance(inner, list):
-                debug_log.append(f"inner_is_list len={len(inner)}")
-        # #endregion
-
         if tree:
             pp_tests = _extract_assessments_from_tree(tree)
-            # #region agent log
             debug_log.append(f"pp_tests_count={len(pp_tests)}")
-            if pp_tests:
-                debug_log.append(f"first_test={pp_tests[0]}")
-            # #endregion
             for t in pp_tests:
                 if not any(x["id"] == t["id"] for x in all_tests):
                     all_tests.append(t)
@@ -311,9 +337,6 @@ class handler(BaseHTTPRequestHandler):
         # Tier 2: OneRoster component resources (fallback)
         if not all_tests:
             or_tests = _try_oneroster_components(course_id)
-            # #region agent log
-            debug_log.append(f"oneroster_fallback_count={len(or_tests)}")
-            # #endregion
             for t in or_tests:
                 if not any(x["id"] == t["id"] for x in all_tests):
                     all_tests.append(t)
