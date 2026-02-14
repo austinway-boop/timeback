@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler
 
 import requests
 
-from api._helpers import API_BASE, api_headers, send_json
+from api._helpers import API_BASE, api_headers, fetch_all_paginated, send_json
 from api._kv import kv_get, kv_set, kv_delete
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -41,8 +41,25 @@ def _parse_skill_nodes(mermaid_code: str) -> list[tuple[str, str]]:
     return list(nodes.items())
 
 
-def _fetch_lesson_tree(course_id: str) -> list:
-    """Fetch the PowerPath lesson plan tree for a course."""
+def _get_lesson_names(course_id: str, mermaid_code: str) -> list[str]:
+    """Get lesson names using a 3-tier fallback strategy."""
+    # Tier 1: PowerPath lesson plan tree
+    names = _try_powerpath_tree(course_id)
+    if names:
+        return names
+    # Tier 2: OneRoster course components
+    names = _try_oneroster_components(course_id)
+    if names:
+        return names
+    # Tier 3: Extract subgraph names from the mermaid code
+    names = _extract_subgraph_names(mermaid_code)
+    if names:
+        return names
+    return []
+
+
+def _try_powerpath_tree(course_id: str) -> list[str]:
+    """Tier 1: Fetch lesson names from the PowerPath lesson plan tree."""
     try:
         headers = api_headers()
         resp = requests.get(
@@ -53,43 +70,57 @@ def _fetch_lesson_tree(course_id: str) -> list:
         if resp.status_code != 200:
             return []
         data = resp.json()
-        return data if isinstance(data, list) else [data]
+        tree_data = data if isinstance(data, list) else [data]
+        names = []
+
+        def walk(node, depth=0):
+            if isinstance(node, dict):
+                name = node.get("title") or node.get("name") or node.get("label") or ""
+                if name and depth > 0:
+                    names.append(name)
+                children = (
+                    node.get("children") or node.get("lessons")
+                    or node.get("items") or node.get("units") or []
+                )
+                if isinstance(children, list):
+                    for child in children:
+                        walk(child, depth + 1)
+            elif isinstance(node, list):
+                for item in node:
+                    walk(item, depth)
+
+        walk(tree_data)
+        return names
     except Exception:
         return []
 
 
-def _extract_lesson_names_flat(tree_data) -> list[str]:
-    """Walk the tree and return a flat list of lesson names."""
+def _try_oneroster_components(course_id: str) -> list[str]:
+    """Tier 2: Fetch lesson/component names from OneRoster course components."""
+    try:
+        components = fetch_all_paginated(
+            f"/ims/oneroster/rostering/v1p2/courses/components?filter=course.sourcedId%3D'{course_id}'",
+            "courseComponents",
+        )
+        if not components:
+            return []
+        names = []
+        for comp in components:
+            title = comp.get("title") or comp.get("name") or ""
+            if title:
+                names.append(title)
+        return names
+    except Exception:
+        return []
+
+
+def _extract_subgraph_names(mermaid_code: str) -> list[str]:
+    """Tier 3: Extract unit/lesson names from mermaid subgraph labels."""
+    if not mermaid_code:
+        return []
     names = []
-
-    def walk(node, depth=0):
-        if isinstance(node, dict):
-            name = (
-                node.get("title")
-                or node.get("name")
-                or node.get("label")
-                or ""
-            )
-            ntype = (node.get("type") or node.get("nodeType") or "").lower()
-            # Only include actual lessons (not top-level units)
-            if name and depth > 0:
-                names.append(name)
-
-            children = (
-                node.get("children")
-                or node.get("lessons")
-                or node.get("items")
-                or node.get("units")
-                or []
-            )
-            if isinstance(children, list):
-                for child in children:
-                    walk(child, depth + 1)
-        elif isinstance(node, list):
-            for item in node:
-                walk(item, depth)
-
-    walk(tree_data)
+    for match in re.finditer(r'subgraph\s+\w+\["([^"]+)"\]', mermaid_code):
+        names.append(match.group(1))
     return names
 
 
@@ -182,11 +213,10 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": "Could not parse any skill nodes from the skill tree."}, 400)
             return
 
-        # Fetch lesson plan tree
-        tree_data = _fetch_lesson_tree(course_id)
-        lesson_names = _extract_lesson_names_flat(tree_data)
+        # Fetch lesson names (3-tier fallback)
+        lesson_names = _get_lesson_names(course_id, mermaid_code)
         if not lesson_names:
-            send_json(self, {"error": "Could not fetch lesson names from PowerPath."}, 400)
+            send_json(self, {"error": "Could not fetch lesson names from any source (PowerPath, OneRoster, or mermaid subgraphs)."}, 400)
             return
 
         # Delete existing mapping (for regeneration)
