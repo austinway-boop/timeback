@@ -1,5 +1,5 @@
 /* ====================================================================
-   Course Editor – AP Course Skill Tree Generator
+   Course Editor – AP Course Skill Tree Generator + Lesson Mapping
    ==================================================================== */
 (function () {
     'use strict';
@@ -14,34 +14,23 @@
 
     const THEMES = ['teal', 'purple', 'pink', 'orange', 'blue'];
     const ICONS = {
-        history: 'fa-landmark',
-        lang:    'fa-pen-fancy',
-        lit:     'fa-book-open',
-        bio:     'fa-dna',
-        chem:    'fa-flask',
-        physics: 'fa-atom',
-        math:    'fa-calculator',
-        calc:    'fa-square-root-variable',
-        stat:    'fa-chart-line',
-        cs:      'fa-laptop-code',
-        psych:   'fa-brain',
-        econ:    'fa-chart-pie',
-        gov:     'fa-building-columns',
-        geo:     'fa-globe-americas',
-        env:     'fa-leaf',
-        art:     'fa-palette',
-        music:   'fa-music',
-        default: 'fa-graduation-cap',
+        history: 'fa-landmark', lang: 'fa-pen-fancy', lit: 'fa-book-open',
+        bio: 'fa-dna', chem: 'fa-flask', physics: 'fa-atom',
+        math: 'fa-calculator', calc: 'fa-square-root-variable', stat: 'fa-chart-line',
+        cs: 'fa-laptop-code', psych: 'fa-brain', econ: 'fa-chart-pie',
+        gov: 'fa-building-columns', geo: 'fa-globe-americas', env: 'fa-leaf',
+        art: 'fa-palette', music: 'fa-music', default: 'fa-graduation-cap',
     };
 
-    const POLL_INTERVAL = 15000; // 15 seconds
+    const POLL_INTERVAL = 15000;
 
     /* ---- State ------------------------------------------------------ */
-    let allCourses = [];
-    let filteredCourses = [];
-    let selectedCourse = null;
-    let pollTimer = null;
-    let chartZoom = 1;
+    var allCourses = [];
+    var filteredCourses = [];
+    var selectedCourse = null;
+    var pollTimer = null;
+    var lessonPollTimer = null;
+    var currentMermaidCode = ''; // stored for export
 
     /* ---- Helpers ----------------------------------------------------- */
     function esc(str) {
@@ -53,46 +42,50 @@
 
     function guessIcon(title) {
         var t = (title || '').toLowerCase();
-        if (t.includes('hist') || t.includes('world'))             return ICONS.history;
-        if (t.includes('lang') && !t.includes('language & comp'))  return ICONS.lang;
-        if (t.includes('language & comp') || t.includes('lang'))   return ICONS.lang;
-        if (t.includes('lit'))                                     return ICONS.lit;
-        if (t.includes('bio'))                                     return ICONS.bio;
-        if (t.includes('chem'))                                    return ICONS.chem;
-        if (t.includes('physics'))                                 return ICONS.physics;
-        if (t.includes('calc'))                                    return ICONS.calc;
-        if (t.includes('stat'))                                    return ICONS.stat;
-        if (t.includes('math'))                                    return ICONS.math;
-        if (t.includes('computer') || t.includes('cs'))            return ICONS.cs;
-        if (t.includes('psych'))                                   return ICONS.psych;
-        if (t.includes('econ'))                                    return ICONS.econ;
-        if (t.includes('gov'))                                     return ICONS.gov;
-        if (t.includes('geo') || t.includes('human'))              return ICONS.geo;
-        if (t.includes('environ'))                                 return ICONS.env;
-        if (t.includes('art'))                                     return ICONS.art;
-        if (t.includes('music'))                                   return ICONS.music;
+        if (t.includes('hist') || t.includes('world')) return ICONS.history;
+        if (t.includes('lang')) return ICONS.lang;
+        if (t.includes('lit')) return ICONS.lit;
+        if (t.includes('bio')) return ICONS.bio;
+        if (t.includes('chem')) return ICONS.chem;
+        if (t.includes('physics')) return ICONS.physics;
+        if (t.includes('calc')) return ICONS.calc;
+        if (t.includes('stat')) return ICONS.stat;
+        if (t.includes('math')) return ICONS.math;
+        if (t.includes('computer') || t.includes('cs')) return ICONS.cs;
+        if (t.includes('psych')) return ICONS.psych;
+        if (t.includes('econ')) return ICONS.econ;
+        if (t.includes('gov')) return ICONS.gov;
+        if (t.includes('geo') || t.includes('human')) return ICONS.geo;
+        if (t.includes('environ')) return ICONS.env;
+        if (t.includes('art')) return ICONS.art;
+        if (t.includes('music')) return ICONS.music;
         return ICONS.default;
     }
 
-    function isAPCourse(course) {
-        var title = (course.title || '').trim();
-        return /\bAP\b/i.test(title);
-    }
+    function isAPCourse(c) { return /\bAP\b/i.test((c.title || '').trim()); }
 
-    function isExternal(course) {
-        var meta = course.metadata || {};
+    function isExternal(c) {
+        var meta = c.metadata || {};
         var app = (meta.app || meta.primaryApp || '').toLowerCase().replace(/[\s_-]/g, '');
         if (!app) return false;
-        for (var key of EXTERNAL_APP_KEYS) {
-            if (app.includes(key)) return true;
-        }
+        for (var key of EXTERNAL_APP_KEYS) { if (app.includes(key)) return true; }
         return false;
+    }
+
+    function countMermaidNodes(code) {
+        var matches = code.match(/\w+\["[^"]*"\]/g);
+        return matches ? matches.length : 0;
+    }
+
+    function formatTime(secs) {
+        var m = Math.floor(secs / 60), s = secs % 60;
+        return m > 0 ? m + 'm ' + s + 's' : s + 's';
     }
 
     /* ---- Skeleton Cards --------------------------------------------- */
     function showSkeletonCards(count) {
         var grid = document.getElementById('courses-grid');
-        grid.innerHTML = Array.from({ length: count }, function (_, i) {
+        grid.innerHTML = Array.from({ length: count }, function () {
             return '<div class="ce-skeleton-card">' +
                 '<div class="skeleton skeleton-text lg" style="width:40px;height:40px;border-radius:10px;margin-bottom:12px;"></div>' +
                 '<div class="skeleton skeleton-text" style="width:75%;margin-bottom:8px;"></div>' +
@@ -111,26 +104,30 @@
             allCourses = (data.courses || []).filter(function (c) {
                 return isAPCourse(c) && !isExternal(c);
             }).sort(function (a, b) {
-                // Active courses first, tobedeleted last
-                var aActive = (a.status || '').toLowerCase() === 'active' ? 0 : 1;
-                var bActive = (b.status || '').toLowerCase() === 'active' ? 0 : 1;
-                if (aActive !== bActive) return aActive - bActive;
+                var aA = (a.status || '').toLowerCase() === 'active' ? 0 : 1;
+                var bA = (b.status || '').toLowerCase() === 'active' ? 0 : 1;
+                if (aA !== bA) return aA - bA;
                 return (a.title || '').localeCompare(b.title || '');
             });
-
-            // Check which courses already have skill trees
             await checkExistingTrees();
-
             updateCount();
             filterAndRender();
+            // Auto-open course from URL
+            autoOpenFromURL();
         } catch (e) {
             document.getElementById('courses-grid').innerHTML =
                 '<div class="ce-empty-state"><i class="fa-solid fa-circle-exclamation"></i><p>Failed to load courses. Please try again.</p></div>';
         }
     }
 
+    function autoOpenFromURL() {
+        var id = new URLSearchParams(window.location.search).get('id');
+        if (!id) return;
+        var course = allCourses.find(function (c) { return c.sourcedId === id; });
+        if (course) openCourseDetail(course);
+    }
+
     async function checkExistingTrees() {
-        // Check each course for existing skill trees (in parallel, batched)
         var checks = allCourses.map(function (c) {
             return fetch('/api/skill-tree-status?courseId=' + encodeURIComponent(c.sourcedId))
                 .then(function (r) { return r.json(); })
@@ -138,10 +135,7 @@
                     c._hasTree = d.status === 'done';
                     c._generating = d.status === 'processing';
                 })
-                .catch(function () {
-                    c._hasTree = false;
-                    c._generating = false;
-                });
+                .catch(function () { c._hasTree = false; c._generating = false; });
         });
         await Promise.all(checks);
     }
@@ -157,51 +151,35 @@
         var q = (document.getElementById('course-search').value || '').toLowerCase().trim();
         if (!q) return allCourses.slice();
         return allCourses.filter(function (c) {
-            return (c.title || '').toLowerCase().includes(q) ||
-                   (c.courseCode || '').toLowerCase().includes(q);
+            return (c.title || '').toLowerCase().includes(q) || (c.courseCode || '').toLowerCase().includes(q);
         });
     }
 
     function filterAndRender() {
         filteredCourses = filterCourses();
         var grid = document.getElementById('courses-grid');
-
         if (!filteredCourses.length) {
             grid.innerHTML = '<div class="ce-empty-state"><i class="fa-solid fa-book"></i><p>No AP courses found matching your search.</p></div>';
             return;
         }
-
         grid.innerHTML = filteredCourses.map(function (c, i) {
-            var theme = THEMES[i % THEMES.length];
-            var icon = guessIcon(c.title);
-            var badge = '';
-            if (c._hasTree) {
-                badge = '<span class="ce-card-badge has-tree"><i class="fa-solid fa-check" style="margin-right:3px;"></i>Skill Tree</span>';
-            } else if (c._generating) {
-                badge = '<span class="ce-card-badge generating"><i class="fa-solid fa-spinner fa-spin" style="margin-right:3px;"></i>Generating</span>';
-            }
-
-            var meta = c.metadata || {};
-            var metrics = meta.metrics || {};
+            var theme = THEMES[i % THEMES.length], icon = guessIcon(c.title), badge = '';
+            if (c._hasTree) badge = '<span class="ce-card-badge has-tree"><i class="fa-solid fa-check" style="margin-right:3px;"></i>Skill Tree</span>';
+            else if (c._generating) badge = '<span class="ce-card-badge generating"><i class="fa-solid fa-spinner fa-spin" style="margin-right:3px;"></i>Generating</span>';
+            var meta = c.metadata || {}, metrics = meta.metrics || {};
             var lessons = metrics.totalLessons || metrics.totalUnits || '';
-
-            return '<div class="ce-course-card" data-idx="' + i + '">' +
-                badge +
+            return '<div class="ce-course-card" data-idx="' + i + '">' + badge +
                 '<div class="ce-card-icon ' + theme + '"><i class="fa-solid ' + icon + '"></i></div>' +
                 '<div class="ce-card-title">' + esc(c.title) + '</div>' +
                 '<div class="ce-card-code">' + esc(c.courseCode || 'No code') + '</div>' +
                 '<div class="ce-card-meta">' +
                     (lessons ? '<span><i class="fa-solid fa-layer-group"></i>' + lessons + ' lessons</span>' : '') +
                     '<span><i class="fa-solid fa-circle ' + (c.status === 'active' ? '" style="color:#45B5AA;font-size:0.5rem;"' : '" style="color:#CBD5E0;font-size:0.5rem;"') + '></i> ' + esc(c.status || 'unknown') + '</span>' +
-                '</div>' +
-            '</div>';
+                '</div></div>';
         }).join('');
-
-        // Attach click handlers
         grid.querySelectorAll('.ce-course-card').forEach(function (card) {
             card.addEventListener('click', function () {
-                var idx = parseInt(this.getAttribute('data-idx'), 10);
-                openCourseDetail(filteredCourses[idx]);
+                openCourseDetail(filteredCourses[parseInt(this.getAttribute('data-idx'), 10)]);
             });
         });
     }
@@ -209,16 +187,14 @@
     /* ---- Course Detail View ----------------------------------------- */
     function openCourseDetail(course) {
         selectedCourse = course;
+        history.pushState(null, '', '?id=' + encodeURIComponent(course.sourcedId));
         document.getElementById('course-list-view').style.display = 'none';
         document.getElementById('course-detail-view').style.display = '';
-
         var icon = guessIcon(course.title);
-        var meta = course.metadata || {};
-        var metrics = meta.metrics || {};
+        var meta = course.metadata || {}, metrics = meta.metrics || {};
         var lessons = metrics.totalLessons || metrics.totalUnits || '?';
         var subjects = (course.subjects || []).join(', ') || 'N/A';
         var grades = (course.grades || []).join(', ') || 'N/A';
-
         document.getElementById('detail-header').innerHTML =
             '<div class="ce-detail-title"><i class="fa-solid ' + icon + '" style="margin-right:10px; opacity:0.5;"></i>' + esc(course.title) + '</div>' +
             '<div class="ce-detail-code">' + esc(course.courseCode || 'No course code') + ' &bull; ' + esc(course.sourcedId) + '</div>' +
@@ -228,36 +204,38 @@
                 '<span><i class="fa-solid fa-users"></i>Grades: ' + esc(grades) + '</span>' +
                 '<span><i class="fa-solid fa-circle ' + (course.status === 'active' ? '" style="color:#45B5AA;font-size:0.5rem;"' : '" style="color:#CBD5E0;font-size:0.5rem;"') + '></i> ' + esc(course.status) + '</span>' +
             '</div>';
-
-        // Load skill tree state
         loadSkillTreeState(course.sourcedId);
     }
 
     function closeCourseDetail() {
         selectedCourse = null;
+        currentMermaidCode = '';
         stopPolling();
+        stopLessonPolling();
+        history.pushState(null, '', '/admin/course-editor');
         document.getElementById('course-detail-view').style.display = 'none';
         document.getElementById('course-list-view').style.display = '';
-        // Refresh the list to update badges
+        document.getElementById('lesson-mapping-section').style.display = 'none';
         checkExistingTrees().then(function () { filterAndRender(); });
     }
 
     async function loadSkillTreeState(courseId) {
         var actionsEl = document.getElementById('skill-tree-actions');
         var progressEl = document.getElementById('generation-progress');
-        var chartEl = document.getElementById('chart-container');
-
+        var exportEl = document.getElementById('skill-tree-export');
         actionsEl.innerHTML = '<div class="ce-progress-spinner" style="display:inline-block;"></div> Checking...';
         progressEl.style.display = 'none';
-        chartEl.style.display = 'none';
+        exportEl.style.display = 'none';
+        document.getElementById('lesson-mapping-section').style.display = 'none';
 
         try {
             var resp = await fetch('/api/skill-tree-status?courseId=' + encodeURIComponent(courseId));
             var data = await resp.json();
-
             if (data.status === 'done' && data.mermaid) {
+                currentMermaidCode = data.mermaid;
                 showTreeActions(true);
-                renderMermaidChart(data.mermaid);
+                showSkillTreeComplete(data);
+                showLessonMappingSection(courseId);
             } else if (data.status === 'processing') {
                 showTreeActions(false, true);
                 showProgress('Claude is generating the skill tree...', '');
@@ -271,57 +249,85 @@
     }
 
     function showTreeActions(hasTree, isGenerating) {
-        var actionsEl = document.getElementById('skill-tree-actions');
-
+        var el = document.getElementById('skill-tree-actions');
         if (isGenerating) {
-            actionsEl.innerHTML =
-                '<button class="ce-btn-generate" disabled>' +
-                    '<i class="fa-solid fa-spinner fa-spin"></i> Generating...' +
-                '</button>';
+            el.innerHTML = '<button class="ce-btn-generate" disabled><i class="fa-solid fa-spinner fa-spin"></i> Generating...</button>';
             return;
         }
-
         if (hasTree) {
-            actionsEl.innerHTML =
-                '<button class="ce-btn-secondary" id="btn-regenerate">' +
-                    '<i class="fa-solid fa-arrows-rotate"></i> Regenerate Skill Tree' +
-                '</button>';
+            el.innerHTML = '<button class="ce-btn-secondary" id="btn-regenerate"><i class="fa-solid fa-arrows-rotate"></i> Regenerate Skill Tree</button>';
             document.getElementById('btn-regenerate').addEventListener('click', function () {
-                if (confirm('This will replace the existing skill tree. Continue?')) {
-                    startGeneration();
-                }
+                if (confirm('This will replace the existing skill tree and lesson mappings. Continue?')) startGeneration();
             });
         } else {
-            actionsEl.innerHTML =
-                '<button class="ce-btn-generate" id="btn-generate">' +
-                    '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Skill Tree' +
-                '</button>' +
+            el.innerHTML =
+                '<button class="ce-btn-generate" id="btn-generate"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate Skill Tree</button>' +
                 '<span style="font-size:0.82rem; color:var(--color-text-muted);">Uses Claude Opus 4.6 with extended thinking</span>';
-            document.getElementById('btn-generate').addEventListener('click', function () {
-                startGeneration();
-            });
+            document.getElementById('btn-generate').addEventListener('click', function () { startGeneration(); });
         }
     }
 
+    /* ---- Skill Tree Complete (Export UI) ----------------------------- */
+    function showSkillTreeComplete(data) {
+        var el = document.getElementById('skill-tree-export');
+        el.style.display = '';
+        var nodeCount = countMermaidNodes(data.mermaid);
+        var genDate = data.generatedAt ? new Date(data.generatedAt * 1000).toLocaleString() : '';
+        var preview = data.mermaid.split('\n').slice(0, 20).join('\n');
+
+        el.innerHTML =
+            '<div class="ce-export-header">' +
+                '<div class="ce-export-status"><i class="fa-solid fa-circle-check"></i> Skill tree generated</div>' +
+                '<div class="ce-export-meta">' +
+                    '<span><i class="fa-solid fa-diagram-project"></i> ' + nodeCount + ' skill nodes</span>' +
+                    (genDate ? '<span><i class="fa-regular fa-clock"></i> ' + esc(genDate) + '</span>' : '') +
+                    (data.model ? '<span><i class="fa-solid fa-robot"></i> ' + esc(data.model) + '</span>' : '') +
+                '</div>' +
+            '</div>' +
+            '<div class="ce-export-actions">' +
+                '<button class="ce-btn-export" id="btn-copy-mermaid"><i class="fa-solid fa-copy"></i> Copy Code</button>' +
+                '<button class="ce-btn-export" id="btn-download-mermaid"><i class="fa-solid fa-download"></i> Download .mmd</button>' +
+                '<a href="https://mermaid.live" target="_blank" class="ce-btn-export" style="text-decoration:none;"><i class="fa-solid fa-external-link-alt"></i> Open Mermaid Live</a>' +
+            '</div>' +
+            '<details class="ce-export-preview"><summary>Preview raw mermaid code (first 20 lines)</summary>' +
+                '<pre>' + esc(preview) + (data.mermaid.split('\n').length > 20 ? '\n... (' + data.mermaid.split('\n').length + ' total lines)' : '') + '</pre>' +
+            '</details>';
+
+        document.getElementById('btn-copy-mermaid').addEventListener('click', function () {
+            navigator.clipboard.writeText(currentMermaidCode).then(function () {
+                var btn = document.getElementById('btn-copy-mermaid');
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                setTimeout(function () { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Code'; }, 2000);
+            });
+        });
+
+        document.getElementById('btn-download-mermaid').addEventListener('click', function () {
+            var blob = new Blob([currentMermaidCode], { type: 'text/plain' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = (selectedCourse ? selectedCourse.courseCode || selectedCourse.sourcedId : 'skill-tree') + '.mmd';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    }
+
     /* ---- Page Leave Guard ------------------------------------------- */
-    var isGenerating = false;
+    var activeGenerating = false;
 
     function onBeforeUnload(e) {
-        if (isGenerating) {
-            e.preventDefault();
-            e.returnValue = '';
-        }
+        if (activeGenerating) { e.preventDefault(); e.returnValue = ''; }
     }
     window.addEventListener('beforeunload', onBeforeUnload);
 
     /* ---- Generation Flow -------------------------------------------- */
     async function startGeneration() {
         if (!selectedCourse) return;
-
-        isGenerating = true;
+        activeGenerating = true;
         showTreeActions(false, true);
-        showProgress('Submitting to Claude...', 'Preparing the prompt with course and lesson data.');
-        document.getElementById('chart-container').style.display = 'none';
+        showProgress('Submitting to Claude...', '');
+        document.getElementById('skill-tree-export').style.display = 'none';
+        document.getElementById('lesson-mapping-section').style.display = 'none';
 
         try {
             var resp = await fetch('/api/generate-skill-tree', {
@@ -334,147 +340,75 @@
                 }),
             });
             var data = await resp.json();
-
-            if (data.error) {
-                showError(data.error);
-                showTreeActions(false);
-                return;
-            }
-
+            if (data.error) { showError(data.error); showTreeActions(false); activeGenerating = false; return; }
             showProgress('Claude is generating the skill tree...', '');
             startPolling(selectedCourse.sourcedId);
         } catch (e) {
             showError('Failed to start generation: ' + e.message);
             showTreeActions(false);
+            activeGenerating = false;
         }
     }
 
-    /* ---- Polling ----------------------------------------------------- */
+    /* ---- Polling (Skill Tree) --------------------------------------- */
     function startPolling(courseId) {
         stopPolling();
-        var startTime = Date.now();
-
         function poll() {
             fetch('/api/skill-tree-status?courseId=' + encodeURIComponent(courseId))
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data.status === 'done' && data.mermaid) {
-                        isGenerating = false;
+                        activeGenerating = false;
                         stopPolling();
-                        showProgress(null); // hide
+                        showProgress(null);
+                        currentMermaidCode = data.mermaid;
                         showTreeActions(true);
-                        renderMermaidChart(data.mermaid);
-                        // Update the course state
-                        if (selectedCourse) {
-                            selectedCourse._hasTree = true;
-                            selectedCourse._generating = false;
-                        }
+                        showSkillTreeComplete(data);
+                        showLessonMappingSection(courseId);
+                        if (selectedCourse) { selectedCourse._hasTree = true; selectedCourse._generating = false; }
                     } else if (data.status === 'error') {
-                        isGenerating = false;
+                        activeGenerating = false;
                         stopPolling();
                         showProgress(null);
                         showError(data.error || 'Generation failed. Please try again.');
                         showTreeActions(false);
                     } else {
-                        // Still processing — just keep the progress UI alive
                         showProgress('Claude is generating the skill tree...', '');
                         pollTimer = setTimeout(poll, POLL_INTERVAL);
                     }
                 })
-                .catch(function () {
-                    // Network error, keep polling
-                    pollTimer = setTimeout(poll, POLL_INTERVAL);
-                });
+                .catch(function () { pollTimer = setTimeout(poll, POLL_INTERVAL); });
         }
-
         pollTimer = setTimeout(poll, POLL_INTERVAL);
     }
 
-    function stopPolling() {
-        if (pollTimer) {
-            clearTimeout(pollTimer);
-            pollTimer = null;
-        }
-    }
+    function stopPolling() { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } }
 
     /* ---- Progress UI ------------------------------------------------ */
     var progressStartTime = null;
     var progressTickTimer = null;
 
-    function showProgress(title, detail) {
+    function showProgress(title) {
         var el = document.getElementById('generation-progress');
-        if (!title) {
-            el.style.display = 'none';
-            stopProgressTick();
-            return;
-        }
+        if (!title) { el.style.display = 'none'; stopProgressTick(); return; }
         el.style.display = '';
-
-        // Start the clock on first call
         if (!progressStartTime) progressStartTime = Date.now();
-
         var elapsed = Math.floor((Date.now() - progressStartTime) / 1000);
-        var mins = Math.floor(elapsed / 60);
-        var secs = elapsed % 60;
-        var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
 
         el.innerHTML =
-            '<div class="ce-progress-header">' +
-                '<div class="ce-progress-spinner"></div>' +
-                '<div class="ce-progress-title">' + esc(title) + '</div>' +
-            '</div>' +
-            '<div class="ce-progress-elapsed"><i class="fa-regular fa-clock" style="margin-right:6px;"></i>Elapsed: <strong>' + timeStr + '</strong></div>' +
-
+            '<div class="ce-progress-header"><div class="ce-progress-spinner"></div><div class="ce-progress-title">' + esc(title) + '</div></div>' +
+            '<div class="ce-progress-elapsed"><i class="fa-regular fa-clock" style="margin-right:6px;"></i>Elapsed: <strong>' + formatTime(elapsed) + '</strong></div>' +
             '<div class="ce-warning"><i class="fa-solid fa-triangle-exclamation"></i> Please do not leave or close this page until generation is complete. The process cannot resume if interrupted.</div>' +
-
             '<div class="ce-progress-steps">' +
-                '<div class="ce-step ' + (elapsed >= 0 ? 'done' : '') + '">' +
-                    '<i class="fa-solid fa-check-circle"></i>' +
-                    '<div><strong>Prompt submitted</strong><span>Course data and lesson names sent to Claude</span></div>' +
-                '</div>' +
-                '<div class="ce-step ' + (elapsed >= 5 ? 'active' : '') + '">' +
-                    '<i class="fa-solid ' + (elapsed >= 5 ? 'fa-spinner fa-spin' : 'fa-circle') + '"></i>' +
-                    '<div><strong>Deep analysis in progress</strong><span>Claude is reviewing pedagogical research and mapping prerequisite relationships between micro-skills</span></div>' +
-                '</div>' +
-                '<div class="ce-step">' +
-                    '<i class="fa-solid fa-circle"></i>' +
-                    '<div><strong>Building mermaid chart</strong><span>Structuring hundreds of skills into a visual dependency graph</span></div>' +
-                '</div>' +
+                '<div class="ce-step done"><i class="fa-solid fa-check-circle"></i><div><strong>Prompt submitted</strong><span>Course data and lesson names sent to Claude</span></div></div>' +
+                '<div class="ce-step ' + (elapsed >= 5 ? 'active' : '') + '"><i class="fa-solid ' + (elapsed >= 5 ? 'fa-spinner fa-spin' : 'fa-circle') + '"></i><div><strong>Deep analysis in progress</strong><span>Claude is reviewing pedagogical research and mapping prerequisite relationships between micro-skills</span></div></div>' +
+                '<div class="ce-step"><i class="fa-solid fa-circle"></i><div><strong>Building skill chart</strong><span>Structuring hundreds of skills into a dependency graph</span></div></div>' +
             '</div>' +
-
             '<div class="ce-progress-info">' +
-                '<div class="ce-info-card">' +
-                    '<div class="ce-info-icon"><i class="fa-solid fa-lightbulb"></i></div>' +
-                    '<div>' +
-                        '<strong>What is a skill tree?</strong>' +
-                        '<p>A skill tree maps every micro-skill in a course and shows how they depend on each other. ' +
-                        'For example, a student needs to "Identify the three branches of government" before they can ' +
-                        '"Compare the powers of Congress vs. the Executive branch."</p>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="ce-info-card">' +
-                    '<div class="ce-info-icon"><i class="fa-solid fa-graduation-cap"></i></div>' +
-                    '<div>' +
-                        '<strong>Why is this useful?</strong>' +
-                        '<p>Skill trees enable personalized learning paths. Instead of making every student go through ' +
-                        'the same linear sequence, the system can identify exactly which prerequisite skills a student ' +
-                        'is missing and target those gaps directly. This is backed by research on mastery-based learning ' +
-                        'and knowledge space theory.</p>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="ce-info-card">' +
-                    '<div class="ce-info-icon"><i class="fa-solid fa-brain"></i></div>' +
-                    '<div>' +
-                        '<strong>How does it work?</strong>' +
-                        '<p>Claude Opus 4.6 with extended thinking analyzes your course structure against peer-reviewed ' +
-                        'AP curriculum standards. It identifies hundreds of fact-based, content-specific skills ' +
-                        '(not vague things like "understands the material") and maps which skills are prerequisites for others. ' +
-                        'This typically takes 5-10 minutes due to the depth of analysis required.</p>' +
-                    '</div>' +
-                '</div>' +
+                '<div class="ce-info-card"><div class="ce-info-icon"><i class="fa-solid fa-lightbulb"></i></div><div><strong>What is a skill tree?</strong><p>A skill tree maps every micro-skill in a course and shows how they depend on each other. For example, a student needs to "Identify the three branches of government" before they can "Compare the powers of Congress vs. the Executive branch."</p></div></div>' +
+                '<div class="ce-info-card"><div class="ce-info-icon"><i class="fa-solid fa-graduation-cap"></i></div><div><strong>Why is this useful?</strong><p>Skill trees enable personalized learning paths. Instead of making every student go through the same linear sequence, the system can identify exactly which prerequisite skills a student is missing and target those gaps directly.</p></div></div>' +
+                '<div class="ce-info-card"><div class="ce-info-icon"><i class="fa-solid fa-brain"></i></div><div><strong>How does it work?</strong><p>Claude Opus 4.6 with extended thinking analyzes your course structure against peer-reviewed AP curriculum standards, identifying hundreds of fact-based skills and mapping which are prerequisites for others. This typically takes 5-10 minutes.</p></div></div>' +
             '</div>';
-
-        // Start the tick timer to update elapsed every second
         startProgressTick();
     }
 
@@ -486,28 +420,19 @@
             var elapsedEl = el.querySelector('.ce-progress-elapsed strong');
             if (elapsedEl && progressStartTime) {
                 var elapsed = Math.floor((Date.now() - progressStartTime) / 1000);
-                var mins = Math.floor(elapsed / 60);
-                var secs = elapsed % 60;
-                elapsedEl.textContent = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
-
-                // Update step states based on time
+                elapsedEl.textContent = formatTime(elapsed);
                 var steps = el.querySelectorAll('.ce-step');
                 if (steps[1] && elapsed >= 5) {
                     steps[1].classList.add('active');
-                    var icon1 = steps[1].querySelector('i');
-                    if (icon1 && !icon1.classList.contains('fa-spinner')) {
-                        icon1.className = 'fa-solid fa-spinner fa-spin';
-                    }
+                    var ic = steps[1].querySelector('i');
+                    if (ic && !ic.classList.contains('fa-spinner')) ic.className = 'fa-solid fa-spinner fa-spin';
                 }
             }
         }, 1000);
     }
 
     function stopProgressTick() {
-        if (progressTickTimer) {
-            clearInterval(progressTickTimer);
-            progressTickTimer = null;
-        }
+        if (progressTickTimer) { clearInterval(progressTickTimer); progressTickTimer = null; }
         progressStartTime = null;
     }
 
@@ -517,224 +442,200 @@
         el.innerHTML = '<div class="ce-error"><i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>' + esc(msg) + '</div>';
     }
 
-    /* ---- Mermaid Sanitization --------------------------------------- */
-    function sanitizeMermaid(raw) {
-        // Remove markdown fences
-        var code = raw
-            .replace(/^```mermaid\s*/i, '')
-            .replace(/^```\s*/m, '')
-            .replace(/\s*```$/m, '')
-            .trim();
+    /* ==================================================================
+       STEP 2: LESSON MAPPING
+       ================================================================== */
 
-        // Process line by line
-        var lines = code.split('\n');
-        var cleaned = [];
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i];
-
-            // Fix labels inside ["..."] — sanitize problematic characters
-            line = line.replace(/\["([^"]*?)"\]/g, function (match, label) {
-                var safe = label
-                    .replace(/"/g, "'")          // nested double quotes → single
-                    .replace(/[#;{}]/g, ' ')     // remove chars that break mermaid
-                    .replace(/\s+/g, ' ')         // collapse whitespace
-                    .trim();
-                return '["' + safe + '"]';
-            });
-
-            // Fix subgraph labels with same treatment
-            line = line.replace(/subgraph\s+(\w+)\["([^"]*?)"\]/g, function (match, id, label) {
-                var safe = label
-                    .replace(/"/g, "'")
-                    .replace(/[#;{}]/g, ' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                return 'subgraph ' + id + '["' + safe + '"]';
-            });
-
-            // Remove lines that are just whitespace
-            if (line.trim() === '') { cleaned.push(''); continue; }
-
-            // Skip lines with clearly broken syntax (unmatched quotes inside labels)
-            var quoteCount = (line.match(/"/g) || []).length;
-            if (quoteCount % 2 !== 0) {
-                // Try to fix by removing the last unmatched quote
-                var lastIdx = line.lastIndexOf('"');
-                line = line.substring(0, lastIdx) + line.substring(lastIdx + 1);
-            }
-
-            cleaned.push(line);
-        }
-
-        return cleaned.join('\n');
+    function showLessonMappingSection(courseId) {
+        var section = document.getElementById('lesson-mapping-section');
+        section.style.display = '';
+        var actionsEl = document.getElementById('lesson-mapping-actions');
+        var progressEl = document.getElementById('lesson-mapping-progress');
+        var resultsEl = document.getElementById('lesson-mapping-results');
+        progressEl.style.display = 'none';
+        resultsEl.style.display = 'none';
+        actionsEl.innerHTML = '<div class="ce-progress-spinner" style="display:inline-block;"></div> Checking lesson mappings...';
+        loadLessonMappingState(courseId);
     }
 
-    /* ---- Mermaid Rendering ------------------------------------------ */
-    async function renderMermaidChart(mermaidCode) {
-        var container = document.getElementById('chart-container');
-        var inner = document.getElementById('chart-inner');
-        container.style.display = '';
-        chartZoom = 1;
+    async function loadLessonMappingState(courseId) {
+        var actionsEl = document.getElementById('lesson-mapping-actions');
+        try {
+            var resp = await fetch('/api/lesson-mapping-status?courseId=' + encodeURIComponent(courseId));
+            var data = await resp.json();
+            if (data.status === 'done' && data.mapping) {
+                showLessonMappingActions(true);
+                showLessonMappingResults(data.mapping);
+            } else if (data.status === 'processing') {
+                showLessonMappingActions(false, true);
+                showLessonMappingProgress('Claude is mapping lessons to skills...');
+                startLessonPolling(courseId);
+            } else {
+                showLessonMappingActions(false);
+            }
+        } catch (e) {
+            showLessonMappingActions(false);
+        }
+    }
 
-        var code = sanitizeMermaid(mermaidCode);
+    function showLessonMappingActions(hasMappings, isProcessing) {
+        var el = document.getElementById('lesson-mapping-actions');
+        if (isProcessing) {
+            el.innerHTML = '<button class="ce-btn-generate" disabled><i class="fa-solid fa-spinner fa-spin"></i> Mapping in progress...</button>';
+            return;
+        }
+        if (hasMappings) {
+            el.innerHTML = '<button class="ce-btn-secondary" id="btn-remap-lessons"><i class="fa-solid fa-arrows-rotate"></i> Re-map Lessons</button>';
+            document.getElementById('btn-remap-lessons').addEventListener('click', function () {
+                if (confirm('This will regenerate all lesson-to-skill mappings. Continue?')) startLessonMapping();
+            });
+        } else {
+            el.innerHTML =
+                '<button class="ce-btn-generate" id="btn-map-lessons"><i class="fa-solid fa-wand-magic-sparkles"></i> Map Lessons to Skills</button>' +
+                '<span style="font-size:0.82rem; color:var(--color-text-muted);">Uses Claude to map each lesson to specific skills from the tree</span>';
+            document.getElementById('btn-map-lessons').addEventListener('click', function () { startLessonMapping(); });
+        }
+    }
 
-        inner.innerHTML = '<div style="text-align:center; padding:40px; color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>Rendering chart...</div>';
+    async function startLessonMapping() {
+        if (!selectedCourse) return;
+        activeGenerating = true;
+        showLessonMappingActions(false, true);
+        showLessonMappingProgress('Submitting lesson mapping request...');
+        document.getElementById('lesson-mapping-results').style.display = 'none';
 
         try {
-            // Initialize mermaid
-            mermaid.initialize({
-                startOnLoad: false,
-                maxTextSize: 500000,
-                theme: 'default',
-                flowchart: {
-                    useMaxWidth: false,
-                    htmlLabels: true,
-                    curve: 'basis',
-                },
-                securityLevel: 'loose',
+            var resp = await fetch('/api/map-lessons-to-skills', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ courseId: selectedCourse.sourcedId }),
             });
-
-            var id = 'skill-tree-' + Date.now();
-            var result = await mermaid.render(id, code);
-            inner.innerHTML = result.svg;
-
-            // Apply initial zoom reset
-            applyZoom(1);
+            var data = await resp.json();
+            if (data.error) {
+                showLessonMappingError(data.error);
+                showLessonMappingActions(false);
+                activeGenerating = false;
+                return;
+            }
+            showLessonMappingProgress('Claude is mapping lessons to skills...');
+            startLessonPolling(selectedCourse.sourcedId);
         } catch (e) {
-            // First render failed — try stripping problematic lines and retrying
-            console.warn('Mermaid render failed, attempting recovery:', e.message);
-            try {
-                var fallbackCode = stripBrokenLines(code, e.message);
-                var id2 = 'skill-tree-fallback-' + Date.now();
-                var result2 = await mermaid.render(id2, fallbackCode);
-                inner.innerHTML =
-                    '<div class="ce-success-msg" style="margin:12px 20px 0;"><i class="fa-solid fa-triangle-exclamation"></i> Some nodes were removed due to syntax issues. The chart may be incomplete.</div>' +
-                    result2.svg;
-                applyZoom(1);
-            } catch (e2) {
-                // Total failure — show raw code with download option
-                inner.innerHTML =
-                    '<div class="ce-error" style="margin:20px;">' +
-                        '<i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>' +
-                        'Failed to render the mermaid chart. The generated code has syntax issues that could not be auto-fixed.<br><br>' +
-                        '<div style="display:flex; gap:8px; margin-top:12px;">' +
-                            '<button class="ce-btn-secondary" onclick="window._copyMermaidCode()"><i class="fa-solid fa-copy" style="margin-right:4px;"></i> Copy raw code</button>' +
-                            '<a href="https://mermaid.live" target="_blank" class="ce-btn-secondary" style="text-decoration:none;"><i class="fa-solid fa-external-link-alt" style="margin-right:4px;"></i> Open Mermaid Live Editor</a>' +
-                        '</div>' +
-                        '<details style="margin-top:12px;"><summary style="cursor:pointer;">Show raw mermaid code</summary>' +
-                        '<pre id="raw-mermaid-code" style="margin-top:8px; font-size:0.75rem; max-height:400px; overflow:auto; white-space:pre-wrap; background:var(--color-bg); padding:12px; border-radius:6px;">' +
-                        esc(code) + '</pre></details>' +
-                    '</div>';
-                window._copyMermaidCode = function () {
-                    navigator.clipboard.writeText(code).then(function () {
-                        alert('Mermaid code copied to clipboard! Paste it into mermaid.live to view.');
-                    });
-                };
-            }
+            showLessonMappingError('Failed to start mapping: ' + e.message);
+            showLessonMappingActions(false);
+            activeGenerating = false;
         }
     }
 
-    function stripBrokenLines(code, errorMsg) {
-        // Try to extract the problematic line from the error message
-        var lines = code.split('\n');
-        var cleaned = [];
+    /* ---- Lesson Mapping Polling -------------------------------------- */
+    function startLessonPolling(courseId) {
+        stopLessonPolling();
+        var startTime = Date.now();
+        function poll() {
+            fetch('/api/lesson-mapping-status?courseId=' + encodeURIComponent(courseId))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'done' && data.mapping) {
+                        activeGenerating = false;
+                        stopLessonPolling();
+                        document.getElementById('lesson-mapping-progress').style.display = 'none';
+                        showLessonMappingActions(true);
+                        showLessonMappingResults(data.mapping);
+                    } else if (data.status === 'error') {
+                        activeGenerating = false;
+                        stopLessonPolling();
+                        document.getElementById('lesson-mapping-progress').style.display = 'none';
+                        showLessonMappingError(data.error || 'Mapping failed.');
+                        showLessonMappingActions(false);
+                    } else {
+                        var elapsed = Math.floor((Date.now() - startTime) / 1000);
+                        showLessonMappingProgress('Claude is mapping lessons to skills... (' + formatTime(elapsed) + ')');
+                        lessonPollTimer = setTimeout(poll, POLL_INTERVAL);
+                    }
+                })
+                .catch(function () { lessonPollTimer = setTimeout(poll, POLL_INTERVAL); });
+        }
+        lessonPollTimer = setTimeout(poll, POLL_INTERVAL);
+    }
 
-        // Parse error for line number if available
-        var lineMatch = errorMsg.match(/line\s+(\d+)/i);
-        var errorLine = lineMatch ? parseInt(lineMatch[1], 10) : -1;
+    function stopLessonPolling() { if (lessonPollTimer) { clearTimeout(lessonPollTimer); lessonPollTimer = null; } }
 
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim();
+    function showLessonMappingProgress(msg) {
+        var el = document.getElementById('lesson-mapping-progress');
+        el.style.display = '';
+        el.innerHTML =
+            '<div class="ce-progress-header"><div class="ce-progress-spinner"></div><div class="ce-progress-title">' + esc(msg) + '</div></div>' +
+            '<div class="ce-warning"><i class="fa-solid fa-triangle-exclamation"></i> Please do not leave this page until mapping is complete.</div>';
+    }
 
-            // Skip the specific error line if identified
-            if (errorLine > 0 && i === errorLine - 1) continue;
+    function showLessonMappingError(msg) {
+        var el = document.getElementById('lesson-mapping-progress');
+        el.style.display = '';
+        el.innerHTML = '<div class="ce-error"><i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>' + esc(msg) + '</div>';
+    }
 
-            // Skip lines with common syntax problems
-            if (line.match(/^[A-Z0-9_]+\[/) && !line.match(/\["[^"]*"\]/)) {
-                continue; // Node definition without proper quoting
+    /* ---- Lesson Mapping Results ------------------------------------- */
+    function showLessonMappingResults(mapping) {
+        var el = document.getElementById('lesson-mapping-results');
+        el.style.display = '';
+
+        // Build a node ID -> label lookup from the mermaid code
+        var nodeLabels = {};
+        if (currentMermaidCode) {
+            var re = /(\w+)\["([^"]+)"\]/g, m;
+            while ((m = re.exec(currentMermaidCode)) !== null) {
+                nodeLabels[m[1]] = m[2];
             }
-
-            cleaned.push(lines[i]);
         }
 
-        return cleaned.join('\n');
-    }
+        var lessonNames = Object.keys(mapping);
+        if (!lessonNames.length) {
+            el.innerHTML = '<div class="ce-empty-state"><p>No lesson mappings were generated.</p></div>';
+            return;
+        }
 
-    /* ---- Pan & Zoom ------------------------------------------------- */
-    function applyZoom(level) {
-        chartZoom = Math.max(0.1, Math.min(3, level));
-        var inner = document.getElementById('chart-inner');
-        inner.style.transform = 'scale(' + chartZoom + ')';
-    }
-
-    function setupPanZoom() {
-        var viewport = document.getElementById('chart-viewport');
-        var isDragging = false;
-        var startX, startY, scrollLeftStart, scrollTopStart;
-
-        viewport.addEventListener('mousedown', function (e) {
-            if (e.target.closest('.ce-toolbar-btn')) return;
-            isDragging = true;
-            startX = e.pageX - viewport.offsetLeft;
-            startY = e.pageY - viewport.offsetTop;
-            scrollLeftStart = viewport.scrollLeft;
-            scrollTopStart = viewport.scrollTop;
-        });
-
-        viewport.addEventListener('mousemove', function (e) {
-            if (!isDragging) return;
-            e.preventDefault();
-            var x = e.pageX - viewport.offsetLeft;
-            var y = e.pageY - viewport.offsetTop;
-            viewport.scrollLeft = scrollLeftStart - (x - startX);
-            viewport.scrollTop = scrollTopStart - (y - startY);
-        });
-
-        viewport.addEventListener('mouseup', function () { isDragging = false; });
-        viewport.addEventListener('mouseleave', function () { isDragging = false; });
-
-        // Scroll wheel zoom
-        viewport.addEventListener('wheel', function (e) {
-            if (e.ctrlKey || e.metaKey) {
-                e.preventDefault();
-                var delta = e.deltaY > 0 ? -0.1 : 0.1;
-                applyZoom(chartZoom + delta);
+        var html = '<div class="ce-mapping-count">' + lessonNames.length + ' lesson' + (lessonNames.length !== 1 ? 's' : '') + ' mapped to skills</div>';
+        html += '<div class="ce-accordion">';
+        lessonNames.forEach(function (name, idx) {
+            var skillIds = mapping[name] || [];
+            html += '<div class="ce-accordion-item">' +
+                '<button class="ce-accordion-header" data-idx="' + idx + '">' +
+                    '<span class="ce-accordion-title"><i class="fa-solid fa-book-open" style="margin-right:8px; opacity:0.5;"></i>' + esc(name) + '</span>' +
+                    '<span class="ce-accordion-badge">' + skillIds.length + ' skill' + (skillIds.length !== 1 ? 's' : '') + '</span>' +
+                    '<i class="fa-solid fa-chevron-right ce-accordion-chevron"></i>' +
+                '</button>' +
+                '<div class="ce-accordion-body" id="acc-body-' + idx + '">';
+            if (skillIds.length) {
+                html += '<ul class="ce-skill-list">';
+                skillIds.forEach(function (sid) {
+                    var label = nodeLabels[sid] || sid;
+                    html += '<li><span class="ce-skill-id">' + esc(sid) + '</span> ' + esc(label) + '</li>';
+                });
+                html += '</ul>';
+            } else {
+                html += '<p class="ce-no-skills">No skills mapped to this lesson.</p>';
             }
-        }, { passive: false });
+            html += '</div></div>';
+        });
+        html += '</div>';
+        el.innerHTML = html;
 
-        // Toolbar buttons
-        document.getElementById('zoom-in-btn').addEventListener('click', function () {
-            applyZoom(chartZoom + 0.2);
-        });
-        document.getElementById('zoom-out-btn').addEventListener('click', function () {
-            applyZoom(chartZoom - 0.2);
-        });
-        document.getElementById('zoom-reset-btn').addEventListener('click', function () {
-            applyZoom(1);
-            document.getElementById('chart-viewport').scrollTop = 0;
-            document.getElementById('chart-viewport').scrollLeft = 0;
+        // Accordion toggle
+        el.querySelectorAll('.ce-accordion-header').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var item = this.closest('.ce-accordion-item');
+                item.classList.toggle('open');
+            });
         });
     }
 
     /* ---- Init ------------------------------------------------------- */
     document.addEventListener('DOMContentLoaded', function () {
-        // Back button
         document.getElementById('back-btn').addEventListener('click', closeCourseDetail);
-
-        // Search
         var searchTimer;
         document.getElementById('course-search').addEventListener('input', function () {
             clearTimeout(searchTimer);
-            searchTimer = setTimeout(function () {
-                updateCount();
-                filterAndRender();
-            }, 200);
+            searchTimer = setTimeout(function () { updateCount(); filterAndRender(); }, 200);
         });
-
-        // Pan/zoom setup
-        setupPanZoom();
-
-        // Load courses
         loadCourses();
     });
 
