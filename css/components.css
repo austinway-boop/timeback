@@ -36,7 +36,7 @@
 .test-card {
     width: 200px;
     background: var(--color-surface);
-    border: var(--card-border);
+    border: var(--card-border, 1px solid #E8ECF1);
     border-radius: var(--radius);
     overflow: hidden;
     cursor: pointer;
