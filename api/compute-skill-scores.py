@@ -62,67 +62,110 @@ def _build_skill_to_questions(q_to_skills: dict) -> dict:
     return s_to_q
 
 
+def _resolve_pp100_course_id(course_id: str) -> str:
+    """Find the PP100 course ID for a given admin course ID.
+    Checks KV first, then searches all courses as fallback."""
+    # Check KV cache first
+    pp100_id = kv_get(f"pp100_course_id:{course_id}")
+    if pp100_id:
+        return pp100_id
+
+    # Fallback: search courses for PP100 version
+    try:
+        from api._helpers import fetch_one, fetch_all_paginated
+        course_data, status = fetch_one(f"/ims/oneroster/rostering/v1p2/courses/{course_id}")
+        if not course_data:
+            return course_id
+        course_obj = course_data.get("course", course_data)
+        original_title = (course_obj.get("title") or "").lower()
+
+        stop_words = {"the", "and", "for", "with", "a", "an", "in", "of", "to"}
+        keywords = [w for w in original_title.replace("-", " ").replace(":", " ").split() if w and w not in stop_words]
+
+        expanded = original_title
+        for abbr, full in [("us ", "united states "), ("u.s. ", "united states ")]:
+            expanded = expanded.replace(abbr, full)
+
+        all_courses = fetch_all_paginated("/ims/oneroster/rostering/v1p2/courses", "courses")
+        for c in all_courses:
+            cid = c.get("sourcedId", "")
+            title = (c.get("title") or "").lower()
+            if cid == course_id:
+                continue
+            if "pp100" not in title and "pp100" not in cid.lower():
+                continue
+            match_count = sum(1 for kw in keywords if kw in title)
+            for word in expanded.replace("-", " ").split():
+                if len(word) >= 4 and word in title:
+                    match_count += 1
+            if match_count >= 1:
+                from api._kv import kv_set as _kv_set
+                _kv_set(f"pp100_course_id:{course_id}", cid)
+                return cid
+    except Exception:
+        pass
+    return course_id
+
+
 def _fetch_student_answers(student_id: str, course_id: str) -> dict:
     """Fetch all of a student's question-level answers for a course.
-    Uses the PowerPath lesson plan tree to find lessons, then fetches
-    assessment progress for each.
+    Finds the PP100 course, gets the student's lesson plan, extracts
+    component resource sourcedIds, and fetches assessment progress.
     Returns {questionId: {'correct': bool, 'answered': bool}}."""
     answers = {}
     headers = api_headers()
 
-    # Get lesson plan tree for the course
-    tree = None
-    for url in [
-        f"{API_BASE}/powerpath/lessonPlans/tree/{course_id}",
-        f"{API_BASE}/powerpath/lessonPlans/{course_id}/{student_id}",
-    ]:
-        try:
-            resp = requests.get(url, headers=headers, timeout=30)
-            if resp.status_code == 200:
-                tree = resp.json()
-                break
-        except Exception:
-            continue
+    # Resolve the PP100 course ID
+    pp100_id = _resolve_pp100_course_id(course_id)
 
-    if not tree:
-        # Try to find the PP100 course ID
-        pp100_id = kv_get(f"pp100_course_id:{course_id}")
-        if pp100_id:
-            for url in [
-                f"{API_BASE}/powerpath/lessonPlans/tree/{pp100_id}",
-                f"{API_BASE}/powerpath/lessonPlans/{pp100_id}/{student_id}",
-            ]:
-                try:
-                    resp = requests.get(url, headers=headers, timeout=30)
-                    if resp.status_code == 200:
-                        tree = resp.json()
+    # Try to get the student's lesson plan
+    tree = None
+    ids_to_try = [pp100_id]
+    if course_id != pp100_id:
+        ids_to_try.append(course_id)
+
+    for cid in ids_to_try:
+        for url in [
+            f"{API_BASE}/powerpath/lessonPlans/{cid}/{student_id}",
+            f"{API_BASE}/powerpath/lessonPlans/tree/{cid}",
+        ]:
+            try:
+                resp = requests.get(url, headers=headers, timeout=30)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data:
+                        tree = data
                         break
-                except Exception:
-                    continue
+            except Exception:
+                continue
+        if tree:
+            break
 
     if not tree:
         return answers
 
-    # Extract lesson IDs from the tree
-    lesson_ids = []
-    _walk_tree_for_lessons(tree, lesson_ids)
+    # Extract component resource sourcedIds (the lesson IDs for PowerPath)
+    cr_ids = _extract_assessment_cr_ids(tree)
 
-    # Fetch assessment progress for each lesson
-    for lid in lesson_ids[:100]:  # Cap to avoid timeout
+    # Fetch assessment progress for each CR
+    for cr_id in cr_ids[:100]:  # Cap to avoid timeout
         try:
             resp = requests.get(
                 f"{API_BASE}/powerpath/getAssessmentProgress",
                 headers=headers,
-                params={"student": student_id, "lesson": lid},
+                params={"student": student_id, "lesson": cr_id},
                 timeout=10,
             )
             if resp.status_code == 200:
                 progress = resp.json()
                 for q in progress.get("questions", []):
                     qid = q.get("id", "")
-                    if qid and q.get("answered", False):
+                    answered = q.get("answered", False)
+                    # PowerPath uses 'correct' field (True/False/None)
+                    correct = q.get("correct")
+                    if qid and (answered or correct is not None):
                         answers[qid] = {
-                            "correct": bool(q.get("correct", False)),
+                            "correct": bool(correct),
                             "answered": True,
                         }
         except Exception:
@@ -131,43 +174,58 @@ def _fetch_student_answers(student_id: str, course_id: str) -> dict:
     return answers
 
 
-def _walk_tree_for_lessons(node, lesson_ids):
-    """Walk the PowerPath tree to extract lesson resource IDs."""
-    if isinstance(node, dict):
-        inner = node.get("lessonPlan", node)
+def _extract_assessment_cr_ids(tree) -> list[str]:
+    """Walk the PowerPath lesson plan tree and extract component resource
+    sourcedIds for assessment-type resources (quiz/bank CRs).
+    The CR sourcedId (e.g., USHI23-l2-r104063-bank-v1) is what PowerPath
+    uses as the lesson ID in getAssessmentProgress."""
+    cr_ids = []
+
+    # Navigate to the lesson plan
+    inner = tree
+    if isinstance(inner, dict):
+        inner = inner.get("lessonPlan", inner)
         if isinstance(inner, dict) and inner.get("lessonPlan"):
             inner = inner["lessonPlan"]
 
-        units = inner.get("subComponents", []) if isinstance(inner, dict) else []
-        if isinstance(inner, list):
-            units = inner
+    units = inner.get("subComponents", []) if isinstance(inner, dict) else []
+    if isinstance(inner, list):
+        units = inner
 
-        for unit in units:
-            if not isinstance(unit, dict):
+    for unit in units:
+        if not isinstance(unit, dict):
+            continue
+
+        lessons = unit.get("subComponents", [])
+        # Also handle unit-level resources
+        all_items = lessons + [unit]
+
+        for lesson in all_items:
+            if not isinstance(lesson, dict):
                 continue
-            for lesson in unit.get("subComponents", []):
-                if not isinstance(lesson, dict):
+            for cr in lesson.get("componentResources", []):
+                if not isinstance(cr, dict):
                     continue
-                for res_wrapper in lesson.get("componentResources", []):
-                    res = res_wrapper.get("resource", res_wrapper) if isinstance(res_wrapper, dict) else res_wrapper
-                    if isinstance(res, dict):
-                        meta = res.get("metadata") or {}
-                        rtype = (meta.get("type", "") or res.get("type", "")).lower()
-                        if rtype != "video" and "stimuli" not in (meta.get("url", "") or ""):
-                            rid = res.get("id", "") or res.get("sourcedId", "")
-                            if rid:
-                                lesson_ids.append(rid)
+                cr_sid = cr.get("sourcedId", "")
+                res = cr.get("resource", {})
+                if not isinstance(res, dict):
+                    continue
+                meta = res.get("metadata") or {}
+                rtype = (meta.get("type", "") or res.get("type", "")).lower()
+                rurl = meta.get("url", "") or ""
 
-        # Also check top-level componentResources
-        for res_wrapper in (inner if isinstance(inner, dict) else {}).get("componentResources", []):
-            res = res_wrapper.get("resource", res_wrapper) if isinstance(res_wrapper, dict) else res_wrapper
-            if isinstance(res, dict):
-                rid = res.get("id", "") or res.get("sourcedId", "")
-                if rid:
-                    lesson_ids.append(rid)
-    elif isinstance(node, list):
-        for item in node:
-            _walk_tree_for_lessons(item, lesson_ids)
+                # Skip videos and article stimuli
+                if rtype == "video":
+                    continue
+                if "stimuli" in rurl:
+                    continue
+
+                # Assessment-type CRs: use the CR sourcedId as the lesson ID
+                if cr_sid and ("bank" in cr_sid.lower() or "assessment" in rtype or (rurl and "assessment" in rurl)):
+                    if cr_sid not in cr_ids:
+                        cr_ids.append(cr_sid)
+
+    return cr_ids
 
 
 def _compute_scores(skill_nodes: dict, skill_to_questions: dict, answers: dict) -> dict:

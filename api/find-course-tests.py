@@ -14,8 +14,9 @@ import requests
 
 from api._helpers import (
     API_BASE, CLIENT_ID, CLIENT_SECRET,
-    api_headers, fetch_all_paginated, send_json, get_token,
+    api_headers, fetch_all_paginated, fetch_one, send_json, get_token,
 )
+from api._kv import kv_set
 
 # Staging/service account (pehal64861@aixind.com)
 SERVICE_USER_ID = "8ea2b8e1-1b04-4cab-b608-9ab524c059c2"
@@ -93,6 +94,9 @@ def _get_powerpath_tree(course_id: str) -> tuple[dict | None, list]:
     for pid in pp100_ids:
         if pid not in ids_to_try:
             ids_to_try.append(pid)
+    # Save PP100 mapping so compute-skill-scores can find it later
+    if pp100_ids:
+        kv_set(f"pp100_course_id:{course_id}", pp100_ids[0])
     debug.append(f"ids_to_try={ids_to_try}")
 
     # Step 1: Try generic tree endpoint for each ID
