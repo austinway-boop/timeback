@@ -35,11 +35,23 @@ def _find_pp100_course_ids(course_id: str) -> list[str]:
         course_obj = course_data.get("course", course_data)
         original_title = (course_obj.get("title") or "").lower()
 
-        # Extract key subject words from the title
+        # Extract key subject words from the title (keep short words like "us", "ap")
+        stop_words = {"the", "and", "for", "with", "a", "an", "in", "of", "to"}
         keywords = []
-        for word in original_title.replace("-", " ").split():
-            if len(word) >= 3 and word not in ("the", "and", "for", "with"):
+        for word in original_title.replace("-", " ").replace(":", " ").split():
+            word = word.strip()
+            if word and word not in stop_words:
                 keywords.append(word)
+
+        # Also extract from course code (e.g., "APUSH" → "apush")
+        course_code_lower = (course_obj.get("courseCode") or "").lower().strip()
+        if course_code_lower:
+            keywords.append(course_code_lower)
+
+        # Build subject fingerprint: expand abbreviations
+        expanded = original_title
+        for abbr, full in [("us ", "united states "), ("u.s. ", "united states "), ("govt", "government"), ("gov ", "government ")]:
+            expanded = expanded.replace(abbr, full)
 
         # Fetch all courses and find PP100 versions
         all_courses = fetch_all_paginated(
@@ -54,8 +66,13 @@ def _find_pp100_course_ids(course_id: str) -> list[str]:
             if "pp100" not in title and "pp100" not in cid.lower():
                 continue
             # Check if this PP100 course matches the subject
+            # Match on: any keyword from title, expanded title match, or code substring
             match_count = sum(1 for kw in keywords if kw in title)
-            if match_count >= 2:  # At least 2 keyword matches
+            # Also check if expanded title shares words
+            for word in expanded.replace("-", " ").split():
+                if len(word) >= 4 and word in title:
+                    match_count += 1
+            if match_count >= 1:  # At least 1 keyword match
                 pp100_ids.append(cid)
 
         return pp100_ids
