@@ -94,15 +94,18 @@ def _get_powerpath_tree(course_id: str) -> tuple[dict | None, list]:
     for pid in pp100_ids:
         if pid not in ids_to_try:
             ids_to_try.append(pid)
-    # Save PP100 mapping so compute-skill-scores can find it later
-    if pp100_ids:
-        kv_set(f"pp100_course_id:{course_id}", pp100_ids[0])
     debug.append(f"ids_to_try={ids_to_try}")
+
+    # Helper: save the PP100 mapping when we find the correct course
+    def _save_pp100(cid):
+        if cid != course_id:
+            kv_set(f"pp100_course_id:{course_id}", cid)
 
     # Step 1: Try generic tree endpoint for each ID
     for cid in ids_to_try:
         tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/tree/{cid}", headers)
         if tree:
+            _save_pp100(cid)
             debug.append(f"tree_generic: ok ({cid})")
             return tree, debug
     debug.append("tree_generic: all failed")
@@ -111,6 +114,7 @@ def _get_powerpath_tree(course_id: str) -> tuple[dict | None, list]:
     for cid in ids_to_try:
         tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/{cid}/{SERVICE_USER_ID}", headers)
         if tree:
+            _save_pp100(cid)
             debug.append(f"tree_user: ok ({cid})")
             return tree, debug
     debug.append("tree_user: all failed")
@@ -124,6 +128,7 @@ def _get_powerpath_tree(course_id: str) -> tuple[dict | None, list]:
         headers = api_headers()  # refresh token
         tree = _try_tree(f"{API_BASE}/powerpath/lessonPlans/{cid}/{SERVICE_USER_ID}", headers)
         if tree:
+            _save_pp100(cid)
             debug.append(f"tree_after_sync: ok ({cid})")
             return tree, debug
 

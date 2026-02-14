@@ -111,18 +111,16 @@ def _fetch_student_answers(student_id: str, course_id: str) -> dict:
     """Fetch all of a student's question-level answers for a course.
     Primary source: KV (logged by /api/log-answer from lesson viewer).
     Secondary source: PowerPath getAssessmentProgress.
-    Returns {questionId: {'correct': bool, 'answered': bool}}."""
+    Returns {questionId: {'correct': bool, 'answered': bool, 'timestamp': float}}."""
     answers = {}
 
     # Primary source: KV answer log (from lesson viewer)
-    # Try both the admin course ID and the PP100 course ID
+    # Check ALL possible course ID variants and merge
     pp100_id = _resolve_pp100_course_id(course_id)
-    kv_keys_to_try = [
-        f"student_answers:{student_id}:{course_id}",
-        f"student_answers:{student_id}:{pp100_id}",
-    ]
-    if course_id == pp100_id:
-        kv_keys_to_try = [kv_keys_to_try[0]]
+    kv_keys_to_try = set()
+    kv_keys_to_try.add(f"student_answers:{student_id}:{course_id}")
+    kv_keys_to_try.add(f"student_answers:{student_id}:{pp100_id}")
+    kv_keys_to_try.add(f"student_answers:{student_id}:unknown")
 
     for kv_key in kv_keys_to_try:
         kv_answers = kv_get(kv_key)
@@ -130,10 +128,11 @@ def _fetch_student_answers(student_id: str, course_id: str) -> dict:
             for entry in kv_answers:
                 if isinstance(entry, dict):
                     qid = entry.get("questionId", "")
-                    if qid:
+                    if qid and qid not in answers:
                         answers[qid] = {
                             "correct": bool(entry.get("correct", False)),
                             "answered": True,
+                            "timestamp": entry.get("timestamp", 0),
                         }
 
     # Secondary source: PowerPath assessment progress (for adaptive quizzes)
@@ -254,8 +253,18 @@ def _extract_assessment_cr_ids(tree) -> list[str]:
 
 
 def _compute_scores(skill_nodes: dict, skill_to_questions: dict, answers: dict) -> dict:
-    """Compute per-skill mastery scores."""
+    """Compute per-skill mastery scores with Ebbinghaus daily decay.
+
+    For each skill:
+    1. Sum points from correct (+15) and wrong (-10) answers
+    2. Apply daily decay: score *= 0.98^(days since last activity on this skill)
+       Based on Ebbinghaus forgetting curve (R = e^(-t/S)):
+       - 0.98/day ≈ 50% retention after 35 idle days
+       - Each new correct answer resets the decay clock for that skill
+    3. Clamp to [0, 100]
+    """
     now = time.time()
+    SECONDS_PER_DAY = 86400.0
     skills = {}
 
     for sid, label in skill_nodes.items():
@@ -263,22 +272,33 @@ def _compute_scores(skill_nodes: dict, skill_to_questions: dict, answers: dict) 
         question_ids = skill_to_questions.get(sid, [])
         answered_count = 0
         correct_count = 0
+        last_activity_ts = 0  # most recent answer timestamp for this skill
 
         for qid in question_ids:
             if qid in answers and answers[qid].get("answered"):
                 answered_count += 1
+                ts = answers[qid].get("timestamp", 0)
+                if ts > last_activity_ts:
+                    last_activity_ts = ts
                 if answers[qid].get("correct"):
                     score += CORRECT_POINTS
                     correct_count += 1
                 else:
                     score += WRONG_POINTS
 
-        # Clamp
+        # Clamp before decay
         score = max(MIN_SCORE, min(MAX_SCORE, score))
 
-        # Apply decay (assuming last activity was "now" for simplicity;
-        # in production, we'd track per-skill timestamps)
-        # For now, no decay applied since we don't have timestamps per answer
+        # Apply Ebbinghaus daily decay based on time since last activity
+        days_since = 0.0
+        if last_activity_ts > 0 and score > 0:
+            days_since = (now - last_activity_ts) / SECONDS_PER_DAY
+            if days_since > 0:
+                decay_factor = DAILY_DECAY ** days_since
+                score = score * decay_factor
+
+        # Clamp after decay
+        score = max(MIN_SCORE, min(MAX_SCORE, score))
 
         skills[sid] = {
             "score": round(score, 1),
@@ -286,6 +306,7 @@ def _compute_scores(skill_nodes: dict, skill_to_questions: dict, answers: dict) 
             "totalQuestions": len(question_ids),
             "answeredQuestions": answered_count,
             "correctQuestions": correct_count,
+            "daysSinceActivity": round(days_since, 1) if last_activity_ts > 0 else None,
             "mastery": _mastery_level(score),
         }
 
