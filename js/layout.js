@@ -199,173 +199,9 @@
     // Flat list for lookups
     const THEMES = THEME_SECTIONS.flatMap(s => s.themes);
 
-    function buildThemeCard(t, isActive) {
-        // Determine if sidebar is dark (text should be light in preview)
-        const isDarkSidebar = isColorDark(t.sidebarBg);
-        const sidebarLineColor = isDarkSidebar ? 'rgba(255,255,255,0.25)' : (t.primary + '30');
-        const sidebarLineColorLight = isDarkSidebar ? 'rgba(255,255,255,0.15)' : (t.primary + '20');
-        const mockRadius = t.radius || '12px';
-
-        return `
-            <button class="theme-card${isActive ? ' active' : ''}" data-theme="${t.id}">
-                <div class="theme-card-preview" style="background:${t.bg}; border-color:${t.primary}20;">
-                    <div class="theme-card-mockup" style="border-radius:${mockRadius};">
-                        <div class="theme-mock-sidebar" style="background:${t.sidebarBg}; border-color:${isDarkSidebar ? 'rgba(255,255,255,0.08)' : t.primary + '20'}; border-radius:${mockRadius} 0 0 ${mockRadius};">
-                            <div class="theme-mock-dot" style="background:${isDarkSidebar ? '#FFFFFF' : t.primary}; opacity:${isDarkSidebar ? '0.7' : '1'};"></div>
-                            <div class="theme-mock-line" style="background:${sidebarLineColor};"></div>
-                            <div class="theme-mock-line short" style="background:${sidebarLineColorLight};"></div>
-                        </div>
-                        <div class="theme-mock-content" style="border-radius:0 ${mockRadius} ${mockRadius} 0;">
-                            <div class="theme-mock-heading" style="background:${t.text}; opacity:0.7;"></div>
-                            <div class="theme-mock-bar" style="background:${t.primary}; border-radius:calc(${mockRadius} / 4);"></div>
-                            <div class="theme-mock-bar half" style="background:${t.primary}40; border-radius:calc(${mockRadius} / 4);"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="theme-card-info">
-                    <span class="theme-card-name">
-                        <span class="theme-card-dot" style="background:${t.primary};"></span>
-                        ${t.label}
-                    </span>
-                    <span class="theme-card-desc">${t.desc}</span>
-                </div>
-                ${isActive ? '<div class="theme-card-check"><i class="fa-solid fa-circle-check"></i></div>' : ''}
-            </button>`;
-    }
-
-    // Rough check if a hex color is dark
-    function isColorDark(hex) {
-        if (!hex || hex.charAt(0) !== '#') return false;
-        const c = hex.substring(1);
-        const r = parseInt(c.substring(0, 2), 16);
-        const g = parseInt(c.substring(2, 4), 16);
-        const b = parseInt(c.substring(4, 6), 16);
-        return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
-    }
-
-    function getThemeById(id) {
-        return THEMES.find(t => t.id === id) || THEMES[0];
-    }
-
-    function openThemeModal() {
-        if (document.getElementById('theme-modal')) return;
-        const currentId = localStorage.getItem('al_staging_theme') || 'default';
-        const currentTheme = getThemeById(currentId);
-        const totalCount = THEMES.length;
-
-        const overlay = document.createElement('div');
-        overlay.id = 'theme-modal';
-        overlay.className = 'theme-modal-overlay';
-
-        const sectionsHTML = THEME_SECTIONS.map(section => `
-            <div class="theme-modal-section">
-                <h3 class="theme-modal-section-title">
-                    <i class="fa-solid ${section.icon}"></i> ${section.title}
-                </h3>
-                <div class="theme-modal-grid">
-                    ${section.themes.map(t => buildThemeCard(t, t.id === currentId)).join('')}
-                </div>
-            </div>`).join('');
-
-        overlay.innerHTML = `
-            <div class="theme-modal">
-                <div class="theme-modal-header">
-                    <div>
-                        <h2 class="theme-modal-title">Settings</h2>
-                        <p class="theme-modal-subtitle">Choose from ${totalCount} themes for your AlphaLearn experience</p>
-                    </div>
-                    <button class="theme-modal-close" id="theme-modal-close">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <div class="theme-modal-active" id="theme-modal-active-banner">
-                    <span class="theme-modal-active-dot" style="background:${currentTheme.primary};"></span>
-                    Currently using: <span class="theme-modal-active-name">${currentTheme.label}</span>
-                </div>
-                <div class="theme-modal-body">
-                    ${sectionsHTML}
-                </div>
-            </div>`;
-        document.body.appendChild(overlay);
-
-        // Track the committed theme for hover-preview revert
-        let committedThemeId = currentId;
-
-        // Close handlers
-        overlay.addEventListener('click', function (e) {
-            if (e.target === overlay) closeThemeModal(committedThemeId);
-        });
-        document.getElementById('theme-modal-close').addEventListener('click', function () {
-            closeThemeModal(committedThemeId);
-        });
-
-        // Theme card click handlers
-        overlay.querySelectorAll('.theme-card').forEach(card => {
-            // Click to commit
-            card.addEventListener('click', function () {
-                const themeId = this.dataset.theme;
-                committedThemeId = themeId;
-                // Apply and save
-                if (themeId === 'default') {
-                    localStorage.removeItem('al_staging_theme');
-                    document.documentElement.removeAttribute('data-theme');
-                } else {
-                    localStorage.setItem('al_staging_theme', themeId);
-                    document.documentElement.setAttribute('data-theme', themeId);
-                }
-                // Update active states on cards
-                overlay.querySelectorAll('.theme-card').forEach(c => {
-                    c.classList.remove('active');
-                    const check = c.querySelector('.theme-card-check');
-                    if (check) check.remove();
-                });
-                this.classList.add('active');
-                this.insertAdjacentHTML('beforeend', '<div class="theme-card-check"><i class="fa-solid fa-circle-check"></i></div>');
-                // Update the active banner
-                const t = getThemeById(themeId);
-                const banner = document.getElementById('theme-modal-active-banner');
-                if (banner) {
-                    banner.querySelector('.theme-modal-active-dot').style.background = t.primary;
-                    banner.querySelector('.theme-modal-active-name').textContent = t.label;
-                }
-            });
-
-            // Hover to live-preview
-            card.addEventListener('mouseenter', function () {
-                const themeId = this.dataset.theme;
-                if (themeId === 'default') {
-                    document.documentElement.removeAttribute('data-theme');
-                } else {
-                    document.documentElement.setAttribute('data-theme', themeId);
-                }
-            });
-
-            // Mouse leave to revert to committed theme
-            card.addEventListener('mouseleave', function () {
-                if (committedThemeId === 'default') {
-                    document.documentElement.removeAttribute('data-theme');
-                } else {
-                    document.documentElement.setAttribute('data-theme', committedThemeId);
-                }
-            });
-        });
-
-        // Animate in
-        requestAnimationFrame(() => overlay.classList.add('open'));
-    }
-
-    function closeThemeModal(committedId) {
-        const overlay = document.getElementById('theme-modal');
-        if (!overlay) return;
-        // Ensure the committed theme is applied on close (in case hover left it different)
-        if (committedId && committedId !== 'default') {
-            document.documentElement.setAttribute('data-theme', committedId);
-        } else if (committedId === 'default') {
-            document.documentElement.removeAttribute('data-theme');
-        }
-        overlay.classList.remove('open');
-        setTimeout(() => overlay.remove(), 200);
-    }
+    // Expose theme data globally so the settings page JS can use it
+    window._THEME_SECTIONS = THEME_SECTIONS;
+    window._THEMES = THEMES;
 
     window._renderStagingThemeBar = function () {
         const sb = document.getElementById('sidebar');
@@ -373,21 +209,15 @@
         const navList = sb.querySelector('.nav-list');
         if (!navList || navList.querySelector('.nav-item-settings')) return; // already rendered
 
-        // Add Settings nav item at the bottom of the nav list
+        // Add Settings nav item linking to the settings page
         const settingsItem = document.createElement('li');
-        settingsItem.className = 'nav-item nav-item-settings';
+        settingsItem.className = 'nav-item nav-item-settings' + (active === 'settings' ? ' active' : '');
         settingsItem.innerHTML = `
-            <a href="#" id="staging-settings-btn">
+            <a href="/settings">
                 <i class="fa-solid fa-gear"></i>
                 <span>Settings</span>
             </a>`;
         navList.appendChild(settingsItem);
-
-        // Open modal on click
-        settingsItem.querySelector('a').addEventListener('click', function (e) {
-            e.preventDefault();
-            openThemeModal();
-        });
     };
 
     // Render immediately if staging flag is already set
