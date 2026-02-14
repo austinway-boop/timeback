@@ -294,7 +294,7 @@
 /* Collapsible body */
 .ce-action-card-body {
     padding: 0 20px 20px; border-top: 1px solid var(--color-border);
-    max-height: 600px; overflow: hidden;
+    max-height: 2000px; overflow: hidden;
     transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.25s ease;
     opacity: 1;
 }

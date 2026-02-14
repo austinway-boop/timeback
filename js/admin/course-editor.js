@@ -399,7 +399,7 @@
             '</div>' +
 
             /* ---- Answer Explanations Action Card ---- */
-            '<div class="ce-action-card' + (explStatus === 'done' ? ' collapsed' : '') + '" style="margin-top:16px;">' +
+            '<div class="ce-action-card' + (explStatus === 'done' ? ' collapsed' : '') + '">' +
                 '<div class="ce-action-card-header" id="expl-card-header">' +
                     '<div class="ce-action-card-icon"><i class="fa-solid fa-comment-dots"></i></div>' +
                     '<div class="ce-action-card-header-text">' +
@@ -1371,6 +1371,54 @@
                         document.getElementById('expl-progress').style.display = 'none';
                         var btn = document.getElementById('btn-generate-explanations');
                         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Regenerate Explanations'; }
+
+                        // Update badge to "complete"
+                        var header = document.getElementById('expl-card-header');
+                        if (header) {
+                            var badge = header.querySelector('.ce-action-card-summary');
+                            if (badge) {
+                                badge.className = 'ce-action-card-summary all-done';
+                                badge.innerHTML = '<i class="fa-solid fa-check-circle"></i> ' + (data.questionCount || Object.keys(data.explanations).length) + ' questions';
+                            }
+                            // Expand the card if collapsed
+                            var card = header.closest('.ce-action-card');
+                            if (card && card.classList.contains('collapsed')) card.classList.remove('collapsed');
+                        }
+
+                        // Insert toggle if not already present
+                        if (!document.getElementById('explanation-toggle')) {
+                            var toggleContainer = document.createElement('div');
+                            toggleContainer.className = 'ce-inline-toggle';
+                            toggleContainer.innerHTML =
+                                '<div class="ce-inline-toggle-left">' +
+                                    '<i class="fa-solid fa-toggle-off"></i>' +
+                                    '<strong>Answer Explanations</strong>' +
+                                    '<span>Show AI explanations for wrong answers</span>' +
+                                '</div>' +
+                                '<label class="ce-switch">' +
+                                    '<input type="checkbox" id="explanation-toggle">' +
+                                    '<span class="ce-switch-slider"></span>' +
+                                '</label>';
+                            var progressEl = document.getElementById('expl-progress');
+                            if (progressEl && progressEl.parentNode) {
+                                progressEl.parentNode.insertBefore(toggleContainer, progressEl);
+                            }
+                            // Wire up toggle handler
+                            var newToggle = document.getElementById('explanation-toggle');
+                            if (newToggle) {
+                                newToggle.addEventListener('change', function () {
+                                    var enabled = this.checked;
+                                    var icon = this.closest('.ce-inline-toggle').querySelector('.ce-inline-toggle-left i');
+                                    icon.className = 'fa-solid fa-toggle-' + (enabled ? 'on' : 'off');
+                                    fetch('/api/explanation-toggle', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ courseId: courseId, enabled: enabled }),
+                                    }).catch(function () {});
+                                });
+                            }
+                        }
+
                         showExplanationResults(data);
                     } else if (data.status === 'error') {
                         activeGenerating = false;
