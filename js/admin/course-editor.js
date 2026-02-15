@@ -222,8 +222,10 @@
         document.getElementById('course-detail-view').style.display = 'none';
         document.getElementById('course-list-view').style.display = '';
         document.getElementById('setup-wizard').style.display = 'none';
+        document.getElementById('edit-course-view').style.display = 'none';
         document.getElementById('lesson-mapping-section').style.display = 'none';
         document.getElementById('question-analysis-section').style.display = 'none';
+        if (typeof window.cleanupEditCourse === 'function') window.cleanupEditCourse();
         checkExistingTrees().then(function () { filterAndRender(); });
     }
 
@@ -487,6 +489,18 @@
                         '<i class="' + relBtnIcon + '"></i> ' + relBtnLabel +
                     '</button>' +
                 '</div>' +
+            '</div>' +
+
+            /* ---- Edit Course Action Card ---- */
+            '<div class="ce-action-card">' +
+                '<div class="ce-action-card-header" id="edit-course-card-header">' +
+                    '<div class="ce-action-card-icon" style="background:rgba(59,130,246,0.1); color:#3B82F6;"><i class="fa-solid fa-pen-to-square"></i></div>' +
+                    '<div class="ce-action-card-header-text">' +
+                        '<div class="ce-action-card-title">Edit Course</div>' +
+                        '<div class="ce-action-card-subtitle">Manage units, lessons, and activities</div>' +
+                    '</div>' +
+                    '<i class="fa-solid fa-arrow-right ce-action-card-chevron"></i>' +
+                '</div>' +
             '</div>';
 
         // Collapse / expand handler
@@ -500,6 +514,14 @@
 
         document.getElementById('rel-card-header').addEventListener('click', function () {
             this.closest('.ce-action-card').classList.toggle('collapsed');
+        });
+
+        document.getElementById('edit-course-card-header').addEventListener('click', function () {
+            document.getElementById('course-actions').style.display = 'none';
+            document.getElementById('edit-course-view').style.display = '';
+            if (typeof window.initEditCourse === 'function') {
+                window.initEditCourse(courseId, selectedCourse);
+            }
         });
 
         document.getElementById('btn-start-setup').addEventListener('click', function () {
@@ -605,6 +627,7 @@
 
     function enterSetupWizard() {
         document.getElementById('course-actions').style.display = 'none';
+        document.getElementById('edit-course-view').style.display = 'none';
         document.getElementById('setup-wizard').style.display = '';
         if (selectedCourse) loadSkillTreeState(selectedCourse.sourcedId);
     }

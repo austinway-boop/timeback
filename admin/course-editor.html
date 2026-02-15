@@ -13,6 +13,7 @@
     <link rel="preload" href="/css/style.css?v=9" as="style">
     <link rel="stylesheet" href="/css/style.css?v=9">
     <link rel="stylesheet" href="/css/admin/course-editor.css?v=9">
+    <link rel="stylesheet" href="/css/admin/edit-course.css?v=1">
 </head>
 <body data-view="admin" data-active="course-editor">
 
@@ -47,6 +48,9 @@
 
                     <!-- Course Actions (landing page) -->
                     <div id="course-actions"></div>
+
+                    <!-- Edit Course View (hidden until "Edit Course" clicked) -->
+                    <div id="edit-course-view" style="display:none;"></div>
 
                     <!-- Setup Wizard (hidden until "Setup" clicked) -->
                     <div id="setup-wizard" style="display:none;">
@@ -99,6 +103,8 @@
     <script src="/js/layout.js?v=20"></script>
     <script src="/js/notifications.js?v=7"></script>
     <script src="/js/app.js?v=7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script src="/js/admin/course-editor.js?v=17"></script>
+    <script src="/js/admin/edit-course.js?v=1"></script>
 </body>
 </html>
