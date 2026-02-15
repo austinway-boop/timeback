@@ -875,7 +875,7 @@ async function diagPollStatus(courseId) {
 /* ── Preview ──────────────────────────────────────────────────── */
 function diagPreview() {
     if (!diagSelectedCourse) return;
-    window.open('/quiz?diagnosticId=' + encodeURIComponent(diagSelectedCourse.sourcedId) + '&preview=1&title=' + encodeURIComponent(diagSelectedCourse.title + ' — Diagnostic'), '_blank');
+    window.open('/lesson?diagnosticPreview=1&courseId=' + encodeURIComponent(diagSelectedCourse.sourcedId) + '&title=' + encodeURIComponent(diagSelectedCourse.title + ' — Diagnostic'), '_blank');
 }
 
 /* ── Student assignment ───────────────────────────────────────── */
