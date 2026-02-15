@@ -61,6 +61,538 @@
     };
     var _aiExplanations = null; // AI-generated wrong-answer explanations (prefetched)
 
+    /* ==================================================================
+       AP EXAM UI — for diagnostic preview (copied from lesson.js)
+       ================================================================== */
+    var apState = {
+        crossOutMode: false,
+        crossedOut: [],
+        notes: [],
+        notesOpen: false,
+        calcOpen: false,
+        refOpen: false,
+        highlightMode: false,
+        hlColor: 'yellow',
+        subject: '',
+    };
+
+    // No-op for preview mode (no persistence needed)
+    function _apSaveProgress() {}
+
+    // Subject detection helpers
+    function _apSubjectKey(subj) {
+        var s = (subj || '').toLowerCase();
+        if (/physics/.test(s)) return 'physics';
+        if (/chem/.test(s)) return 'chemistry';
+        if (/bio/.test(s)) return 'biology';
+        if (/stat/.test(s)) return 'statistics';
+        if (/calc/.test(s)) return 'calculus';
+        if (/precalc/.test(s)) return 'precalculus';
+        if (/math/.test(s)) return 'math';
+        if (/environ/.test(s)) return 'environmental';
+        if (/computer/.test(s)) return 'cs';
+        return '';
+    }
+    function _apHasCalc(key) {
+        return ['physics','chemistry','biology','calculus','precalculus','math','environmental'].indexOf(key) >= 0;
+    }
+    function _apHasRef(key) {
+        return ['physics','chemistry','biology','statistics','environmental','cs'].indexOf(key) >= 0;
+    }
+    function _apRefHTML(key) {
+        if (key === 'physics') return '<h3>Constants</h3><table><tr><td>g</td><td>9.8 m/s\u00B2</td></tr><tr><td>G</td><td>6.674 \u00D7 10\u207B\u00B9\u00B9 N\u00B7m\u00B2/kg\u00B2</td></tr><tr><td>Speed of light (c)</td><td>3.0 \u00D7 10\u2078 m/s</td></tr><tr><td>Electron charge (e)</td><td>1.6 \u00D7 10\u207B\u00B9\u2079 C</td></tr><tr><td>1 atm</td><td>1.0 \u00D7 10\u2075 Pa</td></tr></table>' +
+            '<h3>Kinematics</h3><table><tr><td>v = v\u2080 + at</td><td>x = x\u2080 + v\u2080t + \u00BDat\u00B2</td></tr><tr><td>v\u00B2 = v\u2080\u00B2 + 2a\u0394x</td><td>\u0394x = \u00BD(v + v\u2080)t</td></tr></table>' +
+            '<h3>Forces &amp; Energy</h3><table><tr><td>F = ma</td><td>F\u2091 = mg</td></tr><tr><td>f = \u03BCN</td><td>F\u209B = -kx</td></tr><tr><td>KE = \u00BDmv\u00B2</td><td>PE = mgh</td></tr><tr><td>W = Fd cos\u03B8</td><td>P = W/t</td></tr></table>' +
+            '<h3>Momentum &amp; Rotation</h3><table><tr><td>p = mv</td><td>J = F\u0394t = \u0394p</td></tr><tr><td>\u03C4 = rF sin\u03B8</td><td>L = I\u03C9</td></tr><tr><td>a\u1D04 = v\u00B2/r</td><td>F\u1D04 = mv\u00B2/r</td></tr></table>' +
+            '<h3>Waves &amp; Fluids</h3><table><tr><td>v = f\u03BB</td><td>T = 1/f</td></tr><tr><td>T\u209B = 2\u03C0\u221A(m/k)</td><td>T\u209A = 2\u03C0\u221A(L/g)</td></tr><tr><td>P = F/A</td><td>\u03C1 = m/V</td></tr><tr><td>F\u2095 = \u03C1Vg</td><td>P = P\u2080 + \u03C1gh</td></tr></table>';
+        if (key === 'chemistry') return '<h3>Atomic Structure</h3><table><tr><td>E = hf</td><td>c = f\u03BB</td></tr><tr><td>h = 6.626 \u00D7 10\u207B\u00B3\u2074 J\u00B7s</td><td>N\u2090 = 6.022 \u00D7 10\u00B2\u00B3</td></tr></table>' +
+            '<h3>Gases</h3><table><tr><td>PV = nRT</td><td>R = 8.314 J/(mol\u00B7K)</td></tr><tr><td>P\u2081V\u2081/T\u2081 = P\u2082V\u2082/T\u2082</td><td>P\u209C = P\u2081 + P\u2082 + ...</td></tr><tr><td>KE = \u00BDmv\u00B2 = 3/2 kT</td><td>M = m/n</td></tr></table>' +
+            '<h3>Equilibrium &amp; Acid-Base</h3><table><tr><td>K\u2091 = [products]/[reactants]</td><td>pH = -log[H\u207A]</td></tr><tr><td>pOH = -log[OH\u207B]</td><td>pH + pOH = 14</td></tr><tr><td>K\u2090 \u00D7 K\u2095 = K\u2092</td><td>Henderson-Hasselbalch: pH = pK\u2090 + log([A\u207B]/[HA])</td></tr></table>' +
+            '<h3>Thermodynamics</h3><table><tr><td>q = mc\u0394T</td><td>\u0394G = \u0394H - T\u0394S</td></tr><tr><td>\u0394G\u00B0 = -RT ln K</td><td>E\u00B0cell = E\u00B0cath - E\u00B0anode</td></tr></table>';
+        if (key === 'biology') return '<h3>Hardy-Weinberg</h3><table><tr><td>p + q = 1</td><td>p\u00B2 + 2pq + q\u00B2 = 1</td></tr></table>' +
+            '<h3>Population Growth</h3><table><tr><td>Exponential</td><td>dN/dt = rmaxN</td></tr><tr><td>Logistic</td><td>dN/dt = rmaxN(K - N)/K</td></tr></table>' +
+            '<h3>Energy &amp; Water</h3><table><tr><td>Gibbs Free Energy</td><td>\u0394G = \u0394H - T\u0394S</td></tr><tr><td>Water Potential</td><td>\u03A8 = \u03A8P + \u03A8S</td></tr><tr><td>Solute Potential</td><td>\u03A8S = -iCRT</td></tr></table>' +
+            '<h3>Statistics</h3><table><tr><td>Chi-Square</td><td>\u03C7\u00B2 = \u03A3(O - E)\u00B2/E</td></tr><tr><td>SA/V Ratio</td><td>Surface Area / Volume</td></tr></table>';
+        if (key === 'statistics') return '<h3>Descriptive Statistics</h3><table><tr><td>Mean</td><td>x\u0304 = \u03A3xi/n</td></tr><tr><td>Std Dev</td><td>s = \u221A[\u03A3(xi - x\u0304)\u00B2/(n-1)]</td></tr><tr><td>Regression</td><td>\u0177 = a + bx, b = r(sy/sx)</td></tr></table>' +
+            '<h3>Probability</h3><table><tr><td>Addition</td><td>P(A\u222AB) = P(A) + P(B) - P(A\u2229B)</td></tr><tr><td>Conditional</td><td>P(A|B) = P(A\u2229B)/P(B)</td></tr><tr><td>Binomial</td><td>P(X=x) = C(n,x)px(1-p)n-x</td></tr><tr><td>\u03BC = np</td><td>\u03C3 = \u221A[np(1-p)]</td></tr></table>' +
+            '<h3>Inference</h3><table><tr><td>Confidence Interval</td><td>statistic \u00B1 (critical value)(SE)</td></tr><tr><td>Test Statistic</td><td>(statistic - parameter)/SE</td></tr><tr><td>Chi-Square</td><td>\u03C7\u00B2 = \u03A3(O-E)\u00B2/E</td></tr><tr><td>SE (proportion)</td><td>\u221A[p\u0302(1-p\u0302)/n]</td></tr><tr><td>SE (mean)</td><td>s/\u221An</td></tr></table>';
+        if (key === 'environmental') return '<h3>Earth Systems</h3><table><tr><td>Earth radius</td><td>6,371 km</td></tr><tr><td>Atmosphere</td><td>78% N\u2082, 21% O\u2082, 1% other</td></tr><tr><td>Water distribution</td><td>97.5% saltwater, 2.5% freshwater</td></tr></table>' +
+            '<h3>Energy &amp; Ecology</h3><table><tr><td>10% rule</td><td>~10% energy transfers between trophic levels</td></tr><tr><td>LD50</td><td>Lethal dose for 50% of test population</td></tr><tr><td>Population growth</td><td>r = (birth rate - death rate)/1000</td></tr><tr><td>Rule of 70</td><td>Doubling time = 70/growth rate(%)</td></tr></table>';
+        if (key === 'cs') return '<h3>Java Quick Reference</h3><table><tr><td>String methods</td><td>length(), substring(), indexOf(), equals(), compareTo()</td></tr><tr><td>Math methods</td><td>abs(), pow(), sqrt(), random()</td></tr><tr><td>ArrayList</td><td>add(), get(), set(), remove(), size()</td></tr><tr><td>Array</td><td>arr.length, Arrays.sort()</td></tr></table>';
+        return '';
+    }
+
+    function startAPExam() {
+        // Hide quiz page chrome — AP exam overlay takes over
+        var qw = document.querySelector('.quiz-wrap');
+        if (qw) qw.style.display = 'none';
+        var n = quizState.staticQuestions.length;
+        apState.crossedOut = [];
+        apState.notes = [];
+        for (var i = 0; i < n; i++) { apState.crossedOut.push({}); apState.notes.push(''); }
+        apState.crossOutMode = false;
+        apState.notesOpen = false;
+        apState.calcOpen = false;
+        apState.refOpen = false;
+        apState.highlightMode = false;
+        renderAPQuestion();
+    }
+
+    function renderAPQuestion() {
+        var idx = quizState.staticIdx;
+        var q = quizState.staticQuestions[idx];
+        var totalQ = quizState.staticQuestions.length;
+        var passage = quizState.cachedPassage || '';
+        if (q.stimulus) passage = q.stimulus;
+        var hasPassage = passage && passage.length > 10;
+        var letters = 'ABCDEFGHIJ';
+        var isMarked = quizState.marked[idx];
+        var old = document.getElementById('ap-overlay');
+        if (old) old.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'ap-overlay';
+        overlay.className = 'ap-overlay';
+        var html = '';
+
+        // ── Header with all tools ──
+        html += '<div class="ap-header">' +
+            '<div class="ap-header-title">' + esc(quizState.title) + '</div>' +
+            '<div class="ap-tools">' +
+                '<div style="position:relative;display:inline-flex;">' +
+                    '<button class="ap-tool-btn' + (apState.highlightMode ? ' active' : '') + '" onclick="apToggleHighlight()" title="Highlight text"><i class="fa-solid fa-highlighter"></i><span>Highlight</span></button>' +
+                    '<div class="ap-hl-picker' + (apState.highlightMode ? ' open' : '') + '" id="ap-hl-picker">' +
+                        '<div class="ap-hl-swatch sw-yellow' + (apState.hlColor === 'yellow' ? ' active' : '') + '" onclick="apSetHlColor(\'yellow\')"></div>' +
+                        '<div class="ap-hl-swatch sw-blue' + (apState.hlColor === 'blue' ? ' active' : '') + '" onclick="apSetHlColor(\'blue\')"></div>' +
+                        '<div class="ap-hl-swatch sw-pink' + (apState.hlColor === 'pink' ? ' active' : '') + '" onclick="apSetHlColor(\'pink\')"></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="ap-tool-sep"></div>' +
+                '<div class="ap-more-wrap">' +
+                    '<button class="ap-tool-btn" onclick="apToggleMore()" title="More tools"><i class="fa-solid fa-ellipsis-vertical"></i><span>More</span></button>' +
+                    '<div class="ap-more-dropdown" id="ap-more-dd">' +
+                        '<button class="ap-more-item" onclick="apAddNote();apCloseMore()"><i class="fa-solid fa-sticky-note"></i>Sticky Note</button>' +
+                        (_apHasCalc(apState.subject) ? '<button class="ap-more-item" onclick="apToggleCalc();apCloseMore()"><i class="fa-solid fa-calculator"></i>Calculator</button>' : '') +
+                        (_apHasRef(apState.subject) ? '<button class="ap-more-item" onclick="apToggleRef();apCloseMore()"><i class="fa-solid fa-book-open"></i>Reference Sheet</button>' : '') +
+                        '<button class="ap-more-item" onclick="apShowReview();apCloseMore()"><i class="fa-solid fa-list-check"></i>Review Answers</button>' +
+                        '<button class="ap-more-item" onclick="exitAPExam()"><i class="fa-solid fa-right-from-bracket"></i>Exit Preview</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div></div>';
+
+        html += '<div class="ap-divider"></div>';
+
+        // ── Body ──
+        html += '<div class="ap-body' + (hasPassage ? '' : ' no-passage') + '">';
+        if (hasPassage) {
+            html += '<div class="ap-passage" id="ap-passage">' + passage + '</div>';
+        }
+        html += '<div class="ap-question-panel" id="ap-qpanel">';
+
+        // Question tools
+        var abcActive = apState.crossOutMode;
+        html += '<div class="ap-q-tools">' +
+            '<div class="ap-q-num">' + (idx + 1) + '</div>' +
+            '<button class="ap-q-bookmark' + (isMarked ? ' marked' : '') + '" onclick="toggleAPMark()">' +
+                '<i class="fa-' + (isMarked ? 'solid' : 'regular') + ' fa-bookmark"></i> Mark for Review' +
+            '</button>' +
+            '<div class="ap-q-abc' + (abcActive ? ' active' : '') + '" onclick="apToggleCrossOut()" title="Eliminate answers">ABC' + (abcActive ? '<div class="abc-strike"></div>' : '') + '</div>' +
+        '</div>';
+
+        html += '<div class="ap-q-prompt">' + (q.prompt || '') + '</div>';
+
+        // Choices
+        if (q.choices && q.choices.length > 0) {
+            html += '<div class="ap-choices' + (apState.crossOutMode ? ' crossout-mode' : '') + '">';
+            var co = apState.crossedOut[idx] || {};
+            for (var ci = 0; ci < q.choices.length; ci++) {
+                var c = q.choices[ci];
+                var sel = quizState.answers[idx] === c.id ? ' selected' : '';
+                var crossed = co[c.id] ? ' crossed-out' : '';
+                html += '<div class="ap-choice' + sel + crossed + '" data-id="' + esc(c.id) + '" onclick="apClickChoice(this,\'' + esc(c.id) + '\')">' +
+                    '<div class="ap-choice-letter">' + (letters[ci] || ci) + '</div>' +
+                    '<div class="ap-choice-text">' + (c.text || '') + '</div>' +
+                    '<button class="ap-crossout-btn" onclick="event.stopPropagation();apCrossOutOne(this.parentElement,\'' + esc(c.id) + '\')" title="Cross out"><i class="fa-solid fa-xmark"></i></button>' +
+                '</div>';
+            }
+            html += '</div>';
+        }
+
+        // Sticky note (draggable)
+        html += '<div class="ap-notes-panel' + (apState.notesOpen ? ' open' : '') + '" id="ap-notes">' +
+            '<div class="ap-notes-header" onmousedown="apStartDrag(event,\'ap-notes\')"><span>Q' + (idx+1) + ' Notes</span><button onclick="apState.notesOpen=false;document.getElementById(\'ap-notes\').classList.remove(\'open\')">&times;</button></div>' +
+            '<div class="ap-notes-body"><textarea placeholder="Write your notes here..." oninput="apState.notes[' + idx + ']=this.value">' + esc(apState.notes[idx] || '') + '</textarea></div></div>';
+
+        html += '</div></div>'; // question-panel, body
+
+        html += '<div class="ap-footer-divider"></div>';
+
+        // ── Footer ──
+        html += '<div class="ap-footer">' +
+            '<button class="ap-nav-btn ap-nav-prev" onclick="apNav(-1)"' + (idx === 0 ? ' disabled' : '') + '>Back</button>' +
+            '<div style="flex:1;display:flex;justify-content:center;position:relative;">' +
+                '<button class="ap-q-nav" onclick="toggleAPNav()" id="ap-q-nav-btn">Question ' + (idx + 1) + ' of ' + totalQ + ' <i class="fa-solid fa-chevron-up" id="ap-nav-chevron"></i></button>' +
+                '<div class="ap-nav-dropdown" id="ap-nav-dropdown">' +
+                    '<div class="ap-nav-dropdown-header">Questions</div>' +
+                    '<div class="ap-nav-grid">';
+        for (var di = 0; di < totalQ; di++) {
+            var dc = 'ap-nav-item';
+            if (quizState.answers[di] !== null) dc += ' answered';
+            if (di === idx) dc += ' current';
+            if (quizState.marked[di]) dc += ' marked';
+            html += '<div class="' + dc + '" onclick="apGoTo(' + di + ')">' + (di + 1) + '</div>';
+        }
+        html += '</div>' +
+            '<button onclick="apShowReview()" style="display:block;width:100%;margin-top:12px;padding:9px;border:none;border-radius:8px;background:#1a237e;color:#fff;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:var(--font);">Review All Answers</button>' +
+            '</div></div>' +
+            '<button class="ap-nav-btn ap-nav-next" onclick="apNav(1)">' + (idx === totalQ - 1 ? 'Review' : 'Next') + '</button>' +
+        '</div>';
+
+        // Calculator panel
+        html += '<div class="ap-calc-panel' + (apState.calcOpen ? ' open' : '') + '" id="ap-calc">' +
+            '<div class="ap-calc-header" onmousedown="apStartDrag(event,\'ap-calc\')"><span>Graphing Calculator</span><button onclick="apToggleCalc()">&times;</button></div>' +
+            '<iframe src="https://www.desmos.com/calculator" loading="lazy"></iframe></div>';
+
+        // Reference panel (subject-specific)
+        var refContent = _apRefHTML(apState.subject);
+        if (refContent) {
+            html += '<div class="ap-ref-panel' + (apState.refOpen ? ' open' : '') + '" id="ap-ref">' +
+                '<div class="ap-ref-header"><span>Reference Sheet</span><button onclick="apToggleRef()">&times;</button></div>' +
+                '<div class="ap-ref-body">' + refContent + '</div></div>';
+        }
+
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+    }
+
+    // ── Choice handling (select or cross-out) ──
+    function apClickChoice(el, choiceId) {
+        var idx = quizState.staticIdx;
+        if (apState.crossOutMode) {
+            if (!apState.crossedOut[idx]) apState.crossedOut[idx] = {};
+            if (apState.crossedOut[idx][choiceId]) {
+                delete apState.crossedOut[idx][choiceId];
+                el.classList.remove('crossed-out');
+            } else {
+                apState.crossedOut[idx][choiceId] = true;
+                el.classList.add('crossed-out');
+            }
+        } else {
+            quizState.answers[idx] = choiceId;
+            var overlay = document.getElementById('ap-overlay');
+            if (!overlay) return;
+            overlay.querySelectorAll('.ap-choice').forEach(function(c) { c.classList.remove('selected'); });
+            el.classList.add('selected');
+            var navItems = overlay.querySelectorAll('.ap-nav-item');
+            if (navItems[idx]) navItems[idx].classList.add('answered');
+            _apSaveProgress();
+        }
+    }
+
+    function apToggleCrossOut() {
+        apState.crossOutMode = !apState.crossOutMode;
+        renderAPQuestion();
+    }
+
+    function apCrossOutOne(el, choiceId) {
+        var idx = quizState.staticIdx;
+        if (!apState.crossedOut[idx]) apState.crossedOut[idx] = {};
+        if (apState.crossedOut[idx][choiceId]) {
+            delete apState.crossedOut[idx][choiceId];
+            el.classList.remove('crossed-out');
+        } else {
+            apState.crossedOut[idx][choiceId] = true;
+            el.classList.add('crossed-out');
+        }
+    }
+
+    // ── Navigation ──
+    function apNav(dir) {
+        var next = quizState.staticIdx + dir;
+        if (next < 0) return;
+        if (next >= quizState.staticQuestions.length) { apShowReview(); return; }
+        quizState.staticIdx = next;
+        _apSaveProgress();
+        renderAPQuestion();
+    }
+    function apGoTo(idx) {
+        if (idx < 0 || idx >= quizState.staticQuestions.length) return;
+        quizState.staticIdx = idx;
+        _apSaveProgress();
+        renderAPQuestion();
+    }
+    function toggleAPMark() { quizState.marked[quizState.staticIdx] = !quizState.marked[quizState.staticIdx]; renderAPQuestion(); }
+    function toggleAPNav() {
+        var dd = document.getElementById('ap-nav-dropdown');
+        var chev = document.getElementById('ap-nav-chevron');
+        if (!dd) return;
+        var isOpen = dd.classList.toggle('open');
+        if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : '';
+    }
+
+    // ── More dropdown ──
+    function apToggleMore() {
+        var dd = document.getElementById('ap-more-dd');
+        if (dd) dd.classList.toggle('open');
+    }
+    function apCloseMore() {
+        var dd = document.getElementById('ap-more-dd');
+        if (dd) dd.classList.remove('open');
+    }
+    document.addEventListener('click', function(e) {
+        var dd = document.getElementById('ap-more-dd');
+        if (dd && dd.classList.contains('open') && !e.target.closest('.ap-more-wrap')) dd.classList.remove('open');
+    });
+
+    // ── Highlight tool ──
+    function apToggleHighlight() {
+        apState.highlightMode = !apState.highlightMode;
+        var overlay = document.getElementById('ap-overlay');
+        if (overlay) {
+            var btn = overlay.querySelector('.ap-tool-btn');
+            if (btn) btn.classList.toggle('active', apState.highlightMode);
+            var picker = document.getElementById('ap-hl-picker');
+            if (picker) picker.classList.toggle('open', apState.highlightMode);
+        }
+        if (apState.highlightMode) {
+            document.addEventListener('mouseup', apDoHighlight);
+        } else {
+            document.removeEventListener('mouseup', apDoHighlight);
+        }
+    }
+    function apSetHlColor(color) {
+        apState.hlColor = color;
+        var picker = document.getElementById('ap-hl-picker');
+        if (picker) {
+            picker.querySelectorAll('.ap-hl-swatch').forEach(function(s) { s.classList.remove('active'); });
+            var active = picker.querySelector('.sw-' + color);
+            if (active) active.classList.add('active');
+        }
+    }
+    function apDoHighlight(e) {
+        if (!apState.highlightMode) return;
+        if (e && e.target && e.target.closest && e.target.closest('mark.ap-hl')) {
+            var mark = e.target.closest('mark.ap-hl');
+            var text = document.createTextNode(mark.textContent);
+            mark.parentNode.replaceChild(text, mark);
+            return;
+        }
+        var sel = window.getSelection();
+        if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+        var range = sel.getRangeAt(0);
+        var container = range.commonAncestorContainer;
+        var el = container.nodeType === 3 ? container.parentElement : container;
+        if (!el.closest || (!el.closest('.ap-passage') && !el.closest('.ap-q-prompt'))) return;
+        var mark = document.createElement('mark');
+        mark.className = 'ap-hl hl-' + (apState.hlColor || 'yellow');
+        try { range.surroundContents(mark); } catch(ex) {}
+        sel.removeAllRanges();
+    }
+
+    // ── Notes ──
+    function apAddNote() {
+        apState.notesOpen = !apState.notesOpen;
+        var panel = document.getElementById('ap-notes');
+        if (panel) panel.classList.toggle('open', apState.notesOpen);
+    }
+
+    // ── Calculator ──
+    function apToggleCalc() {
+        apState.calcOpen = !apState.calcOpen;
+        var panel = document.getElementById('ap-calc');
+        if (panel) panel.classList.toggle('open', apState.calcOpen);
+    }
+
+    // ── Reference sheet ──
+    function apToggleRef() {
+        apState.refOpen = !apState.refOpen;
+        var panel = document.getElementById('ap-ref');
+        if (panel) panel.classList.toggle('open', apState.refOpen);
+    }
+
+    // ── Draggable panels ──
+    function apStartDrag(e, panelId) {
+        var panel = document.getElementById(panelId);
+        if (!panel) return;
+        var startX = e.clientX, startY = e.clientY;
+        var rect = panel.getBoundingClientRect();
+        var origLeft = rect.left, origTop = rect.top;
+        panel.style.position = 'fixed';
+        function onMove(ev) {
+            panel.style.left = (origLeft + ev.clientX - startX) + 'px';
+            panel.style.top = (origTop + ev.clientY - startY) + 'px';
+            panel.style.right = 'auto';
+        }
+        function onUp() { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    // ── Review page ──
+    function apShowReview() {
+        var old = document.getElementById('ap-overlay');
+        if (old) old.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'ap-overlay';
+        overlay.className = 'ap-overlay';
+        var totalQ = quizState.staticQuestions.length;
+        var answered = 0, markedCount = 0, unanswered = 0;
+        for (var i = 0; i < totalQ; i++) {
+            if (quizState.answers[i] !== null) answered++;
+            else unanswered++;
+            if (quizState.marked[i]) markedCount++;
+        }
+        var currentIdx = quizState.staticIdx;
+
+        var html = '<div class="ap-header"><div class="ap-header-title">' + esc(quizState.title) + ' - Review</div>' +
+            '<div class="ap-tools"><button class="ap-tool-btn" onclick="exitAPExam()"><i class="fa-solid fa-right-from-bracket"></i><span>Exit</span></button></div></div>' +
+            '<div class="ap-divider"></div>' +
+            '<div class="ap-review">' +
+            '<h2>Review Your Answers</h2>' +
+            '<p class="ap-review-summary">' + answered + ' of ' + totalQ + ' answered' +
+                (unanswered > 0 ? ' &middot; <span style="color:#DC2626;font-weight:600;">' + unanswered + ' unanswered</span>' : '') +
+                (markedCount > 0 ? ' &middot; <span style="color:#D97706;font-weight:600;">' + markedCount + ' flagged</span>' : '') +
+            '</p>';
+
+        html += '<div class="ap-review-legend">' +
+            '<div class="ap-review-legend-item"><div class="ap-review-legend-swatch answered"></div>Answered</div>' +
+            '<div class="ap-review-legend-item"><div class="ap-review-legend-swatch unanswered"></div>Unanswered</div>' +
+            '<div class="ap-review-legend-item"><div class="ap-review-legend-swatch marked"></div>Flagged</div>' +
+            '<div class="ap-review-legend-item"><div class="ap-review-legend-swatch current-swatch"></div>Current</div>' +
+        '</div>';
+
+        html += '<div class="ap-review-grid">';
+        for (var ri = 0; ri < totalQ; ri++) {
+            var ans = quizState.answers[ri];
+            var cls = ans !== null ? 'answered' : 'unanswered';
+            if (ri === currentIdx) cls += ' current';
+            html += '<div class="ap-review-item ' + cls + '" onclick="apGoTo(' + ri + ')">' +
+                (ri === currentIdx ? '<div class="ap-review-pin"><i class="fa-solid fa-location-dot"></i></div>' : '') +
+                (quizState.marked[ri] ? '<div class="ap-review-flag"><i class="fa-solid fa-flag"></i></div>' : '') +
+                (ri + 1) +
+            '</div>';
+        }
+        html += '</div>';
+
+        var allDone = answered === totalQ;
+        html += '<div style="text-align:center;margin-top:8px;">';
+        if (allDone) {
+            html += '<button class="ap-nav-btn ap-nav-next" onclick="apFinalSubmit()" style="padding:12px 40px;font-size:0.95rem;">Submit Test</button>';
+        } else {
+            html += '<button class="ap-nav-btn ap-nav-next" onclick="apFinalSubmit()" style="padding:12px 40px;font-size:0.95rem;opacity:0.7;">Submit Anyway</button>';
+        }
+        html += '<br><button class="ap-nav-btn ap-nav-prev" onclick="renderAPQuestion()" style="margin-top:12px;">Return to Questions</button>';
+        html += '</div></div>';
+
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+    }
+
+    // ── Submit (from header) — shows confirmation ──
+    function submitAPExam() {
+        var totalQ = quizState.staticQuestions.length;
+        var answered = 0;
+        for (var i = 0; i < totalQ; i++) { if (quizState.answers[i] !== null) answered++; }
+        if (answered < totalQ) {
+            var modal = document.createElement('div');
+            modal.className = 'ap-modal-overlay';
+            modal.id = 'ap-confirm-modal';
+            modal.innerHTML = '<div class="ap-modal"><h3>Submit Test?</h3>' +
+                '<p>You have <strong>' + (totalQ - answered) + '</strong> unanswered question' + (totalQ - answered > 1 ? 's' : '') + '. Are you sure you want to submit?</p>' +
+                '<div class="ap-modal-btns">' +
+                    '<button onclick="document.getElementById(\'ap-confirm-modal\').remove()" style="background:#f0f0f0;color:#555;">Go Back</button>' +
+                    '<button onclick="document.getElementById(\'ap-confirm-modal\').remove();apShowReview()" style="background:#1a237e;color:#fff;">Review Answers</button>' +
+                '</div></div>';
+            document.body.appendChild(modal);
+        } else {
+            apShowReview();
+        }
+    }
+
+    // ── Final submit — scores and shows results ──
+    function apFinalSubmit() {
+        var correct = 0, total = quizState.staticQuestions.length;
+        for (var i = 0; i < total; i++) {
+            var q = quizState.staticQuestions[i];
+            var ans = quizState.answers[i];
+            if (ans === q.correctId) correct++;
+        }
+        quizState.correct = correct;
+        quizState.total = total;
+        _showDiagPreviewResults(correct, total);
+    }
+
+    // ── Preview results overlay ──
+    function _showDiagPreviewResults(correct, total) {
+        var ol = document.getElementById('ap-overlay');
+        if (ol) ol.remove();
+
+        var pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+        var letters = 'ABCDEFGHIJ';
+
+        var overlay = document.createElement('div');
+        overlay.id = 'ap-overlay';
+        overlay.className = 'ap-overlay';
+
+        var html = '<div class="ap-header"><div class="ap-header-title">' + esc(quizState.title) + ' \u2014 Results</div>' +
+            '<div class="ap-tools"><button class="ap-tool-btn" onclick="window.close()"><i class="fa-solid fa-xmark"></i><span>Close</span></button></div></div>' +
+            '<div class="ap-divider"></div>';
+
+        html += '<div class="ap-review" style="max-width:720px;margin:0 auto;padding:32px 24px;">';
+
+        html += '<div style="text-align:center;margin-bottom:32px;">' +
+            '<div style="font-size:3rem;font-weight:800;color:' + (pct >= 70 ? '#16A34A' : pct >= 50 ? '#D97706' : '#DC2626') + ';">' + pct + '%</div>' +
+            '<div style="font-size:1.1rem;color:var(--color-text-secondary);margin-top:4px;">' + correct + ' of ' + total + ' correct</div>' +
+            '</div>';
+
+        html += '<h3 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--color-text);">Question Breakdown</h3>';
+        for (var i = 0; i < total; i++) {
+            var q = quizState.staticQuestions[i];
+            var ans = quizState.answers[i];
+            var isCorrect = (ans === q.correctId);
+            var wasAnswered = (ans !== null);
+
+            var ansLetter = '', correctLetter = '';
+            for (var ci = 0; ci < q.choices.length; ci++) {
+                if (q.choices[ci].id === ans) ansLetter = letters[ci] || q.choices[ci].id;
+                if (q.choices[ci].id === q.correctId) correctLetter = letters[ci] || q.choices[ci].id;
+            }
+
+            var iconHtml = isCorrect
+                ? '<i class="fa-solid fa-check-circle" style="color:#16A34A;"></i>'
+                : (wasAnswered ? '<i class="fa-solid fa-times-circle" style="color:#DC2626;"></i>' : '<i class="fa-solid fa-minus-circle" style="color:#9CA3AF;"></i>');
+
+            html += '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--color-border, #e5e7eb);">' +
+                '<div style="flex-shrink:0;width:24px;text-align:center;padding-top:2px;">' + iconHtml + '</div>' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-weight:600;font-size:0.9rem;color:var(--color-text);">Q' + (i + 1) + '. ' + esc((q.prompt || '').replace(/<[^>]*>/g, '').substring(0, 120)) + (q.prompt && q.prompt.length > 120 ? '...' : '') + '</div>' +
+                    '<div style="font-size:0.82rem;color:var(--color-text-secondary);margin-top:4px;">' +
+                        (wasAnswered
+                            ? 'Your answer: <strong>' + esc(ansLetter) + '</strong>' + (!isCorrect ? ' &middot; Correct: <strong style="color:#16A34A;">' + esc(correctLetter) + '</strong>' : '')
+                            : '<span style="color:#9CA3AF;">Not answered</span> &middot; Correct: <strong style="color:#16A34A;">' + esc(correctLetter) + '</strong>') +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }
+
+        html += '<div style="text-align:center;margin-top:28px;display:flex;gap:12px;justify-content:center;">' +
+            '<button class="ap-nav-btn ap-nav-prev" onclick="quizState.staticIdx=0;renderAPQuestion()">Review Questions</button>' +
+            '<button class="ap-nav-btn ap-nav-next" onclick="window.close()">Close Preview</button>' +
+        '</div>';
+
+        html += '</div>';
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+    }
+
+    function exitAPExam() {
+        var ol = document.getElementById('ap-overlay');
+        if (ol) ol.remove();
+        document.removeEventListener('mouseup', apDoHighlight);
+        window.close();
+    }
+
+    /* ── END AP EXAM UI ─────────────────────────────────────── */
+
     // ── Stage-based PowerPath scoring ──
     function _getQuestionDifficulty(q) {
         if (!q) return 'medium';
@@ -285,25 +817,56 @@
                     return;
                 }
 
-                // Set quiz state for diagnostic mode
-                quizState.title = diagCourseTitle + ' — Diagnostic';
-                quizState.isReadingQuiz = true; // enables split layout for stimulus
-                quizState.attemptId = null; // no PowerPath attempt
+                // ── Preview mode: use AP exam UI ──
+                if (isDiagPreview) {
+                    var diagTitle = params.get('title') || (diagCourseTitle + ' — Diagnostic');
+                    quizState.title = diagTitle;
+                    quizState.isDiagPreview = true;
+                    quizState.cachedPassage = '';
+                    quizState.staticQuestions = diagItems.map(function(item) {
+                        var correctId = item.correctAnswer || '';
+                        if (!correctId) {
+                            for (var oi = 0; oi < (item.options || []).length; oi++) {
+                                if (item.options[oi].isCorrect) { correctId = item.options[oi].id; break; }
+                            }
+                        }
+                        return {
+                            identifier: item.id || '',
+                            prompt: item.stem || '',
+                            choices: (item.options || []).map(function(o) {
+                                return { id: o.id, text: o.text };
+                            }),
+                            correctId: correctId,
+                            stimulus: item.stimulus || '',
+                            isFRQ: false,
+                            feedbackMap: {},
+                        };
+                    });
+                    quizState.staticIdx = 0;
+                    quizState.answers = new Array(diagItems.length).fill(null);
+                    quizState.marked = new Array(diagItems.length).fill(false);
+                    apState.subject = '';
 
-                // Store diagnostic items and answers tracker
+                    // Launch AP exam overlay
+                    startAPExam();
+                    return;
+                }
+
+                // ── Student mode: one-at-a-time with backend scoring ──
+                quizState.title = diagCourseTitle + ' — Diagnostic';
+                quizState.isReadingQuiz = true;
+                quizState.attemptId = null;
+
                 var _diagItemIdx = 0;
-                var _diagAnswers = {}; // itemId -> selectedOptionId
+                var _diagAnswers = {};
                 var _diagAllItems = diagItems;
 
-                // Override loadNextQuestion for diagnostic mode
                 loadNextQuestion = async function() {
                     if (_diagItemIdx >= _diagAllItems.length) {
-                        // All questions answered — submit or show results
                         _diagShowResults();
                         return;
                     }
                     var dItem = _diagAllItems[_diagItemIdx];
-                    // Map diagnostic item to quiz.js format
                     var q = {
                         id: dItem.id || ('diag_' + _diagItemIdx),
                         prompt: dItem.stem || '',
@@ -311,7 +874,7 @@
                             return { id: o.id, text: o.text, identifier: o.id };
                         }),
                         stimulus: dItem.stimulus || '',
-                        correctId: isDiagPreview ? (dItem.correctAnswer || '') : '', // only show correct in preview
+                        correctId: '',
                         _diagItem: dItem,
                     };
                     quizState.currentQuestion = q;
@@ -323,7 +886,6 @@
                     renderQuestion(q);
                 };
 
-                // Override submitAnswer for diagnostic mode
                 window.submitAnswer = async function() {
                     if (!quizState.selectedChoice || quizState.answered) return;
                     quizState.answered = true;
@@ -333,39 +895,10 @@
                     var choiceId = quizState.selectedChoice;
                     _diagAnswers[dItem.id || ('diag_' + _diagItemIdx)] = choiceId;
 
-                    var isCorrect = false;
-                    if (isDiagPreview && dItem.correctAnswer) {
-                        isCorrect = (choiceId === dItem.correctAnswer);
-                    }
-                    if (isCorrect) quizState.correct++;
-
-                    // Show feedback
-                    var feedbackEl = document.getElementById('feedback');
-                    if (feedbackEl && isDiagPreview) {
-                        feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-                        // Find skillInsight for the selected option
-                        var insight = '';
-                        for (var oi = 0; oi < (dItem.options || []).length; oi++) {
-                            if ((dItem.options[oi].id || '') === choiceId) {
-                                insight = dItem.options[oi].skillInsight || dItem.options[oi].misconception || '';
-                                break;
-                            }
-                        }
-                        feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong>') +
-                            (insight ? '<p style="margin-top:8px;">' + esc(insight) + '</p>' : '');
-                    }
-
-                    // Highlight selected choice
                     document.querySelectorAll('.choice').forEach(function(c) {
-                        if (c.dataset.id === choiceId) {
-                            c.classList.add(isDiagPreview ? (isCorrect ? 'correct' : 'incorrect') : 'selected');
-                        }
-                        if (isDiagPreview && dItem.correctAnswer && c.dataset.id === dItem.correctAnswer) {
-                            c.classList.add('correct');
-                        }
+                        if (c.dataset.id === choiceId) c.classList.add('selected');
                     });
 
-                    // Update button to "Next"
                     var btn = document.getElementById('submit-btn');
                     _diagItemIdx++;
                     if (_diagItemIdx >= _diagAllItems.length) {
@@ -377,53 +910,24 @@
                     btn.onclick = function() { loadNextQuestion(); };
                 };
 
-                // Show results at end of diagnostic
                 function _diagShowResults() {
                     var quizWrap = document.querySelector('.quiz-wrap');
                     if (quizWrap) quizWrap.classList.remove('wide-mode');
 
-                    if (!isDiagPreview && userId) {
-                        // Submit answers to backend
-                        fetch('/api/diagnostic-quiz', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                studentId: userId,
-                                courseId: diagnosticId,
-                                answers: _diagAnswers,
-                            }),
-                        }).then(function(r) { return r.json(); }).then(function(d) {
-                            if (d.results) _diagRenderResults(d.results);
-                            else _diagRenderResults(null);
-                        }).catch(function() { _diagRenderResults(null); });
+                    fetch('/api/diagnostic-quiz', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            studentId: userId,
+                            courseId: diagnosticId,
+                            answers: _diagAnswers,
+                        }),
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.results) _diagRenderResults(d.results);
+                        else _diagRenderResults(null);
+                    }).catch(function() { _diagRenderResults(null); });
 
-                        area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Scoring your assessment...</div>';
-                    } else {
-                        // Preview mode: score locally
-                        var correct = 0;
-                        var skillResults = {};
-                        for (var di = 0; di < _diagAllItems.length; di++) {
-                            var itm = _diagAllItems[di];
-                            var sel = _diagAnswers[itm.id || ('diag_' + di)] || '';
-                            var isCor = sel === (itm.correctAnswer || '');
-                            if (isCor) correct++;
-                            var sid = itm.gatewayNodeId || itm.skillNodeId || '';
-                            if (sid) {
-                                if (!skillResults[sid]) skillResults[sid] = { label: itm.gatewayNodeLabel || itm.skill || sid, tested: 0, correct: 0 };
-                                skillResults[sid].tested++;
-                                if (isCor) skillResults[sid].correct++;
-                            }
-                        }
-                        var scorePct = _diagAllItems.length > 0 ? Math.round((correct / _diagAllItems.length) * 1000) / 10 : 0;
-                        for (var sk in skillResults) { skillResults[sk].mastery = skillResults[sk].tested > 0 ? Math.round((skillResults[sk].correct / skillResults[sk].tested) * 1000) / 10 : 0; }
-                        _diagRenderResults({
-                            scorePercent: scorePct,
-                            correctCount: correct,
-                            totalItems: _diagAllItems.length,
-                            placementLevel: scorePct >= 80 ? { name: 'Advanced' } : scorePct >= 60 ? { name: 'Proficient' } : scorePct >= 40 ? { name: 'Developing' } : { name: 'Foundational' },
-                            skillResults: skillResults,
-                        });
-                    }
+                    area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Scoring your assessment...</div>';
                 }
 
                 function _diagRenderResults(results) {
@@ -431,8 +935,6 @@
                         area.innerHTML = '<div class="result-card"><div class="result-label">Assessment submitted.</div></div>';
                         return;
                     }
-                    var backHref = isDiagPreview ? '/admin/assign-tests' : '/dashboard';
-                    var backLabel = isDiagPreview ? 'Back to Assign Tests' : 'Back to Dashboard';
                     var pl = results.placementLevel || {};
                     var skills = results.skillResults || {};
                     var skillKeys = Object.keys(skills);
@@ -465,13 +967,12 @@
                     }
 
                     h += '</div>';
-                    h += '<div style="text-align:center;margin-top:20px;"><a href="' + backHref + '" class="quiz-btn quiz-btn-primary" style="text-decoration:none;display:inline-flex;"><i class="fa-solid fa-arrow-left" style="margin-right:6px;"></i>' + backLabel + '</a></div>';
+                    h += '<div style="text-align:center;margin-top:20px;"><a href="/dashboard" class="quiz-btn quiz-btn-primary" style="text-decoration:none;display:inline-flex;"><i class="fa-solid fa-arrow-left" style="margin-right:6px;"></i>Back to Dashboard</a></div>';
                     area.innerHTML = h;
                 }
 
-                // Start first question
                 await loadNextQuestion();
-                return; // Don't fall through to PowerPath/QTI paths
+                return;
             } catch(e) {
                 area.innerHTML = '<div class="loading-msg">Failed to load diagnostic: ' + esc(e.message) + '</div>';
                 return;

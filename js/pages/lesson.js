@@ -712,90 +712,8 @@
         return html;
     }
 
-    /* ── Diagnostic Preview (admin) ─────────────────────────── */
-    async function initDiagnosticPreview(params) {
-        var courseId = params.get('courseId') || '';
-        var title = params.get('title') || 'Diagnostic Preview';
-
-        if (!courseId) { showError('Missing courseId for diagnostic preview.'); return; }
-
-        // Update page title
-        document.title = 'Preview — ' + title;
-
-        // Hide lesson page chrome — AP overlay takes over the full screen
-        var lp = document.querySelector('.lesson-page');
-        if (lp) lp.style.display = 'none';
-
-        // Show loading state
-        var loadingDiv = document.createElement('div');
-        loadingDiv.id = 'diag-preview-loading';
-        loadingDiv.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100vh;font-family:var(--font);color:var(--color-text-secondary);';
-        loadingDiv.innerHTML = '<div style="text-align:center;"><div class="loading-spinner" style="margin:0 auto 16px;"></div><div>Loading diagnostic preview...</div></div>';
-        document.body.appendChild(loadingDiv);
-
-        try {
-            var resp = await fetch('/api/diagnostic-status?courseId=' + encodeURIComponent(courseId));
-            var data = await resp.json();
-
-            if (data.error) { showError(data.error); return; }
-            if (!data.diagnostic || !data.diagnostic.items || !data.diagnostic.items.length) {
-                showError('No diagnostic items found for this course.');
-                return;
-            }
-
-            var items = data.diagnostic.items;
-
-            // Map diagnostic items to quizState.staticQuestions format
-            quizState.title = title;
-            quizState.isDiagPreview = true;
-            quizState.staticQuestions = items.map(function(item) {
-                // Determine correctId from correctAnswer or from options
-                var correctId = item.correctAnswer || '';
-                if (!correctId) {
-                    for (var oi = 0; oi < (item.options || []).length; oi++) {
-                        if (item.options[oi].isCorrect) { correctId = item.options[oi].id; break; }
-                    }
-                }
-                return {
-                    identifier: item.id || '',
-                    prompt: item.stem || '',
-                    choices: (item.options || []).map(function(o) {
-                        return { id: o.id, text: o.text };
-                    }),
-                    correctId: correctId,
-                    stimulus: item.stimulus || '',
-                    isFRQ: false,
-                    feedbackMap: {},
-                    _diagItem: item,
-                };
-            });
-            quizState.staticIdx = 0;
-            quizState.answers = new Array(items.length).fill(null);
-            quizState.marked = new Array(items.length).fill(false);
-
-            // No subject-specific tools for diagnostic preview
-            apState.subject = '';
-
-            // Remove loading indicator and launch AP exam UI
-            var ld = document.getElementById('diag-preview-loading');
-            if (ld) ld.remove();
-
-            startAPExam();
-        } catch(e) {
-            console.error('[DiagPreview] Error:', e);
-            showError('Failed to load diagnostic preview: ' + (e.message || e));
-        }
-    }
-
     /* ── Init ───────────────────────────────────────────────── */
     function init() {
-        // ── Diagnostic Preview Mode (admin) ──
-        var _urlParams = new URLSearchParams(window.location.search);
-        if (_urlParams.get('diagnosticPreview') === '1') {
-            initDiagnosticPreview(_urlParams);
-            return;
-        }
-
         var raw = sessionStorage.getItem('al_lesson_data');
         if (!raw) { showError('No lesson data found. Please go back and select a lesson.'); return; }
         try { lessonData = JSON.parse(raw); } catch(e) { showError('Invalid lesson data.'); return; }
@@ -1506,11 +1424,8 @@
         var lessonPage = document.querySelector('.lesson-page');
         if (lessonPage) lessonPage.classList.remove('wide-mode');
 
-        // Skip server sync and progress clearing for diagnostic preview
-        if (!quizState.isDiagPreview) {
-            // Clear saved progress — quiz is complete
-            _clearQuizProgress();
-        }
+        // Clear saved progress — quiz is complete
+        _clearQuizProgress();
 
         quizState.finished = true;
         var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
@@ -1538,19 +1453,17 @@
         if (btnBack) { btnBack.disabled = true; }
 
         // ═══ SYNC FIRST — before any DOM writes that could fail ═══
-        if (!quizState.isDiagPreview) {
-            // Mark lesson complete locally and signal course page — ONLY when truly passed
-            if (passed) {
-                var lessonId = lessonData.title || '';
-                if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
-            }
-            // Always signal course.html to refresh (even on fail — updates frontier)
-            sessionStorage.setItem('al_progress_changed', 'true');
-
-            // Sync with TimeBack Platform — AWAIT so we get real XP from PowerPath
-            // before rendering and before the user can navigate away
-            await syncQuizCompletion(pct, passed);
+        // Mark lesson complete locally and signal course page — ONLY when truly passed
+        if (passed) {
+            var lessonId = lessonData.title || '';
+            if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
         }
+        // Always signal course.html to refresh (even on fail — updates frontier)
+        sessionStorage.setItem('al_progress_changed', 'true');
+
+        // Sync with TimeBack Platform — AWAIT so we get real XP from PowerPath
+        // before rendering and before the user can navigate away
+        await syncQuizCompletion(pct, passed);
 
         // ═══ Now render the results UI with authoritative XP ═══
         if (!quizArea) quizArea = document.getElementById('quiz-area');
@@ -2248,6 +2161,10 @@
 
     // ── Final submit (scores and closes) ──
     function apFinalSubmit() {
+        var ol = document.getElementById('ap-overlay');
+        if (ol) ol.remove();
+        var lp = document.querySelector('.lesson-page');
+        if (lp) lp.style.display = '';
         var correct = 0, total = quizState.staticQuestions.length;
         for (var i = 0; i < total; i++) {
             var q = quizState.staticQuestions[i];
@@ -2257,100 +2174,16 @@
         }
         quizState.correct = correct;
         quizState.total = total;
-
-        // Diagnostic preview — show results overlay without server sync
-        if (quizState.isDiagPreview) {
-            _showDiagPreviewResults(correct, total);
-            return;
-        }
-
-        var ol = document.getElementById('ap-overlay');
-        if (ol) ol.remove();
-        var lp = document.querySelector('.lesson-page');
-        if (lp) lp.style.display = '';
         quizState.xpEarned = correct;
         showQuizResults();
-    }
-
-    /* ── Diagnostic preview results overlay ─────────────────── */
-    function _showDiagPreviewResults(correct, total) {
-        var ol = document.getElementById('ap-overlay');
-        if (ol) ol.remove();
-
-        var pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-        var letters = 'ABCDEFGHIJ';
-
-        var overlay = document.createElement('div');
-        overlay.id = 'ap-overlay';
-        overlay.className = 'ap-overlay';
-
-        var html = '<div class="ap-header"><div class="ap-header-title">' + esc(quizState.title) + ' — Results</div>' +
-            '<div class="ap-tools"><button class="ap-tool-btn" onclick="window.close()"><i class="fa-solid fa-xmark"></i><span>Close</span></button></div></div>' +
-            '<div class="ap-divider"></div>';
-
-        html += '<div class="ap-review" style="max-width:720px;margin:0 auto;padding:32px 24px;">';
-
-        // Score summary
-        html += '<div style="text-align:center;margin-bottom:32px;">' +
-            '<div style="font-size:3rem;font-weight:800;color:' + (pct >= 70 ? '#16A34A' : pct >= 50 ? '#D97706' : '#DC2626') + ';">' + pct + '%</div>' +
-            '<div style="font-size:1.1rem;color:var(--color-text-secondary);margin-top:4px;">' + correct + ' of ' + total + ' correct</div>' +
-            '</div>';
-
-        // Per-question breakdown
-        html += '<h3 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--color-text);">Question Breakdown</h3>';
-        for (var i = 0; i < total; i++) {
-            var q = quizState.staticQuestions[i];
-            var ans = quizState.answers[i];
-            var isCorrect = (ans === q.correctId);
-            var wasAnswered = (ans !== null);
-
-            // Find the letter index of the student's answer and correct answer
-            var ansLetter = '', correctLetter = '';
-            for (var ci = 0; ci < q.choices.length; ci++) {
-                if (q.choices[ci].id === ans) ansLetter = letters[ci] || q.choices[ci].id;
-                if (q.choices[ci].id === q.correctId) correctLetter = letters[ci] || q.choices[ci].id;
-            }
-
-            var iconHtml = isCorrect
-                ? '<i class="fa-solid fa-check-circle" style="color:#16A34A;"></i>'
-                : (wasAnswered ? '<i class="fa-solid fa-times-circle" style="color:#DC2626;"></i>' : '<i class="fa-solid fa-minus-circle" style="color:#9CA3AF;"></i>');
-
-            html += '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--color-border, #e5e7eb);">' +
-                '<div style="flex-shrink:0;width:24px;text-align:center;padding-top:2px;">' + iconHtml + '</div>' +
-                '<div style="flex:1;min-width:0;">' +
-                    '<div style="font-weight:600;font-size:0.9rem;color:var(--color-text);">Q' + (i + 1) + '. ' + esc((q.prompt || '').replace(/<[^>]*>/g, '').substring(0, 120)) + (q.prompt && q.prompt.length > 120 ? '...' : '') + '</div>' +
-                    '<div style="font-size:0.82rem;color:var(--color-text-secondary);margin-top:4px;">' +
-                        (wasAnswered
-                            ? 'Your answer: <strong>' + esc(ansLetter) + '</strong>' + (!isCorrect ? ' &middot; Correct: <strong style="color:#16A34A;">' + esc(correctLetter) + '</strong>' : '')
-                            : '<span style="color:#9CA3AF;">Not answered</span> &middot; Correct: <strong style="color:#16A34A;">' + esc(correctLetter) + '</strong>') +
-                    '</div>' +
-                '</div>' +
-            '</div>';
-        }
-
-        // Action buttons
-        html += '<div style="text-align:center;margin-top:28px;display:flex;gap:12px;justify-content:center;">' +
-            '<button class="ap-nav-btn ap-nav-prev" onclick="quizState.staticIdx=0;renderAPQuestion()">Review Questions</button>' +
-            '<button class="ap-nav-btn ap-nav-next" onclick="window.close()">Close Preview</button>' +
-        '</div>';
-
-        html += '</div>';
-        overlay.innerHTML = html;
-        document.body.appendChild(overlay);
     }
 
     function exitAPExam() {
         var ol = document.getElementById('ap-overlay');
         if (ol) ol.remove();
-        document.removeEventListener('mouseup', apDoHighlight);
-
-        if (quizState.isDiagPreview) {
-            window.close();
-            return;
-        }
-
         var lp = document.querySelector('.lesson-page');
         if (lp) lp.style.display = '';
+        document.removeEventListener('mouseup', apDoHighlight);
         goBackToCourse();
     }
 
