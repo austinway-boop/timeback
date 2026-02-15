@@ -130,11 +130,12 @@ def _match_items(items, target_subject, code, title_lower):
 
 
 def _get_blocked_question_ids():
-    """Return set of question IDs that should be hidden (globally hidden + permanently bad)."""
+    """Return set of question IDs that should be hidden (globally hidden + permanently bad + AI-flagged irrelevant)."""
     try:
         hidden = set(kv_list_get("globally_hidden_questions"))
         bad = set(kv_list_get("bad_questions"))
-        return hidden | bad
+        irrelevant = set(kv_list_get("ai_irrelevant_questions"))
+        return hidden | bad | irrelevant
     except Exception:
         return set()
 

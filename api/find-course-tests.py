@@ -189,7 +189,13 @@ def _sync_course(course_id: str, headers: dict):
 # ── Extract assessments from tree ────────────────────────────────────
 
 def _extract_assessments_from_tree(tree: dict) -> list[dict]:
-    """Walk the PowerPath tree and extract all assessment resources."""
+    """Walk the PowerPath tree and extract all assessment resources.
+
+    Also captures video and article/stimulus URLs per lesson and attaches
+    them to each test object as ``videoUrl`` and ``articleUrl`` so that
+    downstream consumers (e.g. relevance analysis) can pair questions with
+    their lesson's learning content.
+    """
     tests = []
 
     # Navigate to the actual tree data
@@ -210,49 +216,79 @@ def _extract_assessments_from_tree(tree: dict) -> list[dict]:
         # Handle unit-level resources (e.g., unit tests)
         unit_resources = unit.get("componentResources", [])
         if not lessons and unit_resources:
-            for ur in unit_resources:
-                _extract_resource(ur, unit_title, unit_title, tests)
+            _extract_lesson_resources(unit_resources, unit_title, unit_title, tests)
 
         for lesson in lessons:
             if not isinstance(lesson, dict):
                 continue
             lesson_title = lesson.get("title", "")
-
-            for res_wrapper in lesson.get("componentResources", []):
-                _extract_resource(res_wrapper, lesson_title, unit_title, tests)
+            _extract_lesson_resources(
+                lesson.get("componentResources", []),
+                lesson_title,
+                unit_title,
+                tests,
+            )
 
     return tests
 
 
-def _extract_resource(res_wrapper: dict, lesson_title: str, unit_title: str, tests: list):
-    """Extract a single resource if it's an assessment type."""
+def _parse_resource_meta(res_wrapper: dict) -> tuple[str, str, str, str]:
+    """Return (url, res_id, title, rtype) from a componentResource wrapper."""
     res = res_wrapper.get("resource", res_wrapper) if isinstance(res_wrapper, dict) else res_wrapper
     if not isinstance(res, dict):
-        return
-
+        return "", "", "", ""
     meta = res.get("metadata") or {}
     rurl = meta.get("url", "") or res.get("url", "") or meta.get("href", "") or res.get("href", "")
     res_id = res.get("id", "") or res.get("sourcedId", "") or ""
-    res_title = res.get("title", "") or lesson_title
+    res_title = res.get("title", "") or ""
     rtype = (meta.get("type", "") or res.get("type", "")).lower()
+    return rurl, res_id, res_title, rtype
 
-    # Skip videos and articles/stimuli
-    if rtype == "video":
-        return
-    if rurl and "stimuli" in rurl.lower():
-        return
 
-    # This is an assessment resource
-    if res_id or rurl:
-        if not any(t["id"] == res_id for t in tests):
-            tests.append({
-                "id": res_id,
-                "title": res_title,
-                "url": rurl,
-                "unitTitle": unit_title,
-                "lessonTitle": lesson_title,
-                "lessonType": rtype or "assessment",
-            })
+def _extract_lesson_resources(
+    component_resources: list,
+    lesson_title: str,
+    unit_title: str,
+    tests: list,
+):
+    """Extract assessments from a lesson's componentResources list.
+
+    First pass collects the lesson's video and article URLs.
+    Second pass adds assessment entries with those URLs attached.
+    """
+    video_url = ""
+    article_url = ""
+
+    # First pass: find video and article URLs for this lesson
+    for rw in component_resources:
+        rurl, _rid, _rtitle, rtype = _parse_resource_meta(rw)
+        if rtype == "video" and rurl:
+            video_url = video_url or rurl
+        elif rurl and "stimuli" in rurl.lower():
+            article_url = article_url or rurl
+
+    # Second pass: collect assessment resources and attach content URLs
+    for rw in component_resources:
+        rurl, res_id, res_title, rtype = _parse_resource_meta(rw)
+
+        # Skip non-assessment resources
+        if rtype == "video":
+            continue
+        if rurl and "stimuli" in rurl.lower():
+            continue
+
+        if res_id or rurl:
+            if not any(t["id"] == res_id for t in tests):
+                tests.append({
+                    "id": res_id,
+                    "title": res_title or lesson_title,
+                    "url": rurl,
+                    "unitTitle": unit_title,
+                    "lessonTitle": lesson_title,
+                    "lessonType": rtype or "assessment",
+                    "videoUrl": video_url,
+                    "articleUrl": article_url,
+                })
 
 
 # ── Fallback: OneRoster component resources ──────────────────────────

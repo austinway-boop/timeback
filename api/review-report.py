@@ -139,10 +139,17 @@ def _build_prompt(report: dict, transcript: str, is_human_reviewed: bool) -> lis
         "Be thorough. Take your time to reason carefully through each criterion.\n"
         "Return your analysis as JSON with these exact fields:\n"
         '{ "verdict": "valid" or "invalid", "confidence": 0-100, "reasoning": "detailed explanation", '
-        '"recommendation": "remove" or "regenerate" or "keep", "is_bad_question": true or false }\n\n'
+        '"recommendation": "remove" or "regenerate" or "keep", "is_bad_question": true or false, '
+        '"student_summary": "1-2 sentence plain-English summary for the student", '
+        '"lesson_relevance": "short explanation of why this question is or isn\'t appropriate for the lesson" }\n\n'
         "- verdict 'valid' means the student's REPORT is valid (the question IS flawed)\n"
         "- verdict 'invalid' means the student's report is invalid (the question is fine)\n"
-        "- is_bad_question: true if the question fails any of the 3 criteria above, false otherwise\n\n"
+        "- is_bad_question: true if the question fails any of the 3 criteria above, false otherwise\n"
+        "- student_summary: A friendly 1-2 sentence explanation suitable for showing to the student. "
+        "For valid reports, explain what was wrong with the question. "
+        "For invalid reports, briefly explain why the question is actually correct.\n"
+        "- lesson_relevance: A concise explanation of how this question relates (or doesn't) to the "
+        "lesson's source material. Admins use this to quickly understand the issue.\n\n"
         "IMPORTANT: You MUST respond with ONLY a valid JSON object. No explanation or text outside the JSON."
         + strictness
     )
@@ -368,6 +375,8 @@ class handler(BaseHTTPRequestHandler):
         reasoning = ai_result.get("reasoning", "")
         recommendation = ai_result.get("recommendation", "keep")
         is_bad_question = bool(ai_result.get("is_bad_question", False))
+        student_summary = ai_result.get("student_summary", "")
+        lesson_relevance = ai_result.get("lesson_relevance", "")
 
         # For human-reviewed questions, require very high confidence to overturn
         if is_human_reviewed and verdict == "valid" and confidence < 90:
@@ -408,6 +417,8 @@ class handler(BaseHTTPRequestHandler):
         report["aiFlaggedBad"] = ai_flagged_bad
         report["pointsAwarded"] = points
         report["answeredCorrectly"] = answered_correctly
+        report["studentSummary"] = student_summary
+        report["aiLessonRelevance"] = lesson_relevance
         kv_set(f"report:{report_id}", report)
 
         _send_json(self, {
@@ -415,4 +426,6 @@ class handler(BaseHTTPRequestHandler):
             "pointsAwarded": points,
             "reasoning": reasoning,
             "aiFlaggedBad": ai_flagged_bad,
+            "studentSummary": student_summary,
+            "lessonRelevance": lesson_relevance,
         })

@@ -77,6 +77,8 @@
     /* AI analysis */
     .detail-ai { background:#F3F0FF; border-radius:var(--radius-sm); padding:12px 14px; font-size:0.82rem; color:#4527A0; }
     .detail-ai.empty { color:var(--color-text-muted); background:var(--color-bg); font-style:italic; display:flex; align-items:center; gap:8px; }
+    .lesson-relevance { font-size:0.82rem; font-weight:600; color:#1565C0; background:#E3F2FD; padding:8px 12px; border-radius:6px; margin-bottom:10px; line-height:1.5; display:flex; align-items:flex-start; gap:8px; }
+    .lesson-relevance i { margin-top:2px; flex-shrink:0; opacity:0.7; }
     .ai-conf { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
     .conf-label { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:#7C6BC4; min-width:64px; }
     .conf-track { flex:1; height:6px; background:#E8E0FF; border-radius:3px; overflow:hidden; max-width:160px; }

@@ -198,6 +198,10 @@ function buildReportCard(r) {
         html += '<div class="detail-section">';
         html += '<div class="detail-label">AI Analysis</div>';
         html += '<div class="detail-ai">';
+        // Lesson relevance summary (highlighted at top)
+        if (r.aiLessonRelevance) {
+            html += '<div class="lesson-relevance"><i class="fa-solid fa-book-open"></i> ' + esc(r.aiLessonRelevance) + '</div>';
+        }
         if (typeof r.aiConfidence === 'number') {
             var confLevel = r.aiConfidence >= 80 ? 'high' : r.aiConfidence >= 50 ? 'medium' : 'low';
             html += '<div class="ai-conf"><span class="conf-label">Confidence</span><div class="conf-track"><div class="conf-fill ' + confLevel + '" style="width:' + Math.min(100, r.aiConfidence) + '%"></div></div><span class="conf-val">' + r.aiConfidence + '%</span></div>';

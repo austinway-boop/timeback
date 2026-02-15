@@ -32,6 +32,7 @@
     var lessonPollTimer = null;
     var currentMermaidCode = ''; // stored for export
     var explanationPollTimer = null;
+    var relevancePollTimer = null;
 
     /* ---- Helpers ----------------------------------------------------- */
     function esc(str) {
@@ -216,6 +217,7 @@
         stopPolling();
         stopLessonPolling();
         stopQuestionPolling();
+        stopRelevancePolling();
         history.pushState(null, '', '/admin/course-editor');
         document.getElementById('course-detail-view').style.display = 'none';
         document.getElementById('course-list-view').style.display = '';
@@ -251,21 +253,30 @@
         var anyDone = statuses.tree === 'done' || statuses.lessons === 'done' || statuses.questions === 'done';
         var anyProcessing = statuses.tree === 'processing' || statuses.lessons === 'processing' || statuses.questions === 'processing';
 
-        // Check skill mapping toggle status + explanation status in parallel
+        // Check skill mapping toggle status + explanation status + relevance status in parallel
         var skillMappingEnabled = false;
         var explStatus = 'none';
         var explQuestionCount = 0;
         var explEnabled = false;
+        var relStatus = 'none';
+        var relQuestionCount = 0;
+        var relBadCount = 0;
+        var relEnabled = false;
         try {
             var extraResults = await Promise.all([
                 fetch('/api/skill-mapping-toggle?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
                 fetch('/api/explanation-status?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
                 fetch('/api/explanation-toggle?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+                fetch('/api/relevance-status?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+                fetch('/api/relevance-toggle?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
             ]);
             skillMappingEnabled = extraResults[0].enabled === true;
             if (extraResults[1].status === 'done') { explStatus = 'done'; explQuestionCount = extraResults[1].questionCount || 0; }
             else if (extraResults[1].status === 'processing') explStatus = 'processing';
             explEnabled = extraResults[2].enabled === true;
+            if (extraResults[3].status === 'done') { relStatus = 'done'; relQuestionCount = extraResults[3].questionCount || 0; relBadCount = extraResults[3].badCount || 0; }
+            else if (extraResults[3].status === 'processing') relStatus = 'processing';
+            relEnabled = extraResults[4].enabled === true;
         } catch (e) { /* ignore */ }
 
         function badge(status) {
@@ -353,6 +364,42 @@
                 '</div>';
         }
 
+        // Relevance card status
+        var relSummaryClass, relSummaryText, relBtnLabel, relBtnIcon;
+        if (relStatus === 'done') {
+            relSummaryClass = 'all-done';
+            relSummaryText = '<i class="fa-solid fa-check-circle"></i> ' + relBadCount + ' flagged / ' + relQuestionCount + ' analyzed';
+            relBtnLabel = 'Re-Analyze Relevance';
+            relBtnIcon = 'fa-solid fa-arrows-rotate';
+        } else if (relStatus === 'processing') {
+            relSummaryClass = 'in-progress';
+            relSummaryText = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+            relBtnLabel = 'Analyzing...';
+            relBtnIcon = 'fa-solid fa-spinner fa-spin';
+        } else {
+            relSummaryClass = 'not-started';
+            relSummaryText = 'Not started';
+            relBtnLabel = 'Analyze Relevance';
+            relBtnIcon = 'fa-solid fa-magnifying-glass-chart';
+        }
+
+        // Relevance toggle HTML (only when done)
+        var relToggleHtml = '';
+        if (relStatus === 'done') {
+            relToggleHtml =
+                '<div class="ce-inline-toggle">' +
+                    '<div class="ce-inline-toggle-left">' +
+                        '<i class="fa-solid fa-toggle-' + (relEnabled ? 'on' : 'off') + '"></i>' +
+                        '<strong>Hide Irrelevant Questions</strong>' +
+                        '<span>Remove flagged questions from student quizzes</span>' +
+                    '</div>' +
+                    '<label class="ce-switch">' +
+                        '<input type="checkbox" id="relevance-toggle" ' + (relEnabled ? 'checked' : '') + '>' +
+                        '<span class="ce-switch-slider"></span>' +
+                    '</label>' +
+                '</div>';
+        }
+
         el.innerHTML =
             '<div class="ce-action-card' + (allDone ? ' collapsed' : '') + '">' +
                 '<div class="ce-action-card-header" id="action-card-header">' +
@@ -418,6 +465,28 @@
                         '<i class="' + explBtnIcon + '"></i> ' + explBtnLabel +
                     '</button>' +
                 '</div>' +
+            '</div>' +
+
+            /* ---- Question Relevance Action Card ---- */
+            '<div class="ce-action-card' + (relStatus === 'done' ? ' collapsed' : '') + '">' +
+                '<div class="ce-action-card-header" id="rel-card-header">' +
+                    '<div class="ce-action-card-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>' +
+                    '<div class="ce-action-card-header-text">' +
+                        '<div class="ce-action-card-title">Question Relevance</div>' +
+                        '<div class="ce-action-card-subtitle">AI analysis of question-to-content alignment</div>' +
+                    '</div>' +
+                    '<span class="ce-action-card-summary ' + relSummaryClass + '">' + relSummaryText + '</span>' +
+                    '<i class="fa-solid fa-chevron-down ce-action-card-chevron"></i>' +
+                '</div>' +
+                '<div class="ce-action-card-body">' +
+                    '<p style="font-size:0.88rem; color:var(--color-text-muted); margin:0 0 16px 0;">Analyze every question against its lesson\'s video transcript and article to detect questions that are unrelated to the learning content. Flagged questions can be hidden so students never see them.</p>' +
+                    relToggleHtml +
+                    '<div id="rel-progress" style="display:none;"></div>' +
+                    '<div id="rel-results" style="display:none;"></div>' +
+                    '<button class="ce-btn-generate ce-action-card-btn" id="btn-analyze-relevance"' + (relStatus === 'processing' ? ' disabled' : '') + '>' +
+                        '<i class="' + relBtnIcon + '"></i> ' + relBtnLabel +
+                    '</button>' +
+                '</div>' +
             '</div>';
 
         // Collapse / expand handler
@@ -426,6 +495,10 @@
         });
 
         document.getElementById('expl-card-header').addEventListener('click', function () {
+            this.closest('.ce-action-card').classList.toggle('collapsed');
+        });
+
+        document.getElementById('rel-card-header').addEventListener('click', function () {
             this.closest('.ce-action-card').classList.toggle('collapsed');
         });
 
@@ -489,6 +562,43 @@
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data.status === 'done' && data.explanations) showExplanationResults(data);
+                }).catch(function () {});
+        }
+
+        // Relevance toggle handler
+        var relToggleEl = document.getElementById('relevance-toggle');
+        if (relToggleEl) {
+            relToggleEl.addEventListener('change', function () {
+                var enabled = this.checked;
+                var icon = this.closest('.ce-inline-toggle').querySelector('.ce-inline-toggle-left i');
+                icon.className = 'fa-solid fa-toggle-' + (enabled ? 'on' : 'off');
+                fetch('/api/relevance-toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ courseId: courseId, enabled: enabled }),
+                }).catch(function () {});
+            });
+        }
+
+        // Analyze relevance button
+        document.getElementById('btn-analyze-relevance').addEventListener('click', function () {
+            if (relStatus === 'done') {
+                if (!confirm('This will re-analyze all questions for relevance. Continue?')) return;
+            }
+            startRelevanceAnalysis(courseId);
+        });
+
+        // If relevance already processing, start polling
+        if (relStatus === 'processing') {
+            startRelevancePolling(courseId);
+        }
+
+        // If relevance done, show results
+        if (relStatus === 'done') {
+            fetch('/api/relevance-status?courseId=' + encodeURIComponent(courseId))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'done' && data.results) showRelevanceResults(data);
                 }).catch(function () {});
         }
     }
@@ -1523,6 +1633,343 @@
         el.querySelectorAll('.ce-accordion-header').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 this.closest('.ce-accordion-item').classList.toggle('open');
+            });
+        });
+    }
+
+    /* ---- Question Relevance Analysis -------------------------------- */
+    async function startRelevanceAnalysis(courseId) {
+        if (!selectedCourse) return;
+        activeGenerating = true;
+        var btn = document.getElementById('btn-analyze-relevance');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Setting up...'; }
+
+        showRelProgress('Setting up course access and finding tests...', 0);
+
+        try {
+            // Phase 1: Find tests (includes videoUrl and articleUrl per lesson)
+            var findResp = await fetch('/api/find-course-tests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    courseId: selectedCourse.sourcedId,
+                    courseCode: selectedCourse.courseCode || '',
+                }),
+                signal: AbortSignal.timeout ? AbortSignal.timeout(120000) : undefined,
+            });
+            var findData = await findResp.json();
+            var tests = findData.tests || [];
+
+            if (!tests.length) {
+                showRelError('No assessment tests found for this course.');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Relevance'; }
+                activeGenerating = false;
+                return;
+            }
+
+            showRelProgress('Found ' + tests.length + ' tests. Fetching questions...', 0);
+
+            // Phase 2: Fetch questions from each test (batched)
+            var testQuestionMap = {};
+            var fetched = 0;
+            var totalQuestions = 0;
+            var BATCH = 3;
+
+            function fetchTestQuestions(t) {
+                var params = [];
+                if (t.id) params.push('lessonId=' + encodeURIComponent(t.id));
+                if (t.url) params.push('url=' + encodeURIComponent(t.url));
+                if (courseId) params.push('courseId=' + encodeURIComponent(courseId));
+                var url = '/api/pp-get-questions-admin?' + params.join('&');
+                return fetch(url)
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        if (d.success && d.data && d.data.questions && d.data.questions.length > 0) {
+                            return { questions: d.data.questions, error: null };
+                        }
+                        return { questions: [], error: d.error || 'No questions returned' };
+                    })
+                    .catch(function (e) { return { questions: [], error: e.message || 'Network error' }; });
+            }
+
+            for (var i = 0; i < tests.length; i += BATCH) {
+                var batch = tests.slice(i, i + BATCH);
+                var promises = batch.map(function (t) {
+                    return fetchTestQuestions(t).then(function (result) {
+                        return { test: t, result: result };
+                    });
+                });
+                var results = await Promise.all(promises);
+                results.forEach(function (r) {
+                    if (r.result.questions.length > 0) {
+                        var lt = r.test.lessonTitle || r.test.title || 'Unknown';
+                        if (!testQuestionMap[lt]) {
+                            testQuestionMap[lt] = {
+                                lessonTitle: lt,
+                                videoUrl: r.test.videoUrl || '',
+                                articleUrl: r.test.articleUrl || '',
+                                questions: [],
+                            };
+                        }
+                        testQuestionMap[lt].questions = testQuestionMap[lt].questions.concat(r.result.questions);
+                        totalQuestions += r.result.questions.length;
+                    }
+                });
+                fetched += batch.length;
+                showRelProgress('Fetching questions: ' + fetched + '/' + tests.length + ' tests (' + totalQuestions + ' questions)...', 0);
+            }
+
+            var lessonGroups = Object.values(testQuestionMap);
+            if (!totalQuestions) {
+                showRelError('No questions could be fetched from any of the ' + tests.length + ' tests.');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Relevance'; }
+                activeGenerating = false;
+                return;
+            }
+
+            showRelProgress('Submitting ' + totalQuestions + ' questions across ' + lessonGroups.length + ' lessons for relevance analysis...', 0);
+
+            // Phase 3: Submit for relevance analysis
+            var genResp = await fetch('/api/analyze-relevance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    courseId: selectedCourse.sourcedId,
+                    lessons: lessonGroups,
+                }),
+            });
+            var genData = await genResp.json();
+
+            if (genData.error) {
+                showRelError(genData.error);
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Relevance'; }
+                activeGenerating = false;
+                return;
+            }
+
+            showRelProgress('Claude is analyzing ' + (genData.questionCount || totalQuestions) + ' questions across ' + (genData.chunkCount || 1) + ' batches...', 0);
+            startRelevancePolling(selectedCourse.sourcedId);
+
+        } catch (e) {
+            showRelError('Failed: ' + e.message);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Relevance'; }
+            activeGenerating = false;
+        }
+    }
+
+    function startRelevancePolling(courseId) {
+        stopRelevancePolling();
+        var startTime = Date.now();
+        function poll() {
+            fetch('/api/relevance-status?courseId=' + encodeURIComponent(courseId))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'done' && data.results) {
+                        activeGenerating = false;
+                        stopRelevancePolling();
+                        document.getElementById('rel-progress').style.display = 'none';
+                        var btn = document.getElementById('btn-analyze-relevance');
+                        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Re-Analyze Relevance'; }
+
+                        // Update badge
+                        var header = document.getElementById('rel-card-header');
+                        if (header) {
+                            var badge = header.querySelector('.ce-action-card-summary');
+                            if (badge) {
+                                badge.className = 'ce-action-card-summary all-done';
+                                badge.innerHTML = '<i class="fa-solid fa-check-circle"></i> ' + (data.badCount || 0) + ' flagged / ' + (data.questionCount || Object.keys(data.results).length) + ' analyzed';
+                            }
+                            var card = header.closest('.ce-action-card');
+                            if (card && card.classList.contains('collapsed')) card.classList.remove('collapsed');
+                        }
+
+                        // Insert toggle if not already present
+                        if (!document.getElementById('relevance-toggle')) {
+                            var toggleContainer = document.createElement('div');
+                            toggleContainer.className = 'ce-inline-toggle';
+                            toggleContainer.innerHTML =
+                                '<div class="ce-inline-toggle-left">' +
+                                    '<i class="fa-solid fa-toggle-off"></i>' +
+                                    '<strong>Hide Irrelevant Questions</strong>' +
+                                    '<span>Remove flagged questions from student quizzes</span>' +
+                                '</div>' +
+                                '<label class="ce-switch">' +
+                                    '<input type="checkbox" id="relevance-toggle">' +
+                                    '<span class="ce-switch-slider"></span>' +
+                                '</label>';
+                            var progressEl = document.getElementById('rel-progress');
+                            if (progressEl && progressEl.parentNode) {
+                                progressEl.parentNode.insertBefore(toggleContainer, progressEl);
+                            }
+                            var newToggle = document.getElementById('relevance-toggle');
+                            if (newToggle) {
+                                newToggle.addEventListener('change', function () {
+                                    var enabled = this.checked;
+                                    var icon = this.closest('.ce-inline-toggle').querySelector('.ce-inline-toggle-left i');
+                                    icon.className = 'fa-solid fa-toggle-' + (enabled ? 'on' : 'off');
+                                    fetch('/api/relevance-toggle', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ courseId: courseId, enabled: enabled }),
+                                    }).catch(function () {});
+                                });
+                            }
+                        }
+
+                        showRelevanceResults(data, courseId);
+                    } else if (data.status === 'error') {
+                        activeGenerating = false;
+                        stopRelevancePolling();
+                        document.getElementById('rel-progress').style.display = 'none';
+                        showRelError(data.error || 'Analysis failed.');
+                        var btn = document.getElementById('btn-analyze-relevance');
+                        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Relevance'; }
+                    } else {
+                        var elapsed = Math.floor((Date.now() - startTime) / 1000);
+                        var chunkInfo = data.chunkCount ? ' (' + (data.succeeded || 0) + '/' + data.chunkCount + ' chunks done)' : '';
+                        showRelProgress('Claude is analyzing question relevance...' + chunkInfo, elapsed);
+                        relevancePollTimer = setTimeout(poll, POLL_INTERVAL);
+                    }
+                })
+                .catch(function () { relevancePollTimer = setTimeout(poll, POLL_INTERVAL); });
+        }
+        relevancePollTimer = setTimeout(poll, POLL_INTERVAL);
+    }
+
+    function stopRelevancePolling() { if (relevancePollTimer) { clearTimeout(relevancePollTimer); relevancePollTimer = null; } }
+
+    function showRelProgress(msg, elapsed) {
+        var el = document.getElementById('rel-progress');
+        if (!el) return;
+        el.style.display = '';
+        var timeStr = elapsed > 0 ? ' <span style="opacity:0.6;">(' + formatTime(elapsed) + ')</span>' : '';
+        el.innerHTML =
+            '<div class="ce-progress-header"><div class="ce-progress-spinner"></div><div class="ce-progress-title">' + msg + timeStr + '</div></div>' +
+            '<div class="ce-warning"><i class="fa-solid fa-triangle-exclamation"></i> Please do not leave this page until analysis is complete.</div>';
+    }
+
+    function showRelError(msg) {
+        var el = document.getElementById('rel-progress');
+        if (!el) return;
+        el.style.display = '';
+        el.innerHTML = '<div class="ce-error"><i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>' + esc(msg) + '</div>';
+    }
+
+    function showRelevanceResults(data, courseId) {
+        var el = document.getElementById('rel-results');
+        if (!el) return;
+        el.style.display = '';
+        var results = data.results || {};
+        var qIds = Object.keys(results);
+        var badCount = data.badCount || 0;
+
+        var genDate = data.generatedAt ? new Date(data.generatedAt * 1000).toLocaleString() : '';
+
+        var html = '<div class="ce-mapping-count" style="margin-top:12px;">' +
+            '<i class="fa-solid fa-circle-check" style="color:#45B5AA; margin-right:6px;"></i>' +
+            qIds.length + ' question' + (qIds.length !== 1 ? 's' : '') + ' analyzed' +
+            (badCount > 0 ? ' &mdash; <strong style="color:#E53E3E;">' + badCount + ' flagged as irrelevant</strong>' : ' &mdash; <strong style="color:#45B5AA;">all questions look good</strong>') +
+            (data.model ? ' <span style="opacity:0.5;">(' + esc(data.model) + ')</span>' : '') +
+            (genDate ? ' <span style="opacity:0.5;">&middot; ' + esc(genDate) + '</span>' : '') +
+            '</div>';
+
+        // Show flagged questions first, then good ones (up to 10 total)
+        var flagged = [];
+        var good = [];
+        qIds.forEach(function (qid) {
+            var info = results[qid];
+            if (info && !info.relevant) {
+                flagged.push({ id: qid, info: info });
+            } else {
+                good.push({ id: qid, info: info });
+            }
+        });
+
+        var preview = flagged.concat(good).slice(0, 20);
+        if (preview.length) {
+            html += '<div class="ce-accordion" style="margin-top:8px;">';
+            preview.forEach(function (item, idx) {
+                var info = item.info || {};
+                var isBad = !info.relevant;
+                var catLabel = '';
+                if (isBad) {
+                    var catMap = { off_topic: 'Off Topic', too_specific: 'Too Specific', no_source_material: 'No Source Material' };
+                    catLabel = catMap[info.category] || info.category || 'Irrelevant';
+                }
+
+                var headerBadge = isBad
+                    ? '<span class="ce-accordion-badge" style="background:#FED7D7; color:#C53030;">' + esc(catLabel) + '</span>'
+                    : '<span class="ce-accordion-badge" style="background:#C6F6D5; color:#276749;">Relevant</span>';
+
+                var headerIcon = isBad
+                    ? '<i class="fa-solid fa-triangle-exclamation" style="margin-right:8px; color:#E53E3E; opacity:0.7;"></i>'
+                    : '<i class="fa-solid fa-circle-check" style="margin-right:8px; color:#45B5AA; opacity:0.5;"></i>';
+
+                html += '<div class="ce-accordion-item">' +
+                    '<button class="ce-accordion-header" data-idx="rel' + idx + '">' +
+                        '<span class="ce-accordion-title">' + headerIcon + esc(item.id) + '</span>' +
+                        headerBadge +
+                        '<i class="fa-solid fa-chevron-right ce-accordion-chevron"></i>' +
+                    '</button>' +
+                    '<div class="ce-accordion-body" id="rel-body-' + idx + '">';
+
+                html += '<div style="margin-bottom:8px; font-size:0.88rem; line-height:1.5; color:var(--color-text);">' +
+                    esc(info.reasoning || 'No reasoning provided.') +
+                    '</div>';
+
+                if (info.confidence != null) {
+                    html += '<div style="font-size:0.8rem; color:var(--color-text-muted); margin-bottom:8px;">Confidence: ' + info.confidence + '%</div>';
+                }
+
+                if (isBad) {
+                    html += '<div style="margin-top:6px;">' +
+                        '<button class="ce-btn-small ce-btn-toggle-question" data-qid="' + esc(item.id) + '" data-hidden="true" style="font-size:0.8rem; padding:4px 10px; border:1px solid #E53E3E; color:#E53E3E; background:transparent; border-radius:6px; cursor:pointer;">' +
+                            '<i class="fa-solid fa-eye-slash" style="margin-right:4px;"></i> Hidden from students' +
+                        '</button>' +
+                    '</div>';
+                }
+
+                html += '</div></div>';
+            });
+            html += '</div>';
+            if (qIds.length > 20) {
+                html += '<div style="font-size:0.82rem; color:var(--color-text-muted); margin-top:8px;">Showing 20 of ' + qIds.length + ' questions. All results are saved.</div>';
+            }
+        }
+
+        el.innerHTML = html;
+
+        // Accordion toggle
+        el.querySelectorAll('.ce-accordion-header').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                this.closest('.ce-accordion-item').classList.toggle('open');
+            });
+        });
+
+        // Per-question toggle buttons
+        el.querySelectorAll('.ce-btn-toggle-question').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var qid = this.getAttribute('data-qid');
+                var isHidden = this.getAttribute('data-hidden') === 'true';
+                var newHidden = !isHidden;
+                var self = this;
+                fetch('/api/relevance-toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ courseId: courseId, questionId: qid, hidden: newHidden }),
+                }).then(function () {
+                    self.setAttribute('data-hidden', String(newHidden));
+                    if (newHidden) {
+                        self.innerHTML = '<i class="fa-solid fa-eye-slash" style="margin-right:4px;"></i> Hidden from students';
+                        self.style.borderColor = '#E53E3E';
+                        self.style.color = '#E53E3E';
+                    } else {
+                        self.innerHTML = '<i class="fa-solid fa-eye" style="margin-right:4px;"></i> Visible to students';
+                        self.style.borderColor = '#45B5AA';
+                        self.style.color = '#45B5AA';
+                    }
+                }).catch(function () {});
             });
         });
     }

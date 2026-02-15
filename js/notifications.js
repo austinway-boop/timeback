@@ -79,7 +79,7 @@
             html += '<div class="notif-item' + (n.read ? '' : ' unread') + '">';
             html += '<div class="notif-item-q">' + (q || 'Reported question') + '</div>';
             html += statusHtml(n);
-            if (n.reasoning && (n.verdict === 'invalid' || n.status === 'ai_flagged_bad')) {
+            if (n.reasoning) {
                 var reason = n.reasoning.length > 200 ? n.reasoning.substring(0, 200) + '...' : n.reasoning;
                 html += '<div class="notif-item-reasoning">' + reason + '</div>';
             }

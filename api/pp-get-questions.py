@@ -66,11 +66,12 @@ class handler(BaseHTTPRequestHandler):
                     "isCorrect": q.get("correct", False)
                 })
 
-            # Filter out globally hidden and permanently bad questions
+            # Filter out globally hidden, permanently bad, and AI-flagged irrelevant questions
             try:
                 hidden_ids = set(kv_list_get("globally_hidden_questions"))
                 bad_ids = set(kv_list_get("bad_questions"))
-                blocked = hidden_ids | bad_ids
+                irrelevant_ids = set(kv_list_get("ai_irrelevant_questions"))
+                blocked = hidden_ids | bad_ids | irrelevant_ids
                 if blocked:
                     simplified = [q for q in simplified if q.get("id") not in blocked]
             except Exception:
