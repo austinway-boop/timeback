@@ -455,6 +455,13 @@
                 var c = allCourses[idx];
                 if (!c) return;
 
+                // Check for pending diagnostic — block course access
+                var courseSourcedId = (c._course || {}).sourcedId || (c._course || {}).id || '';
+                if (window._pendingDiagnosticCourseIds && window._pendingDiagnosticCourseIds.has(courseSourcedId)) {
+                    window.location.href = '/diagnostic?courseId=' + encodeURIComponent(courseSourcedId);
+                    return;
+                }
+
                 if (isExternalCourse(c)) {
                     // External course → open the app's site in a new tab
                     var url = getExternalUrl(c);
@@ -627,20 +634,48 @@
                 courses.push(item);
             }
 
-            /* 4. Render PowerPath assigned tests in top section */
-            // Fetch test assignments from PowerPath
+            /* 4. Render PowerPath assigned tests + diagnostic assignments in top section */
+            // Fetch test assignments from PowerPath + diagnostic assignments in parallel
             let ppAssignments = [];
+            let diagAssignments = [];
             try {
-                const ppResp = await fetch('/api/assign-test?student=' + encodeURIComponent(userId));
-                const ppData = await ppResp.json();
-                ppAssignments = (ppData.testAssignments || []).filter(a => {
+                const [ppResp, diagResp] = await Promise.all([
+                    fetch('/api/assign-test?student=' + encodeURIComponent(userId)).then(r => r.json()).catch(() => ({ testAssignments: [] })),
+                    fetch('/api/diagnostic-assign?studentId=' + encodeURIComponent(userId)).then(r => r.json()).catch(() => ({ assignments: [] })),
+                ]);
+                ppAssignments = (ppResp.testAssignments || []).filter(a => {
                     const st = (a.assignmentStatus || a.status || '').toLowerCase();
                     return st !== 'cancelled' && st !== 'expired';
                 });
+                diagAssignments = diagResp.assignments || [];
             } catch(e) {}
+
+            // Store diagnostic course IDs for blocking (used by course click handler)
+            window._pendingDiagnosticCourseIds = new Set();
+            diagAssignments.forEach(a => {
+                if (a.status === 'assigned' || a.status === 'in_progress') {
+                    window._pendingDiagnosticCourseIds.add(a.courseId);
+                }
+            });
 
             // Build test list: PowerPath assignments + mastery track enrollments
             const allTests = [];
+
+            // Add diagnostic assignments as test cards
+            diagAssignments.forEach(a => {
+                if (a.status === 'completed') return; // Skip completed
+                allTests.push({
+                    title: 'Diagnostic: ' + (a.courseTitle || 'Course'),
+                    subject: 'Diagnostic',
+                    grade: '',
+                    status: a.status || 'assigned',
+                    assignmentId: '',
+                    lessonId: '',
+                    type: 'diagnostic',
+                    _diagCourseId: a.courseId,
+                });
+            });
+
             ppAssignments.forEach(a => {
                 const subj = a.subject || '';
                 const gr = a.grade || a.gradeLevel || '';
@@ -666,6 +701,31 @@
                 document.getElementById('tests-grid').innerHTML = allTests.map(t => {
                     const isComplete = t.status === 'completed';
                     const isInProgress = t.status === 'in_progress';
+
+                    // Diagnostic cards get a distinct purple theme
+                    if (t.type === 'diagnostic') {
+                        const diagGradient = 'linear-gradient(135deg,#F5F3FF 0%,#EDE9FE 50%,#DDD6FE 100%)';
+                        const diagUrl = '/diagnostic?courseId=' + encodeURIComponent(t._diagCourseId || '');
+                        return `<div class="test-card" style="cursor:pointer;" onclick="window.location.href='${diagUrl}'">
+                            <div class="test-card-image" style="background:${diagGradient};">
+                                <div class="test-card-illustration" style="color:#6C5CE7;">
+                                    <i class="fa-solid fa-stethoscope"></i>
+                                </div>
+                            </div>
+                            <div class="test-card-info">
+                                <div class="test-card-status">
+                                    <span class="status-dot" style="background:#6C5CE7;"></span>
+                                    <span class="test-card-name">${esc(t.title)}</span>
+                                </div>
+                                <div class="test-card-meta">
+                                    <span class="test-badge" style="background:#F5F3FF;color:#6C5CE7;">Mastery Test</span>
+                                    <span class="test-badge" style="background:#FFF8E1;color:#F57F17;">${isInProgress ? 'In Progress' : 'Required'}</span>
+                                </div>
+                                <div style="margin-top:8px;"><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;background:#6C5CE7;color:#fff;border-radius:6px;font-size:0.75rem;font-weight:600;"><i class="fa-solid fa-play" style="font-size:0.65rem;"></i> Take Diagnostic</span></div>
+                            </div>
+                        </div>`;
+                    }
+
                     const gradient = isComplete
                         ? 'linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 50%,#A5D6A7 100%)'
                         : isInProgress

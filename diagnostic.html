@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - Diagnostic Assessment</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/css/style.css?v=9">
+    <style>
+        .diag-page { max-width: 780px; margin: 0 auto; padding-bottom: 40px; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 0; border: none; background: none;
+            color: var(--color-text-muted); font-size: 0.78rem; font-weight: 500;
+            cursor: pointer; text-decoration: none; transition: color var(--transition);
+            margin-bottom: 16px;
+        }
+        .back-link:hover { color: var(--color-primary); }
+
+        /* ── Header ────────────────────────────────────────────── */
+        .diag-hero {
+            background: linear-gradient(135deg, #6C5CE7, #A855F7);
+            border-radius: 12px; padding: 28px 32px; margin-bottom: 20px;
+            color: #fff; position: relative; overflow: hidden;
+        }
+        .diag-hero::before {
+            content: ''; position: absolute; top: -20px; right: -20px;
+            width: 120px; height: 120px; border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+        }
+        .diag-hero h1 { font-size: 1.3rem; font-weight: 800; margin: 0 0 4px; }
+        .diag-hero .subtitle { font-size: 0.88rem; opacity: 0.85; margin: 0; }
+        .diag-hero .meta { display: flex; gap: 16px; margin-top: 12px; font-size: 0.82rem; opacity: 0.75; }
+
+        /* ── Progress Bar ──────────────────────────────────────── */
+        .diag-progress {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; margin-bottom: 16px;
+            background: #fff; border-radius: 12px;
+            border: 2px solid #e5e7eb; box-shadow: 0 4px 0 #e5e7eb;
+        }
+        .diag-progress .bar { flex: 1; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+        .diag-progress .bar-fill { height: 100%; background: linear-gradient(90deg, #6C5CE7, #A855F7); border-radius: 4px; transition: width 0.4s ease; }
+        .diag-progress .count { font-size: 0.82rem; font-weight: 700; color: var(--color-text); white-space: nowrap; }
+        .diag-progress .pct { font-size: 0.9rem; font-weight: 800; color: #6C5CE7; white-space: nowrap; }
+
+        /* ── Question Card ─────────────────────────────────────── */
+        .q-card {
+            background: #fff; border-radius: 12px;
+            border: 2px solid #e5e7eb; box-shadow: 0 4px 0 #e5e7eb;
+            overflow: hidden; margin-bottom: 16px;
+        }
+
+        .q-stimulus {
+            padding: 20px 24px; background: #fafbfc;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.9rem; line-height: 1.7; color: var(--color-text);
+        }
+        .q-stimulus-label {
+            font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.5px; color: #6C5CE7; margin-bottom: 8px;
+        }
+
+        .q-body { padding: 24px; }
+        .q-number {
+            font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.5px; color: #9ca3af; margin-bottom: 8px;
+        }
+        .q-stem { font-size: 1.05rem; font-weight: 700; line-height: 1.5; margin-bottom: 20px; color: #111827; }
+
+        /* ── Options ───────────────────────────────────────────── */
+        .q-options { display: flex; flex-direction: column; gap: 8px; }
+        .q-option {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 14px 16px; border-radius: 10px;
+            border: 2px solid #e5e7eb; box-shadow: 0 2px 0 #e5e7eb;
+            cursor: pointer; transition: all 0.15s ease;
+            background: #fff;
+        }
+        .q-option:hover { background: #f9fafb; border-color: #d1d5db; }
+        .q-option:active { transform: translateY(1px); box-shadow: 0 1px 0 #e5e7eb; }
+        .q-option.selected {
+            border-color: #6C5CE7; background: #F5F3FF;
+            box-shadow: 0 2px 0 #6C5CE7;
+        }
+        .q-option.correct {
+            border-color: #22C55E; background: #DCFCE7;
+            box-shadow: 0 2px 0 #22C55E;
+        }
+        .q-option.wrong {
+            border-color: #EF4444; background: #FEF2F2;
+            box-shadow: 0 2px 0 #EF4444;
+        }
+        .q-opt-letter {
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 0.82rem;
+            background: #f3f4f6; color: #6b7280;
+            flex-shrink: 0; transition: all 0.15s;
+        }
+        .q-option.selected .q-opt-letter { background: #6C5CE7; color: #fff; }
+        .q-option.correct .q-opt-letter { background: #22C55E; color: #fff; }
+        .q-option.wrong .q-opt-letter { background: #EF4444; color: #fff; }
+        .q-opt-text { flex: 1; font-size: 0.92rem; line-height: 1.45; color: #374151; padding-top: 3px; }
+
+        /* ── Navigation ────────────────────────────────────────── */
+        .q-nav {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 4px;
+        }
+        .q-nav-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 12px 24px; border-radius: 10px; border: 2px solid #e5e7eb;
+            box-shadow: 0 3px 0 #e5e7eb; background: #fff;
+            font-size: 0.9rem; font-weight: 700; color: #374151;
+            cursor: pointer; transition: all 0.15s; font-family: inherit;
+        }
+        .q-nav-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+        .q-nav-btn:active { transform: translateY(2px); box-shadow: none; }
+        .q-nav-btn.primary {
+            background: #6C5CE7; color: #fff; border-color: #6C5CE7;
+            box-shadow: 0 3px 0 #5B4BD5;
+        }
+        .q-nav-btn.primary:hover { background: #5B4BD5; }
+        .q-nav-btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+        /* ── Results ───────────────────────────────────────────── */
+        .results-card {
+            background: #fff; border-radius: 12px;
+            border: 2px solid #e5e7eb; box-shadow: 0 4px 0 #e5e7eb;
+            padding: 32px; text-align: center;
+        }
+        .results-score {
+            font-size: 3.5rem; font-weight: 800; color: #6C5CE7;
+            margin: 16px 0 4px;
+        }
+        .results-label { font-size: 0.88rem; color: var(--color-text-muted); margin-bottom: 20px; }
+        .results-level {
+            display: inline-block; padding: 8px 20px; border-radius: 20px;
+            font-size: 0.92rem; font-weight: 700;
+            background: #F5F3FF; color: #6C5CE7;
+            border: 2px solid #DDD6FE; margin-bottom: 24px;
+        }
+        .results-stats {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+            margin-bottom: 24px;
+        }
+        .results-stat {
+            padding: 16px; background: #fafbfc; border-radius: 10px;
+            border: 1px solid #e5e7eb;
+        }
+        .results-stat-value { font-size: 1.5rem; font-weight: 800; color: #111827; }
+        .results-stat-label { font-size: 0.72rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
+
+        .results-skills { text-align: left; margin-top: 20px; }
+        .results-skills h3 { font-size: 0.92rem; font-weight: 700; margin-bottom: 12px; }
+        .skill-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 0; border-bottom: 1px solid #f3f4f6;
+        }
+        .skill-row:last-child { border-bottom: none; }
+        .skill-label { flex: 1; font-size: 0.82rem; color: var(--color-text); }
+        .skill-bar { width: 100px; height: 6px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
+        .skill-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+        .skill-pct { font-size: 0.78rem; font-weight: 700; min-width: 36px; text-align: right; }
+
+        /* ── Loading ───────────────────────────────────────────── */
+        .diag-loading {
+            text-align: center; padding: 60px 20px;
+        }
+        .diag-loading .loading-spinner {
+            width: 40px; height: 40px; margin: 0 auto 16px;
+            border: 3px solid #e5e7eb; border-top-color: #6C5CE7;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Responsive ────────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .diag-hero { padding: 20px; }
+            .q-body { padding: 16px; }
+            .q-stimulus { padding: 16px; }
+            .results-stats { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body data-view="student" data-active="home">
+    <div class="layout">
+        <nav class="sidebar" id="sidebar"></nav>
+        <main class="main-content">
+            <div class="diag-page">
+                <a href="/dashboard" class="back-link">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+                </a>
+                <div id="diag-content">
+                    <div class="diag-loading">
+                        <div class="loading-spinner"></div>
+                        <p style="color:var(--color-text-muted);">Loading diagnostic assessment...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/layout.js?v=19"></script>
+    <script src="/js/notifications.js?v=7"></script>
+    <script src="/js/app.js?v=7"></script>
+    <script src="/js/pages/diagnostic.js?v=1"></script>
+</body>
+</html>

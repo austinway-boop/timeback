@@ -405,3 +405,518 @@ async function removeAssignment(idx) {
 
 function showFeedback(msg, type) { document.getElementById('assign-feedback').innerHTML = '<div class="feedback ' + type + '">' + esc(msg) + '</div>'; }
 function clearFeedback() { document.getElementById('assign-feedback').innerHTML = ''; }
+
+/* ══════════════════════════════════════════════════════════════════
+   COURSE DIAGNOSTICS — Generate & Assign AI-built mastery tests
+   ══════════════════════════════════════════════════════════════════ */
+
+var diagCourses = [];          // courses that have skill trees
+var diagFilteredCourses = [];
+var diagSelectedCourse = null; // { sourcedId, title, ... }
+var diagSelectedStudent = null;
+var diagPollTimer = null;
+var diagCurrentDiagnostic = null;
+var DIAG_POLL_INTERVAL = 15000;
+
+/* ── Load courses with skill trees ────────────────────────────── */
+async function diagLoadCourses() {
+    var el = document.getElementById('diag-courses-list');
+    el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading courses with learning trees...</p></div>';
+
+    try {
+        var resp = await fetch('/api/courses');
+        var data = await resp.json();
+        var all = data.courses || [];
+
+        // Filter to AP courses
+        var apCourses = all.filter(function(c) { return /\bAP\b/i.test(c.title || ''); });
+
+        // Check which courses have skill trees (batch check via diagnostic-status or skill-tree-status)
+        var coursesWithTrees = [];
+        var checks = apCourses.map(function(c) {
+            return fetch('/api/skill-tree-status?courseId=' + encodeURIComponent(c.sourcedId))
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    if (d.status === 'done' && d.mermaid) {
+                        c._hasTree = true;
+                        c._nodeCount = (d.mermaid.match(/\w+\["[^"]*"\]/g) || []).length;
+                        coursesWithTrees.push(c);
+                    }
+                })
+                .catch(function() {});
+        });
+
+        await Promise.all(checks);
+
+        // Also check for existing diagnostics
+        var diagChecks = coursesWithTrees.map(function(c) {
+            return fetch('/api/diagnostic-status?courseId=' + encodeURIComponent(c.sourcedId))
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    if (d.status === 'done') {
+                        c._hasDiagnostic = true;
+                        c._diagItemCount = d.itemCount || 0;
+                    } else if (d.status === 'processing') {
+                        c._diagGenerating = true;
+                    }
+                })
+                .catch(function() {});
+        });
+
+        await Promise.all(diagChecks);
+
+        diagCourses = coursesWithTrees.sort(function(a, b) {
+            return (a.title || '').localeCompare(b.title || '');
+        });
+        diagFilteredCourses = diagCourses.slice();
+        diagRenderCourses();
+    } catch(e) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><p>Failed to load courses.</p></div>';
+    }
+}
+
+function diagFilterCourses() {
+    var q = (document.getElementById('diag-course-search').value || '').toLowerCase().trim();
+    if (!q) {
+        diagFilteredCourses = diagCourses.slice();
+    } else {
+        diagFilteredCourses = diagCourses.filter(function(c) {
+            return (c.title || '').toLowerCase().includes(q) || (c.courseCode || '').toLowerCase().includes(q);
+        });
+    }
+    diagRenderCourses();
+}
+
+function diagRenderCourses() {
+    var el = document.getElementById('diag-courses-list');
+    if (!diagFilteredCourses.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-tree"></i><p>No courses with learning trees found.<br><span style="font-size:0.78rem;color:var(--color-text-muted);">Generate skill trees in the Edit Course tab first.</span></p></div>';
+        return;
+    }
+
+    el.innerHTML = diagFilteredCourses.map(function(c) {
+        var isSelected = diagSelectedCourse && diagSelectedCourse.sourcedId === c.sourcedId;
+        var statusBadge = '';
+        if (c._hasDiagnostic) {
+            statusBadge = '<span class="diag-badge done"><i class="fa-solid fa-check"></i> ' + c._diagItemCount + ' items</span>';
+        } else if (c._diagGenerating) {
+            statusBadge = '<span class="diag-badge generating"><i class="fa-solid fa-spinner fa-spin"></i> Generating</span>';
+        }
+
+        return '<div class="diag-course-row' + (isSelected ? ' selected' : '') + '" onclick="diagSelectCourse(\'' + esc(c.sourcedId) + '\')">' +
+            '<div class="diag-course-info">' +
+                '<div class="diag-course-title">' + esc(c.title) + '</div>' +
+                '<div class="diag-course-meta">' + esc(c.courseCode || '') + ' &middot; ' + (c._nodeCount || '?') + ' skills</div>' +
+            '</div>' +
+            statusBadge +
+        '</div>';
+    }).join('');
+}
+
+/* ── Select a course ──────────────────────────────────────────── */
+function diagSelectCourse(courseId) {
+    var c = diagCourses.find(function(x) { return x.sourcedId === courseId; });
+    if (!c) return;
+
+    diagSelectedCourse = c;
+    diagRenderCourses(); // re-render to show selection
+
+    document.getElementById('diag-gen-panel').style.display = '';
+    document.getElementById('diag-course-name').textContent = c.title;
+
+    // Check current status
+    diagCheckStatus(courseId);
+}
+
+/* ── Check diagnostic status for selected course ──────────────── */
+async function diagCheckStatus(courseId) {
+    var area = document.getElementById('diag-status-area');
+    area.innerHTML = '<div style="text-align:center;padding:16px;"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;margin-right:6px;"></i>Checking status...</div>';
+
+    try {
+        var resp = await fetch('/api/diagnostic-status?courseId=' + encodeURIComponent(courseId));
+        var data = await resp.json();
+
+        if (data.status === 'done') {
+            diagCurrentDiagnostic = data.diagnostic;
+            diagRenderDone(data);
+        } else if (data.status === 'processing') {
+            diagRenderProcessing(data);
+            diagStartPolling(courseId);
+        } else if (data.status === 'error') {
+            diagRenderError(data.error);
+        } else {
+            diagRenderReady();
+        }
+    } catch(e) {
+        diagRenderError('Failed to check status: ' + e.message);
+    }
+}
+
+/* ── Render states ────────────────────────────────────────────── */
+function diagRenderReady() {
+    var area = document.getElementById('diag-status-area');
+    area.innerHTML = '<div class="diag-ready">' +
+        '<div class="diag-ready-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>' +
+        '<h3>Ready to Generate</h3>' +
+        '<p>AI will analyze the skill tree and create a comprehensive placement assessment with ~50 multiple-choice questions, distractor analysis, and placement cut scores.</p>' +
+        '<button class="diag-btn primary large" onclick="diagGenerate()"><i class="fa-solid fa-bolt" style="margin-right:6px;"></i>Generate Diagnostic Assessment</button>' +
+    '</div>';
+    document.getElementById('diag-assign-panel').style.display = 'none';
+}
+
+function diagRenderProcessing(data) {
+    var elapsed = data.elapsed || 0;
+    var min = Math.floor(elapsed / 60);
+    var sec = elapsed % 60;
+    var timeStr = min > 0 ? min + 'm ' + sec + 's' : sec + 's';
+
+    var area = document.getElementById('diag-status-area');
+    area.innerHTML = '<div class="diag-processing">' +
+        '<div class="diag-processing-spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>' +
+        '<h3>Generating Diagnostic Assessment</h3>' +
+        '<p>' + esc(data.message || 'AI is analyzing the skill tree and creating questions...') + '</p>' +
+        '<div class="diag-elapsed">Elapsed: ' + timeStr + '</div>' +
+        '<div class="diag-progress-bar"><div class="diag-progress-fill" style="width:' + Math.min(95, (elapsed / 300) * 100) + '%;"></div></div>' +
+    '</div>';
+    document.getElementById('diag-assign-panel').style.display = 'none';
+}
+
+function diagRenderDone(data) {
+    var diag = data.diagnostic || {};
+    var items = diag.items || [];
+    var blueprint = diag.blueprint || {};
+    var cutScores = diag.cutScores || [];
+    var genDate = diag.generatedAt ? new Date(diag.generatedAt * 1000).toLocaleString() : '';
+
+    var area = document.getElementById('diag-status-area');
+    var html = '<div class="diag-done">';
+
+    // Summary stats
+    html += '<div class="diag-stats-grid">' +
+        '<div class="diag-stat"><div class="diag-stat-value">' + items.length + '</div><div class="diag-stat-label">Questions</div></div>' +
+        '<div class="diag-stat"><div class="diag-stat-value">' + (blueprint.avgDifficulty ? (blueprint.avgDifficulty).toFixed(2) : '~0.50') + '</div><div class="diag-stat-label">Avg Difficulty</div></div>' +
+        '<div class="diag-stat"><div class="diag-stat-value">' + cutScores.length + '</div><div class="diag-stat-label">Placement Levels</div></div>' +
+        '<div class="diag-stat"><div class="diag-stat-value">' + (blueprint.domains ? blueprint.domains.length : '?') + '</div><div class="diag-stat-label">Domains</div></div>' +
+    '</div>';
+
+    if (genDate) {
+        html += '<div class="diag-gen-date"><i class="fa-solid fa-clock" style="margin-right:4px;"></i>Generated: ' + esc(genDate) + '</div>';
+    }
+    if (data.warning) {
+        html += '<div class="diag-warning"><i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;"></i>' + esc(data.warning) + '</div>';
+    }
+
+    // Actions
+    html += '<div class="diag-actions">' +
+        '<button class="diag-btn primary" onclick="diagPreview()"><i class="fa-solid fa-eye" style="margin-right:4px;"></i>Preview Test</button>' +
+        '<button class="diag-btn secondary" onclick="diagRegenerate()"><i class="fa-solid fa-arrows-rotate" style="margin-right:4px;"></i>Regenerate</button>' +
+    '</div>';
+
+    // Collapsible item preview
+    html += '<div class="diag-preview-section">' +
+        '<button class="diag-toggle-btn" onclick="diagTogglePreview()"><i class="fa-solid fa-chevron-down" id="diag-preview-chev"></i> View Items (' + items.length + ')</button>' +
+        '<div id="diag-items-preview" style="display:none;">';
+
+    for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var diffLabel = (item.targetDifficulty || 0) >= 0.7 ? 'Easy' : (item.targetDifficulty || 0) >= 0.4 ? 'Medium' : 'Hard';
+        html += '<div class="diag-item-card">' +
+            '<div class="diag-item-header">' +
+                '<span class="diag-item-num">Q' + (i + 1) + '</span>' +
+                '<span class="diag-item-skill">' + esc(item.gatewayNodeLabel || item.gatewayNodeId || '') + '</span>' +
+                '<span class="diag-item-diff ' + diffLabel.toLowerCase() + '">' + diffLabel + '</span>' +
+                '<span class="diag-item-bloom">' + esc(item.bloomsLevel || '') + '</span>' +
+            '</div>';
+
+        if (item.stimulus) {
+            html += '<div class="diag-item-stimulus">' + esc(item.stimulus).substring(0, 200) + (item.stimulus.length > 200 ? '...' : '') + '</div>';
+        }
+
+        html += '<div class="diag-item-stem">' + esc(item.stem) + '</div>';
+        html += '<div class="diag-item-options">';
+        var opts = item.options || [];
+        for (var j = 0; j < opts.length; j++) {
+            var o = opts[j];
+            html += '<div class="diag-item-option' + (o.isCorrect ? ' correct' : '') + '">' +
+                '<span class="opt-letter">' + esc(o.id) + '</span>' +
+                '<span class="opt-text">' + esc(o.text) + '</span>' +
+                (o.isCorrect ? '<i class="fa-solid fa-check" style="color:#2E7D32;margin-left:auto;"></i>' : '') +
+                (o.misconception ? '<span class="opt-misconception" title="' + esc(o.misconception) + '"><i class="fa-solid fa-circle-info"></i></span>' : '') +
+            '</div>';
+        }
+        html += '</div></div>';
+    }
+
+    html += '</div></div>'; // close preview
+    html += '</div>'; // close diag-done
+
+    area.innerHTML = html;
+
+    // Show assignment panel
+    document.getElementById('diag-assign-panel').style.display = '';
+    diagLoadAssignments();
+}
+
+function diagRenderError(msg) {
+    var area = document.getElementById('diag-status-area');
+    area.innerHTML = '<div class="diag-error">' +
+        '<i class="fa-solid fa-circle-exclamation" style="font-size:1.4rem;color:#E53E3E;"></i>' +
+        '<p>' + esc(msg) + '</p>' +
+        '<button class="diag-btn primary" onclick="diagRenderReady()"><i class="fa-solid fa-arrows-rotate" style="margin-right:4px;"></i>Try Again</button>' +
+    '</div>';
+}
+
+function diagTogglePreview() {
+    var el = document.getElementById('diag-items-preview');
+    var chev = document.getElementById('diag-preview-chev');
+    if (el.style.display === 'none') {
+        el.style.display = '';
+        chev.className = 'fa-solid fa-chevron-up';
+    } else {
+        el.style.display = 'none';
+        chev.className = 'fa-solid fa-chevron-down';
+    }
+}
+
+/* ── Generate diagnostic ──────────────────────────────────────── */
+async function diagGenerate() {
+    if (!diagSelectedCourse) return;
+    var courseId = diagSelectedCourse.sourcedId;
+
+    diagRenderProcessing({ elapsed: 0, message: 'Submitting generation job...' });
+
+    try {
+        var resp = await fetch('/api/generate-diagnostic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId: courseId }),
+        });
+        var data = await resp.json();
+
+        if (data.error) {
+            diagRenderError(data.error);
+            return;
+        }
+
+        diagRenderProcessing({ elapsed: 0, message: 'AI is analyzing the skill tree and creating questions...' });
+        diagStartPolling(courseId);
+    } catch(e) {
+        diagRenderError('Failed to start generation: ' + e.message);
+    }
+}
+
+function diagRegenerate() {
+    if (!confirm('Regenerate the diagnostic? This will replace the existing one.')) return;
+    diagCurrentDiagnostic = null;
+    diagGenerate();
+}
+
+/* ── Polling ──────────────────────────────────────────────────── */
+function diagStartPolling(courseId) {
+    diagStopPolling();
+    diagPollTimer = setInterval(function() {
+        diagPollStatus(courseId);
+    }, DIAG_POLL_INTERVAL);
+}
+
+function diagStopPolling() {
+    if (diagPollTimer) {
+        clearInterval(diagPollTimer);
+        diagPollTimer = null;
+    }
+}
+
+async function diagPollStatus(courseId) {
+    try {
+        var resp = await fetch('/api/diagnostic-status?courseId=' + encodeURIComponent(courseId));
+        var data = await resp.json();
+
+        if (data.status === 'done') {
+            diagStopPolling();
+            diagCurrentDiagnostic = data.diagnostic;
+            diagRenderDone(data);
+            // Update course list
+            var c = diagCourses.find(function(x) { return x.sourcedId === courseId; });
+            if (c) {
+                c._hasDiagnostic = true;
+                c._diagItemCount = data.itemCount || 0;
+                c._diagGenerating = false;
+                diagRenderCourses();
+            }
+        } else if (data.status === 'processing') {
+            diagRenderProcessing(data);
+        } else if (data.status === 'error') {
+            diagStopPolling();
+            diagRenderError(data.error);
+        }
+    } catch(e) {
+        // Keep polling on network errors
+    }
+}
+
+/* ── Preview ──────────────────────────────────────────────────── */
+function diagPreview() {
+    if (!diagSelectedCourse) return;
+    window.open('/diagnostic?courseId=' + encodeURIComponent(diagSelectedCourse.sourcedId) + '&preview=1', '_blank');
+}
+
+/* ── Student assignment ───────────────────────────────────────── */
+var diagSearchTimer = null;
+var diagSearchController = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    diagLoadCourses();
+
+    // Set up diagnostic student search
+    var dsi = document.getElementById('diag-student-search');
+    if (dsi) {
+        dsi.addEventListener('input', function() {
+            clearTimeout(diagSearchTimer);
+            var q = this.value.trim();
+            if (q.length < 2) { diagCloseStudentDD(); return; }
+            diagSearchTimer = setTimeout(function() { diagSearchStudents(q); }, 250);
+        });
+    }
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#diag-assign-panel .diag-course-search-wrap')) diagCloseStudentDD();
+    });
+});
+
+function diagSearchStudents(q) {
+    if (diagSearchController) diagSearchController.abort();
+    diagSearchController = new AbortController();
+
+    var dd = document.getElementById('diag-student-dropdown');
+    dd.innerHTML = '<div class="search-empty"><i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i>Searching...</div>';
+    dd.classList.add('open');
+
+    fetch('/api/users-page?search=' + encodeURIComponent(q) + '&limit=20', { signal: diagSearchController.signal })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var users = d.users || [];
+            if (!users.length) {
+                dd.innerHTML = '<div class="search-empty">No students found.</div>';
+                return;
+            }
+            dd.innerHTML = users.map(function(u) {
+                var nm = ((u.givenName || '') + ' ' + (u.familyName || '')).trim() || 'Unknown';
+                return '<div class="search-item" data-id="' + esc(u.sourcedId) + '" onclick="diagPickStudent(this)">' +
+                    '<div class="user-cell-avatar">' + esc((u.givenName || '?')[0].toUpperCase()) + '</div>' +
+                    '<div style="flex:1;min-width:0;"><div class="search-item-name">' + esc(nm) +
+                    '</div><div class="search-item-email">' + esc(u.email || '') + '</div></div></div>';
+            }).join('');
+        })
+        .catch(function(e) {
+            if (e.name !== 'AbortError') {
+                dd.innerHTML = '<div class="search-empty">Search failed.</div>';
+            }
+        });
+}
+
+function diagCloseStudentDD() {
+    var dd = document.getElementById('diag-student-dropdown');
+    if (dd) dd.classList.remove('open');
+}
+
+function diagPickStudent(el) {
+    var id = el.getAttribute('data-id');
+    var name = el.querySelector('.search-item-name').textContent.trim();
+    var email = el.querySelector('.search-item-email').textContent.trim();
+
+    diagSelectedStudent = { sourcedId: id, name: name, email: email };
+    diagCloseStudentDD();
+    document.getElementById('diag-student-search').value = name;
+
+    var sel = document.getElementById('diag-selected-student');
+    sel.style.display = '';
+    sel.innerHTML = '<div class="diag-student-card">' +
+        '<div class="user-cell-avatar">' + esc(name[0] || '?') + '</div>' +
+        '<div style="flex:1;"><div style="font-weight:600;">' + esc(name) + '</div><div style="font-size:0.8rem;color:var(--color-text-muted);">' + esc(email) + '</div></div>' +
+        '<button class="diag-btn primary" onclick="diagAssignToStudent()"><i class="fa-solid fa-plus" style="margin-right:4px;"></i>Assign</button>' +
+    '</div>';
+}
+
+async function diagAssignToStudent() {
+    if (!diagSelectedStudent || !diagSelectedCourse) return;
+
+    var fb = document.getElementById('diag-assign-feedback');
+    fb.innerHTML = '<div class="feedback success" style="display:block;"><i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i>Assigning...</div>';
+
+    try {
+        var resp = await fetch('/api/diagnostic-assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                studentId: diagSelectedStudent.sourcedId,
+                courseId: diagSelectedCourse.sourcedId,
+            }),
+        });
+        var data = await resp.json();
+
+        if (data.success) {
+            fb.innerHTML = '<div class="feedback success" style="display:block;"><i class="fa-solid fa-check" style="margin-right:4px;"></i>' + esc(data.message || 'Assigned!') + '</div>';
+            diagLoadAssignments();
+            // Clear selection
+            document.getElementById('diag-selected-student').style.display = 'none';
+            document.getElementById('diag-student-search').value = '';
+            diagSelectedStudent = null;
+        } else {
+            fb.innerHTML = '<div class="feedback error" style="display:block;">' + esc(data.error || 'Assignment failed') + '</div>';
+        }
+    } catch(e) {
+        fb.innerHTML = '<div class="feedback error" style="display:block;">Network error. Try again.</div>';
+    }
+}
+
+async function diagLoadAssignments() {
+    if (!diagSelectedCourse) return;
+    var el = document.getElementById('diag-assigned-list');
+
+    try {
+        var resp = await fetch('/api/diagnostic-assign?courseId=' + encodeURIComponent(diagSelectedCourse.sourcedId));
+        var data = await resp.json();
+        var assignments = data.assignments || [];
+
+        if (!assignments.length) {
+            el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><p>No students assigned yet.</p></div>';
+            return;
+        }
+
+        el.innerHTML = assignments.map(function(a) {
+            var status = a.status || 'assigned';
+            var statusClass = status === 'completed' ? 'status-active' : status === 'in_progress' ? 'status-testing' : 'status-testing';
+            var statusLabel = status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
+            var date = a.assignedAt ? new Date(a.assignedAt * 1000).toLocaleDateString() : '';
+            var scoreHtml = '';
+            if (status === 'completed' && a.score != null) {
+                scoreHtml = '<span style="font-weight:700;color:' + (a.score >= 60 ? '#2E7D32' : '#E65100') + ';">' + a.score + '%</span>';
+            }
+
+            return '<div class="pending-row">' +
+                '<div class="pending-row-info">' +
+                    '<div class="pending-row-title">' + esc(a.studentId) + '</div>' +
+                    '<div class="pending-row-meta"><span class="status-badge ' + statusClass + '">' + esc(statusLabel) + '</span>' +
+                        (date ? ' &middot; ' + esc(date) : '') +
+                        (scoreHtml ? ' &middot; ' + scoreHtml : '') +
+                    '</div>' +
+                '</div>' +
+                (status !== 'completed' ? '<button class="remove-btn" onclick="diagRemoveAssignment(\'' + esc(a.studentId) + '\',\'' + esc(a.courseId) + '\')"><i class="fa-solid fa-xmark"></i></button>' : '') +
+            '</div>';
+        }).join('');
+    } catch(e) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><p>Failed to load assignments.</p></div>';
+    }
+}
+
+async function diagRemoveAssignment(studentId, courseId) {
+    if (!confirm('Remove this diagnostic assignment?')) return;
+    try {
+        await fetch('/api/diagnostic-assign', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studentId: studentId, courseId: courseId }),
+        });
+        diagLoadAssignments();
+    } catch(e) {}
+}

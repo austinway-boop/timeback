@@ -555,6 +555,21 @@
 
         document.title = 'AlphaLearn - ' + courseTitle;
 
+        // ── Check for pending diagnostic assignment (blocks course access) ──
+        if (userId && courseId && !isAdmin) {
+            try {
+                var diagResp = await fetch('/api/diagnostic-assign?studentId=' + encodeURIComponent(userId) + '&courseId=' + encodeURIComponent(courseId));
+                var diagData = await diagResp.json();
+                if (diagData.exists && diagData.assignment && (diagData.assignment.status === 'assigned' || diagData.assignment.status === 'in_progress')) {
+                    // Redirect to diagnostic quiz — student must complete it first
+                    window.location.href = '/diagnostic?courseId=' + encodeURIComponent(courseId);
+                    return;
+                }
+            } catch(e) {
+                console.warn('[Course] Diagnostic check failed:', e.message);
+            }
+        }
+
         // Show header with title
         document.getElementById('course-header').innerHTML =
             '<h1>' + esc(courseTitle) + '</h1>' +

@@ -67,6 +67,83 @@
             </div>
         </div>
 
+        <!-- ══════════════════════════════════════════════════════════
+             Course Diagnostics — Generate & Assign AI-built assessments
+             ══════════════════════════════════════════════════════════ -->
+        <div class="diag-section" id="diag-section">
+            <div class="diag-header">
+                <h2><i class="fa-solid fa-stethoscope"></i> Course Diagnostics</h2>
+                <p>Generate AI-powered mastery assessments from course learning trees.</p>
+            </div>
+
+            <!-- Course Selector -->
+            <div class="diag-row">
+                <div class="panel-card">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fa-solid fa-book-open"></i>Select Course</h2>
+                        <button class="diag-btn refresh" onclick="diagLoadCourses()" title="Refresh courses">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                    </div>
+                    <div class="panel-body" style="max-height:none;">
+                        <div class="diag-course-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                            <input type="text" id="diag-course-search" placeholder="Search courses with learning trees..." oninput="diagFilterCourses()">
+                        </div>
+                        <div id="diag-courses-list">
+                            <div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="opacity:0.5;"></i><p>Loading courses...</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generation & Preview Panel (hidden until course selected) -->
+            <div id="diag-gen-panel" style="display:none;">
+                <div class="diag-row">
+                    <div class="panel-card">
+                        <div class="card-header">
+                            <h2 class="card-title"><i class="fa-solid fa-wand-magic-sparkles"></i>Diagnostic for: <span id="diag-course-name"></span></h2>
+                        </div>
+                        <div class="panel-body" style="max-height:none;">
+                            <div id="diag-status-area">
+                                <!-- Dynamic content: generate button, progress, preview -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assignment Panel (hidden until diagnostic exists) -->
+            <div id="diag-assign-panel" style="display:none;">
+                <div class="diag-row">
+                    <div class="two-col">
+                        <div class="panel-card">
+                            <div class="card-header">
+                                <h2 class="card-title"><i class="fa-solid fa-user-plus"></i>Assign Diagnostic</h2>
+                            </div>
+                            <div class="panel-body" style="max-height:none;">
+                                <div class="diag-course-search-wrap">
+                                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                    <input type="text" id="diag-student-search" placeholder="Search for a student by name or email..." autocomplete="off">
+                                    <div class="search-dropdown" id="diag-student-dropdown"></div>
+                                </div>
+                                <div id="diag-assign-feedback"></div>
+                                <div id="diag-selected-student" style="display:none;"></div>
+                            </div>
+                        </div>
+                        <div class="panel-card">
+                            <div class="card-header">
+                                <h2 class="card-title"><i class="fa-solid fa-list-check"></i>Assigned Students</h2>
+                            </div>
+                            <div class="panel-body" id="diag-assigned-list">
+                                <div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><p>No students assigned yet.</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 </div>
 
