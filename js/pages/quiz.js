@@ -510,15 +510,112 @@
 
     // ── Final submit — scores and shows results ──
     function apFinalSubmit() {
-        var correct = 0, total = quizState.staticQuestions.length;
-        for (var i = 0; i < total; i++) {
-            var q = quizState.staticQuestions[i];
-            var ans = quizState.answers[i];
-            if (ans === q.correctId) correct++;
+        var total = quizState.staticQuestions.length;
+
+        // ── Student mode: submit answers to backend ──
+        if (!quizState.isDiagPreview) {
+            // Build answers map: { itemId: selectedOptionId }
+            var answers = {};
+            for (var i = 0; i < total; i++) {
+                var qId = quizState.staticQuestions[i].identifier;
+                if (qId && quizState.answers[i] !== null) {
+                    answers[qId] = quizState.answers[i];
+                }
+            }
+
+            // Show loading overlay
+            var ol = document.getElementById('ap-overlay');
+            if (ol) ol.remove();
+            var loadOverlay = document.createElement('div');
+            loadOverlay.id = 'ap-overlay';
+            loadOverlay.className = 'ap-overlay';
+            loadOverlay.innerHTML = '<div class="ap-header"><div class="ap-header-title">' + esc(quizState.title) + '</div></div>' +
+                '<div class="ap-divider"></div>' +
+                '<div class="ap-review" style="justify-content:center;align-items:center;">' +
+                '<div style="text-align:center;"><div class="loading-spinner" style="margin:0 auto 16px;"></div><div style="font-size:1rem;color:#555;">Scoring your assessment...</div></div></div>';
+            document.body.appendChild(loadOverlay);
+
+            // POST to backend
+            fetch('/api/diagnostic-quiz', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    studentId: quizState._diagUserId,
+                    courseId: quizState._diagCourseId,
+                    answers: answers,
+                }),
+            }).then(function(r) { return r.json(); }).then(function(d) {
+                if (d.results) _showDiagStudentResults(d.results);
+                else _showDiagStudentResults(null);
+            }).catch(function() { _showDiagStudentResults(null); });
+            return;
+        }
+
+        // ── Preview mode: score locally ──
+        var correct = 0;
+        for (var pi = 0; pi < total; pi++) {
+            if (quizState.answers[pi] === quizState.staticQuestions[pi].correctId) correct++;
         }
         quizState.correct = correct;
         quizState.total = total;
         _showDiagPreviewResults(correct, total);
+    }
+
+    // ── Student diagnostic results (from backend) ──
+    function _showDiagStudentResults(results) {
+        var ol = document.getElementById('ap-overlay');
+        if (ol) ol.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'ap-overlay';
+        overlay.className = 'ap-overlay';
+
+        var html = '<div class="ap-header"><div class="ap-header-title">' + esc(quizState.title) + ' \u2014 Results</div></div>' +
+            '<div class="ap-divider"></div>';
+
+        html += '<div class="ap-review" style="max-width:720px;margin:0 auto;padding:32px 24px;">';
+
+        if (!results) {
+            html += '<div style="text-align:center;">' +
+                '<div style="font-size:1.2rem;font-weight:700;margin-bottom:12px;">Assessment Submitted</div>' +
+                '<div style="color:#555;">Your responses have been recorded.</div>' +
+                '</div>';
+        } else {
+            var pct = results.scorePercent || 0;
+            var pl = results.placementLevel || {};
+
+            html += '<div style="text-align:center;margin-bottom:32px;">' +
+                '<div style="font-size:3rem;font-weight:800;color:' + (pct >= 70 ? '#16A34A' : pct >= 50 ? '#D97706' : '#DC2626') + ';">' + pct + '%</div>' +
+                '<div style="font-size:1.1rem;color:var(--color-text-secondary);margin-top:4px;">' + (results.correctCount || 0) + ' of ' + (results.totalItems || 0) + ' correct</div>' +
+                (pl.name ? '<div style="margin-top:12px;display:inline-flex;align-items:center;gap:6px;padding:6px 16px;background:#EDE9FE;color:#6C5CE7;border-radius:20px;font-size:0.88rem;font-weight:600;"><i class="fa-solid fa-award"></i>' + esc(pl.name) + '</div>' : '') +
+                '</div>';
+
+            // Skill breakdown
+            var skills = results.skillResults || {};
+            var skillKeys = Object.keys(skills);
+            if (skillKeys.length > 0) {
+                skillKeys.sort(function(a, b) { return (skills[a].mastery || 0) - (skills[b].mastery || 0); });
+                html += '<h3 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--color-text);"><i class="fa-solid fa-chart-bar" style="margin-right:8px;color:var(--color-primary);"></i>Skill Breakdown</h3>';
+                for (var si = 0; si < skillKeys.length; si++) {
+                    var skd = skills[skillKeys[si]];
+                    var m = skd.mastery || 0;
+                    var clr = m >= 80 ? '#16A34A' : m >= 50 ? '#D97706' : '#DC2626';
+                    html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--color-border, #e5e7eb);">' +
+                        '<div style="flex:1;font-size:0.88rem;color:var(--color-text);">' + esc(skd.label) + '</div>' +
+                        '<div style="width:80px;height:6px;background:#f3f4f6;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + m + '%;background:' + clr + ';border-radius:3px;"></div></div>' +
+                        '<div style="font-size:0.82rem;font-weight:700;min-width:36px;text-align:right;color:' + clr + ';">' + m + '%</div>' +
+                    '</div>';
+                }
+            }
+        }
+
+        html += '<div style="text-align:center;margin-top:28px;">' +
+            '<button class="ap-nav-btn ap-nav-next" onclick="window.location.href=\'/dashboard\'">Back to Dashboard</button>' +
+        '</div>';
+
+        html += '</div>';
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
     }
 
     // ── Preview results overlay ──
@@ -588,7 +685,11 @@
         var ol = document.getElementById('ap-overlay');
         if (ol) ol.remove();
         document.removeEventListener('mouseup', apDoHighlight);
-        window.close();
+        if (quizState.isDiagPreview) {
+            window.close();
+        } else {
+            window.location.href = '/dashboard';
+        }
     }
 
     /* ── END AP EXAM UI ─────────────────────────────────────── */
@@ -852,126 +953,31 @@
                     return;
                 }
 
-                // ── Student mode: one-at-a-time with backend scoring ──
-                quizState.title = diagCourseTitle + ' — Diagnostic';
-                quizState.isReadingQuiz = true;
-                quizState.attemptId = null;
-
-                var _diagItemIdx = 0;
-                var _diagAnswers = {};
-                var _diagAllItems = diagItems;
-
-                loadNextQuestion = async function() {
-                    if (_diagItemIdx >= _diagAllItems.length) {
-                        _diagShowResults();
-                        return;
-                    }
-                    var dItem = _diagAllItems[_diagItemIdx];
-                    var q = {
-                        id: dItem.id || ('diag_' + _diagItemIdx),
-                        prompt: dItem.stem || '',
-                        choices: (dItem.options || []).map(function(o) {
-                            return { id: o.id, text: o.text, identifier: o.id };
+                // ── Student mode: AP exam UI with backend scoring ──
+                quizState.title = diagCourseTitle + ' \u2014 Diagnostic';
+                quizState.isDiagPreview = false;
+                quizState._diagCourseId = diagnosticId;
+                quizState._diagUserId = userId;
+                quizState.cachedPassage = '';
+                quizState.staticQuestions = diagItems.map(function(item) {
+                    return {
+                        identifier: item.id || '',
+                        prompt: item.stem || '',
+                        choices: (item.options || []).map(function(o) {
+                            return { id: o.id, text: o.text };
                         }),
-                        stimulus: dItem.stimulus || '',
-                        correctId: '',
-                        _diagItem: dItem,
+                        correctId: '', // student doesn't see correct answers
+                        stimulus: item.stimulus || '',
+                        isFRQ: false,
+                        feedbackMap: {},
                     };
-                    quizState.currentQuestion = q;
-                    quizState.questionNum = _diagItemIdx + 1;
-                    quizState.selectedChoice = null;
-                    quizState.answered = false;
-                    quizState.crossOutMode = false;
-                    quizState.totalQuestions = _diagAllItems.length;
-                    renderQuestion(q);
-                };
+                });
+                quizState.staticIdx = 0;
+                quizState.answers = new Array(diagItems.length).fill(null);
+                quizState.marked = new Array(diagItems.length).fill(false);
+                apState.subject = '';
 
-                window.submitAnswer = async function() {
-                    if (!quizState.selectedChoice || quizState.answered) return;
-                    quizState.answered = true;
-                    quizState.total++;
-
-                    var dItem = _diagAllItems[_diagItemIdx];
-                    var choiceId = quizState.selectedChoice;
-                    _diagAnswers[dItem.id || ('diag_' + _diagItemIdx)] = choiceId;
-
-                    document.querySelectorAll('.choice').forEach(function(c) {
-                        if (c.dataset.id === choiceId) c.classList.add('selected');
-                    });
-
-                    var btn = document.getElementById('submit-btn');
-                    _diagItemIdx++;
-                    if (_diagItemIdx >= _diagAllItems.length) {
-                        btn.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Finish';
-                    } else {
-                        btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Next Question';
-                    }
-                    btn.disabled = false;
-                    btn.onclick = function() { loadNextQuestion(); };
-                };
-
-                function _diagShowResults() {
-                    var quizWrap = document.querySelector('.quiz-wrap');
-                    if (quizWrap) quizWrap.classList.remove('wide-mode');
-
-                    fetch('/api/diagnostic-quiz', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            studentId: userId,
-                            courseId: diagnosticId,
-                            answers: _diagAnswers,
-                        }),
-                    }).then(function(r) { return r.json(); }).then(function(d) {
-                        if (d.results) _diagRenderResults(d.results);
-                        else _diagRenderResults(null);
-                    }).catch(function() { _diagRenderResults(null); });
-
-                    area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Scoring your assessment...</div>';
-                }
-
-                function _diagRenderResults(results) {
-                    if (!results) {
-                        area.innerHTML = '<div class="result-card"><div class="result-label">Assessment submitted.</div></div>';
-                        return;
-                    }
-                    var pl = results.placementLevel || {};
-                    var skills = results.skillResults || {};
-                    var skillKeys = Object.keys(skills);
-                    skillKeys.sort(function(a, b) { return (skills[a].mastery || 0) - (skills[b].mastery || 0); });
-
-                    var h = '<div class="result-card">' +
-                        '<div class="result-score">' + (results.scorePercent || 0) + '%</div>' +
-                        '<div class="result-label">' + (results.correctCount || 0) + ' of ' + (results.totalItems || 0) + ' correct</div>' +
-                        (pl.name ? '<div class="xp-badge" style="margin-top:12px;"><i class="fa-solid fa-award" style="margin-right:6px;"></i>Placement: ' + esc(pl.name) + '</div>' : '') +
-                        '<div class="result-details" style="margin-top:20px;">' +
-                            '<div class="result-stat"><div class="result-stat-val">' + (results.totalItems || 0) + '</div><div class="result-stat-label">Questions</div></div>' +
-                            '<div class="result-stat"><div class="result-stat-val" style="color:#2E7D32;">' + (results.correctCount || 0) + '</div><div class="result-stat-label">Correct</div></div>' +
-                            '<div class="result-stat"><div class="result-stat-val" style="color:#E53E3E;">' + ((results.totalItems || 0) - (results.correctCount || 0)) + '</div><div class="result-stat-label">Incorrect</div></div>' +
-                        '</div>';
-
-                    if (skillKeys.length > 0) {
-                        h += '<div style="text-align:left;margin-top:24px;border-top:1px solid var(--color-border);padding-top:16px;">' +
-                            '<div style="font-size:0.88rem;font-weight:700;margin-bottom:10px;"><i class="fa-solid fa-chart-bar" style="margin-right:6px;color:var(--color-primary);"></i>Skill Breakdown</div>';
-                        for (var si = 0; si < skillKeys.length; si++) {
-                            var skd = skills[skillKeys[si]];
-                            var m = skd.mastery || 0;
-                            var clr = m >= 80 ? '#2E7D32' : m >= 50 ? '#F57F17' : '#E53E3E';
-                            h += '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #f3f4f6;">' +
-                                '<div style="flex:1;font-size:0.8rem;">' + esc(skd.label) + '</div>' +
-                                '<div style="width:70px;height:4px;background:#f3f4f6;border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + m + '%;background:' + clr + ';border-radius:2px;"></div></div>' +
-                                '<div style="font-size:0.75rem;font-weight:700;min-width:32px;text-align:right;color:' + clr + ';">' + m + '%</div>' +
-                            '</div>';
-                        }
-                        h += '</div>';
-                    }
-
-                    h += '</div>';
-                    h += '<div style="text-align:center;margin-top:20px;"><a href="/dashboard" class="quiz-btn quiz-btn-primary" style="text-decoration:none;display:inline-flex;"><i class="fa-solid fa-arrow-left" style="margin-right:6px;"></i>Back to Dashboard</a></div>';
-                    area.innerHTML = h;
-                }
-
-                await loadNextQuestion();
+                startAPExam();
                 return;
             } catch(e) {
                 area.innerHTML = '<div class="loading-msg">Failed to load diagnostic: ' + esc(e.message) + '</div>';
