@@ -1,8 +1,9 @@
 """POST /api/generate-activity
 
 Uses Claude Opus to generate a self-contained HTML activity from a
-description and optional uploaded images (base64). The generated activity
-is saved to KV and returned for preview.
+description and optional uploaded images (base64). The generation runs
+in a background thread (like frq-grade) and returns an activityId
+immediately for polling via /api/generate-activity-status.
 
 Body: {
     courseId: string,
@@ -15,6 +16,7 @@ import json
 import os
 import time
 import uuid
+import threading
 from http.server import BaseHTTPRequestHandler
 
 import requests
@@ -72,6 +74,106 @@ For drag-and-drop activities with images:
 - Also support touch events for mobile compatibility"""
 
 
+def _generate_async(activity_id, description, course_id, images):
+    """Run generation in a background thread and store result in KV."""
+    try:
+        # Build the message content with optional images
+        user_content = []
+        for img in images:
+            img_data = img.get("data", "")
+            media_type = img.get("mediaType", "image/png")
+            if img_data:
+                user_content.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": img_data,
+                    },
+                })
+
+        user_content.append({
+            "type": "text",
+            "text": (
+                f"Create an interactive educational activity based on this description:\n\n"
+                f"{description}\n\n"
+                f"Remember: Output ONLY the complete HTML file. No explanation, no markdown fences, "
+                f"just the raw HTML starting with <!DOCTYPE html>."
+            ),
+        })
+
+        resp = requests.post(
+            ANTHROPIC_URL,
+            headers={
+                "x-api-key": ANTHROPIC_API_KEY,
+                "anthropic-version": ANTHROPIC_VERSION,
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": MODEL,
+                "max_tokens": 16000,
+                "thinking": {
+                    "type": "enabled",
+                    "budget_tokens": 10000,
+                },
+                "system": SYSTEM_PROMPT,
+                "messages": [{"role": "user", "content": user_content}],
+            },
+            timeout=300,
+        )
+
+        if resp.status_code != 200:
+            error_detail = resp.text[:500]
+            print(f"[generate-activity] Anthropic error: {resp.status_code} {error_detail}")
+            kv_set(f"custom_activity:{activity_id}", {
+                "status": "error",
+                "error": f"AI generation failed ({resp.status_code})",
+            })
+            return
+
+        data = resp.json()
+        html = ""
+        for block in data.get("content", []):
+            if block.get("type") == "text":
+                html = block.get("text", "")
+                break
+
+        # Clean up any markdown fences that Claude might have added
+        html = html.strip()
+        if html.startswith("```html"):
+            html = html[7:]
+        elif html.startswith("```"):
+            html = html[3:]
+        if html.endswith("```"):
+            html = html[:-3]
+        html = html.strip()
+
+        if not html or "<!DOCTYPE" not in html.upper()[:50]:
+            print(f"[generate-activity] Invalid HTML output. Preview: {html[:300]}")
+            kv_set(f"custom_activity:{activity_id}", {
+                "status": "error",
+                "error": "AI did not produce valid HTML",
+            })
+            return
+
+        # Save completed activity to KV
+        kv_set(f"custom_activity:{activity_id}", {
+            "status": "complete",
+            "activityId": activity_id,
+            "description": description,
+            "html": html,
+            "courseId": course_id,
+            "createdAt": time.time(),
+        })
+
+    except Exception as e:
+        print(f"[generate-activity] Async error: {e}")
+        kv_set(f"custom_activity:{activity_id}", {
+            "status": "error",
+            "error": str(e),
+        })
+
+
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
@@ -101,101 +203,29 @@ class handler(BaseHTTPRequestHandler):
             self._send({"error": "ANTHROPIC_API_KEY not configured"}, 500)
             return
 
-        # Build the message content with optional images
-        user_content = []
-        for img in images:
-            img_data = img.get("data", "")
-            media_type = img.get("mediaType", "image/png")
-            if img_data:
-                user_content.append({
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": media_type,
-                        "data": img_data,
-                    },
-                })
-
-        user_content.append({
-            "type": "text",
-            "text": (
-                f"Create an interactive educational activity based on this description:\n\n"
-                f"{description}\n\n"
-                f"Remember: Output ONLY the complete HTML file. No explanation, no markdown fences, "
-                f"just the raw HTML starting with <!DOCTYPE html>."
-            ),
+        # Generate activity ID and set initial "processing" status
+        activity_id = f"act_{uuid.uuid4().hex[:12]}"
+        kv_set(f"custom_activity:{activity_id}", {
+            "status": "processing",
+            "activityId": activity_id,
+            "description": description,
+            "courseId": course_id,
+            "startedAt": time.time(),
         })
 
-        try:
-            resp = requests.post(
-                ANTHROPIC_URL,
-                headers={
-                    "x-api-key": ANTHROPIC_API_KEY,
-                    "anthropic-version": ANTHROPIC_VERSION,
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": MODEL,
-                    "max_tokens": 16000,
-                    "thinking": {
-                        "type": "enabled",
-                        "budget_tokens": 10000,
-                    },
-                    "system": SYSTEM_PROMPT,
-                    "messages": [{"role": "user", "content": user_content}],
-                },
-                timeout=180,
-            )
+        # Start generation in background thread
+        thread = threading.Thread(
+            target=_generate_async,
+            args=(activity_id, description, course_id, images),
+            daemon=True,
+        )
+        thread.start()
 
-            if resp.status_code != 200:
-                error_detail = resp.text[:500]
-                print(f"[generate-activity] Anthropic error: {resp.status_code} {error_detail}")
-                self._send({"error": f"AI generation failed ({resp.status_code})"}, 500)
-                return
-
-            data = resp.json()
-            html = ""
-            for block in data.get("content", []):
-                if block.get("type") == "text":
-                    html = block.get("text", "")
-                    break
-
-            # Clean up any markdown fences that Claude might have added
-            html = html.strip()
-            if html.startswith("```html"):
-                html = html[7:]
-            elif html.startswith("```"):
-                html = html[3:]
-            if html.endswith("```"):
-                html = html[:-3]
-            html = html.strip()
-
-            if not html or "<!DOCTYPE" not in html.upper()[:50]:
-                print(f"[generate-activity] Invalid HTML output. Preview: {html[:300]}")
-                self._send({"error": "AI did not produce valid HTML"}, 500)
-                return
-
-            # Save to KV
-            activity_id = f"act_{uuid.uuid4().hex[:12]}"
-            kv_data = {
-                "activityId": activity_id,
-                "description": description,
-                "html": html,
-                "courseId": course_id,
-                "createdAt": time.time(),
-            }
-            kv_set(f"custom_activity:{activity_id}", kv_data)
-
-            self._send({
-                "activityId": activity_id,
-                "html": html,
-            })
-
-        except requests.exceptions.Timeout:
-            self._send({"error": "AI generation timed out. Please try again."}, 504)
-        except Exception as e:
-            print(f"[generate-activity] Error: {e}")
-            self._send({"error": f"Server error: {str(e)}"}, 500)
+        # Return immediately with the activity ID for polling
+        self._send({
+            "activityId": activity_id,
+            "status": "processing",
+        })
 
     def _send(self, data, status=200):
         body = json.dumps(data)

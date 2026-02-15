@@ -585,6 +585,7 @@
     }
 
     function closeModal() {
+        stopActivityPolling();
         var overlay = document.getElementById('ec-activity-modal');
         if (overlay) overlay.remove();
         document.removeEventListener('keydown', modalEscHandler);
@@ -628,7 +629,9 @@
         });
     }
 
-    /* ---- Generate Activity -------------------------------------------- */
+    /* ---- Generate Activity (async with polling) ------------------------ */
+    var activityPollTimer = null;
+
     async function generateActivity() {
         var desc = document.getElementById('ec-description').value.trim();
         if (!desc) {
@@ -641,7 +644,7 @@
         btn.disabled = true;
         regenBtn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
-        showGenerateStatus('Claude is creating your activity... This may take up to 60 seconds.', false);
+        showGenerateStatus('Submitting to Claude...', false);
 
         // Clear old preview
         var wrap = document.getElementById('ec-preview-wrap');
@@ -649,6 +652,10 @@
         if (placeholder) placeholder.style.display = '';
         var oldFrame = wrap.querySelector('iframe');
         if (oldFrame) oldFrame.remove();
+
+        // Hide name row from previous generation
+        var nameRow = document.getElementById('ec-name-row');
+        if (nameRow) nameRow.style.display = 'none';
 
         try {
             var body = {
@@ -672,24 +679,80 @@
                 return;
             }
 
-            generatedHtml = data.html;
-            generatedActivityId = data.activityId;
-            loadPreview(generatedHtml);
-            hideGenerateStatus();
-
-            btn.disabled = false;
-            regenBtn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Activity';
-
-            // Show name row and enable reset
-            document.getElementById('ec-name-row').style.display = '';
-            document.getElementById('ec-reset-btn').disabled = false;
+            if (data.activityId && data.status === 'processing') {
+                generatedActivityId = data.activityId;
+                showGenerateStatus('Claude is creating your activity... This usually takes 30-90 seconds.', false);
+                startActivityPolling(data.activityId);
+            }
 
         } catch (e) {
-            showGenerateStatus('Generation failed: ' + e.message, true);
+            showGenerateStatus('Failed to start generation: ' + e.message, true);
             btn.disabled = false;
             regenBtn.disabled = false;
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Activity';
+        }
+    }
+
+    function startActivityPolling(activityId) {
+        stopActivityPolling();
+        var elapsed = 0;
+        var interval = 5000; // poll every 5 seconds
+
+        function poll() {
+            elapsed += interval / 1000;
+            var timeStr = elapsed < 60
+                ? Math.floor(elapsed) + 's'
+                : Math.floor(elapsed / 60) + 'm ' + (Math.floor(elapsed) % 60) + 's';
+            showGenerateStatus('Claude is creating your activity... (' + timeStr + ' elapsed)', false);
+
+            fetch('/api/generate-activity-status?activityId=' + encodeURIComponent(activityId))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'complete' && data.html) {
+                        stopActivityPolling();
+                        generatedHtml = data.html;
+                        generatedActivityId = activityId;
+                        loadPreview(generatedHtml);
+                        hideGenerateStatus();
+
+                        var btn = document.getElementById('ec-generate-btn');
+                        var regenBtn = document.getElementById('ec-regenerate-btn');
+                        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Activity'; }
+                        if (regenBtn) regenBtn.disabled = false;
+
+                        // Show name row and enable reset
+                        var nameRow = document.getElementById('ec-name-row');
+                        if (nameRow) nameRow.style.display = '';
+                        var resetBtn = document.getElementById('ec-reset-btn');
+                        if (resetBtn) resetBtn.disabled = false;
+
+                    } else if (data.status === 'error') {
+                        stopActivityPolling();
+                        showGenerateStatus(data.error || 'Generation failed.', true);
+
+                        var btn = document.getElementById('ec-generate-btn');
+                        var regenBtn = document.getElementById('ec-regenerate-btn');
+                        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Activity'; }
+                        if (regenBtn) regenBtn.disabled = false;
+
+                    } else {
+                        // Still processing, keep polling
+                        activityPollTimer = setTimeout(poll, interval);
+                    }
+                })
+                .catch(function () {
+                    // Network error, keep trying
+                    activityPollTimer = setTimeout(poll, interval);
+                });
+        }
+
+        activityPollTimer = setTimeout(poll, interval);
+    }
+
+    function stopActivityPolling() {
+        if (activityPollTimer) {
+            clearTimeout(activityPollTimer);
+            activityPollTimer = null;
         }
     }
 
@@ -807,6 +870,7 @@
     window.cleanupEditCourse = function () {
         destroySortables();
         clearTimeout(saveTimer);
+        stopActivityPolling();
         courseId = null;
         courseObj = null;
         units = [];
