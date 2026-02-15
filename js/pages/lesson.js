@@ -1680,7 +1680,7 @@
                     if (!stimulusHtml) stimulusHtml = renderNode(secStim);
                 }
 
-                return { prompt: promptText, choices: choices, correctId: correctId, feedbackMap: feedbackMap, isFRQ: isFRQ, expectedLines: 10, stimulus: stimulusHtml };
+                return { identifier: attrs.identifier || qi.identifier || q.identifier || '', prompt: promptText, choices: choices, correctId: correctId, feedbackMap: feedbackMap, isFRQ: isFRQ, expectedLines: 10, stimulus: stimulusHtml };
             });
 
             quizState.staticIdx = 0;
