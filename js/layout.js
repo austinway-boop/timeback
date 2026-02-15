@@ -71,9 +71,10 @@
     if (!sidebar) return;
 
     const studentNav = [
-        { id: 'home',     icon: 'fa-house',    label: 'Home',     href: '/dashboard' },
-        { id: 'goals',    icon: 'fa-bullseye',  label: 'Goals',   href: '/goals' },
-        { id: 'settings', icon: 'fa-gear',      label: 'Settings', href: '/settings' },
+        { id: 'home',     icon: 'fa-house',        label: 'Home',           href: '/dashboard' },
+        { id: 'frq',      icon: 'fa-pen-fancy',    label: 'FRQ Playground', href: '/frq-playground' },
+        { id: 'goals',    icon: 'fa-bullseye',     label: 'Goals',          href: '/goals' },
+        { id: 'settings', icon: 'fa-gear',         label: 'Settings',       href: '/settings' },
     ];
 
     const adminNav = [

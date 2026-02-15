@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaLearn - FRQ Playground</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preload" href="/css/style.css?v=9" as="style">
+    <link rel="stylesheet" href="/css/style.css?v=9">
+    <link rel="stylesheet" href="/css/pages/frq-playground.css?v=1">
+</head>
+<body data-view="student" data-active="frq">
+<div class="layout">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="main-content">
+        <div class="frq-page">
+            <!-- Header -->
+            <div class="frq-header">
+                <h1 class="frq-title"><i class="fa-solid fa-pen-fancy"></i> FRQ Playground</h1>
+                <p class="frq-subtitle">Practice AP free-response questions and get instant AI feedback on the official rubric.</p>
+            </div>
+
+            <!-- Wizard Steps Indicator -->
+            <div class="wizard-steps" id="wizard-steps">
+                <div class="wizard-step active" data-step="1"><span class="step-num">1</span><span class="step-label">Subject</span></div>
+                <div class="wizard-connector"></div>
+                <div class="wizard-step" data-step="2"><span class="step-num">2</span><span class="step-label">Units</span></div>
+                <div class="wizard-connector"></div>
+                <div class="wizard-step" data-step="3"><span class="step-num">3</span><span class="step-label">Type</span></div>
+                <div class="wizard-connector"></div>
+                <div class="wizard-step" data-step="4"><span class="step-num">4</span><span class="step-label">Focus</span></div>
+                <div class="wizard-connector"></div>
+                <div class="wizard-step" data-step="5"><span class="step-num">5</span><span class="step-label">Write</span></div>
+                <div class="wizard-connector"></div>
+                <div class="wizard-step" data-step="6"><span class="step-num">6</span><span class="step-label">Results</span></div>
+            </div>
+
+            <!-- Wizard Content Area -->
+            <div class="wizard-content" id="wizard-content">
+                <!-- Step 1: Subject Selection -->
+                <div class="wizard-panel active" id="step-1">
+                    <h2 class="step-title">Select an AP Subject</h2>
+                    <p class="step-desc">Choose the AP course you want to practice free-response questions for.</p>
+                    <div class="subject-grid" id="subject-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Step 2: Unit Selection -->
+                <div class="wizard-panel" id="step-2">
+                    <button class="back-step-btn" onclick="FRQ.goToStep(1)"><i class="fa-solid fa-arrow-left"></i> Back to subjects</button>
+                    <h2 class="step-title">Select Units</h2>
+                    <p class="step-desc">Choose which units to draw questions from, or select all.</p>
+                    <div class="unit-selection" id="unit-selection">
+                        <!-- Populated by JS -->
+                    </div>
+                    <button class="primary-btn" id="units-next-btn" onclick="FRQ.confirmUnits()">Continue <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+
+                <!-- Step 3: Question Type -->
+                <div class="wizard-panel" id="step-3">
+                    <button class="back-step-btn" onclick="FRQ.goToStep(2)"><i class="fa-solid fa-arrow-left"></i> Back to units</button>
+                    <h2 class="step-title">Select Question Type</h2>
+                    <p class="step-desc">Choose the type of free-response question to practice.</p>
+                    <div class="qtype-grid" id="qtype-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Step 4: Sub-Skill / Focus Mode -->
+                <div class="wizard-panel" id="step-4">
+                    <button class="back-step-btn" onclick="FRQ.goToStep(3)"><i class="fa-solid fa-arrow-left"></i> Back to question type</button>
+                    <h2 class="step-title">Choose Your Focus</h2>
+                    <p class="step-desc">Practice the full prompt or target a specific rubric skill.</p>
+                    <div class="focus-options" id="focus-options">
+                        <!-- Populated by JS -->
+                    </div>
+                    <button class="primary-btn generate-btn" id="generate-btn" onclick="FRQ.generatePrompt()">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate FRQ
+                    </button>
+                </div>
+
+                <!-- Step 5: Writing Interface -->
+                <div class="wizard-panel" id="step-5">
+                    <button class="back-step-btn" onclick="FRQ.goToStep(4)"><i class="fa-solid fa-arrow-left"></i> Back to focus</button>
+                    <div class="writing-layout">
+                        <!-- Prompt + Reference Panel -->
+                        <div class="prompt-panel" id="prompt-panel">
+                            <div class="prompt-header">
+                                <h3><i class="fa-solid fa-file-lines"></i> FRQ Prompt</h3>
+                                <div class="prompt-meta" id="prompt-meta"></div>
+                            </div>
+                            <div class="prompt-body" id="prompt-body">
+                                <!-- Prompt text rendered here -->
+                            </div>
+                            <!-- Documents / Sources -->
+                            <div class="prompt-documents" id="prompt-documents" style="display:none;">
+                                <h4><i class="fa-solid fa-folder-open"></i> Documents / Sources</h4>
+                                <div id="documents-list"></div>
+                            </div>
+                            <!-- Reference Material Toggle -->
+                            <div class="ref-toggle-wrap">
+                                <button class="ref-toggle-btn" id="ref-toggle-btn" onclick="FRQ.toggleReference()" style="display:none;">
+                                    <i class="fa-solid fa-book-open"></i> Reference Material
+                                </button>
+                            </div>
+                            <div class="reference-panel" id="reference-panel" style="display:none;">
+                                <div id="reference-content"></div>
+                            </div>
+                        </div>
+
+                        <!-- Response Editor -->
+                        <div class="response-panel">
+                            <div class="response-header">
+                                <h3><i class="fa-solid fa-pencil"></i> Your Response</h3>
+                                <div class="response-stats">
+                                    <span id="word-count">0 words</span>
+                                    <span class="stat-sep">|</span>
+                                    <span id="para-count">0 paragraphs</span>
+                                </div>
+                            </div>
+                            <textarea class="response-textarea" id="response-textarea" placeholder="Write your response here..."></textarea>
+                            <div class="response-footer">
+                                <div class="timer-wrap" id="timer-wrap">
+                                    <i class="fa-solid fa-clock"></i>
+                                    <span id="timer-display">00:00</span>
+                                    <button class="timer-btn" id="timer-btn" onclick="FRQ.toggleTimer()" title="Start/pause timer">
+                                        <i class="fa-solid fa-play"></i>
+                                    </button>
+                                </div>
+                                <button class="primary-btn submit-response-btn" id="submit-response-btn" onclick="FRQ.submitResponse()">
+                                    <i class="fa-solid fa-paper-plane"></i> Submit for Grading
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6: Feedback / Results -->
+                <div class="wizard-panel" id="step-6">
+                    <div class="results-container" id="results-container">
+                        <!-- Grading loading state -->
+                        <div class="grading-loading" id="grading-loading">
+                            <div class="grading-spinner"></div>
+                            <h3>Grading your response...</h3>
+                            <p>Our AI is carefully evaluating your work against the official AP rubric. This usually takes 15-30 seconds.</p>
+                        </div>
+                        <!-- Results content (hidden until grading completes) -->
+                        <div class="results-content" id="results-content" style="display:none;">
+                            <!-- Score Overview -->
+                            <div class="score-overview" id="score-overview"></div>
+                            <!-- Rubric Row Feedback -->
+                            <div class="rubric-feedback" id="rubric-feedback"></div>
+                            <!-- Overall Feedback -->
+                            <div class="overall-feedback" id="overall-feedback"></div>
+                            <!-- Actions -->
+                            <div class="results-actions">
+                                <button class="secondary-btn" onclick="FRQ.tryAgain()"><i class="fa-solid fa-rotate-right"></i> Try Again (Same Prompt)</button>
+                                <button class="primary-btn" onclick="FRQ.newFRQ()"><i class="fa-solid fa-plus"></i> New FRQ</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Past Attempts (shown below wizard on step 1) -->
+            <div class="past-attempts-section" id="past-attempts-section" style="display:none;">
+                <h2 class="section-heading"><i class="fa-solid fa-clock-rotate-left"></i> Recent Attempts</h2>
+                <div class="attempts-grid" id="attempts-grid"></div>
+            </div>
+        </div>
+    </main>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/js/layout.js?v=20"></script>
+<script src="/js/notifications.js?v=7"></script>
+<script src="/js/app.js?v=7"></script>
+<script src="/js/pages/frq-playground.js?v=1"></script>
+</body>
+</html>
