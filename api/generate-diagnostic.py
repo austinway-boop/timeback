@@ -65,6 +65,72 @@ def _parse_mermaid_structure(mermaid_code: str) -> dict:
     }
 
 
+def _filter_mermaid_by_units(mermaid_code: str, selected_units: list[str]) -> str:
+    """Filter mermaid code to only include the specified subgraph blocks.
+
+    Extracts the 'graph TD' header and the subgraph...end blocks whose
+    IDs are in selected_units.  Also keeps any cross-unit edges that
+    connect nodes within the selected subgraphs.
+    """
+    selected = set(selected_units)
+    lines = mermaid_code.split("\n")
+    result = []
+    inside_subgraph = False
+    current_sg_id = None
+    keep = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Keep the graph header
+        if stripped.startswith("graph ") or stripped.startswith("flowchart "):
+            result.append(line)
+            continue
+
+        # Detect subgraph start
+        sg_match = re.match(r'subgraph\s+(\w+)', stripped)
+        if sg_match:
+            current_sg_id = sg_match.group(1)
+            inside_subgraph = True
+            keep = current_sg_id in selected
+            if keep:
+                result.append(line)
+            continue
+
+        # Detect subgraph end
+        if stripped == "end":
+            if inside_subgraph and keep:
+                result.append(line)
+            inside_subgraph = False
+            current_sg_id = None
+            keep = False
+            continue
+
+        # Inside a subgraph — keep if selected
+        if inside_subgraph:
+            if keep:
+                result.append(line)
+            continue
+
+        # Outside any subgraph — cross-unit edges
+        # Keep edges where both nodes belong to selected units
+        edge_match = re.match(r'\s*(\w+)\s*-->\s*(\w+)', stripped)
+        if edge_match:
+            src, tgt = edge_match.group(1), edge_match.group(2)
+            # Check if node IDs start with any selected unit prefix
+            src_ok = any(src.startswith(uid) for uid in selected)
+            tgt_ok = any(tgt.startswith(uid) for uid in selected)
+            if src_ok and tgt_ok:
+                result.append(line)
+            continue
+
+        # Keep blank lines / comments
+        if not stripped:
+            result.append(line)
+
+    return "\n".join(result)
+
+
 def _needs_stimulus(course_title: str) -> bool:
     """Detect if a course likely needs passage/stimulus-based questions."""
     t = (course_title or "").lower()
@@ -276,6 +342,11 @@ class handler(BaseHTTPRequestHandler):
 
         mermaid_code = saved_tree["mermaid"]
         course_title = saved_tree.get("courseTitle", "Unknown Course")
+
+        # Filter by selected units if specified
+        selected_units = body.get("selectedUnits", [])
+        if isinstance(selected_units, list) and len(selected_units) > 0:
+            mermaid_code = _filter_mermaid_by_units(mermaid_code, selected_units)
 
         # Parse mermaid structure
         structure = _parse_mermaid_structure(mermaid_code)

@@ -45,6 +45,15 @@
 
         document.title = 'AlphaLearn - Diagnostic Assessment';
 
+        // If admin preview, update back link to go to admin page
+        if (state.isPreview) {
+            var backLink = document.getElementById('diag-back-link');
+            if (backLink) {
+                backLink.href = '/admin/assign-tests';
+                backLink.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back to Assign Tests';
+            }
+        }
+
         await loadDiagnostic();
     });
 

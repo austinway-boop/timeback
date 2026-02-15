@@ -529,19 +529,94 @@ function diagRenderCourses() {
     }).join('');
 }
 
+var diagAvailableUnits = [];   // [{ id: 'U1', label: 'Unit 1: Topic' }, ...]
+var diagSelectedUnits = [];    // ['U1', 'U2', ...] — empty means all
+var diagCourseMermaid = '';     // raw mermaid for the selected course
+
 /* ── Select a course ──────────────────────────────────────────── */
 function diagSelectCourse(courseId) {
     var c = diagCourses.find(function(x) { return x.sourcedId === courseId; });
     if (!c) return;
 
     diagSelectedCourse = c;
+    diagAvailableUnits = [];
+    diagSelectedUnits = [];
+    diagCourseMermaid = '';
     diagRenderCourses(); // re-render to show selection
 
     document.getElementById('diag-gen-panel').style.display = '';
     document.getElementById('diag-course-name').textContent = c.title;
+    document.getElementById('diag-unit-select').innerHTML = '';
 
-    // Check current status
+    // Fetch mermaid to parse units, then check status
+    diagLoadUnits(courseId);
     diagCheckStatus(courseId);
+}
+
+/* ── Load and render unit checkboxes ──────────────────────────── */
+async function diagLoadUnits(courseId) {
+    try {
+        var resp = await fetch('/api/skill-tree-status?courseId=' + encodeURIComponent(courseId));
+        var data = await resp.json();
+        if (data.status !== 'done' || !data.mermaid) return;
+
+        diagCourseMermaid = data.mermaid;
+
+        // Parse subgraphs: subgraph U1["Unit 1: Topic Name"]
+        var units = [];
+        var re = /subgraph\s+(\w+)\["([^"]+)"\]/g;
+        var m;
+        while ((m = re.exec(data.mermaid)) !== null) {
+            units.push({ id: m[1], label: m[2] });
+        }
+
+        diagAvailableUnits = units;
+        diagSelectedUnits = units.map(function(u) { return u.id; }); // all selected by default
+        diagRenderUnitSelect();
+    } catch(e) {}
+}
+
+function diagRenderUnitSelect() {
+    var el = document.getElementById('diag-unit-select');
+    if (!diagAvailableUnits.length) { el.innerHTML = ''; return; }
+
+    var html = '<div class="diag-unit-picker">' +
+        '<div class="diag-unit-picker-header">' +
+            '<span class="diag-unit-picker-label"><i class="fa-solid fa-layer-group" style="margin-right:5px;"></i>Select Units to Include</span>' +
+            '<button class="diag-btn" onclick="diagToggleAllUnits()" style="font-size:0.72rem;padding:3px 8px;">Toggle All</button>' +
+        '</div>' +
+        '<div class="diag-unit-checkboxes">';
+
+    for (var i = 0; i < diagAvailableUnits.length; i++) {
+        var u = diagAvailableUnits[i];
+        var checked = diagSelectedUnits.indexOf(u.id) >= 0 ? ' checked' : '';
+        html += '<label class="diag-unit-checkbox">' +
+            '<input type="checkbox" value="' + esc(u.id) + '"' + checked + ' onchange="diagToggleUnit(\'' + esc(u.id) + '\', this.checked)">' +
+            '<span>' + esc(u.label) + '</span>' +
+        '</label>';
+    }
+
+    html += '</div></div>';
+    el.innerHTML = html;
+}
+
+function diagToggleUnit(unitId, checked) {
+    if (checked) {
+        if (diagSelectedUnits.indexOf(unitId) < 0) diagSelectedUnits.push(unitId);
+    } else {
+        diagSelectedUnits = diagSelectedUnits.filter(function(id) { return id !== unitId; });
+    }
+}
+
+function diagToggleAllUnits() {
+    if (diagSelectedUnits.length === diagAvailableUnits.length) {
+        // Deselect all
+        diagSelectedUnits = [];
+    } else {
+        // Select all
+        diagSelectedUnits = diagAvailableUnits.map(function(u) { return u.id; });
+    }
+    diagRenderUnitSelect();
 }
 
 /* ── Check diagnostic status for selected course ──────────────── */
@@ -587,11 +662,25 @@ function diagRenderProcessing(data) {
     var sec = elapsed % 60;
     var timeStr = min > 0 ? min + 'm ' + sec + 's' : sec + 's';
 
+    // Step descriptions based on elapsed time
+    var steps = [
+        { time: 0,   label: 'Analyzing skill tree and identifying key gateway nodes', step: 1 },
+        { time: 30,  label: 'Generating questions and stimulus passages', step: 2 },
+        { time: 90,  label: 'Creating answer options and distractor analysis', step: 3 },
+        { time: 180, label: 'Building test blueprint and cut scores', step: 4 },
+        { time: 300, label: 'Still working — large skill trees take longer', step: 4 },
+    ];
+    var currentStep = steps[0];
+    for (var si = steps.length - 1; si >= 0; si--) {
+        if (elapsed >= steps[si].time) { currentStep = steps[si]; break; }
+    }
+
     var area = document.getElementById('diag-status-area');
     area.innerHTML = '<div class="diag-processing">' +
         '<div class="diag-processing-spinner"><i class="fa-solid fa-spinner fa-spin"></i></div>' +
         '<h3>Generating Diagnostic Assessment</h3>' +
-        '<p>' + esc(data.message || 'AI is analyzing the skill tree and creating questions...') + '</p>' +
+        '<div class="diag-step-indicator">Step ' + currentStep.step + ' of 4</div>' +
+        '<p>' + esc(currentStep.label) + '...</p>' +
         '<div class="diag-elapsed">Elapsed: ' + timeStr + '</div>' +
         '<div class="diag-progress-bar"><div class="diag-progress-fill" style="width:' + Math.min(95, (elapsed / 300) * 100) + '%;"></div></div>' +
     '</div>';
@@ -700,13 +789,25 @@ async function diagGenerate() {
     if (!diagSelectedCourse) return;
     var courseId = diagSelectedCourse.sourcedId;
 
+    // Validate at least one unit is selected
+    if (diagAvailableUnits.length > 0 && diagSelectedUnits.length === 0) {
+        diagRenderError('Please select at least one unit to include in the diagnostic.');
+        return;
+    }
+
     diagRenderProcessing({ elapsed: 0, message: 'Submitting generation job...' });
+
+    // Build request body — include selected units if not all selected
+    var body = { courseId: courseId };
+    if (diagAvailableUnits.length > 0 && diagSelectedUnits.length < diagAvailableUnits.length) {
+        body.selectedUnits = diagSelectedUnits;
+    }
 
     try {
         var resp = await fetch('/api/generate-diagnostic', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ courseId: courseId }),
+            body: JSON.stringify(body),
         });
         var data = await resp.json();
 

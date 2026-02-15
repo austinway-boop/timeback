@@ -113,7 +113,8 @@
         /* Processing state */
         .diag-processing { text-align:center; padding:32px 20px; }
         .diag-processing-spinner { font-size:2rem; color:var(--color-primary); margin-bottom:12px; }
-        .diag-processing h3 { font-size:1.05rem; font-weight:700; margin:0 0 8px; }
+        .diag-processing h3 { font-size:1.05rem; font-weight:700; margin:0 0 6px; }
+        .diag-step-indicator { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#6C5CE7; margin-bottom:8px; }
         .diag-processing p { font-size:0.85rem; color:var(--color-text-muted); margin:0 0 12px; }
         .diag-elapsed { font-size:0.78rem; color:var(--color-text-muted); margin-bottom:12px; }
         .diag-progress-bar { height:4px; background:var(--color-bg); border-radius:2px; overflow:hidden; max-width:300px; margin:0 auto; }
@@ -160,6 +161,16 @@
 
         /* Student card in assignment */
         .diag-student-card { display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--color-bg); border-radius:var(--radius-sm); margin-top:8px; }
+
+        /* Unit picker */
+        .diag-unit-picker { margin-bottom:16px; }
+        .diag-unit-picker-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+        .diag-unit-picker-label { font-size:0.82rem; font-weight:600; color:var(--color-text); }
+        .diag-unit-checkboxes { display:flex; flex-wrap:wrap; gap:6px; }
+        .diag-unit-checkbox { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:0.78rem; cursor:pointer; transition:all var(--transition); background:var(--color-surface); }
+        .diag-unit-checkbox:hover { border-color:var(--color-primary); background:var(--color-primary-light); }
+        .diag-unit-checkbox input[type="checkbox"] { margin:0; accent-color:var(--color-primary); }
+        .diag-unit-checkbox span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
 
         @media(max-width:600px) { .diag-stats-grid { grid-template-columns:repeat(2,1fr); } }
     
