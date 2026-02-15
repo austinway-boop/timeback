@@ -4,7 +4,7 @@ POST /api/review-report  { "reportId": "rpt_..." }
      → { "verdict": "valid"|"invalid", "pointsAwarded": 5, "reasoning": "..." }
 
 Fetches the report from KV, gets video transcript, builds prompt,
-calls GPT-5.2-thinking, stores verdict, and returns result.
+calls Anthropic Claude, stores verdict, and returns result.
 """
 
 import json
@@ -14,8 +14,8 @@ from http.server import BaseHTTPRequestHandler
 
 from api._kv import kv_get, kv_set, kv_list_get, kv_list_push
 
-OPENAI_KEY = os.environ.get("OPEN_AI_KEY", "")
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.2-thinking")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 
 # Fallback points for valid report when ppScore >= 80
 VALID_REPORT_POINTS = 5
@@ -89,7 +89,7 @@ def _fetch_transcript_text(video_url: str) -> str:
 
 
 def _build_prompt(report: dict, transcript: str, is_human_reviewed: bool) -> list:
-    """Build the messages array for the OpenAI API call."""
+    """Build the messages array for the Anthropic API call."""
     article_text = _strip_html(report.get("articleContent", ""))
 
     # Format choices
@@ -142,7 +142,8 @@ def _build_prompt(report: dict, transcript: str, is_human_reviewed: bool) -> lis
         '"recommendation": "remove" or "regenerate" or "keep", "is_bad_question": true or false }\n\n'
         "- verdict 'valid' means the student's REPORT is valid (the question IS flawed)\n"
         "- verdict 'invalid' means the student's report is invalid (the question is fine)\n"
-        "- is_bad_question: true if the question fails any of the 3 criteria above, false otherwise"
+        "- is_bad_question: true if the question fails any of the 3 criteria above, false otherwise\n\n"
+        "IMPORTANT: You MUST respond with ONLY a valid JSON object. No explanation or text outside the JSON."
         + strictness
     )
 
@@ -233,37 +234,46 @@ def _extract_json(text: str) -> dict | None:
     return None
 
 
-def _call_openai(messages: list) -> dict | None:
-    """Call OpenAI API and return parsed JSON response."""
-    if not OPENAI_KEY:
-        print("[review-report] ERROR: OPEN_AI_KEY not set")
+def _call_anthropic(messages: list) -> dict | None:
+    """Call Anthropic API and return parsed JSON response."""
+    if not ANTHROPIC_API_KEY:
+        print("[review-report] ERROR: ANTHROPIC_API_KEY not set")
         return None
     try:
         import requests
 
+        # Anthropic uses a separate system param; extract it from messages
+        system_text = ""
+        user_messages = []
+        for m in messages:
+            if m["role"] == "system":
+                system_text = m["content"]
+            else:
+                user_messages.append(m)
+
         req_body = {
-            "model": OPENAI_MODEL,
-            "messages": messages,
-            "response_format": {"type": "json_object"},
+            "model": ANTHROPIC_MODEL,
+            "max_tokens": 4096,
+            "temperature": 0.2,
+            "system": system_text,
+            "messages": user_messages,
         }
-        # Only set temperature for non-thinking models
-        if "thinking" not in OPENAI_MODEL and "o1" not in OPENAI_MODEL and "o3" not in OPENAI_MODEL:
-            req_body["temperature"] = 0.2
 
         resp = requests.post(
-            "https://api.openai.com/v1/chat/completions",
+            "https://api.anthropic.com/v1/messages",
             headers={
-                "Authorization": f"Bearer {OPENAI_KEY}",
+                "x-api-key": ANTHROPIC_API_KEY,
+                "anthropic-version": "2023-06-01",
                 "Content-Type": "application/json",
             },
             json=req_body,
             timeout=120,
         )
         if resp.status_code != 200:
-            print(f"[review-report] OpenAI API error: status={resp.status_code} body={resp.text[:500]}")
+            print(f"[review-report] Anthropic API error: status={resp.status_code} body={resp.text[:500]}")
             return None
         data = resp.json()
-        content = data["choices"][0]["message"]["content"]
+        content = data["content"][0]["text"]
         # Use balanced-brace extractor to handle nested braces in reasoning
         result = _extract_json(content)
         if result:
@@ -272,7 +282,7 @@ def _call_openai(messages: list) -> dict | None:
         print(f"[review-report] WARNING: _extract_json failed, attempting direct parse. Content preview: {content[:300]}")
         return json.loads(content)
     except Exception as e:
-        print(f"[review-report] ERROR in _call_openai: {e}")
+        print(f"[review-report] ERROR in _call_anthropic: {e}")
         return None
 
 
@@ -338,7 +348,7 @@ class handler(BaseHTTPRequestHandler):
 
         # Build prompt and call AI
         messages = _build_prompt(report, transcript, is_human_reviewed)
-        ai_result = _call_openai(messages)
+        ai_result = _call_anthropic(messages)
 
         if not ai_result:
             # AI call failed — mark for manual review

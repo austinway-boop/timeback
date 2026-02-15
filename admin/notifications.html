@@ -26,17 +26,14 @@
 
         <!-- Stats Bar -->
         <div class="stats-bar" id="stats-bar">
-            <div class="stat-chip"><span class="stat-num">--</span> Total Reports</div>
+            <div class="stat-chip"><span class="stat-num">--</span> Total</div>
         </div>
 
         <!-- Filter Tabs -->
         <div class="filter-tabs">
             <button class="filter-tab active" data-filter="all" onclick="setFilter('all')">All <span class="tab-count" id="count-all">0</span></button>
-            <button class="filter-tab" data-filter="ai_flagged" onclick="setFilter('ai_flagged')">AI Flagged <span class="tab-count" id="count-flagged">0</span></button>
-            <button class="filter-tab" data-filter="pending" onclick="setFilter('pending')">Pending <span class="tab-count" id="count-pending">0</span></button>
-            <button class="filter-tab" data-filter="valid" onclick="setFilter('valid')">Valid <span class="tab-count" id="count-valid">0</span></button>
-            <button class="filter-tab" data-filter="invalid" onclick="setFilter('invalid')">Invalid <span class="tab-count" id="count-invalid">0</span></button>
-            <button class="filter-tab" data-filter="human_reviewed" onclick="setFilter('human_reviewed')">Reviewed <span class="tab-count" id="count-reviewed">0</span></button>
+            <button class="filter-tab" data-filter="needs_review" onclick="setFilter('needs_review')">Needs Review <span class="tab-count" id="count-needs-review">0</span></button>
+            <button class="filter-tab" data-filter="resolved" onclick="setFilter('resolved')">Resolved <span class="tab-count" id="count-resolved">0</span></button>
         </div>
 
         <!-- Report List -->
