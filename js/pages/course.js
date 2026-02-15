@@ -424,7 +424,7 @@
                 // (covers quizzes finished with low PowerPath accuracy that the API hasn't marked complete)
                 while (globalFrontier + 1 < globalLessonList.length) {
                     var _nextTitle = globalLessonList[globalFrontier + 1].title;
-                    if (_nextTitle && localStorage.getItem('completed_' + _nextTitle) === 'true') {
+                    if (_nextTitle && localStorage.getItem('quiz_finished_' + _nextTitle) === 'true') {
                         globalFrontier++;
                     } else {
                         break;
@@ -566,7 +566,7 @@
                             
                             var isDone = _isComplete(prog);
                             // Fallback: if lesson page marked this lesson complete, trust it
-                            if (!isDone && localStorage.getItem('completed_' + lTitle) === 'true') {
+                            if (!isDone && localStorage.getItem('quiz_finished_' + lTitle) === 'true') {
                                 isDone = true;
                             }
                             var localKey = 'completed_' + (lId || lTitle);
@@ -634,7 +634,7 @@
                                     if (!qResApiDone && qResAli && _isComplete(progressById[qResAli])) { qResApiDone = true; }
                                     resDetails[rci]._resDone = qResApiDone;
                                     // Fallback: if lesson was locally completed (quiz finished), mark quiz resource done
-                                    if (!qResApiDone && localStorage.getItem('completed_' + lTitle) === 'true') {
+                                    if (!qResApiDone && localStorage.getItem('quiz_finished_' + lTitle) === 'true') {
                                         resDetails[rci]._resDone = true;
                                     }
                                 }

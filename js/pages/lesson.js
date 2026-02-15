@@ -1457,6 +1457,7 @@
         if (passed) {
             var lessonId = lessonData.title || '';
             if (lessonId) localStorage.setItem('completed_' + lessonId, 'true');
+            if (lessonId) localStorage.setItem('quiz_finished_' + lessonId, 'true');
         }
         // Always signal course.html to refresh (even on fail — updates frontier)
         sessionStorage.setItem('al_progress_changed', 'true');
@@ -2507,16 +2508,13 @@
                     answeredCorrectly: payload.answeredCorrectly,
                 });
                 closeReportModal();
-                showReportToast('info', '<i class="fa-solid fa-spinner fa-spin"></i> Report submitted! AI is analyzing the question...');
                 // Trigger AI review immediately
                 triggerAIReview(data.reportId);
             } else {
                 closeReportModal();
-                showReportToast('info', '<i class="fa-solid fa-info-circle"></i> ' + (data.error || 'Report submitted.'));
             }
         } catch(e) {
             closeReportModal();
-            showReportToast('info', '<i class="fa-solid fa-info-circle"></i> Report saved. It will be reviewed soon.');
         }
     }
 
@@ -2528,41 +2526,28 @@
                 body: JSON.stringify({ reportId: reportId }),
             });
             var data = await resp.json();
+            var studentReasoning = data.studentSummary || data.reasoning || '';
             if (data.aiFlaggedBad) {
-                // AI determined the question is bad — notify user, human will review
                 if (window._updateReportNotif) window._updateReportNotif(reportId, {
                     status: 'ai_flagged_bad',
                     verdict: 'valid',
                     pointsAwarded: data.pointsAwarded || 0,
-                    reasoning: 'Our AI has determined this question has an issue. A human will review it shortly. The question has been temporarily removed for other students.'
+                    reasoning: studentReasoning || 'Our AI has determined this question has an issue. A human will review it shortly.'
                 });
                 if (data.pointsAwarded > 0) {
                     quizState.ppScore = Math.min(100, quizState.ppScore + data.pointsAwarded);
                     updateScoreboard();
-                    showReportToast('success', '<i class="fa-solid fa-check-circle"></i> AI found an issue with this question! +' + data.pointsAwarded + ' points. A human will review it shortly.');
-                } else {
-                    showReportToast('success', '<i class="fa-solid fa-check-circle"></i> AI found an issue with this question. A human will review it shortly.');
                 }
             } else if (data.verdict === 'valid' && data.pointsAwarded > 0) {
                 quizState.ppScore = Math.min(100, quizState.ppScore + data.pointsAwarded);
                 updateScoreboard();
-                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'valid', pointsAwarded: data.pointsAwarded });
-                showReportToast('success', '<i class="fa-solid fa-star"></i> Your score has been increased by ' + data.pointsAwarded + ' points due to your valid question report!');
+                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'valid', pointsAwarded: data.pointsAwarded, reasoning: studentReasoning });
             } else if (data.verdict === 'valid') {
-                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'valid', pointsAwarded: 0 });
+                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'valid', pointsAwarded: 0, reasoning: studentReasoning });
             } else {
-                // Invalid report — pass AI reasoning so student sees why the question was valid
-                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'invalid', pointsAwarded: 0, reasoning: data.reasoning || '' });
+                if (window._updateReportNotif) window._updateReportNotif(reportId, { status: 'completed', verdict: 'invalid', pointsAwarded: 0, reasoning: studentReasoning });
             }
         } catch(e) {}
-    }
-
-    function showReportToast(type, html) {
-        var t = document.getElementById('report-toast');
-        t.className = 'report-toast ' + type;
-        t.innerHTML = html;
-        requestAnimationFrame(function() { t.classList.add('visible'); });
-        setTimeout(function() { t.classList.remove('visible'); }, 6000);
     }
 
     document.getElementById('report-modal').addEventListener('click', function(e) { if (e.target === this) closeReportModal(); });
