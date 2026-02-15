@@ -1357,7 +1357,7 @@
         if (fb) {
             fb.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
             var diffLabel = difficulty === 'easy' ? 'Easy' : difficulty === 'hard' ? 'Hard' : 'Medium';
-            fb.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>') +
+            fb.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>') +
                 (feedback ? '<p style="margin-top:6px;">' + feedback + '</p>' : '');
         }
 

@@ -592,7 +592,7 @@
         if (feedbackEl) {
             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
             var diffLabel = difficulty === 'easy' ? 'Easy' : difficulty === 'hard' ? 'Hard' : 'Medium';
-            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>') +
+            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>') +
                 (feedback ? '<p style="margin-top:8px;">' + feedback + '</p>' : '');
         }
 
@@ -1025,7 +1025,7 @@
                             });
                             var feedbackEl = document.getElementById('feedback');
                             feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
-                            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct! +' + pointsChange + '</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect ' + pointsChange + '</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
+                            feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong> <span style="font-size:0.82rem;">' + diffLabel + '</span>') + (fb ? '<p style="margin-top:8px;">' + fb + '</p>' : '');
                         }
 
                         // Update PowerPath scoreboard
