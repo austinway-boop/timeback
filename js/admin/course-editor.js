@@ -455,10 +455,17 @@
                 var enabled = this.checked;
                 var icon = this.closest('.ce-inline-toggle').querySelector('.ce-inline-toggle-left i');
                 icon.className = 'fa-solid fa-toggle-' + (enabled ? 'on' : 'off');
+                // Send aliases so student pages with different courseIds can find the data
+                var aliases = [];
+                if (selectedCourse) {
+                    if (selectedCourse.courseCode) aliases.push(selectedCourse.courseCode);
+                    if (selectedCourse.id && selectedCourse.id !== courseId) aliases.push(selectedCourse.id);
+                    if (selectedCourse.title) aliases.push(selectedCourse.title);
+                }
                 fetch('/api/explanation-toggle', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ courseId: courseId, enabled: enabled }),
+                    body: JSON.stringify({ courseId: courseId, enabled: enabled, aliases: aliases }),
                 }).catch(function () {});
             });
         }
@@ -1410,10 +1417,16 @@
                                     var enabled = this.checked;
                                     var icon = this.closest('.ce-inline-toggle').querySelector('.ce-inline-toggle-left i');
                                     icon.className = 'fa-solid fa-toggle-' + (enabled ? 'on' : 'off');
+                                    var aliases = [];
+                                    if (selectedCourse) {
+                                        if (selectedCourse.courseCode) aliases.push(selectedCourse.courseCode);
+                                        if (selectedCourse.id && selectedCourse.id !== courseId) aliases.push(selectedCourse.id);
+                                        if (selectedCourse.title) aliases.push(selectedCourse.title);
+                                    }
                                     fetch('/api/explanation-toggle', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ courseId: courseId, enabled: enabled }),
+                                        body: JSON.stringify({ courseId: courseId, enabled: enabled, aliases: aliases }),
                                     }).catch(function () {});
                                 });
                             }

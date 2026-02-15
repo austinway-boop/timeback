@@ -1,7 +1,8 @@
 """GET/POST /api/explanation-toggle — Enable/disable answer explanations per course.
 
-POST { courseId, enabled } — saves explanations_enabled:{courseId} to KV
-GET ?courseId=... — returns { enabled: true/false }
+POST { courseId, enabled, aliases? } — saves explanations_enabled:{courseId} to KV
+     Also saves alias mappings so student pages with different courseIds can find the data.
+GET ?courseId=... — returns { enabled: true/false }, resolving aliases if needed.
 """
 
 import json
@@ -9,6 +10,14 @@ from http.server import BaseHTTPRequestHandler
 
 from api._helpers import send_json, get_query_params
 from api._kv import kv_get, kv_set
+
+
+def _resolve_course_id(course_id: str) -> str:
+    """Resolve a courseId to the canonical one via alias lookup."""
+    alias = kv_get(f"explanation_alias:{course_id}")
+    if isinstance(alias, str) and alias:
+        return alias
+    return course_id
 
 
 class handler(BaseHTTPRequestHandler):
@@ -27,7 +36,13 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": "Missing courseId"}, 400)
             return
 
+        # Try direct, then resolve alias
         val = kv_get(f"explanations_enabled:{course_id}")
+        if val is None:
+            resolved = _resolve_course_id(course_id)
+            if resolved != course_id:
+                val = kv_get(f"explanations_enabled:{resolved}")
+
         send_json(self, {"enabled": val is True or val == "true", "courseId": course_id})
 
     def do_POST(self):
@@ -41,10 +56,21 @@ class handler(BaseHTTPRequestHandler):
 
         course_id = body.get("courseId", "").strip()
         enabled = bool(body.get("enabled", False))
+        aliases = body.get("aliases", [])
 
         if not course_id:
             send_json(self, {"error": "Missing courseId"}, 400)
             return
 
         kv_set(f"explanations_enabled:{course_id}", enabled)
+
+        # Save alias mappings so student pages can find data under alternative courseIds
+        if isinstance(aliases, list):
+            for alias in aliases:
+                alias = str(alias).strip()
+                if alias and alias != course_id:
+                    kv_set(f"explanation_alias:{alias}", course_id)
+                    # Also set the toggle for the alias directly for fast lookups
+                    kv_set(f"explanations_enabled:{alias}", enabled)
+
         send_json(self, {"enabled": enabled, "courseId": course_id})
