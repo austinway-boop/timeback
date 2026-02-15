@@ -329,46 +329,19 @@ def _extract_json(text):
 
 # ── Background processing ───────────────────────────────────────────
 
-def _process_course(course_id):
-    """Background thread: process all lessons in the course."""
+def _process_lessons(course_id, lessons):
+    """Background thread: process the given lessons with Claude.
+
+    Tree fetching + lesson discovery is done synchronously in the handler
+    so that totalLessons is known before the response is sent.
+    """
     kv_key = f"article_cleanup:{course_id}"
+    total = len(lessons)
+    processed = 0
+    skipped = 0
+    results = {}
 
     try:
-        # Fetch tree
-        tree = _fetch_tree(course_id)
-        if not tree:
-            kv_set(kv_key, {"status": "error", "error": "Could not fetch course tree"})
-            return
-
-        lessons = _extract_lessons_with_content(tree)
-        if not lessons:
-            kv_set(kv_key, {
-                "status": "done",
-                "courseId": course_id,
-                "totalLessons": 0,
-                "processedLessons": 0,
-                "skippedLessons": 0,
-                "completedAt": time.time(),
-                "results": {},
-                "message": "No lessons found with both a video and article.",
-            })
-            return
-
-        total = len(lessons)
-        processed = 0
-        skipped = 0
-        results = {}
-
-        # Update progress
-        kv_set(kv_key, {
-            "status": "processing",
-            "courseId": course_id,
-            "totalLessons": total,
-            "processedLessons": 0,
-            "skippedLessons": 0,
-            "startedAt": time.time(),
-        })
-
         for lesson in lessons:
             lid = lesson["lessonId"] or lesson["lessonTitle"]
 
@@ -495,21 +468,52 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": "ANTHROPIC_API_KEY not configured"}, 500)
             return
 
-        # Set initial status
+        # Fetch tree and discover lessons SYNCHRONOUSLY (fast, ~2s)
+        # so we know the real totalLessons before responding.
+        try:
+            tree = _fetch_tree(course_id)
+        except Exception as e:
+            send_json(self, {"error": f"Failed to fetch course tree: {e}"}, 500)
+            return
+
+        if not tree:
+            send_json(self, {"error": "Could not fetch course tree for this course"}, 404)
+            return
+
+        lessons = _extract_lessons_with_content(tree)
+        if not lessons:
+            # No lessons with both video + article — mark done immediately
+            kv_set(f"article_cleanup:{course_id}", {
+                "status": "done",
+                "courseId": course_id,
+                "totalLessons": 0,
+                "processedLessons": 0,
+                "skippedLessons": 0,
+                "completedAt": time.time(),
+                "results": {},
+                "message": "No lessons found with both a video and article.",
+            })
+            send_json(self, {"status": "done", "totalLessons": 0, "message": "No lessons with both video and article found."})
+            return
+
+        total = len(lessons)
+
+        # Set initial status with real lesson count
         kv_set(f"article_cleanup:{course_id}", {
             "status": "processing",
             "courseId": course_id,
-            "totalLessons": 0,
+            "totalLessons": total,
             "processedLessons": 0,
+            "skippedLessons": 0,
             "startedAt": time.time(),
         })
 
-        # Start background thread
+        # Start background thread for the Claude processing
         thread = threading.Thread(
-            target=_process_course,
-            args=(course_id,),
+            target=_process_lessons,
+            args=(course_id, lessons),
             daemon=True,
         )
         thread.start()
 
-        send_json(self, {"status": "processing", "courseId": course_id})
+        send_json(self, {"status": "processing", "courseId": course_id, "totalLessons": total})
