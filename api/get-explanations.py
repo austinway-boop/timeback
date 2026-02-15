@@ -36,37 +36,34 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": "Missing courseId"}, 400)
             return
 
+        # ALWAYS resolve alias to find the canonical courseId for data lookup
+        resolved_id = _resolve_course_id(course_id)
+
         # #region agent log
-        debug = {"requestedId": course_id}
+        debug = {"requestedId": course_id, "resolvedId": resolved_id}
         # #endregion
 
-        # Try direct toggle check, then resolve alias
+        # Check toggle on both the requested ID and the resolved ID
         enabled = kv_get(f"explanations_enabled:{course_id}")
-        # #region agent log
-        debug["directToggle"] = enabled
-        # #endregion
-        lookup_id = course_id
         if not (enabled is True or enabled == "true"):
-            resolved = _resolve_course_id(course_id)
-            # #region agent log
-            debug["resolvedId"] = resolved
-            debug["aliasRaw"] = kv_get(f"explanation_alias:{course_id}")
-            # #endregion
-            if resolved != course_id:
-                enabled = kv_get(f"explanations_enabled:{resolved}")
-                lookup_id = resolved
-                # #region agent log
-                debug["resolvedToggle"] = enabled
-                # #endregion
+            enabled = kv_get(f"explanations_enabled:{resolved_id}")
+
+        # #region agent log
+        debug["enabled"] = enabled
+        # #endregion
 
         if not (enabled is True or enabled == "true"):
             send_json(self, {"enabled": False, "_debug": debug})
             return
 
-        # Load explanations using resolved courseId
-        saved = kv_get(f"explanations:{lookup_id}")
+        # Load data using the RESOLVED id (where the actual data lives)
+        saved = kv_get(f"explanations:{resolved_id}")
         if not isinstance(saved, dict) or not saved.get("explanations"):
-            send_json(self, {"enabled": False, "_debug": {**debug, "dataFound": False, "lookupId": lookup_id}})
+            # Fallback: try the original courseId too
+            saved = kv_get(f"explanations:{course_id}")
+
+        if not isinstance(saved, dict) or not saved.get("explanations"):
+            send_json(self, {"enabled": False, "_debug": {**debug, "dataFound": False}})
             return
 
         send_json(self, {
