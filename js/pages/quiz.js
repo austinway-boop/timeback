@@ -823,6 +823,9 @@
         for (var i = 0; i < ids.length; i++) {
             if (ids[i]) localStorage.setItem('completed_' + ids[i], 'true');
         }
+        // Set the authoritative quiz-finished key (used by walk-forward frontier logic)
+        var qTitle = p.get('title') || '';
+        if (qTitle) localStorage.setItem('quiz_finished_' + qTitle, 'true');
         // Signal course.html to refresh progress when we navigate back
         sessionStorage.setItem('al_progress_changed', 'true');
     }
