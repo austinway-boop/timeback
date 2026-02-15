@@ -218,6 +218,7 @@
         stopLessonPolling();
         stopQuestionPolling();
         stopRelevancePolling();
+        stopArticleCleanupPolling();
         history.pushState(null, '', '/admin/course-editor');
         document.getElementById('course-detail-view').style.display = 'none';
         document.getElementById('course-list-view').style.display = '';
@@ -264,6 +265,10 @@
         var relQuestionCount = 0;
         var relBadCount = 0;
         var relEnabled = false;
+        var artCleanStatus = 'none';
+        var artCleanProcessed = 0;
+        var artCleanTotal = 0;
+        var artCleanSkipped = 0;
         try {
             var extraResults = await Promise.all([
                 fetch('/api/skill-mapping-toggle?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
@@ -271,6 +276,7 @@
                 fetch('/api/explanation-toggle?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
                 fetch('/api/relevance-status?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
                 fetch('/api/relevance-toggle?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+                fetch('/api/article-cleanup-status?courseId=' + encodeURIComponent(courseId)).then(function (r) { return r.json(); }).catch(function () { return {}; }),
             ]);
             skillMappingEnabled = extraResults[0].enabled === true;
             if (extraResults[1].status === 'done') { explStatus = 'done'; explQuestionCount = extraResults[1].questionCount || 0; }
@@ -279,6 +285,8 @@
             if (extraResults[3].status === 'done') { relStatus = 'done'; relQuestionCount = extraResults[3].questionCount || 0; relBadCount = extraResults[3].badCount || 0; }
             else if (extraResults[3].status === 'processing') relStatus = 'processing';
             relEnabled = extraResults[4].enabled === true;
+            if (extraResults[5].status === 'done') { artCleanStatus = 'done'; artCleanProcessed = extraResults[5].processedLessons || 0; artCleanTotal = extraResults[5].totalLessons || 0; artCleanSkipped = extraResults[5].skippedLessons || 0; }
+            else if (extraResults[5].status === 'processing') { artCleanStatus = 'processing'; artCleanProcessed = extraResults[5].processedLessons || 0; artCleanTotal = extraResults[5].totalLessons || 0; }
         } catch (e) { /* ignore */ }
 
         function badge(status) {
@@ -501,7 +509,47 @@
                     '</div>' +
                     '<i class="fa-solid fa-arrow-right ce-action-card-chevron"></i>' +
                 '</div>' +
-            '</div>';
+            '</div>' +
+
+            /* ---- Article Cleanup Action Card ---- */
+            (function () {
+                var acSummaryClass, acSummaryText, acBtnLabel, acBtnIcon;
+                if (artCleanStatus === 'done') {
+                    acSummaryClass = 'all-done';
+                    acSummaryText = '<i class="fa-solid fa-check-circle"></i> ' + artCleanProcessed + ' lessons processed';
+                    acBtnLabel = 'Re-run Cleanup';
+                    acBtnIcon = 'fa-solid fa-arrows-rotate';
+                } else if (artCleanStatus === 'processing') {
+                    acSummaryClass = 'in-progress';
+                    acSummaryText = '<i class="fa-solid fa-spinner fa-spin"></i> ' + artCleanProcessed + '/' + artCleanTotal;
+                    acBtnLabel = 'Processing...';
+                    acBtnIcon = 'fa-solid fa-spinner fa-spin';
+                } else {
+                    acSummaryClass = 'not-started';
+                    acSummaryText = 'Not started';
+                    acBtnLabel = 'Clean Up Articles';
+                    acBtnIcon = 'fa-solid fa-wand-magic-sparkles';
+                }
+                return '<div class="ce-action-card' + (artCleanStatus === 'done' ? ' collapsed' : '') + '">' +
+                    '<div class="ce-action-card-header" id="artclean-card-header">' +
+                        '<div class="ce-action-card-icon" style="background:rgba(236,72,153,0.1); color:#EC4899;"><i class="fa-solid fa-scissors"></i></div>' +
+                        '<div class="ce-action-card-header-text">' +
+                            '<div class="ce-action-card-title">Article Cleanup</div>' +
+                            '<div class="ce-action-card-subtitle">Remove video-redundant content from articles</div>' +
+                        '</div>' +
+                        '<span class="ce-action-card-summary ' + acSummaryClass + '">' + acSummaryText + '</span>' +
+                        '<i class="fa-solid fa-chevron-down ce-action-card-chevron"></i>' +
+                    '</div>' +
+                    '<div class="ce-action-card-body">' +
+                        '<p style="font-size:0.88rem; color:var(--color-text-muted); margin:0 0 16px 0;">For each lesson, transcribe the video and compare it to the article. AI identifies and removes article content that is already covered in the video, keeping only unique supplementary material.</p>' +
+                        '<div id="artclean-progress" style="display:none;"></div>' +
+                        '<div id="artclean-results" style="display:none;"></div>' +
+                        '<button class="ce-btn-generate ce-action-card-btn" id="btn-article-cleanup"' + (artCleanStatus === 'processing' ? ' disabled' : '') + '>' +
+                            '<i class="' + acBtnIcon + '"></i> ' + acBtnLabel +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
+            })();
 
         // Collapse / expand handler
         document.getElementById('action-card-header').addEventListener('click', function () {
@@ -523,6 +571,29 @@
                 window.initEditCourse(courseId, selectedCourse);
             }
         });
+
+        document.getElementById('artclean-card-header').addEventListener('click', function () {
+            this.closest('.ce-action-card').classList.toggle('collapsed');
+        });
+
+        document.getElementById('btn-article-cleanup').addEventListener('click', function () {
+            if (artCleanStatus === 'done') {
+                if (!confirm('This will re-run article cleanup for all lessons. Continue?')) return;
+            }
+            startArticleCleanup(courseId);
+        });
+
+        if (artCleanStatus === 'processing') {
+            startArticleCleanupPolling(courseId);
+        }
+
+        if (artCleanStatus === 'done') {
+            fetch('/api/article-cleanup-status?courseId=' + encodeURIComponent(courseId))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'done' && data.results) showArticleCleanupResults(data);
+                }).catch(function () {});
+        }
 
         document.getElementById('btn-start-setup').addEventListener('click', function () {
             enterSetupWizard();
@@ -1993,6 +2064,199 @@
                         self.style.color = '#45B5AA';
                     }
                 }).catch(function () {});
+            });
+        });
+    }
+
+    /* ---- Article Cleanup -------------------------------------------- */
+    var artCleanPollTimer = null;
+
+    function startArticleCleanup(courseId) {
+        var btn = document.getElementById('btn-article-cleanup');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Starting...';
+
+        fetch('/api/article-cleanup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId: courseId }),
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d.error) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Clean Up Articles';
+                alert('Error: ' + d.error);
+                return;
+            }
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+
+            // Update badge
+            var header = document.getElementById('artclean-card-header');
+            if (header) {
+                var badge = header.querySelector('.ce-action-card-summary');
+                if (badge) {
+                    badge.className = 'ce-action-card-summary in-progress';
+                    badge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 0/0';
+                }
+            }
+
+            startArticleCleanupPolling(courseId);
+        }).catch(function (e) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Clean Up Articles';
+        });
+    }
+
+    function startArticleCleanupPolling(courseId) {
+        stopArticleCleanupPolling();
+        var progressEl = document.getElementById('artclean-progress');
+        if (progressEl) {
+            progressEl.style.display = '';
+            progressEl.innerHTML =
+                '<div class="ce-progress-header"><div class="ce-progress-spinner"></div><span class="ce-progress-title">Processing articles...</span></div>' +
+                '<div class="ce-progress-elapsed" style="padding-left:32px;">Transcribing videos and cleaning articles with AI. This may take several minutes.</div>';
+        }
+
+        function poll() {
+            fetch('/api/article-cleanup-status?courseId=' + encodeURIComponent(courseId))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'done') {
+                        stopArticleCleanupPolling();
+                        if (progressEl) progressEl.style.display = 'none';
+
+                        var btn = document.getElementById('btn-article-cleanup');
+                        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Re-run Cleanup'; }
+
+                        var header = document.getElementById('artclean-card-header');
+                        if (header) {
+                            var badge = header.querySelector('.ce-action-card-summary');
+                            if (badge) {
+                                badge.className = 'ce-action-card-summary all-done';
+                                badge.innerHTML = '<i class="fa-solid fa-check-circle"></i> ' + (data.processedLessons || 0) + ' lessons processed';
+                            }
+                            var card = header.closest('.ce-action-card');
+                            if (card && card.classList.contains('collapsed')) card.classList.remove('collapsed');
+                        }
+
+                        showArticleCleanupResults(data);
+
+                    } else if (data.status === 'error') {
+                        stopArticleCleanupPolling();
+                        if (progressEl) {
+                            progressEl.innerHTML = '<div class="ce-error">' + esc(data.error || 'Cleanup failed') + '</div>';
+                        }
+                        var btn = document.getElementById('btn-article-cleanup');
+                        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Clean Up Articles'; }
+
+                    } else {
+                        // Still processing — update progress
+                        var processed = data.processedLessons || 0;
+                        var total = data.totalLessons || 0;
+                        if (progressEl) {
+                            progressEl.innerHTML =
+                                '<div class="ce-progress-header"><div class="ce-progress-spinner"></div><span class="ce-progress-title">Processing articles... (' + processed + '/' + total + ')</span></div>' +
+                                '<div class="ce-progress-elapsed" style="padding-left:32px;">Transcribing videos and cleaning articles with AI. This may take several minutes.</div>';
+                        }
+                        var header = document.getElementById('artclean-card-header');
+                        if (header) {
+                            var badge = header.querySelector('.ce-action-card-summary');
+                            if (badge) {
+                                badge.className = 'ce-action-card-summary in-progress';
+                                badge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + processed + '/' + total;
+                            }
+                        }
+                        artCleanPollTimer = setTimeout(poll, 8000);
+                    }
+                })
+                .catch(function () {
+                    artCleanPollTimer = setTimeout(poll, 8000);
+                });
+        }
+
+        artCleanPollTimer = setTimeout(poll, 5000);
+    }
+
+    function stopArticleCleanupPolling() {
+        if (artCleanPollTimer) { clearTimeout(artCleanPollTimer); artCleanPollTimer = null; }
+    }
+
+    function showArticleCleanupResults(data) {
+        var el = document.getElementById('artclean-results');
+        if (!el) return;
+        el.style.display = '';
+
+        var results = data.results || {};
+        var keys = Object.keys(results);
+        if (keys.length === 0) {
+            el.innerHTML = '<div class="ce-success-msg"><i class="fa-solid fa-info-circle"></i> No lessons with both a video and article were found.</div>';
+            return;
+        }
+
+        var totalRemoved = 0;
+        var totalOrigWc = 0;
+        var totalCleanWc = 0;
+        var skippedCount = 0;
+
+        keys.forEach(function (k) {
+            var r = results[k];
+            if (r.skipped) { skippedCount++; return; }
+            totalOrigWc += r.originalWordCount || 0;
+            totalCleanWc += r.cleanedWordCount || 0;
+            totalRemoved += r.removedCount || 0;
+        });
+
+        var savedWc = totalOrigWc - totalCleanWc;
+        var savedPct = totalOrigWc > 0 ? Math.round((savedWc / totalOrigWc) * 100) : 0;
+
+        var html = '<div class="ce-success-msg" style="margin-bottom:12px;">' +
+            '<i class="fa-solid fa-check-circle"></i> Cleaned ' + (keys.length - skippedCount) + ' articles — removed ~' + savedWc + ' words (' + savedPct + '% reduction)' +
+            (skippedCount > 0 ? ' — ' + skippedCount + ' skipped' : '') +
+        '</div>';
+
+        html += '<div class="ce-mapping-count">' + keys.length + ' lessons analyzed</div>';
+        html += '<div class="ce-accordion">';
+
+        keys.forEach(function (k) {
+            var r = results[k];
+            var isSkipped = r.skipped;
+            var lessonLabel = esc(r.lessonTitle || k);
+            var unitLabel = r.unitTitle ? '<span style="color:var(--color-text-muted);font-size:0.76rem;"> — ' + esc(r.unitTitle) + '</span>' : '';
+            var badgeText = isSkipped ? 'Skipped' : '-' + ((r.originalWordCount || 0) - (r.cleanedWordCount || 0)) + ' words';
+            var badgeStyle = isSkipped ? 'background:rgba(245,158,11,0.1);color:#B45309;' : '';
+
+            html += '<div class="ce-accordion-item">' +
+                '<button class="ce-accordion-header">' +
+                    '<span class="ce-accordion-title">' + lessonLabel + unitLabel + '</span>' +
+                    '<span class="ce-accordion-badge" style="' + badgeStyle + '">' + badgeText + '</span>' +
+                    '<i class="fa-solid fa-chevron-right ce-accordion-chevron"></i>' +
+                '</button>' +
+                '<div class="ce-accordion-body">';
+
+            if (isSkipped) {
+                html += '<p style="font-size:0.82rem; color:var(--color-text-muted); margin:12px 0 0;">' + esc(r.reason || 'Skipped') + '</p>';
+            } else {
+                html += '<div style="margin-top:12px;">';
+                html += '<div style="display:flex; gap:16px; font-size:0.8rem; color:var(--color-text-secondary); margin-bottom:8px;">' +
+                    '<span><strong>Original:</strong> ' + (r.originalWordCount || 0) + ' words</span>' +
+                    '<span><strong>Cleaned:</strong> ' + (r.cleanedWordCount || 0) + ' words</span>' +
+                    '<span><strong>Removed:</strong> ' + (r.removedCount || 0) + ' sections</span>' +
+                '</div>';
+                if (r.removedSummary) {
+                    html += '<p style="font-size:0.82rem; color:var(--color-text-secondary); margin:8px 0; line-height:1.5;"><strong>Removed:</strong> ' + esc(r.removedSummary) + '</p>';
+                }
+                html += '</div>';
+            }
+
+            html += '</div></div>';
+        });
+
+        html += '</div>';
+        el.innerHTML = html;
+
+        // Accordion toggle
+        el.querySelectorAll('.ce-accordion-header').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                this.closest('.ce-accordion-item').classList.toggle('open');
             });
         });
     }
