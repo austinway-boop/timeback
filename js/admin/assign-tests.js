@@ -418,6 +418,22 @@ var diagPollTimer = null;
 var diagCurrentDiagnostic = null;
 var DIAG_POLL_INTERVAL = 15000;
 
+/* ── External app detection (mirrors course-editor.js) ────────── */
+var DIAG_EXTERNAL_APP_KEYS = new Set([
+    'gumpp', 'runestone', 'newsela', 'khan', 'readtheory', 'commonlit',
+    'knewton', 'alta', 'lalilo', 'rocketmath', 'zearn',
+    'renaissance', 'starreading', 'starmath',
+    'edmentum', 'mathacademy', 'membean',
+]);
+
+function diagIsExternal(c) {
+    var meta = c.metadata || {};
+    var app = (meta.app || meta.primaryApp || '').toLowerCase().replace(/[\s_-]/g, '');
+    if (!app) return false;
+    for (var key of DIAG_EXTERNAL_APP_KEYS) { if (app.includes(key)) return true; }
+    return false;
+}
+
 /* ── Load courses with skill trees ────────────────────────────── */
 async function diagLoadCourses() {
     var el = document.getElementById('diag-courses-list');
@@ -428,8 +444,8 @@ async function diagLoadCourses() {
         var data = await resp.json();
         var all = data.courses || [];
 
-        // Filter to AP courses
-        var apCourses = all.filter(function(c) { return /\bAP\b/i.test(c.title || ''); });
+        // Filter to AP courses (exclude external app courses)
+        var apCourses = all.filter(function(c) { return /\bAP\b/i.test(c.title || '') && !diagIsExternal(c); });
 
         // Check which courses have skill trees (batch check via diagnostic-status or skill-tree-status)
         var coursesWithTrees = [];
