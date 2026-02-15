@@ -167,6 +167,8 @@ class handler(BaseHTTPRequestHandler):
             "articleContent": body.get("articleContent", ""),
             "lessonTitle": body.get("lessonTitle", ""),
             "answeredCorrectly": bool(body.get("answeredCorrectly", False)),
+            "ppScore": body.get("ppScore", 0),
+            "difficulty": body.get("difficulty", "medium"),
             "date": datetime.now(timezone.utc).isoformat(),
             "status": "pending_review",
             "verdict": None,

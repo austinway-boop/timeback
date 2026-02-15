@@ -17,8 +17,31 @@ from api._kv import kv_get, kv_set, kv_list_get, kv_list_push
 OPENAI_KEY = os.environ.get("OPEN_AI_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.2-thinking")
 
-# Points awarded for a valid report (same as a correct answer base)
+# Fallback points for valid report when ppScore >= 80
 VALID_REPORT_POINTS = 5
+
+
+def _pp_score_change(pp_score: float, difficulty: str) -> int:
+    """Mirror the client-side stage-based scoring table (correct-answer column).
+
+    When ppScore < 80, a valid report awards the same points as answering
+    the question correctly at the student's current stage.
+    """
+    pp_score = pp_score or 0
+    difficulty = (difficulty or "medium").lower()
+    if difficulty not in ("easy", "medium", "hard"):
+        difficulty = "medium"
+
+    if pp_score <= 50:
+        table = {"easy": 3, "medium": 6, "hard": 9}
+    elif pp_score <= 80:
+        table = {"easy": 2, "medium": 5, "hard": 8}
+    elif pp_score <= 95:
+        table = {"easy": 1, "medium": 3, "hard": 5}
+    else:
+        table = {"easy": 1, "medium": 1, "hard": 3}
+
+    return table[difficulty]
 
 
 def _strip_html(html: str) -> str:
@@ -151,35 +174,105 @@ def _build_prompt(report: dict, transcript: str, is_human_reviewed: bool) -> lis
     ]
 
 
+def _extract_json(text: str) -> dict | None:
+    """Extract JSON object containing 'verdict' using balanced-brace parsing.
+
+    Handles cases where the AI reasoning field contains { or } characters,
+    which would break a simple regex approach.
+    """
+    # First, strip markdown code fences if present
+    stripped = re.sub(r'```(?:json)?\s*', '', text).strip()
+    stripped = re.sub(r'```\s*$', '', stripped).strip()
+
+    # Try direct parse first
+    try:
+        obj = json.loads(stripped)
+        if isinstance(obj, dict) and "verdict" in obj:
+            return obj
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Balanced-brace extraction: find each top-level { ... } block
+    i = 0
+    while i < len(text):
+        if text[i] == '{':
+            depth = 0
+            start = i
+            in_string = False
+            escape_next = False
+            for j in range(i, len(text)):
+                ch = text[j]
+                if escape_next:
+                    escape_next = False
+                    continue
+                if ch == '\\' and in_string:
+                    escape_next = True
+                    continue
+                if ch == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+                if in_string:
+                    continue
+                if ch == '{':
+                    depth += 1
+                elif ch == '}':
+                    depth -= 1
+                    if depth == 0:
+                        candidate = text[start:j + 1]
+                        try:
+                            obj = json.loads(candidate)
+                            if isinstance(obj, dict) and "verdict" in obj:
+                                return obj
+                        except (json.JSONDecodeError, ValueError):
+                            pass
+                        break
+            i = j + 1 if depth == 0 else i + 1
+        else:
+            i += 1
+
+    return None
+
+
 def _call_openai(messages: list) -> dict | None:
     """Call OpenAI API and return parsed JSON response."""
     if not OPENAI_KEY:
+        print("[review-report] ERROR: OPEN_AI_KEY not set")
         return None
     try:
         import requests
+
+        req_body = {
+            "model": OPENAI_MODEL,
+            "messages": messages,
+            "response_format": {"type": "json_object"},
+        }
+        # Only set temperature for non-thinking models
+        if "thinking" not in OPENAI_MODEL and "o1" not in OPENAI_MODEL and "o3" not in OPENAI_MODEL:
+            req_body["temperature"] = 0.2
+
         resp = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers={
                 "Authorization": f"Bearer {OPENAI_KEY}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": OPENAI_MODEL,
-                "messages": messages,
-                "temperature": 0.2,
-            },
+            json=req_body,
             timeout=120,
         )
         if resp.status_code != 200:
+            print(f"[review-report] OpenAI API error: status={resp.status_code} body={resp.text[:500]}")
             return None
         data = resp.json()
         content = data["choices"][0]["message"]["content"]
-        # Extract JSON from response (may be wrapped in markdown code blocks)
-        json_match = re.search(r'\{[^{}]*"verdict"[^{}]*\}', content, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group(0))
+        # Use balanced-brace extractor to handle nested braces in reasoning
+        result = _extract_json(content)
+        if result:
+            return result
+        # Fallback: direct parse
+        print(f"[review-report] WARNING: _extract_json failed, attempting direct parse. Content preview: {content[:300]}")
         return json.loads(content)
-    except Exception:
+    except Exception as e:
+        print(f"[review-report] ERROR in _call_openai: {e}")
         return None
 
 
@@ -275,7 +368,13 @@ class handler(BaseHTTPRequestHandler):
         # Only award points if the student got the question WRONG
         answered_correctly = report.get("answeredCorrectly", False)
         if verdict == "valid" and not answered_correctly:
-            points = VALID_REPORT_POINTS
+            pp_score = report.get("ppScore", 0)
+            difficulty = report.get("difficulty", "medium")
+            if pp_score < 80:
+                # Before 80%: treat report like a correct answer (stage-based)
+                points = _pp_score_change(pp_score, difficulty)
+            else:
+                points = VALID_REPORT_POINTS
         else:
             points = 0
 

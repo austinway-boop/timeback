@@ -95,6 +95,22 @@ var reasonLabels = {
     'other': 'Other',
 };
 
+function formatAiReasoning(text) {
+    if (!text) return '';
+    // Split on double-newlines or single newlines to create paragraphs
+    var paragraphs = esc(text).split(/\n\s*\n|\n/).filter(function(p) { return p.trim(); });
+    if (paragraphs.length <= 1) return '<p class="ai-reasoning-text">' + esc(text) + '</p>';
+    return paragraphs.map(function(p) { return '<p class="ai-reasoning-text">' + p.trim() + '</p>'; }).join('');
+}
+
+function toggleExpandText(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('expanded');
+    var btn = el.nextElementSibling;
+    if (btn) btn.textContent = el.classList.contains('expanded') ? 'Show less' : 'Show more';
+}
+
 function buildReportCard(r) {
     var verdictClass = 'pending';
     var verdictLabel = 'Pending Review';
@@ -136,45 +152,111 @@ function buildReportCard(r) {
         var isCorrect = (c.id || '') === (r.correctId || '');
         choicesHtml += '<div class="report-choice' + (isCorrect ? ' correct-choice' : '') + '">' +
             '<span class="choice-letter">' + (letters[i] || i) + '.</span> ' +
-            esc(c.text || c.label || '') + (isCorrect ? ' <i class="fa-solid fa-check" style="font-size:0.72rem;"></i>' : '') +
+            '<span class="choice-text">' + esc(c.text || c.label || '') + '</span>' +
+            (isCorrect ? ' <span class="correct-badge"><i class="fa-solid fa-check"></i> Correct</span>' : '') +
             '</div>';
     }
 
     var reasonText = reasonLabels[r.reason] || r.reason || 'Unknown';
+    var uid = (r.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
 
-    var html = '<div class="report-card" id="card-' + esc(r.id) + '">';
+    var html = '<div class="report-card ' + verdictClass + '-card" id="card-' + esc(r.id) + '">';
 
-    // Header
+    // ── Header row ──
     html += '<div class="report-card-header">';
     html += '<div class="report-meta">';
-    html += '<span class="report-student"><i class="fa-solid fa-user" style="margin-right:4px;opacity:0.5;"></i> ' + esc(r.studentId || 'Unknown') + '</span>';
-    if (r.lessonTitle) html += '<span class="report-lesson">' + esc(r.lessonTitle) + '</span>';
-    html += '<span class="report-date">' + esc(date) + '</span>';
+    html += '<span class="report-student"><i class="fa-solid fa-user"></i> ' + esc(r.studentId || 'Unknown') + '</span>';
+    if (r.lessonTitle) html += '<span class="report-lesson"><i class="fa-solid fa-book"></i> ' + esc(r.lessonTitle) + '</span>';
+    html += '<span class="report-date"><i class="fa-regular fa-clock"></i> ' + esc(date) + '</span>';
     html += '</div>';
+    html += '<div class="report-header-right">';
+    // Answered correctly indicator
+    if (typeof r.answeredCorrectly !== 'undefined') {
+        html += '<span class="answer-indicator ' + (r.answeredCorrectly ? 'correct' : 'incorrect') + '">' +
+            '<i class="fa-solid ' + (r.answeredCorrectly ? 'fa-check-circle' : 'fa-times-circle') + '"></i> ' +
+            (r.answeredCorrectly ? 'Student answered correctly' : 'Student answered incorrectly') + '</span>';
+    }
     html += '<span class="verdict-badge ' + verdictClass + '"><i class="fa-solid ' + verdictIcon + '"></i> ' + verdictLabel + '</span>';
     html += '</div>';
+    html += '</div>';
 
-    // Question
+    // ── Question section ──
     var qText = r.questionText || '';
     if (typeof qText === 'object') qText = JSON.stringify(qText);
+    var qEscaped = esc(qText);
+    var needsTruncation = qEscaped.length > 300;
+
+    html += '<div class="report-section">';
+    html += '<div class="section-label"><i class="fa-solid fa-circle-question"></i> Question</div>';
     html += '<div class="report-question-box">';
-    html += '<div class="report-question-text">' + esc(qText).substring(0, 500) + '</div>';
+    if (needsTruncation) {
+        html += '<div class="report-question-text expandable" id="qt-' + uid + '">' + qEscaped + '</div>';
+        html += '<button class="expand-btn" onclick="toggleExpandText(\'qt-' + uid + '\')">Show more</button>';
+    } else {
+        html += '<div class="report-question-text">' + qEscaped + '</div>';
+    }
     if (choicesHtml) html += '<div class="report-choices">' + choicesHtml + '</div>';
     html += '</div>';
-
-    // Reason
-    html += '<div class="report-reason-row">';
-    html += '<span class="report-reason-tag"><i class="fa-solid fa-flag"></i> ' + esc(reasonText) + '</span>';
-    if (r.customText) html += '<span class="report-custom-text">"' + esc(r.customText) + '"</span>';
-    if (r.pointsAwarded > 0) html += '<span class="report-reason-tag" style="background:#E8F5E9;color:#2E7D32;"><i class="fa-solid fa-star"></i> +' + r.pointsAwarded + ' points awarded</span>';
     html += '</div>';
 
-    // AI Analysis
-    if (r.aiReasoning) {
-        html += '<div class="ai-analysis"><strong><i class="fa-solid fa-brain" style="margin-right:4px;"></i> AI Analysis' +
-            (r.aiConfidence ? ' (Confidence: ' + r.aiConfidence + '%)' : '') + '</strong>' +
-            esc(r.aiReasoning) + '</div>';
+    // ── Report reason section ──
+    html += '<div class="report-section">';
+    html += '<div class="section-label"><i class="fa-solid fa-flag"></i> Report Reason</div>';
+    html += '<div class="report-reason-row">';
+    html += '<span class="report-reason-tag"><i class="fa-solid fa-flag"></i> ' + esc(reasonText) + '</span>';
+    if (r.pointsAwarded > 0) html += '<span class="report-reason-tag points-tag"><i class="fa-solid fa-star"></i> +' + r.pointsAwarded + ' points awarded</span>';
+    html += '</div>';
+    if (r.customText) html += '<div class="report-custom-text"><i class="fa-solid fa-quote-left"></i> ' + esc(r.customText) + '</div>';
+    html += '</div>';
+
+    // ── Source material section ──
+    if (r.videoUrl || r.articleContent) {
+        html += '<div class="report-section">';
+        html += '<div class="section-label"><i class="fa-solid fa-book-open"></i> Source Material</div>';
+        html += '<div class="source-material-box">';
+        if (r.videoUrl) {
+            html += '<div class="source-item"><i class="fa-solid fa-video"></i> <a href="' + esc(r.videoUrl) + '" target="_blank" rel="noopener">' + esc(r.videoUrl) + '</a></div>';
+        }
+        if (r.articleContent) {
+            var articlePreview = esc(typeof r.articleContent === 'string' ? r.articleContent : JSON.stringify(r.articleContent));
+            // Strip HTML tags from preview
+            articlePreview = articlePreview.replace(/&lt;[^&]*&gt;/g, ' ').replace(/\s+/g, ' ').trim();
+            if (articlePreview.length > 250) articlePreview = articlePreview.substring(0, 250) + '...';
+            html += '<div class="source-item article-preview"><i class="fa-solid fa-file-lines"></i> ' + articlePreview + '</div>';
+        }
+        html += '</div>';
+        html += '</div>';
     }
+
+    // ── AI Analysis section ──
+    html += '<div class="report-section">';
+    html += '<div class="section-label"><i class="fa-solid fa-brain"></i> AI Analysis</div>';
+    if (r.aiReasoning && r.aiReasoning !== 'AI review failed. Queued for manual admin review.') {
+        html += '<div class="ai-analysis">';
+        // Confidence bar
+        if (typeof r.aiConfidence === 'number') {
+            var confLevel = r.aiConfidence >= 80 ? 'high' : r.aiConfidence >= 50 ? 'medium' : 'low';
+            html += '<div class="confidence-row">';
+            html += '<span class="confidence-label">Confidence</span>';
+            html += '<div class="confidence-bar-track"><div class="confidence-bar-fill ' + confLevel + '" style="width:' + Math.min(100, r.aiConfidence) + '%"></div></div>';
+            html += '<span class="confidence-value">' + r.aiConfidence + '%</span>';
+            html += '</div>';
+        }
+        // Recommendation tag
+        if (r.aiRecommendation) {
+            var recClass = r.aiRecommendation === 'remove' ? 'rec-remove' : r.aiRecommendation === 'regenerate' ? 'rec-regenerate' : 'rec-keep';
+            html += '<span class="recommendation-tag ' + recClass + '"><i class="fa-solid fa-lightbulb"></i> Recommendation: ' + esc(r.aiRecommendation) + '</span>';
+        }
+        // Reasoning text
+        html += '<div class="ai-reasoning-body">' + formatAiReasoning(r.aiReasoning) + '</div>';
+        html += '</div>';
+    } else {
+        html += '<div class="ai-analysis empty">';
+        html += '<i class="fa-solid fa-hourglass-half"></i> ';
+        html += (r.status === 'ai_error') ? 'AI review failed. Queued for manual admin review.' : 'AI analysis pending or not yet available.';
+        html += '</div>';
+    }
+    html += '</div>';
 
     // Admin note
     if (r.adminNote) {

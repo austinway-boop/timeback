@@ -2488,6 +2488,8 @@
             articleContent: articleContent,
             lessonTitle: (lessonData && lessonData.title) || quizState.title || '',
             answeredCorrectly: quizState.answered && quizState.selectedChoice === (q.correctId || ''),
+            ppScore: quizState.ppScore || 0,
+            difficulty: _getQuestionDifficulty(q),
         };
 
         try {
