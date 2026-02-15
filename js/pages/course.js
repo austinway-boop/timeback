@@ -394,15 +394,10 @@
                         // Frontier: only advance when ALL activities in the lesson are complete.
                         // The next lesson must NOT unlock until every activity is finished.
                         var pHasAny = (pTotalCount > 0 && pCompletedCount === pTotalCount);
-                        // Override: if the lesson page marked this lesson complete (e.g. quiz
-                        // finished with low PowerPath accuracy), trust that and advance frontier.
-                        if (!pHasAny && localStorage.getItem('completed_' + pLTitle) === 'true') {
-                            pHasAny = true;
-                        }
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
                         if (pLDone) { grandDoneAct += pCount; }
-                        globalLessonList.push({ unitIdx: pu, hasProgress: pHasAny });
+                        globalLessonList.push({ unitIdx: pu, hasProgress: pHasAny, title: pLTitle });
                     }
                 }
 
@@ -424,6 +419,16 @@
                 var globalFrontier = -1;
                 for (var gi = globalLessonList.length - 1; gi >= 0; gi--) {
                     if (globalLessonList[gi].hasProgress) { globalFrontier = gi; break; }
+                }
+                // Walk forward: extend frontier through consecutive localStorage-completed lessons
+                // (covers quizzes finished with low PowerPath accuracy that the API hasn't marked complete)
+                while (globalFrontier + 1 < globalLessonList.length) {
+                    var _nextTitle = globalLessonList[globalFrontier + 1].title;
+                    if (_nextTitle && localStorage.getItem('completed_' + _nextTitle) === 'true') {
+                        globalFrontier++;
+                    } else {
+                        break;
+                    }
                 }
                 var currentUnitIdx = globalFrontier >= 0 ? globalLessonList[globalFrontier].unitIdx : 0;
 
@@ -560,6 +565,10 @@
                             }
                             
                             var isDone = _isComplete(prog);
+                            // Fallback: if lesson page marked this lesson complete, trust it
+                            if (!isDone && localStorage.getItem('completed_' + lTitle) === 'true') {
+                                isDone = true;
+                            }
                             var localKey = 'completed_' + (lId || lTitle);
                             // Locking uses API data only — no localStorage
                             var lessonLocked = isAdmin ? false : (lessonGlobalIdx > globalFrontier + 1);
@@ -624,6 +633,10 @@
                                     var qResAli = assessmentLineItemByResId[qResId] || '';
                                     if (!qResApiDone && qResAli && _isComplete(progressById[qResAli])) { qResApiDone = true; }
                                     resDetails[rci]._resDone = qResApiDone;
+                                    // Fallback: if lesson was locally completed (quiz finished), mark quiz resource done
+                                    if (!qResApiDone && localStorage.getItem('completed_' + lTitle) === 'true') {
+                                        resDetails[rci]._resDone = true;
+                                    }
                                 }
                             }
 
