@@ -719,11 +719,27 @@
         try { lessonData = JSON.parse(raw); } catch(e) { showError('Invalid lesson data.'); return; }
 
         // Prefetch AI explanations if enabled for this course
+        // #region agent log
+        console.log('[AI-EXPL] H1: courseSourcedId =', lessonData.courseSourcedId);
+        // #endregion
         if (lessonData.courseSourcedId) {
             fetch('/api/get-explanations?courseId=' + encodeURIComponent(lessonData.courseSourcedId))
                 .then(function(r) { return r.json(); })
-                .then(function(d) { if (d.enabled) _aiExplanations = d.explanations || null; })
-                .catch(function() {});
+                .then(function(d) {
+                    // #region agent log
+                    console.log('[AI-EXPL] H2: API response =', JSON.stringify({enabled: d.enabled, keyCount: d.explanations ? Object.keys(d.explanations).length : 0, sampleKeys: d.explanations ? Object.keys(d.explanations).slice(0, 3) : []}));
+                    // #endregion
+                    if (d.enabled) _aiExplanations = d.explanations || null;
+                })
+                .catch(function(err) {
+                    // #region agent log
+                    console.log('[AI-EXPL] H1: prefetch FAILED', err);
+                    // #endregion
+                });
+        } else {
+            // #region agent log
+            console.log('[AI-EXPL] H1: NO courseSourcedId, prefetch skipped');
+            // #endregion
         }
 
         document.title = 'AlphaLearn - ' + (lessonData.title || 'Lesson');
@@ -1283,6 +1299,9 @@
         }
 
         // Override with AI explanation if available for this wrong choice
+        // #region agent log
+        console.log('[AI-EXPL] H4: _aiExplanations is', _aiExplanations ? 'LOADED (' + Object.keys(_aiExplanations).length + ' keys)' : 'NULL', '| isCorrect =', isCorrect);
+        // #endregion
         if (!isCorrect && _aiExplanations) {
             var _aiIds = [];
             if (quizState.attemptId && quizState.currentQuestion) {
@@ -1297,13 +1316,31 @@
                 if (_aiSq.id) _aiIds.push(_aiSq.id);
                 if (_aiSq.questionId) _aiIds.push(_aiSq.questionId);
             }
+            // #region agent log
+            console.log('[AI-EXPL] H3: trying IDs =', JSON.stringify(_aiIds), '| selectedChoice =', quizState.selectedChoice);
+            var _sampleExplKeys = Object.keys(_aiExplanations).slice(0, 3);
+            console.log('[AI-EXPL] H3: sample explanation keys =', JSON.stringify(_sampleExplKeys));
+            // #endregion
+            var _aiMatched = false;
             for (var _i = 0; _i < _aiIds.length; _i++) {
                 var _aiQid = _aiIds[_i];
                 if (_aiQid && _aiExplanations[_aiQid] && _aiExplanations[_aiQid][quizState.selectedChoice]) {
+                    // #region agent log
+                    console.log('[AI-EXPL] H3/H5: MATCH found! qid =', _aiQid, '| choiceId =', quizState.selectedChoice, '| explanation =', _aiExplanations[_aiQid][quizState.selectedChoice].substring(0, 80));
+                    // #endregion
                     feedback = _aiExplanations[_aiQid][quizState.selectedChoice];
+                    _aiMatched = true;
                     break;
                 }
             }
+            // #region agent log
+            if (!_aiMatched) {
+                console.log('[AI-EXPL] H3/H5: NO MATCH. Tried IDs:', JSON.stringify(_aiIds));
+                if (_aiIds.length > 0 && _aiExplanations[_aiIds[0]]) {
+                    console.log('[AI-EXPL] H5: qid matched but choice keys are:', JSON.stringify(Object.keys(_aiExplanations[_aiIds[0]])), '| selectedChoice =', quizState.selectedChoice);
+                }
+            }
+            // #endregion
         }
 
         // Silent skill tracking: log answer to KV (non-blocking, fire-and-forget)
