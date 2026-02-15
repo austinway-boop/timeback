@@ -2,8 +2,8 @@
 
 Uses Claude Opus to generate a self-contained HTML activity from a
 description and optional uploaded images (base64). The generation runs
-in a background thread (like frq-grade) and returns an activityId
-immediately for polling via /api/generate-activity-status.
+in a background thread and returns an activityId immediately for polling
+via /api/generate-activity-status.
 
 Body: {
     courseId: string,

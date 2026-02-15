@@ -1,5 +1,11 @@
 {
   "cleanUrls": true,
+  "functions": {
+    "api/generate-activity.py": { "maxDuration": 300 },
+    "api/article-cleanup.py": { "maxDuration": 300 },
+    "api/frq-grade.py": { "maxDuration": 300 },
+    "api/frq-generate.py": { "maxDuration": 120 }
+  },
   "rewrites": [
     { "source": "/api/users/:id", "destination": "/api/users/[sourced_id]" }
   ],
