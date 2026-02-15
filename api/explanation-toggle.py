@@ -70,7 +70,25 @@ class handler(BaseHTTPRequestHandler):
                 alias = str(alias).strip()
                 if alias and alias != course_id:
                     kv_set(f"explanation_alias:{alias}", course_id)
-                    # Also set the toggle for the alias directly for fast lookups
                     kv_set(f"explanations_enabled:{alias}", enabled)
+
+        # Auto-discover aliases from question ID prefixes in the explanations data.
+        # Question IDs look like "USHI23-qti104063-q1247901-v1" and the student page
+        # uses courseSourcedId like "USHI23-v1". Extract the prefix and create aliases.
+        saved = kv_get(f"explanations:{course_id}")
+        if isinstance(saved, dict) and saved.get("explanations"):
+            prefixes = set()
+            for qid in list(saved["explanations"].keys())[:50]:  # sample first 50
+                parts = str(qid).split("-")
+                if len(parts) >= 2:
+                    prefixes.add(parts[0])
+            for prefix in prefixes:
+                if prefix and prefix != course_id:
+                    # Save alias for common enrollment ID patterns
+                    for suffix in ["", "-v1", "-v2", "-v3"]:
+                        alias_id = prefix + suffix
+                        if alias_id != course_id:
+                            kv_set(f"explanation_alias:{alias_id}", course_id)
+                            kv_set(f"explanations_enabled:{alias_id}", enabled)
 
         send_json(self, {"enabled": enabled, "courseId": course_id})
