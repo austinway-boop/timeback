@@ -42,6 +42,12 @@ class handler(BaseHTTPRequestHandler):
                 "html": data.get("html", ""),
                 "description": data.get("description", ""),
             })
+        elif status == "generating":
+            send_json(self, {
+                "status": "generating",
+                "activityId": activity_id,
+                "partialHtml": data.get("partialHtml", ""),
+            })
         elif status == "error":
             send_json(self, {
                 "status": "error",

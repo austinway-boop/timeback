@@ -391,6 +391,20 @@
 }
 .ec-name-input:focus { border-color: var(--color-primary); }
 
+/* ---- Live Code Viewer ---- */
+.ec-code-viewer {
+    position: absolute; inset: 0; overflow: hidden;
+    background: #1a1a2e;
+}
+.ec-code-viewer pre {
+    margin: 0; padding: 16px; height: 100%; overflow: auto;
+    font-size: 0.75rem; line-height: 1.6; tab-size: 2;
+}
+.ec-code-viewer code {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    color: #e0e0e0; white-space: pre-wrap; word-break: break-all;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
     .ec-modal { width: 98vw; height: 95vh; }

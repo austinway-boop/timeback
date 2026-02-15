@@ -102,6 +102,7 @@ def _generate_async(activity_id, description, course_id, images):
             ),
         })
 
+        # Use streaming to save partial output as it generates
         resp = requests.post(
             ANTHROPIC_URL,
             headers={
@@ -112,6 +113,7 @@ def _generate_async(activity_id, description, course_id, images):
             json={
                 "model": MODEL,
                 "max_tokens": 16000,
+                "stream": True,
                 "thinking": {
                     "type": "enabled",
                     "budget_tokens": 10000,
@@ -120,6 +122,7 @@ def _generate_async(activity_id, description, course_id, images):
                 "messages": [{"role": "user", "content": user_content}],
             },
             timeout=300,
+            stream=True,
         )
 
         if resp.status_code != 200:
@@ -131,12 +134,58 @@ def _generate_async(activity_id, description, course_id, images):
             })
             return
 
-        data = resp.json()
+        # Parse SSE stream and accumulate text, saving partial results
         html = ""
-        for block in data.get("content", []):
-            if block.get("type") == "text":
-                html = block.get("text", "")
-                break
+        in_text_block = False
+        is_thinking = False
+        last_save_len = 0
+        save_interval = 200  # save to KV every ~200 chars of new text
+
+        for raw_line in resp.iter_lines():
+            if not raw_line:
+                continue
+            line = raw_line.decode("utf-8", errors="replace")
+
+            if line.startswith("event: "):
+                event_type = line[7:].strip()
+                if event_type == "content_block_stop":
+                    in_text_block = False
+                    is_thinking = False
+                continue
+
+            if not line.startswith("data: "):
+                continue
+
+            try:
+                data = json.loads(line[6:])
+            except (json.JSONDecodeError, ValueError):
+                continue
+
+            dtype = data.get("type", "")
+
+            # Track which block type we're in
+            if dtype == "content_block_start":
+                block = data.get("content_block", {})
+                btype = block.get("type", "")
+                is_thinking = btype == "thinking"
+                in_text_block = btype == "text"
+
+            # Accumulate text deltas (skip thinking deltas)
+            if dtype == "content_block_delta" and in_text_block and not is_thinking:
+                delta = data.get("delta", {})
+                if delta.get("type") == "text_delta":
+                    html += delta.get("text", "")
+
+                    # Periodically save partial output to KV
+                    if len(html) - last_save_len >= save_interval:
+                        last_save_len = len(html)
+                        kv_set(f"custom_activity:{activity_id}", {
+                            "status": "generating",
+                            "activityId": activity_id,
+                            "partialHtml": html,
+                            "description": description,
+                            "courseId": course_id,
+                        })
 
         # Clean up any markdown fences that Claude might have added
         html = html.strip()

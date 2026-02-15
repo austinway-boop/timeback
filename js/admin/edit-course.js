@@ -696,14 +696,16 @@
     function startActivityPolling(activityId) {
         stopActivityPolling();
         var elapsed = 0;
-        var interval = 5000; // poll every 5 seconds
+        var interval = 3000; // poll every 3 seconds for live code view
+
+        // Show the code viewer in the preview panel
+        showCodeViewer('');
 
         function poll() {
             elapsed += interval / 1000;
             var timeStr = elapsed < 60
                 ? Math.floor(elapsed) + 's'
                 : Math.floor(elapsed / 60) + 'm ' + (Math.floor(elapsed) % 60) + 's';
-            showGenerateStatus('Claude is creating your activity... (' + timeStr + ' elapsed)', false);
 
             fetch('/api/generate-activity-status?activityId=' + encodeURIComponent(activityId))
                 .then(function (r) { return r.json(); })
@@ -712,19 +714,27 @@
                         stopActivityPolling();
                         generatedHtml = data.html;
                         generatedActivityId = activityId;
-                        loadPreview(generatedHtml);
+
+                        // Show final code then switch to preview
+                        showCodeViewer(generatedHtml);
                         hideGenerateStatus();
+                        setTimeout(function () { loadPreview(generatedHtml); }, 500);
 
                         var btn = document.getElementById('ec-generate-btn');
                         var regenBtn = document.getElementById('ec-regenerate-btn');
                         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Activity'; }
                         if (regenBtn) regenBtn.disabled = false;
 
-                        // Show name row and enable reset
                         var nameRow = document.getElementById('ec-name-row');
                         if (nameRow) nameRow.style.display = '';
                         var resetBtn = document.getElementById('ec-reset-btn');
                         if (resetBtn) resetBtn.disabled = false;
+
+                    } else if (data.status === 'generating' && data.partialHtml) {
+                        // Live code update
+                        showGenerateStatus('Claude is writing code... (' + timeStr + ')', false);
+                        showCodeViewer(data.partialHtml);
+                        activityPollTimer = setTimeout(poll, interval);
 
                     } else if (data.status === 'error') {
                         stopActivityPolling();
@@ -736,17 +746,46 @@
                         if (regenBtn) regenBtn.disabled = false;
 
                     } else {
-                        // Still processing, keep polling
+                        // Still thinking / processing
+                        showGenerateStatus('Claude is thinking... (' + timeStr + ')', false);
                         activityPollTimer = setTimeout(poll, interval);
                     }
                 })
                 .catch(function () {
-                    // Network error, keep trying
                     activityPollTimer = setTimeout(poll, interval);
                 });
         }
 
         activityPollTimer = setTimeout(poll, interval);
+    }
+
+    function showCodeViewer(code) {
+        var wrap = document.getElementById('ec-preview-wrap');
+        if (!wrap) return;
+
+        var placeholder = document.getElementById('ec-preview-placeholder');
+        if (placeholder) placeholder.style.display = 'none';
+
+        // Remove iframe if present
+        var iframe = wrap.querySelector('iframe');
+        if (iframe) iframe.remove();
+
+        // Create or update code viewer
+        var viewer = wrap.querySelector('.ec-code-viewer');
+        if (!viewer) {
+            viewer = document.createElement('div');
+            viewer.className = 'ec-code-viewer';
+            viewer.innerHTML = '<pre><code></code></pre>';
+            wrap.appendChild(viewer);
+        }
+
+        var codeEl = viewer.querySelector('code');
+        if (codeEl) {
+            codeEl.textContent = code;
+            // Auto-scroll to bottom
+            var pre = viewer.querySelector('pre');
+            if (pre) pre.scrollTop = pre.scrollHeight;
+        }
     }
 
     function stopActivityPolling() {
@@ -773,6 +812,10 @@
         var wrap = document.getElementById('ec-preview-wrap');
         var placeholder = document.getElementById('ec-preview-placeholder');
         if (placeholder) placeholder.style.display = 'none';
+
+        // Remove code viewer if present
+        var codeViewer = wrap.querySelector('.ec-code-viewer');
+        if (codeViewer) codeViewer.remove();
 
         // Remove old iframe
         var old = wrap.querySelector('iframe');
