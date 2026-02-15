@@ -704,24 +704,18 @@
 
                     // Diagnostic cards get a distinct purple theme
                     if (t.type === 'diagnostic') {
-                        const diagGradient = 'linear-gradient(135deg,#F5F3FF 0%,#EDE9FE 50%,#DDD6FE 100%)';
                         const diagUrl = '/quiz?diagnosticId=' + encodeURIComponent(t._diagCourseId || '');
+                        const diagName = (t.title || '').replace(/^Diagnostic:\s*/i, '');
                         return `<div class="test-card" style="cursor:pointer;" onclick="window.location.href='${diagUrl}'">
-                            <div class="test-card-image" style="background:${diagGradient};">
-                                <div class="test-card-illustration" style="color:#6C5CE7;">
-                                    <i class="fa-solid fa-stethoscope"></i>
-                                </div>
+                            <div class="test-card-image" style="background:#EBF0F9;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                                <img src="/img/subjects/diagnostic.png" alt="Diagnostic" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
                             </div>
                             <div class="test-card-info">
                                 <div class="test-card-status">
                                     <span class="status-dot" style="background:#6C5CE7;"></span>
-                                    <span class="test-card-name">${esc(t.title)}</span>
+                                    <span class="test-card-name">${esc(diagName)}</span>
                                 </div>
-                                <div class="test-card-meta">
-                                    <span class="test-badge" style="background:#F5F3FF;color:#6C5CE7;">Mastery Test</span>
-                                    <span class="test-badge" style="background:#FFF8E1;color:#F57F17;">${isInProgress ? 'In Progress' : 'Required'}</span>
-                                </div>
-                                <div style="margin-top:8px;"><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;background:#6C5CE7;color:#fff;border-radius:6px;font-size:0.75rem;font-weight:600;"><i class="fa-solid fa-play" style="font-size:0.65rem;"></i> Take Diagnostic</span></div>
+                                <div style="margin-top:10px;"><span style="display:inline-flex;align-items:center;gap:5px;padding:6px 16px;background:#6C5CE7;color:#fff;border-radius:8px;font-size:0.8rem;font-weight:600;"><i class="fa-solid fa-play" style="font-size:0.65rem;"></i> Take Diagnostic</span></div>
                             </div>
                         </div>`;
                     }
