@@ -36,23 +36,37 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, {"error": "Missing courseId"}, 400)
             return
 
+        # #region agent log
+        debug = {"requestedId": course_id}
+        # #endregion
+
         # Try direct toggle check, then resolve alias
         enabled = kv_get(f"explanations_enabled:{course_id}")
+        # #region agent log
+        debug["directToggle"] = enabled
+        # #endregion
         lookup_id = course_id
         if not (enabled is True or enabled == "true"):
             resolved = _resolve_course_id(course_id)
+            # #region agent log
+            debug["resolvedId"] = resolved
+            debug["aliasRaw"] = kv_get(f"explanation_alias:{course_id}")
+            # #endregion
             if resolved != course_id:
                 enabled = kv_get(f"explanations_enabled:{resolved}")
                 lookup_id = resolved
+                # #region agent log
+                debug["resolvedToggle"] = enabled
+                # #endregion
 
         if not (enabled is True or enabled == "true"):
-            send_json(self, {"enabled": False})
+            send_json(self, {"enabled": False, "_debug": debug})
             return
 
         # Load explanations using resolved courseId
         saved = kv_get(f"explanations:{lookup_id}")
         if not isinstance(saved, dict) or not saved.get("explanations"):
-            send_json(self, {"enabled": False})
+            send_json(self, {"enabled": False, "_debug": {**debug, "dataFound": False, "lookupId": lookup_id}})
             return
 
         send_json(self, {

@@ -727,7 +727,7 @@
                 .then(function(r) { return r.json(); })
                 .then(function(d) {
                     // #region agent log
-                    console.log('[AI-EXPL] H2: API response =', JSON.stringify({enabled: d.enabled, keyCount: d.explanations ? Object.keys(d.explanations).length : 0, sampleKeys: d.explanations ? Object.keys(d.explanations).slice(0, 3) : []}));
+                    console.log('[AI-EXPL] H2: API response =', JSON.stringify({enabled: d.enabled, keyCount: d.explanations ? Object.keys(d.explanations).length : 0, sampleKeys: d.explanations ? Object.keys(d.explanations).slice(0, 3) : [], _debug: d._debug}));
                     // #endregion
                     if (d.enabled) _aiExplanations = d.explanations || null;
                 })
