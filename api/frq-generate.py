@@ -19,7 +19,7 @@ from api._kv import kv_set
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-MODEL = "claude-opus-4-6"
+MODEL = "claude-sonnet-4-20250514"
 
 
 def _build_generation_prompt(body: dict) -> tuple:
@@ -235,10 +235,10 @@ class handler(BaseHTTPRequestHandler):
                 },
                 json={
                     "model": MODEL,
-                    "max_tokens": 16000,
+                    "max_tokens": 10000,
                     "thinking": {
                         "type": "enabled",
-                        "budget_tokens": 10000,
+                        "budget_tokens": 5000,
                     },
                     "system": system_msg,
                     "messages": [{"role": "user", "content": user_msg}],

@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preload" href="/css/style.css?v=9" as="style">
     <link rel="stylesheet" href="/css/style.css?v=9">
-    <link rel="stylesheet" href="/css/pages/frq-playground.css?v=1">
+    <link rel="stylesheet" href="/css/pages/frq-playground.css?v=2">
 </head>
 <body data-view="student" data-active="frq">
 <div class="layout">
@@ -47,7 +47,13 @@
                     <h2 class="step-title">Select an AP Subject</h2>
                     <p class="step-desc">Choose the AP course you want to practice free-response questions for.</p>
                     <div class="subject-grid" id="subject-grid">
-                        <!-- Populated by JS -->
+                        <!-- Skeleton subject cards -->
+                        <div class="subject-card" style="pointer-events:none;"><div class="skeleton skeleton-circle" style="width:44px;height:44px;border-radius:8px;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:75%;"></div><div class="skeleton skeleton-text sm" style="width:40%;"></div></div></div>
+                        <div class="subject-card" style="pointer-events:none;"><div class="skeleton skeleton-circle" style="width:44px;height:44px;border-radius:8px;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:60%;"></div><div class="skeleton skeleton-text sm" style="width:35%;"></div></div></div>
+                        <div class="subject-card" style="pointer-events:none;"><div class="skeleton skeleton-circle" style="width:44px;height:44px;border-radius:8px;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:80%;"></div><div class="skeleton skeleton-text sm" style="width:45%;"></div></div></div>
+                        <div class="subject-card" style="pointer-events:none;"><div class="skeleton skeleton-circle" style="width:44px;height:44px;border-radius:8px;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:55%;"></div><div class="skeleton skeleton-text sm" style="width:30%;"></div></div></div>
+                        <div class="subject-card" style="pointer-events:none;"><div class="skeleton skeleton-circle" style="width:44px;height:44px;border-radius:8px;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:70%;"></div><div class="skeleton skeleton-text sm" style="width:42%;"></div></div></div>
+                        <div class="subject-card" style="pointer-events:none;"><div class="skeleton skeleton-circle" style="width:44px;height:44px;border-radius:8px;"></div><div style="flex:1;"><div class="skeleton skeleton-text" style="width:65%;"></div><div class="skeleton skeleton-text sm" style="width:38%;"></div></div></div>
                     </div>
                 </div>
 
@@ -87,7 +93,7 @@
 
                 <!-- Step 5: Writing Interface -->
                 <div class="wizard-panel" id="step-5">
-                    <button class="back-step-btn" onclick="FRQ.goToStep(4)"><i class="fa-solid fa-arrow-left"></i> Back to focus</button>
+                    <button class="back-step-btn" id="step5-back-btn" onclick="FRQ.goBackFromWrite()"><i class="fa-solid fa-arrow-left"></i> Back</button>
                     <div class="writing-layout">
                         <!-- Prompt + Reference Panel -->
                         <div class="prompt-panel" id="prompt-panel">
@@ -144,11 +150,29 @@
                 <!-- Step 6: Feedback / Results -->
                 <div class="wizard-panel" id="step-6">
                     <div class="results-container" id="results-container">
-                        <!-- Grading loading state -->
+                        <!-- Grading loading state (skeleton) -->
                         <div class="grading-loading" id="grading-loading">
-                            <div class="grading-spinner"></div>
-                            <h3>Grading your response...</h3>
-                            <p>Our AI is carefully evaluating your work against the official AP rubric. This usually takes 15-30 seconds.</p>
+                            <!-- Skeleton score overview -->
+                            <div class="score-overview" style="pointer-events:none;">
+                                <div class="skeleton" style="width:120px;height:48px;border-radius:8px;margin:0 auto 10px;"></div>
+                                <div class="skeleton skeleton-text" style="width:200px;margin:0 auto 20px;"></div>
+                                <div class="skeleton" style="height:10px;max-width:400px;border-radius:5px;margin:0 auto;"></div>
+                            </div>
+                            <!-- Skeleton rubric rows -->
+                            <div style="margin-top:16px;">
+                                <div class="rubric-row-card" style="pointer-events:none;"><div style="display:flex;justify-content:space-between;margin-bottom:12px;"><div class="skeleton skeleton-text" style="width:40%;"></div><div class="skeleton" style="width:60px;height:22px;border-radius:20px;"></div></div><div class="skeleton skeleton-text" style="width:100%;"></div><div class="skeleton skeleton-text" style="width:85%;"></div></div>
+                                <div class="rubric-row-card" style="pointer-events:none;"><div style="display:flex;justify-content:space-between;margin-bottom:12px;"><div class="skeleton skeleton-text" style="width:35%;"></div><div class="skeleton" style="width:60px;height:22px;border-radius:20px;"></div></div><div class="skeleton skeleton-text" style="width:95%;"></div><div class="skeleton skeleton-text" style="width:75%;"></div></div>
+                                <div class="rubric-row-card" style="pointer-events:none;"><div style="display:flex;justify-content:space-between;margin-bottom:12px;"><div class="skeleton skeleton-text" style="width:45%;"></div><div class="skeleton" style="width:60px;height:22px;border-radius:20px;"></div></div><div class="skeleton skeleton-text" style="width:90%;"></div><div class="skeleton skeleton-text" style="width:70%;"></div></div>
+                                <div class="rubric-row-card" style="pointer-events:none;"><div style="display:flex;justify-content:space-between;margin-bottom:12px;"><div class="skeleton skeleton-text" style="width:30%;"></div><div class="skeleton" style="width:60px;height:22px;border-radius:20px;"></div></div><div class="skeleton skeleton-text" style="width:100%;"></div><div class="skeleton skeleton-text" style="width:60%;"></div></div>
+                            </div>
+                            <!-- Skeleton overall feedback -->
+                            <div class="overall-feedback" style="margin-top:16px;pointer-events:none;">
+                                <div class="skeleton skeleton-text lg" style="width:50%;margin-bottom:16px;"></div>
+                                <div class="skeleton skeleton-text" style="width:100%;"></div>
+                                <div class="skeleton skeleton-text" style="width:90%;"></div>
+                                <div class="skeleton skeleton-text" style="width:95%;"></div>
+                                <div class="skeleton skeleton-text" style="width:60%;"></div>
+                            </div>
                         </div>
                         <!-- Results content (hidden until grading completes) -->
                         <div class="results-content" id="results-content" style="display:none;">
@@ -180,6 +204,6 @@
 <script src="/js/layout.js?v=20"></script>
 <script src="/js/notifications.js?v=7"></script>
 <script src="/js/app.js?v=7"></script>
-<script src="/js/pages/frq-playground.js?v=1"></script>
+<script src="/js/pages/frq-playground.js?v=2"></script>
 </body>
 </html>

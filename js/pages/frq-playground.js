@@ -928,6 +928,16 @@
         var types = AP_FRQ_TYPES[state.subject.category] || [];
         state.questionType = types.find(function (t) { return t.id === typeId; }) || null;
         if (!state.questionType) return;
+
+        // Skip step 4 entirely if there's only one sub-skill option (SAQs, science FRQs, CS, etc.)
+        if (!state.questionType.subSkills || state.questionType.subSkills.length <= 1) {
+            state.subSkill = 'full';
+            goToStep(4); // still mark step 4 as visited for the wizard indicator
+            // Auto-trigger generation
+            generatePrompt();
+            return;
+        }
+
         renderFocusOptions();
         goToStep(4);
     }
@@ -966,10 +976,37 @@
        STEP 5: GENERATE PROMPT + WRITING INTERFACE
        ====================================================================== */
 
+    function _showPromptSkeleton() {
+        var meta = document.getElementById('prompt-meta');
+        if (meta) meta.innerHTML = '<div class="skeleton skeleton-text" style="width:180px;height:12px;"></div>';
+        var body = document.getElementById('prompt-body');
+        if (body) body.innerHTML =
+            '<div class="skeleton skeleton-text lg" style="width:80%;margin-bottom:16px;"></div>' +
+            '<div class="skeleton skeleton-text" style="width:100%;"></div>' +
+            '<div class="skeleton skeleton-text" style="width:95%;"></div>' +
+            '<div class="skeleton skeleton-text" style="width:88%;"></div>' +
+            '<div class="skeleton skeleton-text" style="width:70%;margin-bottom:20px;"></div>' +
+            '<div class="skeleton skeleton-text" style="width:100%;"></div>' +
+            '<div class="skeleton skeleton-text" style="width:92%;"></div>' +
+            '<div class="skeleton skeleton-text" style="width:60%;"></div>';
+        var docsContainer = document.getElementById('prompt-documents');
+        if (docsContainer) docsContainer.style.display = 'none';
+        var refBtn = document.getElementById('ref-toggle-btn');
+        if (refBtn) refBtn.style.display = 'none';
+        var textarea = document.getElementById('response-textarea');
+        if (textarea) { textarea.value = ''; textarea.disabled = true; textarea.placeholder = 'Generating your prompt...'; }
+        var submitBtn = document.getElementById('submit-response-btn');
+        if (submitBtn) submitBtn.disabled = true;
+    }
+
     async function generatePrompt() {
         var btn = document.getElementById('generate-btn');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+
+        // Show skeleton immediately and navigate to writing step
+        _showPromptSkeleton();
+        goToStep(5);
 
         try {
             var selectedUnitNames = state.selectedUnits.map(function (uid) {
@@ -999,9 +1036,9 @@
             state.promptId = data.promptId;
             state.promptData = data;
             renderWritingInterface(data);
-            goToStep(5);
         } catch (e) {
             showToast('Failed to generate FRQ: ' + e.message);
+            goToStep(4);
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate FRQ';
@@ -1075,7 +1112,7 @@
 
         // Reset response area
         var textarea = document.getElementById('response-textarea');
-        if (textarea) { textarea.value = ''; textarea.disabled = false; }
+        if (textarea) { textarea.value = ''; textarea.disabled = false; textarea.placeholder = 'Write your response here...'; }
         updateWordCount();
 
         // Reset timer
@@ -1308,6 +1345,16 @@
             .map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('');
     }
 
+    /* ── Navigation helpers ──────────────────────── */
+    function goBackFromWrite() {
+        // If step 4 was skipped (only 1 sub-skill), go back to step 3
+        if (!state.questionType || !state.questionType.subSkills || state.questionType.subSkills.length <= 1) {
+            goToStep(3);
+        } else {
+            goToStep(4);
+        }
+    }
+
     /* ── Try Again / New FRQ ─────────────────────── */
     function tryAgain() {
         goToStep(5);
@@ -1406,6 +1453,7 @@
     // Expose public API
     window.FRQ = {
         goToStep: goToStep,
+        goBackFromWrite: goBackFromWrite,
         selectSubject: selectSubject,
         toggleAllUnits: toggleAllUnits,
         toggleUnit: toggleUnit,

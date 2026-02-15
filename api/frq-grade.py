@@ -20,7 +20,7 @@ from api._kv import kv_get, kv_set, kv_list_push
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-MODEL = "claude-opus-4-6"
+MODEL = "claude-sonnet-4-20250514"
 
 
 def _build_rubric_text(rubric: list) -> str:
@@ -190,10 +190,10 @@ def _grade_async(result_id: str, prompt_data: dict, body: dict):
             },
             json={
                 "model": MODEL,
-                "max_tokens": 16000,
+                "max_tokens": 8000,
                 "thinking": {
                     "type": "enabled",
-                    "budget_tokens": 16000,
+                    "budget_tokens": 8000,
                 },
                 "system": system_msg,
                 "messages": [{"role": "user", "content": user_msg}],
