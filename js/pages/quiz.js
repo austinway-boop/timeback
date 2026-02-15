@@ -246,6 +246,238 @@
             // If reading fetch failed, fall through to try other methods
         }
 
+        // ── 0b. Diagnostic assessment path ──────────────────────────────
+        var diagnosticId = params.get('diagnosticId') || '';
+        var isDiagPreview = params.get('preview') === '1';
+        if (diagnosticId) {
+            area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading diagnostic assessment...</div>';
+            try {
+                var diagUrl;
+                if (isDiagPreview) {
+                    diagUrl = '/api/diagnostic-status?courseId=' + encodeURIComponent(diagnosticId);
+                } else {
+                    diagUrl = '/api/diagnostic-quiz?studentId=' + encodeURIComponent(userId) + '&courseId=' + encodeURIComponent(diagnosticId);
+                }
+                var diagResp = await fetch(diagUrl);
+                var diagData = await diagResp.json();
+
+                if (diagData.error) {
+                    area.innerHTML = '<div class="loading-msg">' + esc(diagData.error) + '</div>';
+                    return;
+                }
+                if (diagData.status === 'completed') {
+                    area.innerHTML = '<div class="result-card"><div class="result-score">' + (diagData.score || 0) + '%</div><div class="result-label">Diagnostic already completed.</div></div>';
+                    return;
+                }
+
+                var diagItems = [];
+                var diagCourseTitle = '';
+                if (isDiagPreview) {
+                    diagItems = (diagData.diagnostic && diagData.diagnostic.items) || [];
+                    diagCourseTitle = (diagData.diagnostic && diagData.diagnostic.courseTitle) || '';
+                } else {
+                    diagItems = diagData.items || [];
+                    diagCourseTitle = diagData.courseTitle || '';
+                }
+
+                if (!diagItems.length) {
+                    area.innerHTML = '<div class="loading-msg">No questions found in this diagnostic.</div>';
+                    return;
+                }
+
+                // Set quiz state for diagnostic mode
+                quizState.title = diagCourseTitle + ' — Diagnostic';
+                quizState.isReadingQuiz = true; // enables split layout for stimulus
+                quizState.attemptId = null; // no PowerPath attempt
+
+                // Store diagnostic items and answers tracker
+                var _diagItemIdx = 0;
+                var _diagAnswers = {}; // itemId -> selectedOptionId
+                var _diagAllItems = diagItems;
+
+                // Override loadNextQuestion for diagnostic mode
+                loadNextQuestion = async function() {
+                    if (_diagItemIdx >= _diagAllItems.length) {
+                        // All questions answered — submit or show results
+                        _diagShowResults();
+                        return;
+                    }
+                    var dItem = _diagAllItems[_diagItemIdx];
+                    // Map diagnostic item to quiz.js format
+                    var q = {
+                        id: dItem.id || ('diag_' + _diagItemIdx),
+                        prompt: dItem.stem || '',
+                        choices: (dItem.options || []).map(function(o) {
+                            return { id: o.id, text: o.text, identifier: o.id };
+                        }),
+                        stimulus: dItem.stimulus || '',
+                        correctId: isDiagPreview ? (dItem.correctAnswer || '') : '', // only show correct in preview
+                        _diagItem: dItem,
+                    };
+                    quizState.currentQuestion = q;
+                    quizState.questionNum = _diagItemIdx + 1;
+                    quizState.selectedChoice = null;
+                    quizState.answered = false;
+                    quizState.crossOutMode = false;
+                    quizState.totalQuestions = _diagAllItems.length;
+                    renderQuestion(q);
+                };
+
+                // Override submitAnswer for diagnostic mode
+                window.submitAnswer = async function() {
+                    if (!quizState.selectedChoice || quizState.answered) return;
+                    quizState.answered = true;
+                    quizState.total++;
+
+                    var dItem = _diagAllItems[_diagItemIdx];
+                    var choiceId = quizState.selectedChoice;
+                    _diagAnswers[dItem.id || ('diag_' + _diagItemIdx)] = choiceId;
+
+                    var isCorrect = false;
+                    if (isDiagPreview && dItem.correctAnswer) {
+                        isCorrect = (choiceId === dItem.correctAnswer);
+                    }
+                    if (isCorrect) quizState.correct++;
+
+                    // Show feedback
+                    var feedbackEl = document.getElementById('feedback');
+                    if (feedbackEl && isDiagPreview) {
+                        feedbackEl.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
+                        // Find skillInsight for the selected option
+                        var insight = '';
+                        for (var oi = 0; oi < (dItem.options || []).length; oi++) {
+                            if ((dItem.options[oi].id || '') === choiceId) {
+                                insight = dItem.options[oi].skillInsight || dItem.options[oi].misconception || '';
+                                break;
+                            }
+                        }
+                        feedbackEl.innerHTML = (isCorrect ? '<strong><i class="fa-solid fa-check-circle"></i> Correct!</strong>' : '<strong><i class="fa-solid fa-times-circle"></i> Incorrect</strong>') +
+                            (insight ? '<p style="margin-top:8px;">' + esc(insight) + '</p>' : '');
+                    }
+
+                    // Highlight selected choice
+                    document.querySelectorAll('.choice').forEach(function(c) {
+                        if (c.dataset.id === choiceId) {
+                            c.classList.add(isDiagPreview ? (isCorrect ? 'correct' : 'incorrect') : 'selected');
+                        }
+                        if (isDiagPreview && dItem.correctAnswer && c.dataset.id === dItem.correctAnswer) {
+                            c.classList.add('correct');
+                        }
+                    });
+
+                    // Update button to "Next"
+                    var btn = document.getElementById('submit-btn');
+                    _diagItemIdx++;
+                    if (_diagItemIdx >= _diagAllItems.length) {
+                        btn.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Finish';
+                    } else {
+                        btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Next Question';
+                    }
+                    btn.disabled = false;
+                    btn.onclick = function() { loadNextQuestion(); };
+                };
+
+                // Show results at end of diagnostic
+                function _diagShowResults() {
+                    var quizWrap = document.querySelector('.quiz-wrap');
+                    if (quizWrap) quizWrap.classList.remove('wide-mode');
+
+                    if (!isDiagPreview && userId) {
+                        // Submit answers to backend
+                        fetch('/api/diagnostic-quiz', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                studentId: userId,
+                                courseId: diagnosticId,
+                                answers: _diagAnswers,
+                            }),
+                        }).then(function(r) { return r.json(); }).then(function(d) {
+                            if (d.results) _diagRenderResults(d.results);
+                            else _diagRenderResults(null);
+                        }).catch(function() { _diagRenderResults(null); });
+
+                        area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Scoring your assessment...</div>';
+                    } else {
+                        // Preview mode: score locally
+                        var correct = 0;
+                        var skillResults = {};
+                        for (var di = 0; di < _diagAllItems.length; di++) {
+                            var itm = _diagAllItems[di];
+                            var sel = _diagAnswers[itm.id || ('diag_' + di)] || '';
+                            var isCor = sel === (itm.correctAnswer || '');
+                            if (isCor) correct++;
+                            var sid = itm.gatewayNodeId || itm.skillNodeId || '';
+                            if (sid) {
+                                if (!skillResults[sid]) skillResults[sid] = { label: itm.gatewayNodeLabel || itm.skill || sid, tested: 0, correct: 0 };
+                                skillResults[sid].tested++;
+                                if (isCor) skillResults[sid].correct++;
+                            }
+                        }
+                        var scorePct = _diagAllItems.length > 0 ? Math.round((correct / _diagAllItems.length) * 1000) / 10 : 0;
+                        for (var sk in skillResults) { skillResults[sk].mastery = skillResults[sk].tested > 0 ? Math.round((skillResults[sk].correct / skillResults[sk].tested) * 1000) / 10 : 0; }
+                        _diagRenderResults({
+                            scorePercent: scorePct,
+                            correctCount: correct,
+                            totalItems: _diagAllItems.length,
+                            placementLevel: scorePct >= 80 ? { name: 'Advanced' } : scorePct >= 60 ? { name: 'Proficient' } : scorePct >= 40 ? { name: 'Developing' } : { name: 'Foundational' },
+                            skillResults: skillResults,
+                        });
+                    }
+                }
+
+                function _diagRenderResults(results) {
+                    if (!results) {
+                        area.innerHTML = '<div class="result-card"><div class="result-label">Assessment submitted.</div></div>';
+                        return;
+                    }
+                    var backHref = isDiagPreview ? '/admin/assign-tests' : '/dashboard';
+                    var backLabel = isDiagPreview ? 'Back to Assign Tests' : 'Back to Dashboard';
+                    var pl = results.placementLevel || {};
+                    var skills = results.skillResults || {};
+                    var skillKeys = Object.keys(skills);
+                    skillKeys.sort(function(a, b) { return (skills[a].mastery || 0) - (skills[b].mastery || 0); });
+
+                    var h = '<div class="result-card">' +
+                        '<div class="result-score">' + (results.scorePercent || 0) + '%</div>' +
+                        '<div class="result-label">' + (results.correctCount || 0) + ' of ' + (results.totalItems || 0) + ' correct</div>' +
+                        (pl.name ? '<div class="xp-badge" style="margin-top:12px;"><i class="fa-solid fa-award" style="margin-right:6px;"></i>Placement: ' + esc(pl.name) + '</div>' : '') +
+                        '<div class="result-details" style="margin-top:20px;">' +
+                            '<div class="result-stat"><div class="result-stat-val">' + (results.totalItems || 0) + '</div><div class="result-stat-label">Questions</div></div>' +
+                            '<div class="result-stat"><div class="result-stat-val" style="color:#2E7D32;">' + (results.correctCount || 0) + '</div><div class="result-stat-label">Correct</div></div>' +
+                            '<div class="result-stat"><div class="result-stat-val" style="color:#E53E3E;">' + ((results.totalItems || 0) - (results.correctCount || 0)) + '</div><div class="result-stat-label">Incorrect</div></div>' +
+                        '</div>';
+
+                    if (skillKeys.length > 0) {
+                        h += '<div style="text-align:left;margin-top:24px;border-top:1px solid var(--color-border);padding-top:16px;">' +
+                            '<div style="font-size:0.88rem;font-weight:700;margin-bottom:10px;"><i class="fa-solid fa-chart-bar" style="margin-right:6px;color:var(--color-primary);"></i>Skill Breakdown</div>';
+                        for (var si = 0; si < skillKeys.length; si++) {
+                            var skd = skills[skillKeys[si]];
+                            var m = skd.mastery || 0;
+                            var clr = m >= 80 ? '#2E7D32' : m >= 50 ? '#F57F17' : '#E53E3E';
+                            h += '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #f3f4f6;">' +
+                                '<div style="flex:1;font-size:0.8rem;">' + esc(skd.label) + '</div>' +
+                                '<div style="width:70px;height:4px;background:#f3f4f6;border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + m + '%;background:' + clr + ';border-radius:2px;"></div></div>' +
+                                '<div style="font-size:0.75rem;font-weight:700;min-width:32px;text-align:right;color:' + clr + ';">' + m + '%</div>' +
+                            '</div>';
+                        }
+                        h += '</div>';
+                    }
+
+                    h += '</div>';
+                    h += '<div style="text-align:center;margin-top:20px;"><a href="' + backHref + '" class="quiz-btn quiz-btn-primary" style="text-decoration:none;display:inline-flex;"><i class="fa-solid fa-arrow-left" style="margin-right:6px;"></i>' + backLabel + '</a></div>';
+                    area.innerHTML = h;
+                }
+
+                // Start first question
+                await loadNextQuestion();
+                return; // Don't fall through to PowerPath/QTI paths
+            } catch(e) {
+                area.innerHTML = '<div class="loading-msg">Failed to load diagnostic: ' + esc(e.message) + '</div>';
+                return;
+            }
+        }
+
         // ── 1. PowerPath adaptive flow (assessments only) ──
         if (!isReading && userId && (testId || lessonId)) {
             try {

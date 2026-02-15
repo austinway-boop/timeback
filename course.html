@@ -562,7 +562,7 @@
                 var diagData = await diagResp.json();
                 if (diagData.exists && diagData.assignment && (diagData.assignment.status === 'assigned' || diagData.assignment.status === 'in_progress')) {
                     // Redirect to diagnostic quiz — student must complete it first
-                    window.location.href = '/diagnostic?courseId=' + encodeURIComponent(courseId);
+                    window.location.href = '/quiz?diagnosticId=' + encodeURIComponent(courseId);
                     return;
                 }
             } catch(e) {

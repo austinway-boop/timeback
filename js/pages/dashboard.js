@@ -458,7 +458,7 @@
                 // Check for pending diagnostic — block course access
                 var courseSourcedId = (c._course || {}).sourcedId || (c._course || {}).id || '';
                 if (window._pendingDiagnosticCourseIds && window._pendingDiagnosticCourseIds.has(courseSourcedId)) {
-                    window.location.href = '/diagnostic?courseId=' + encodeURIComponent(courseSourcedId);
+                    window.location.href = '/quiz?diagnosticId=' + encodeURIComponent(courseSourcedId);
                     return;
                 }
 
@@ -705,7 +705,7 @@
                     // Diagnostic cards get a distinct purple theme
                     if (t.type === 'diagnostic') {
                         const diagGradient = 'linear-gradient(135deg,#F5F3FF 0%,#EDE9FE 50%,#DDD6FE 100%)';
-                        const diagUrl = '/diagnostic?courseId=' + encodeURIComponent(t._diagCourseId || '');
+                        const diagUrl = '/quiz?diagnosticId=' + encodeURIComponent(t._diagCourseId || '');
                         return `<div class="test-card" style="cursor:pointer;" onclick="window.location.href='${diagUrl}'">
                             <div class="test-card-image" style="background:${diagGradient};">
                                 <div class="test-card-illustration" style="color:#6C5CE7;">
