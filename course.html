@@ -819,7 +819,7 @@
                                         _prProg = progressById[_prAli];
                                     }
                                 }
-                                if (_prProg && (_isComplete(_prProg) || (typeof _prProg.score === 'number' && _prProg.score > 0))) {
+                                if (_prProg && _isComplete(_prProg)) {
                                     if (!pLDone) pLDone = true;
                                     pCompletedCount++;
                                 }
@@ -831,8 +831,12 @@
                         }
                         // Frontier: only advance when ALL activities in the lesson are complete.
                         // The next lesson must NOT unlock until every activity is finished.
-                        // API data is the single source of truth — no localStorage.
                         var pHasAny = (pTotalCount > 0 && pCompletedCount === pTotalCount);
+                        // Override: if the lesson page marked this lesson complete (e.g. quiz
+                        // finished with low PowerPath accuracy), trust that and advance frontier.
+                        if (!pHasAny && localStorage.getItem('completed_' + pLTitle) === 'true') {
+                            pHasAny = true;
+                        }
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
                         if (pLDone) { grandDoneAct += pCount; }
