@@ -133,6 +133,29 @@ class handler(BaseHTTPRequestHandler):
         # 1. Check for completed explanations
         saved = kv_get(f"explanations:{course_id}")
         if isinstance(saved, dict) and saved.get("explanations"):
+            # Auto-create aliases from question ID prefixes so student pages
+            # (which use a different courseId format) can find these explanations.
+            # Also propagate the enabled toggle to aliases.
+            try:
+                sample_keys = list(saved["explanations"].keys())[:20]
+                prefixes = set()
+                for qid in sample_keys:
+                    parts = str(qid).split("-")
+                    if parts:
+                        prefixes.add(parts[0])
+                enabled_val = kv_get(f"explanations_enabled:{course_id}")
+                is_enabled = enabled_val is True or enabled_val == "true"
+                for prefix in prefixes:
+                    if prefix and prefix != course_id:
+                        for suffix in ["", "-v1", "-v2", "-v3"]:
+                            alias_id = prefix + suffix
+                            if alias_id != course_id:
+                                kv_set(f"explanation_alias:{alias_id}", course_id)
+                                if is_enabled:
+                                    kv_set(f"explanations_enabled:{alias_id}", True)
+            except Exception:
+                pass
+
             send_json(self, {
                 "status": "done",
                 "explanations": saved["explanations"],
