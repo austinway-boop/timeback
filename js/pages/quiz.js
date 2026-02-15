@@ -551,10 +551,19 @@
         }
 
         // Override with AI explanation if available for this wrong choice
-        if (!isCorrect && _aiExplanations) {
-            var _aiQid = quizState.currentQuestion ? (quizState.currentQuestion.id || quizState.currentQuestion.questionId || '') : '';
-            if (_aiQid && _aiExplanations[_aiQid] && _aiExplanations[_aiQid][quizState.selectedChoice]) {
-                feedback = _aiExplanations[_aiQid][quizState.selectedChoice];
+        if (!isCorrect && _aiExplanations && quizState.currentQuestion) {
+            var _cq = quizState.currentQuestion;
+            var _aiIds = [];
+            if (_cq.qtiIdentifier) _aiIds.push(_cq.qtiIdentifier);
+            if (_cq.identifier) _aiIds.push(_cq.identifier);
+            if (_cq.id) _aiIds.push(_cq.id);
+            if (_cq.questionId) _aiIds.push(_cq.questionId);
+            for (var _i = 0; _i < _aiIds.length; _i++) {
+                var _aiQid = _aiIds[_i];
+                if (_aiQid && _aiExplanations[_aiQid] && _aiExplanations[_aiQid][quizState.selectedChoice]) {
+                    feedback = _aiExplanations[_aiQid][quizState.selectedChoice];
+                    break;
+                }
             }
         }
 

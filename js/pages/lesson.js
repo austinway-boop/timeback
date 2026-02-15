@@ -1284,15 +1284,25 @@
 
         // Override with AI explanation if available for this wrong choice
         if (!isCorrect && _aiExplanations) {
-            var _aiQid = '';
+            var _aiIds = [];
             if (quizState.attemptId && quizState.currentQuestion) {
-                _aiQid = quizState.currentQuestion.id || quizState.currentQuestion.questionId || '';
+                var _cq = quizState.currentQuestion;
+                if (_cq.qtiIdentifier) _aiIds.push(_cq.qtiIdentifier);
+                if (_cq.identifier) _aiIds.push(_cq.identifier);
+                if (_cq.id) _aiIds.push(_cq.id);
+                if (_cq.questionId) _aiIds.push(_cq.questionId);
             } else if (quizState.staticQuestions && quizState.staticQuestions[quizState.staticIdx]) {
                 var _aiSq = quizState.staticQuestions[quizState.staticIdx];
-                _aiQid = _aiSq.identifier || _aiSq.id || _aiSq.questionId || '';
+                if (_aiSq.identifier) _aiIds.push(_aiSq.identifier);
+                if (_aiSq.id) _aiIds.push(_aiSq.id);
+                if (_aiSq.questionId) _aiIds.push(_aiSq.questionId);
             }
-            if (_aiQid && _aiExplanations[_aiQid] && _aiExplanations[_aiQid][quizState.selectedChoice]) {
-                feedback = _aiExplanations[_aiQid][quizState.selectedChoice];
+            for (var _i = 0; _i < _aiIds.length; _i++) {
+                var _aiQid = _aiIds[_i];
+                if (_aiQid && _aiExplanations[_aiQid] && _aiExplanations[_aiQid][quizState.selectedChoice]) {
+                    feedback = _aiExplanations[_aiQid][quizState.selectedChoice];
+                    break;
+                }
             }
         }
 

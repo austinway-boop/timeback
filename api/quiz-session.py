@@ -27,6 +27,13 @@ def _extract_correct_answer(question):
     match = re.search(r'<qti-correct-response>\s*<qti-value>([^<]+)</qti-value>', raw_xml)
     return match.group(1) if match else None
 
+
+def _extract_qti_identifier(question):
+    """Extract the QTI identifier attribute from the question's raw XML."""
+    raw_xml = question.get("content", {}).get("rawXml", "") if isinstance(question.get("content"), dict) else ""
+    match = re.search(r'<qti-assessment-item[^>]+identifier="([^"]+)"', raw_xml)
+    return match.group(1) if match else None
+
 PP = f"{API_BASE}/powerpath"
 
 # Synthetic attemptId prefix so we can distinguish ours from a real one
@@ -96,6 +103,10 @@ class handler(BaseHTTPRequestHandler):
                                 cid = _extract_correct_answer(q)
                                 if cid:
                                     q["correctId"] = cid
+                                # Inject QTI identifier for explanation lookup
+                                qti_id = _extract_qti_identifier(q)
+                                if qti_id:
+                                    q["qtiIdentifier"] = qti_id
                                 q["totalQuestions"] = total_q
                                 q["answeredQuestions"] = answered_q
                                 send_json(self, q)
