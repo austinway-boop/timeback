@@ -44,11 +44,11 @@
         .choice:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
         .choice.selected { border-color: var(--color-primary); background: var(--color-primary-light); }
         .choice.correct { border-color: #2E7D32; background: #E8F5E9; }
-        .choice.incorrect { border-color: #E53E3E; background: #FFF5F5; }
+        .choice.incorrect { border-color: #2563EB; background: #EFF6FF; }
         .choice-letter { width: 32px; height: 32px; border-radius: 50%; background: var(--color-bg); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
         .choice.selected .choice-letter { background: var(--color-primary); color: #fff; }
         .choice.correct .choice-letter { background: #2E7D32; color: #fff; }
-        .choice.incorrect .choice-letter { background: #E53E3E; color: #fff; }
+        .choice.incorrect .choice-letter { background: #2563EB; color: #fff; }
         .choice-text { flex: 1; font-size: 0.95rem; line-height: 1.5; padding-top: 4px; }
         /* ── Crossout tool ── */
         .choice.crossed-out { opacity: 0.35; }
@@ -66,7 +66,7 @@
         .q-tools-row .question-num { margin-bottom: 0; flex: 1; }
         .feedback { padding: 16px; border-radius: 10px; margin-top: 16px; font-size: 0.9rem; line-height: 1.6; display: none; }
         .feedback.correct { background: #E8F5E9; border: 1px solid #A5D6A7; color: #1B5E20; display: block; }
-        .feedback.incorrect { background: #FFF5F5; border: 1px solid #FFCDD2; color: #B71C1C; display: block; }
+        .feedback.incorrect { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; display: block; }
         .quiz-btn { padding: 14px 28px; border: none; border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
         .quiz-btn-primary { background: var(--color-primary); color: #fff; }
         .quiz-btn-primary:hover { background: var(--color-primary-dark); }

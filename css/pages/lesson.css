@@ -252,7 +252,7 @@
         .choice:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
         .choice.selected { border-color: var(--color-primary); background: var(--color-primary-light); }
         .choice.correct { border-color: #16A34A; background: #DCFCE7; }
-        .choice.incorrect { border-color: #DC2626; background: #FEE2E2; }
+        .choice.incorrect { border-color: #2563EB; background: #EFF6FF; }
         .choice-letter {
             width: 28px; height: 28px; border-radius: 50%;
             background: #f3f4f6; display: flex; align-items: center;
@@ -261,7 +261,7 @@
         }
         .choice.selected .choice-letter { background: var(--color-primary); color: #fff; }
         .choice.correct .choice-letter { background: #16A34A; color: #fff; }
-        .choice.incorrect .choice-letter { background: #DC2626; color: #fff; }
+        .choice.incorrect .choice-letter { background: #2563EB; color: #fff; }
         .choice-text { flex: 1; font-size: 0.92rem; line-height: 1.5; padding-top: 2px; }
 
         /* ── Crossout tool ── */
@@ -284,7 +284,7 @@
             font-size: 0.88rem; line-height: 1.6; display: none;
         }
         .feedback.correct { background: #DCFCE7; color: #166534; display: block; }
-        .feedback.incorrect { background: #FEE2E2; color: #991B1B; display: block; }
+        .feedback.incorrect { background: #EFF6FF; color: #1E40AF; display: block; }
 
         .stimulus-box {
             background: #f9fafb; border: 1px solid #e5e7eb;
