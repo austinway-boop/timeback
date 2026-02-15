@@ -819,7 +819,7 @@
                                         _prProg = progressById[_prAli];
                                     }
                                 }
-                                if (_prProg && (_isComplete(_prProg) || (typeof _prProg.score === 'number'))) {
+                                if (_prProg && (_isComplete(_prProg) || (typeof _prProg.score === 'number' && _prProg.score > 0))) {
                                     if (!pLDone) pLDone = true;
                                     pCompletedCount++;
                                 }
@@ -829,10 +829,10 @@
                                 }
                             }
                         }
-                        // Frontier: advance when lesson-level progress shows completion,
-                        // OR when all individual activities are complete.
-                        // Accuracy does NOT gate progression — only completion matters.
-                        var pHasAny = pLDone || (pTotalCount > 0 && pCompletedCount === pTotalCount);
+                        // Frontier: only advance when ALL activities in the lesson are complete.
+                        // The next lesson must NOT unlock until every activity is finished.
+                        // API data is the single source of truth — no localStorage.
+                        var pHasAny = (pTotalCount > 0 && pCompletedCount === pTotalCount);
                         var pCount = Math.max(pRes.length, 1);
                         grandTotalAct += pCount;
                         if (pLDone) { grandDoneAct += pCount; }
