@@ -249,9 +249,6 @@
         // ── 0b. Diagnostic assessment path ──────────────────────────────
         var diagnosticId = params.get('diagnosticId') || '';
         var isDiagPreview = params.get('preview') === '1';
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'quiz.js:250',message:'Diagnostic path check',data:{diagnosticId:diagnosticId,isDiagPreview:isDiagPreview,allParams:window.location.search},timestamp:Date.now(),hypothesisId:'H4'})}).catch(function(){});
-        // #endregion
         if (diagnosticId) {
             area.innerHTML = '<div class="loading-msg"><div class="loading-spinner"></div>Loading diagnostic assessment...</div>';
             try {
@@ -282,10 +279,6 @@
                     diagItems = diagData.items || [];
                     diagCourseTitle = diagData.courseTitle || '';
                 }
-
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'quiz.js:275',message:'Diagnostic items loaded',data:{itemCount:diagItems.length,firstItemHasStimulus:diagItems.length>0?(diagItems[0].stimulus||'NONE'):null,firstItemStimulusLength:diagItems.length>0?(diagItems[0].stimulus||'').length:0,firstItemKeys:diagItems.length>0?Object.keys(diagItems[0]):[]},timestamp:Date.now(),hypothesisId:'H1,H2'})}).catch(function(){});
-                // #endregion
 
                 if (!diagItems.length) {
                     area.innerHTML = '<div class="loading-msg">No questions found in this diagnostic.</div>';
@@ -570,9 +563,6 @@
         var choices = _shuffleChoices(q.choices || q.options || q.answers || []);
         var stimulus = q.stimulus || q.passage || q.reading || '';
         if (typeof stimulus === 'object') stimulus = renderNode(stimulus);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'quiz.js:renderQuestion',message:'renderQuestion called',data:{hasPrompt:!!prompt,promptLen:(prompt||'').length,stimulusLen:(stimulus||'').length,stimulusPreview:(stimulus||'').substring(0,80),choiceCount:choices.length,isReadingQuiz:quizState.isReadingQuiz,qId:q.id},timestamp:Date.now(),hypothesisId:'H1,H3'})}).catch(function(){});
-        // #endregion
         var isFRQ = q.isFRQ || false;
         var expectedLines = q.expectedLines || 10;
 
@@ -614,9 +604,6 @@
         }
 
         var hasStimulus = (quizState.isReadingQuiz && quizState.accumulatedStimuli.length > 0) || (stimulus && stimulus.length > 10);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/858caa25-d3a3-4170-8821-08bc7b6ea2de',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'quiz.js:hasStimulus',message:'hasStimulus evaluation',data:{hasStimulus:hasStimulus,accumulatedCount:quizState.accumulatedStimuli.length,stimulusLen:(stimulus||'').length,isReadingQuiz:quizState.isReadingQuiz},timestamp:Date.now(),hypothesisId:'H3'})}).catch(function(){});
-        // #endregion
 
         // Extract images from prompt for side-by-side layout (like articles)
         var promptImages = '';
